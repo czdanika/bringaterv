@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bringaterv</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    >
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <div class="app-shell" id="appShell">
+
+      <!-- TOP NAV -->
+      <header class="topnav">
+        <div class="topnav-brand">
+          <img src="./src/assets/logo.png" alt="Bringaterv logó" class="topnav-logo">
+          <div class="topnav-brand-text">
+            <span class="topnav-name">Bringa<span class="brand-accent">terv</span></span>
+            <span class="topnav-slogan" data-i18n="app.slogan">Tervezz. Tekerj. Fedezd fel.</span>
+          </div>
+        </div>
+        <div class="topnav-end">
+          <a href="https://github.com/czdanika/map-path-nav" target="_blank" rel="noopener"
+            class="topnav-icon-btn" title="GitHub">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+          <a href="https://buymeacoffee.com/" target="_blank" rel="noopener"
+            class="topnav-icon-btn topnav-icon-btn--coffee" title="Buy me a coffee">
+            <i data-lucide="coffee" aria-hidden="true"></i>
+          </a>
+          <button id="themeToggle" class="topnav-icon-btn" type="button" title="Sötét/világos mód">
+            <i data-lucide="sun" aria-hidden="true"></i>
+          </button>
+          <div class="topnav-menu-wrap">
+            <button id="topnavMenuBtn" class="topnav-icon-btn" type="button" title="Menü">
+              <i data-lucide="menu" aria-hidden="true"></i>
+            </button>
+            <div id="topnavDropdown" class="topnav-dropdown" hidden>
+              <button class="dropdown-item" id="saveRouteButton" type="button">
+                <i data-lucide="save" aria-hidden="true"></i>
+                <span data-i18n="actions.save">Mentés</span>
+              </button>
+              <button class="dropdown-item" id="shareRouteButton" type="button">
+                <i data-lucide="share-2" aria-hidden="true"></i>
+                <span data-i18n="actions.share">Megosztás</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="shortcutButton" type="button">
+                <i data-lucide="keyboard" aria-hidden="true"></i>
+                <span data-i18n="shortcuts.title">Billentyűparancsok</span>
+              </button>
+              <button class="dropdown-item" id="settingsButton" type="button">
+                <i data-lucide="settings" aria-hidden="true"></i>
+                <span data-i18n="nav.settings">Beállítások</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+
+        <!-- SCROLLABLE BODY -->
+        <div class="sidebar-body">
+
+          <!-- Mód -->
+          <section class="sidebar-section collapsed-visible">
+            <h2 class="sidebar-section-title" data-i18n="sections.mode">Mód</h2>
+            <ul class="tool-menu" role="group" aria-label="Routing mode">
+              <li>
+                <button class="tool-menu-btn" data-route-mode="walking" type="button"
+                  title="Gyalog" data-i18n-title="modes.walking">
+                  <i data-lucide="footprints" aria-hidden="true"></i>
+                  <span data-i18n="modes.walking">Gyalog</span>
+                </button>
+              </li>
+              <li>
+                <button class="tool-menu-btn is-active" data-route-mode="cycling" type="button"
+                  title="Kerékpár" data-i18n-title="modes.cycling">
+                  <i data-lucide="bike" aria-hidden="true"></i>
+                  <span data-i18n="modes.cycling">Kerékpár</span>
+                </button>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Útvonal beállításai -->
+          <section class="sidebar-section">
+            <h2 class="sidebar-section-title" data-i18n="sections.options">Útvonal beállításai</h2>
+
+            <div class="option-row">
+              <span data-i18n="controls.snap">Útra illesztés</span>
+              <label class="toggle-switch">
+                <input id="snapToRoads" type="checkbox" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <div class="option-row">
+              <span data-i18n="controls.mapStyle">Térképstílus</span>
+              <div class="map-style-strip" role="group" aria-label="Térképstílus">
+                <button class="style-btn" data-map-style="cycling" type="button" title="Kerékpáros" data-i18n-title="mapStyles.cycling">
+                  <i data-lucide="bike" aria-hidden="true"></i>
+                </button>
+                <button class="style-btn is-active" data-map-style="standard" type="button" title="Standard" data-i18n-title="mapStyles.standard">
+                  <i data-lucide="map" aria-hidden="true"></i>
+                </button>
+                <button class="style-btn" data-map-style="satellite" type="button" title="Műholdas" data-i18n-title="mapStyles.satellite">
+                  <i data-lucide="satellite" aria-hidden="true"></i>
+                </button>
+                <button class="style-btn" data-map-style="topo" type="button" title="Domborzat" data-i18n-title="mapStyles.topo">
+                  <i data-lucide="mountain" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="option-row">
+              <span data-i18n="controls.units">Mértékegység</span>
+              <div class="radio-group" role="radiogroup" aria-label="Measurement units">
+                <label><input type="radio" name="units" value="metric" checked> <span data-i18n="units.metric">Metrikus</span></label>
+                <label><input type="radio" name="units" value="imperial"> <span data-i18n="units.imperial">Imperial</span></label>
+              </div>
+            </div>
+
+            <div class="option-row">
+              <span data-i18n="controls.stageInfo">Szakasz infó</span>
+              <label class="toggle-switch">
+                <input id="showStageInfo" type="checkbox" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+          </section>
+
+          <!-- Útvonal -->
+          <section class="sidebar-section route-section">
+            <div class="sidebar-section-header">
+              <h2 class="sidebar-section-title" data-i18n="sections.route">Útvonal</h2>
+              <button id="clearRoute" class="icon-button" type="button"
+                title="Útvonal törlése" aria-label="Útvonal törlése"
+                data-i18n-title="actions.clear" data-i18n-aria-label="actions.clear">
+                <i data-lucide="trash-2" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <!-- Keresés -->
+            <form id="searchForm" class="search-form">
+              <input id="searchInput" class="text-control" type="search" autocomplete="off"
+                data-i18n-placeholder="search.placeholder" placeholder="Hely keresése">
+              <button id="locateButton" class="locate-btn" type="button"
+                title="Saját helyzetem" data-i18n-title="actions.locate">
+                <i data-lucide="crosshair" aria-hidden="true"></i>
+              </button>
+            </form>
+            <div id="searchResults" class="search-results" aria-live="polite"></div>
+
+            <!-- Pontok listája -->
+            <ol id="waypointList" class="waypoint-list"></ol>
+            <p id="emptyState" class="empty-state" data-i18n="route.empty">
+              Kattints a térképre az első pont hozzáadásához.
+            </p>
+
+            <!-- Statisztikák -->
+            <div class="stats-panel" aria-label="Route statistics">
+              <div class="stat-card">
+                <span data-i18n="stats.distance">Távolság</span>
+                <strong id="distanceValue">—</strong>
+              </div>
+              <div class="stat-card">
+                <span data-i18n="stats.points">Pontok</span>
+                <strong id="pointCount">0</strong>
+              </div>
+              <div class="stat-card" id="ascentRow" hidden>
+                <span data-i18n="stats.ascent">↑ Emelkedő</span>
+                <strong id="ascentValue">—</strong>
+              </div>
+              <div class="stat-card" id="descentRow" hidden>
+                <span data-i18n="stats.descent">↓ Ereszkedő</span>
+                <strong id="descentValue">—</strong>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /sidebar-body -->
+
+        <!-- FOOTER -->
+        <footer class="sidebar-footer">
+          <button id="navToggle" class="nav-toggle-btn" type="button" aria-expanded="true"
+            title="Menü összecsukása" data-i18n-title="nav.collapse">
+            <i data-lucide="panel-left-close" aria-hidden="true"></i>
+          </button>
+          <span class="sidebar-version">v0.3</span>
+        </footer>
+
+      </aside>
+
+      <!-- MAP -->
+      <main class="map-wrap">
+        <div id="map"></div>
+        <div class="map-toolbar">
+          <button id="importButton" class="toolbar-btn" type="button" title="GPX importálása" data-i18n-title="actions.import">
+            <i data-lucide="upload" aria-hidden="true"></i>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button id="reverseRouteButton" class="toolbar-btn" type="button" title="Megfordítás" data-i18n-title="actions.reverse">
+            <i data-lucide="arrow-left-right" aria-hidden="true"></i>
+          </button>
+          <button id="undoButton" class="toolbar-btn" type="button" title="Visszavonás" data-i18n-title="actions.undo" disabled>
+            <i data-lucide="undo-2" aria-hidden="true"></i>
+          </button>
+          <button id="redoButton" class="toolbar-btn" type="button" title="Újra" data-i18n-title="actions.redo" disabled>
+            <i data-lucide="redo-2" aria-hidden="true"></i>
+          </button>
+          <button id="resetRouteButton" class="toolbar-btn" type="button" title="Törlés" data-i18n-title="actions.reset">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button id="exportButton" class="toolbar-btn toolbar-btn--primary" type="button" data-i18n="actions.export">
+            GPX mentése
+          </button>
+        </div>
+        <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml" hidden>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+        <!-- Measure bar -->
+        <div id="measureBar" class="measure-bar" hidden>
+          <i data-lucide="ruler" aria-hidden="true"></i>
+          <span id="measureTotal" class="measure-bar-dist">0 m</span>
+          <span id="measurePointCount" class="measure-bar-points">0 pont</span>
+          <button id="measureClear" class="measure-bar-clear" type="button" title="Mérés törlése">
+            <i data-lucide="x" aria-hidden="true"></i>
+            Mérés törlése
+          </button>
+        </div>
+
+        <!-- Shortcut overlay -->
+        <div id="shortcutOverlay" class="shortcut-overlay" hidden>
+          <div class="shortcut-card">
+            <div class="shortcut-card-header">
+              <h3 data-i18n="shortcuts.title">Billentyűparancsok</h3>
+              <button id="shortcutClose" class="shortcut-close" type="button">
+                <i data-lucide="x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <dl class="shortcut-list">
+              <dt data-i18n="shortcuts.clickMap">Kattintás a térképen</dt>
+              <dd data-i18n="shortcuts.addPoint">Pont hozzáadása</dd>
+              <dt data-i18n="shortcuts.ctrlI">Ctrl + i</dt>
+              <dd data-i18n="shortcuts.import">GPX importálása</dd>
+              <dt data-i18n="shortcuts.ctrlE">Ctrl + e</dt>
+              <dd data-i18n="shortcuts.export">Útvonal exportálása</dd>
+              <dt data-i18n="shortcuts.ctrlR">Ctrl + r</dt>
+              <dd data-i18n="shortcuts.reset">Útvonal nullázása</dd>
+            </dl>
+          </div>
+        </div>
+      </main>
+
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

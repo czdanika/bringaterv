@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Route4Me Test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Many point test</name></metadata>
+  <trk>
+    <name>Many point test</name>
+    <trkseg>
+      <trkpt lat="47.4979000" lon="19.0402000"></trkpt>
+      <trkpt lat="47.4984000" lon="19.0412000"></trkpt>
+      <trkpt lat="47.4989000" lon="19.0422000"></trkpt>
+      <trkpt lat="47.4994000" lon="19.0432000"></trkpt>
+      <trkpt lat="47.4999000" lon="19.0442000"></trkpt>
+      <trkpt lat="47.5004000" lon="19.0452000"></trkpt>
+      <trkpt lat="47.5009000" lon="19.0462000"></trkpt>
+      <trkpt lat="47.5014000" lon="19.0472000"></trkpt>
+      <trkpt lat="47.5019000" lon="19.0482000"></trkpt>
+      <trkpt lat="47.5024000" lon="19.0492000"></trkpt>
+      <trkpt lat="47.5029000" lon="19.0502000"></trkpt>
+      <trkpt lat="47.5034000" lon="19.0512000"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
