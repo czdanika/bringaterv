@@ -1,7 +1,7 @@
 import { createI18n } from "./i18n/i18n.js";
 import { createRouteStore } from "./state/routeStore.js";
 import { createMapAdapter } from "./map/mapAdapter.js";
-import { downloadGpx, exportGpx, importGpx } from "./gpx/gpx.js";
+import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry } from "./gpx/gpx.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
 
@@ -72,6 +72,7 @@ const elements = {
   measureTotal: document.querySelector("#measureTotal"),
   measurePointCount: document.querySelector("#measurePointCount"),
   measureClear: document.querySelector("#measureClear"),
+  gpxSampleWaypoints: document.querySelector("#gpxSampleWaypoints"),
 };
 
 async function addWaypointWithName(point) {
@@ -353,18 +354,29 @@ elements.importButton.addEventListener("click", () => elements.gpxInput.click())
 elements.gpxInput.addEventListener("change", async () => {
   const [file] = elements.gpxInput.files;
   if (!file) return;
-  const imported = await importGpx(file);
+  const imported = await importGpx(file, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
   store.replaceWaypoints(imported.waypoints, {
     geometry: imported.geometry,
     importedRoute: true,
     sourcePointCount: imported.sourcePointCount,
   });
+  const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
   store.setState({
     distanceMeters: calculateImportedDistance(imported.geometry),
+    ascentMeters,
+    descentMeters,
   });
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   setTimeout(() => mapAdapter.fitRoute(), 50);
   elements.gpxInput.value = "";
+
+  // Reverse geocode imported waypoints in the background
+  for (const wp of store.getState().waypoints) {
+    const name = await reverseGeocode(wp.lat, wp.lng);
+    if (name && store.getState().waypoints.some((w) => w.id === wp.id)) {
+      store.updateWaypoint(wp.id, { name });
+    }
+  }
 });
 
 document.addEventListener("keydown", (event) => {

@@ -29,12 +29,34 @@ Böngészőben fut, nincs backend, nincs regisztráció – egyszerűen megnyito
 - GPX fájl importálása trackpontokkal
 - GPX exportálás Strava-kompatibilis formátumban (`<type>` mező, waypoint nevek, megjegyzések)
 - Billentyűparancsok: `Ctrl+I` import, `Ctrl+E` export, `Ctrl+R` nullázás, `Ctrl+Z` visszavonás
+- Opcionális köztes pontok generálása importáláskor (beállításban kapcsolható)
+
+### Magassági és sebességadatok
+- Importált GPX-ből automatikusan kiszámított összesített emelkedő (↑) és ereszkedő (↓)
+- Egérrel az útvonal fölé húzva megjelenik a pillanatnyi sebesség és magasság (ha a GPX tartalmaz `<time>` és `<ele>` adatokat)
 
 ### Szerkesztőeszközök
 - Visszavonás / Újra (undo/redo) korlátlan lépésben
 - Útvonal megfordítása
 - Összesített távolság, pontszám, emelkedő és ereszkedő megjelenítése
 - Metrikus és imperial mértékegység
+
+---
+
+## Változások
+
+### v0.4
+- Emelkedő és ereszkedő megjelenítése importált GPX alapján (`<ele>` adatokból)
+- Hover tooltip az útvonal fölött: sebesség (km/h) és magasság (m), ha a GPX tartalmaz időbélyeget és magassági adatot
+- GPX köztes pontok kapcsoló a beállításokban (Start+Finish helyett 12 köztes pont)
+- Stabil hover érzékelés: pixeltávolság alapú detektálás, villogásmentes tooltip
+
+### v0.3
+- Teljes UI átdolgozás: vízszintes topnav, szélesebb sidebar (320px)
+- GitHub és Buy Me a Coffee linkek a fejlécben
+- Térkép stílusváltó ikonsor (Kerékpáros, Standard, Műholdas, Domborzat)
+- Verziószám megjelenítése a sidebar alján
+- Docker és docker-compose támogatás
 
 ---
 
@@ -121,8 +143,8 @@ A konténer mérete kb. **15–20 MB**, indulási ideje másodperceken belül va
 
 ## Tervezett fejlesztések
 
-- [ ] Útvonal mentése / betöltése (localStorage)
 - [ ] Magassági profil grafikon
+- [ ] Útvonal mentése / betöltése (localStorage)
 - [ ] Megosztható link generálása
 - [ ] Mobilbarát nézet és érintéses drag & drop
 - [ ] PWA / offline mód
@@ -137,4 +159,3 @@ MIT License – szabad felhasználás, módosítás és terjesztés.
 ---
 
 *Készítette: [@czdanika](https://github.com/czdanika)*
-

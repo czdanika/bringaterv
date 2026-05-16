@@ -64,6 +64,7 @@ export const translations = {
       mapStyle: "Map style",
       snap: "Follow roads when possible",
       stageInfo: "Display stage information",
+      gpxSample: "GPX intermediate points",
       units: "Units",
     },
     search: {
@@ -194,6 +195,7 @@ export const translations = {
       mapStyle: "Térképstílus",
       snap: "Útra illesztés, ha lehetséges",
       stageInfo: "Szakasz információk megjelenítése",
+      gpxSample: "GPX köztes pontok",
       units: "Mértékegység",
     },
     search: {

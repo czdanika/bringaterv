@@ -44,7 +44,7 @@ export function downloadGpx(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-export async function importGpx(file) {
+export async function importGpx(file, { sampleWaypoints = false } = {}) {
   const xml = await file.text();
   const documentXml = new DOMParser().parseFromString(xml, "application/xml");
   const parserError = documentXml.querySelector("parsererror");
@@ -59,27 +59,71 @@ export async function importGpx(file) {
   const namedWaypoints = nodesToPoints(waypointNodes);
   const waypoints = namedWaypoints.length
     ? namedWaypoints
-    : summarizeGeometryAsWaypoints(geometry);
+    : summarizeGeometryAsWaypoints(geometry, sampleWaypoints ? 12 : 0);
+
+  const geometryWithSpeed = calcSpeedForGeometry(geometry);
 
   return {
-    geometry: simplifyGeometry(geometry),
+    geometry: simplifyGeometry(geometryWithSpeed),
     sourcePointCount: geometry.length,
     waypoints,
   };
 }
 
 function nodesToPoints(nodes) {
-  return nodes.map((node, index) => ({
-    lat: Number(node.getAttribute("lat")),
-    lng: Number(node.getAttribute("lon")),
-    name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
-    note: node.querySelector("desc")?.textContent || "",
-  })).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  return nodes.map((node, index) => {
+    const eleText = node.querySelector("ele")?.textContent;
+    const ele = Number(eleText);
+    const timeText = node.querySelector("time")?.textContent;
+    return {
+      lat: Number(node.getAttribute("lat")),
+      lng: Number(node.getAttribute("lon")),
+      ele: Number.isFinite(ele) && eleText != null ? ele : null,
+      time: timeText ? new Date(timeText).getTime() : null,
+      name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
+      note: node.querySelector("desc")?.textContent || "",
+    };
+  }).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
 }
 
-function summarizeGeometryAsWaypoints(geometry) {
+function calcSpeedForGeometry(geometry) {
+  return geometry.map((pt, i) => {
+    if (i === 0 || !pt.time || !geometry[i - 1].time) return { ...pt, speed: null };
+    const dt = (pt.time - geometry[i - 1].time) / 1000;
+    if (dt < 1) return { ...pt, speed: null };
+    const prev = geometry[i - 1];
+    const dLat = (pt.lat - prev.lat) * Math.PI / 180;
+    const dLng = (pt.lng - prev.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(prev.lat * Math.PI / 180) * Math.cos(pt.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    const d = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return { ...pt, speed: Math.round((d / dt) * 3.6 * 10) / 10 };
+  });
+}
+
+export function calcElevationFromGeometry(geometry) {
+  let ascent = 0, descent = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const prev = geometry[i - 1].ele;
+    const curr = geometry[i].ele;
+    if (prev == null || curr == null) continue;
+    const diff = curr - prev;
+    if (diff > 0) ascent += diff;
+    else descent += Math.abs(diff);
+  }
+  return { ascentMeters: Math.round(ascent), descentMeters: Math.round(descent) };
+}
+
+function summarizeGeometryAsWaypoints(geometry, sampleCount = 0) {
   if (!geometry.length) return [];
   if (geometry.length === 1) return [{ ...geometry[0], name: "Start" }];
+  if (sampleCount > 2) {
+    const count = Math.min(sampleCount, geometry.length);
+    const step = (geometry.length - 1) / (count - 1);
+    return Array.from({ length: count }, (_, i) => {
+      const pt = geometry[Math.round(i * step)];
+      return { ...pt, name: `${i + 1}. pont` };
+    });
+  }
   return [
     { ...geometry[0], name: "Start" },
     { ...geometry[geometry.length - 1], name: "Finish" },
