@@ -179,6 +179,7 @@ let units = localStorage.getItem("route4meUnits") || "metric";
 let selectedWaypointId = null;
 let dragSrcIndex = null;
 let activeTool = "route";
+let importedColoredGeometry = null; // ha van sebességszínezés
 
 store.setState({
   mode: localStorage.getItem("route4meDefaultRouteMode") || "cycling",
@@ -206,7 +207,11 @@ store.subscribe(async (state) => {
   elements.redoButton.disabled = !state.canRedo;
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
-    mapAdapter.renderRoute(state.routeGeometry);
+    if (importedColoredGeometry) {
+      mapAdapter.renderColoredRoute(importedColoredGeometry);
+    } else {
+      mapAdapter.renderRoute(state.routeGeometry);
+    }
     return;
   }
   const routeSignature = JSON.stringify({
@@ -421,8 +426,10 @@ elements.gpxInput.addEventListener("change", async () => {
 
   const hasSpeed = imported.geometry.some(p => p.speed != null);
   if (hasSpeed) {
+    importedColoredGeometry = imported.geometry;
     mapAdapter.renderColoredRoute(imported.geometry);
   } else {
+    importedColoredGeometry = null;
     mapAdapter.renderRoute(imported.geometry);
   }
 
@@ -447,6 +454,7 @@ document.querySelector("#fileExportButton")?.addEventListener("click", () => {
   elements.exportButton.click();
 });
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
+  importedColoredGeometry = null;
   store.clear();
   mapAdapter.clearColoredRoute();
   clearFileTab();
