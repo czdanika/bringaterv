@@ -143,6 +143,46 @@ A konténer mérete kb. **15–20 MB**, indulási ideje másodperceken belül va
 
 ---
 
+## Portainer
+
+### Telepítés Repository módszerrel (ajánlott)
+
+Ez a módszer a GitHub repóból buildeli az alkalmazást – nem kell semmit kézzel letölteni.
+
+1. Portainer → **Stacks** → **Add Stack**
+2. Válaszd a **Repository** fület
+3. Töltsd ki:
+   - **Repository URL:** `https://github.com/czdanika/bringaterv`
+   - **Branch:** `main`
+   - **Compose path:** `docker-compose.yml`
+4. Kattints a **Deploy the stack** gombra
+
+Az alkalmazás elérhető: **http://[szerver-ip]:8080**
+
+---
+
+### Stack leíró (Web editor módszer)
+
+Ha nem Repository-ból, hanem kézzel szeretnéd beilleszteni, a Portainer **Stacks → Add Stack → Web editor** felületén másold be az alábbi YAML-t:
+
+```yaml
+services:
+  bringaterv:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - bringaterv_data:/usr/share/nginx/html
+    restart: unless-stopped
+
+volumes:
+  bringaterv_data:
+```
+
+> **Megjegyzés:** Web editor módban a `build:` direktíva nem támogatott, ezért az alkalmazás fájljait külön kell a volume-ba másolni, vagy használd a Repository módszert.
+
+---
+
 ## Tervezett fejlesztések
 
 - [ ] Magassági profil grafikon
