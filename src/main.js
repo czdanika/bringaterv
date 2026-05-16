@@ -37,8 +37,11 @@ function updateThemeIcon() {
 const tabButtons = document.querySelectorAll(".sidebar-tab");
 const tabPlan   = document.querySelector("#tabPlan");
 const tabFile   = document.querySelector("#tabFile");
+let currentTab = "plan";
 
 function switchTab(name) {
+  currentTab = name;
+  elements.appShell.classList.toggle("is-file-mode", name === "file");
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
   tabPlan.hidden = name !== "plan";
   tabFile.hidden = name !== "file";
@@ -76,9 +79,29 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
     document.querySelector("#fileMaxSpeed").textContent = `${max} km/h`;
   }
 
+  // HR stats
+  const hrs = geometry.map(p => p.hr).filter(h => h != null && h > 0);
+  const hasHr = hrs.length > 0;
+  const avgHrRowEl = document.querySelector("#fileAvgHrRow");
+  const maxHrRowEl = document.querySelector("#fileMaxHrRow");
+  if (avgHrRowEl) avgHrRowEl.hidden = !hasHr;
+  if (maxHrRowEl) maxHrRowEl.hidden = !hasHr;
+  if (hasHr) {
+    const avgHr = Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
+    const maxHr = Math.max(...hrs);
+    const avgHrEl = document.querySelector("#fileAvgHr");
+    const maxHrEl = document.querySelector("#fileMaxHr");
+    if (avgHrEl) avgHrEl.textContent = `${avgHr} bpm`;
+    if (maxHrEl) maxHrEl.textContent = `${maxHr} bpm`;
+  }
+
   // Speed legend
   const legendEl = document.querySelector("#speedLegend");
   if (legendEl) legendEl.hidden = !speedColored;
+
+  // HR legend
+  const hrLegendEl = document.querySelector("#hrLegend");
+  if (hrLegendEl) hrLegendEl.hidden = !hasHr;
 
   window.lucide?.createIcons();
 }
@@ -86,6 +109,10 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
 function clearFileTab() {
   document.querySelector("#fileEmptyState").hidden = false;
   document.querySelector("#fileDetails").hidden = true;
+  const speedLeg = document.querySelector("#speedLegend");
+  const hrLeg = document.querySelector("#hrLegend");
+  if (speedLeg) speedLeg.hidden = true;
+  if (hrLeg) hrLeg.hidden = true;
 }
 
 const elements = {
@@ -150,7 +177,10 @@ async function relocateWaypointWithName(id, lat, lng) {
 
 const mapAdapter = createMapAdapter({
   elementId: "map",
-  onMapClick: (point) => addWaypointWithName(point),
+  onMapClick: (point) => {
+    if (currentTab === "file") return; // view-only in file tab
+    addWaypointWithName(point);
+  },
   onRouteFallback: () => showToast(i18n.t("map.routeFailed")),
   onMarkerDrag: (id, lat, lng) => relocateWaypointWithName(id, lat, lng),
   onWaypointDelete: (id) => {
@@ -180,6 +210,7 @@ let selectedWaypointId = null;
 let dragSrcIndex = null;
 let activeTool = "route";
 let importedColoredGeometry = null; // ha van sebességszínezés
+let importedHrGeometry = null;      // ha van pulzusszínezés
 
 store.setState({
   mode: localStorage.getItem("route4meDefaultRouteMode") || "cycling",
@@ -208,8 +239,11 @@ store.subscribe(async (state) => {
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
     const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
     if (importedColoredGeometry && speedOn) {
       mapAdapter.renderColoredRoute(importedColoredGeometry);
+    } else if (importedHrGeometry && hrOn) {
+      mapAdapter.renderHrRoute(importedHrGeometry);
     } else {
       mapAdapter.renderRoute(state.routeGeometry);
     }
@@ -253,8 +287,31 @@ elements.mapStyleButtons.forEach((btn) => {
     localStorage.setItem("route4meMapStyle", style);
     syncMapStyleButtons(style);
     mapAdapter.setMapStyle(style);
+    // close layer picker if open
+    const picker = document.querySelector("#layerPicker");
+    const pickerBtn = document.querySelector("#layerPickerBtn");
+    if (picker) picker.hidden = true;
+    if (pickerBtn) pickerBtn.classList.remove("is-active");
   });
 });
+
+// Layer picker toggle
+const layerPickerBtn = document.querySelector("#layerPickerBtn");
+const layerPicker = document.querySelector("#layerPicker");
+layerPickerBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = !layerPicker.hidden;
+  layerPicker.hidden = isOpen;
+  layerPickerBtn.classList.toggle("is-active", !isOpen);
+  if (!isOpen) window.lucide?.createIcons();
+});
+document.addEventListener("click", () => {
+  if (layerPicker && !layerPicker.hidden) {
+    layerPicker.hidden = true;
+    layerPickerBtn?.classList.remove("is-active");
+  }
+});
+layerPicker?.addEventListener("click", (e) => e.stopPropagation());
 
 elements.toolButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -321,13 +378,22 @@ function syncMapStyleButtons(style) {
   });
 }
 
-elements.clearRoute.addEventListener("click", () => {
+function clearAllRouteState() {
+  importedColoredGeometry = null;
+  importedHrGeometry = null;
+  mapAdapter.clearColoredRoute();
+  mapAdapter.clearHrRoute();
   store.clear();
+  clearFileTab();
+}
+
+elements.clearRoute.addEventListener("click", () => {
+  clearAllRouteState();
   showToast(i18n.t("route.cleared"));
 });
 
 elements.resetRouteButton.addEventListener("click", () => {
-  store.clear();
+  clearAllRouteState();
   showToast(i18n.t("route.cleared"));
 });
 
@@ -412,6 +478,7 @@ elements.exportButton.addEventListener("click", () => {
 });
 
 elements.importButton.addEventListener("click", () => elements.gpxInput.click());
+document.querySelector("#fileEmptyState")?.addEventListener("click", () => elements.gpxInput.click());
 elements.gpxInput.addEventListener("change", async () => {
   const [file] = elements.gpxInput.files;
   if (!file) return;
@@ -426,6 +493,8 @@ elements.gpxInput.addEventListener("change", async () => {
   store.setState({ distanceMeters, ascentMeters, descentMeters });
 
   const hasSpeed = imported.geometry.some(p => p.speed != null);
+  const hasHr = imported.geometry.some(p => p.hr != null);
+
   if (hasSpeed) {
     importedColoredGeometry = imported.geometry;
     const toggle = document.querySelector("#speedMapToggle");
@@ -433,6 +502,21 @@ elements.gpxInput.addEventListener("change", async () => {
     mapAdapter.renderColoredRoute(imported.geometry);
   } else {
     importedColoredGeometry = null;
+    mapAdapter.clearColoredRoute();
+  }
+
+  if (hasHr) {
+    importedHrGeometry = imported.geometry;
+    const toggle = document.querySelector("#hrMapToggle");
+    if (toggle) toggle.checked = true;
+    // Only render HR route if speed isn't already showing
+    if (!hasSpeed) mapAdapter.renderHrRoute(imported.geometry);
+  } else {
+    importedHrGeometry = null;
+    mapAdapter.clearHrRoute();
+  }
+
+  if (!hasSpeed && !hasHr) {
     mapAdapter.renderRoute(imported.geometry);
   }
 
@@ -456,6 +540,16 @@ elements.gpxInput.addEventListener("change", async () => {
 document.querySelector("#fileExportButton")?.addEventListener("click", () => {
   elements.exportButton.click();
 });
+
+// Legend accordion (expand/collapse color items on header click)
+document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const legend = btn.closest(".speed-legend");
+    const expanded = legend.classList.toggle("is-expanded");
+    btn.setAttribute("aria-expanded", String(expanded));
+    window.lucide?.createIcons();
+  });
+});
 document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
   if (!importedColoredGeometry) return;
   const legend = document.querySelector("#speedLegend");
@@ -464,16 +558,39 @@ document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
     legend?.classList.remove("is-disabled");
   } else {
     mapAdapter.clearColoredRoute();
-    mapAdapter.renderRoute(store.getState().routeGeometry);
+    // Fall back to HR or plain route
+    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
+    if (importedHrGeometry && hrOn) {
+      mapAdapter.renderHrRoute(importedHrGeometry);
+    } else {
+      mapAdapter.renderRoute(store.getState().routeGeometry);
+    }
+    legend?.classList.add("is-disabled");
+  }
+});
+
+document.querySelector("#hrMapToggle")?.addEventListener("change", (e) => {
+  if (!importedHrGeometry) return;
+  const legend = document.querySelector("#hrLegend");
+  if (e.target.checked) {
+    // Only show HR if speed is off (speed takes priority)
+    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    if (!importedColoredGeometry || !speedOn) {
+      mapAdapter.renderHrRoute(importedHrGeometry);
+    }
+    legend?.classList.remove("is-disabled");
+  } else {
+    mapAdapter.clearHrRoute();
+    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    if (!importedColoredGeometry || !speedOn) {
+      mapAdapter.renderRoute(store.getState().routeGeometry);
+    }
     legend?.classList.add("is-disabled");
   }
 });
 
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
-  importedColoredGeometry = null;
-  store.clear();
-  mapAdapter.clearColoredRoute();
-  clearFileTab();
+  clearAllRouteState();
   switchTab("plan");
 });
 

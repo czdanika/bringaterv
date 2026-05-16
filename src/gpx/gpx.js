@@ -75,11 +75,15 @@ function nodesToPoints(nodes) {
     const eleText = node.querySelector("ele")?.textContent;
     const ele = Number(eleText);
     const timeText = node.querySelector("time")?.textContent;
+    // HR: Garmin uses <gpxtpx:hr>, namespace-agnostic query
+    const hrNode = node.getElementsByTagNameNS("*", "hr")[0];
+    const hr = hrNode ? Number(hrNode.textContent) : null;
     return {
       lat: Number(node.getAttribute("lat")),
       lng: Number(node.getAttribute("lon")),
       ele: Number.isFinite(ele) && eleText != null ? ele : null,
       time: timeText ? new Date(timeText).getTime() : null,
+      hr: hr != null && Number.isFinite(hr) && hr > 0 ? hr : null,
       name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
       note: node.querySelector("desc")?.textContent || "",
     };
@@ -87,7 +91,8 @@ function nodesToPoints(nodes) {
 }
 
 function calcSpeedForGeometry(geometry) {
-  return geometry.map((pt, i) => {
+  // 1. Nyers sebesség kiszámítása minden pontra
+  const raw = geometry.map((pt, i) => {
     if (i === 0 || !pt.time || !geometry[i - 1].time) return { ...pt, speed: null };
     const dt = (pt.time - geometry[i - 1].time) / 1000;
     if (dt < 1) return { ...pt, speed: null };
@@ -97,6 +102,17 @@ function calcSpeedForGeometry(geometry) {
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(prev.lat * Math.PI / 180) * Math.cos(pt.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
     const d = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return { ...pt, speed: Math.round((d / dt) * 3.6 * 10) / 10 };
+  });
+
+  // 2. Mozgó átlag simítás (7 pontos ablak) — kiszűri a GPS tüskéket, közelíti a Strava értékeket
+  const WINDOW = 7;
+  const half = Math.floor(WINDOW / 2);
+  return raw.map((pt, i) => {
+    if (pt.speed == null) return pt;
+    const neighbors = raw.slice(Math.max(0, i - half), Math.min(raw.length, i + half + 1))
+      .map(p => p.speed).filter(s => s != null);
+    const smoothed = Math.round(neighbors.reduce((s, v) => s + v, 0) / neighbors.length * 10) / 10;
+    return { ...pt, speed: smoothed };
   });
 }
 

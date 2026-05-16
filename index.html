@@ -222,10 +222,11 @@
           <div class="tab-panel" id="tabFile" hidden>
 
             <!-- Üres állapot -->
-            <p id="fileEmptyState" class="empty-state file-empty-state">
+            <button id="fileEmptyState" type="button" class="empty-state file-empty-state file-empty-trigger">
               <i data-lucide="file-input" aria-hidden="true"></i>
               <span data-i18n="file.empty">Importálj egy GPX fájlt a részletek megtekintéséhez.</span>
-            </p>
+              <span class="file-empty-hint">Kattints a betöltéshez</span>
+            </button>
 
             <!-- Fájl részletek -->
             <div id="fileDetails" hidden>
@@ -259,13 +260,24 @@
                   <span data-i18n="stats.maxSpeed">Max sebesség</span>
                   <strong id="fileMaxSpeed">—</strong>
                 </div>
+                <div class="stat-card" id="fileAvgHrRow" hidden>
+                  <span>⌀ Átlag pulzus</span>
+                  <strong id="fileAvgHr">—</strong>
+                </div>
+                <div class="stat-card" id="fileMaxHrRow" hidden>
+                  <span>Max pulzus</span>
+                  <strong id="fileMaxHr">—</strong>
+                </div>
               </div>
 
               <!-- Sebesség térkép kapcsoló -->
               <div id="speedLegend" class="speed-legend" hidden>
                 <div class="speed-legend-header">
-                  <span class="speed-legend-title">Sebesség térkép</span>
-                  <label class="toggle-switch">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Sebesség térkép</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <label class="toggle-switch" title="Sebességtérkép be/ki">
                     <input id="speedMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
                   </label>
@@ -280,6 +292,28 @@
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#F97316"></span>30–35 km/h</div>
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>35–40 km/h</div>
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#A855F7"></span>40+ km/h</div>
+                </div>
+              </div>
+
+              <!-- Pulzus térkép kapcsoló -->
+              <div id="hrLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Pulzus térkép</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <label class="toggle-switch" title="Pulzustérkép be/ki">
+                    <input id="hrMapToggle" type="checkbox" checked>
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#3B82F6"></span>&lt; 110 bpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#22C55E"></span>110–130 bpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EAB308"></span>130–150 bpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#F97316"></span>150–165 bpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>165–180 bpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#A855F7"></span>180+ bpm</div>
                 </div>
               </div>
 
@@ -305,7 +339,42 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <span class="sidebar-version">v0.5</span>
+          <div class="layer-picker-wrap">
+            <button id="layerPickerBtn" class="nav-toggle-btn" type="button" title="Térképstílus">
+              <i data-lucide="layers" aria-hidden="true"></i>
+            </button>
+            <div id="layerPicker" class="layer-picker" hidden>
+              <button class="layer-option" data-map-style="standard" type="button" title="Standard">
+                <i data-lucide="map" aria-hidden="true"></i>
+                <span>Standard</span>
+              </button>
+              <button class="layer-option" data-map-style="cycling" type="button" title="Kerékpáros">
+                <i data-lucide="bike" aria-hidden="true"></i>
+                <span>Kerékpár</span>
+              </button>
+              <button class="layer-option" data-map-style="topo" type="button" title="Domborzat">
+                <i data-lucide="mountain" aria-hidden="true"></i>
+                <span>Domborzat</span>
+              </button>
+              <button class="layer-option" data-map-style="satellite" type="button" title="Műholdas">
+                <i data-lucide="satellite" aria-hidden="true"></i>
+                <span>Műhold</span>
+              </button>
+              <button class="layer-option" data-map-style="hybrid" type="button" title="Hybrid">
+                <i data-lucide="satellite" aria-hidden="true"></i>
+                <span>Hybrid</span>
+              </button>
+              <button class="layer-option" data-map-style="light" type="button" title="Világos">
+                <i data-lucide="sun" aria-hidden="true"></i>
+                <span>Világos</span>
+              </button>
+              <button class="layer-option" data-map-style="dark" type="button" title="Sötét">
+                <i data-lucide="moon" aria-hidden="true"></i>
+                <span>Sötét</span>
+              </button>
+            </div>
+          </div>
+          <span class="sidebar-version">v0.6</span>
         </footer>
 
       </aside>
@@ -313,6 +382,7 @@
       <!-- MAP -->
       <main class="map-wrap">
         <div id="map"></div>
+
         <div class="map-toolbar">
           <button id="importButton" class="toolbar-btn" type="button" title="GPX importálása" data-i18n-title="actions.import">
             <i data-lucide="upload" aria-hidden="true"></i>
