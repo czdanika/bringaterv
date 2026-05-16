@@ -33,6 +33,57 @@ function updateThemeIcon() {
   window.lucide?.createIcons();
 }
 
+// ── Tab state ──────────────────────────────────────────────
+const tabButtons = document.querySelectorAll(".sidebar-tab");
+const tabPlan   = document.querySelector("#tabPlan");
+const tabFile   = document.querySelector("#tabFile");
+
+function switchTab(name) {
+  tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
+  tabPlan.hidden = name !== "plan";
+  tabFile.hidden = name !== "file";
+  window.lucide?.createIcons();
+}
+
+tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+
+// ── File tab helpers ────────────────────────────────────────
+function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters }) {
+  document.querySelector("#fileEmptyState").hidden = true;
+  const details = document.querySelector("#fileDetails");
+  details.hidden = false;
+
+  document.querySelector("#importedFileName").textContent = filename;
+  document.querySelector("#fileDistance").textContent = formatDisplayDistance(distanceMeters);
+  document.querySelector("#filePoints").textContent = geometry.length.toLocaleString();
+
+  const hasEle = ascentMeters > 0 || descentMeters > 0;
+  document.querySelector("#fileAscentRow").hidden = !hasEle;
+  document.querySelector("#fileDescentRow").hidden = !hasEle;
+  if (hasEle) {
+    document.querySelector("#fileAscent").textContent = `${ascentMeters} m`;
+    document.querySelector("#fileDescent").textContent = `${descentMeters} m`;
+  }
+
+  const speeds = geometry.map(p => p.speed).filter(s => s != null && s < 120 && s > 0);
+  const hasSpeed = speeds.length > 0;
+  document.querySelector("#fileAvgSpeedRow").hidden = !hasSpeed;
+  document.querySelector("#fileMaxSpeedRow").hidden = !hasSpeed;
+  if (hasSpeed) {
+    const avg = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10;
+    const max = Math.round(Math.max(...speeds) * 10) / 10;
+    document.querySelector("#fileAvgSpeed").textContent = `${avg} km/h`;
+    document.querySelector("#fileMaxSpeed").textContent = `${max} km/h`;
+  }
+
+  window.lucide?.createIcons();
+}
+
+function clearFileTab() {
+  document.querySelector("#fileEmptyState").hidden = false;
+  document.querySelector("#fileDetails").hidden = true;
+}
+
 const elements = {
   appShell: document.querySelector("#appShell"),
   navToggle: document.querySelector("#navToggle"),
@@ -361,11 +412,12 @@ elements.gpxInput.addEventListener("change", async () => {
     sourcePointCount: imported.sourcePointCount,
   });
   const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
-  store.setState({
-    distanceMeters: calculateImportedDistance(imported.geometry),
-    ascentMeters,
-    descentMeters,
-  });
+  const distanceMeters = calculateImportedDistance(imported.geometry);
+  store.setState({ distanceMeters, ascentMeters, descentMeters });
+
+  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters });
+  switchTab("file");
+
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   setTimeout(() => mapAdapter.fitRoute(), 50);
   elements.gpxInput.value = "";
@@ -377,6 +429,16 @@ elements.gpxInput.addEventListener("change", async () => {
       store.updateWaypoint(wp.id, { name });
     }
   }
+});
+
+// File tab action buttons
+document.querySelector("#fileExportButton")?.addEventListener("click", () => {
+  elements.exportButton.click();
+});
+document.querySelector("#fileClearButton")?.addEventListener("click", () => {
+  store.clear();
+  clearFileTab();
+  switchTab("plan");
 });
 
 document.addEventListener("keydown", (event) => {
