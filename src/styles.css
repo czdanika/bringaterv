@@ -1,3 +1,6 @@
+/* Ensure [hidden] always hides elements regardless of display class */
+[hidden] { display: none !important; }
+
 :root {
   color-scheme: light;
   --bg:            #ffffff;
@@ -735,6 +738,27 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   text-align: center;
 }
 .file-empty-state svg { width: 36px; height: 36px; opacity: 0.3; }
+.file-empty-trigger {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: inherit;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.file-empty-trigger:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.file-empty-trigger:hover svg { opacity: 0.6; }
+.file-empty-hint {
+  font-size: 11px;
+  color: var(--brand);
+  font-weight: 600;
+  opacity: 0.85;
+}
 .file-header {
   display: flex;
   align-items: center;
@@ -788,22 +812,61 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 4px;
 }
+.speed-legend-expand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.speed-legend-expand:hover .speed-legend-title { color: var(--text); }
 .speed-legend-title {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
+  transition: color 140ms;
+}
+.legend-chevron {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.28s ease;
+}
+.speed-legend.is-expanded .legend-chevron {
+  transform: rotate(180deg);
 }
 .speed-legend-items {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 8px;
-  transition: opacity 0.2s;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.speed-legend.is-expanded .speed-legend-items {
+  max-height: 300px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 4px;
 }
 .speed-legend.is-disabled .speed-legend-items {
+  opacity: 0.35;
+}
+.speed-legend.is-expanded.is-disabled .speed-legend-items {
   opacity: 0.35;
 }
 .speed-legend-item {
@@ -855,6 +918,10 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   background: var(--sidebar-bg);
   flex-shrink: 0;
   gap: 8px;
+  position: relative;
+}
+.layer-picker-wrap {
+  position: relative;
 }
 .sidebar-version {
   flex: 1;
@@ -878,13 +945,6 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 .nav-toggle-btn:hover { background: var(--panel-strong); }
 .nav-toggle-btn svg { width: 17px; height: 17px; }
-.sidebar-version {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-left: 8px;
-}
-
 /* ── Floating map toolbar ───────────────────────────── */
 .map-toolbar {
   position: absolute;
@@ -932,6 +992,43 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   margin: 0 4px;
   flex-shrink: 0;
 }
+
+/* ── Layer picker ───────────────────────────────────── */
+.layer-picker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 650;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.22);
+  min-width: 154px;
+}
+.layer-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  white-space: nowrap;
+  text-align: left;
+}
+.layer-option:hover { background: var(--panel-strong); color: var(--text); }
+.layer-option.is-active { background: var(--brand-soft); color: var(--brand); }
+.layer-option svg { width: 16px; height: 16px; flex-shrink: 0; stroke-width: 1.8; }
+.nav-toggle-btn.is-active { color: var(--brand); background: var(--brand-soft); }
 
 /* ── Measure bar ────────────────────────────────────── */
 .measure-bar {
@@ -1084,6 +1181,39 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .app-shell.is-nav-collapsed .sidebar-section-title {
   display: none;
 }
+.app-shell.is-nav-collapsed .sidebar-tabs {
+  flex-direction: column;
+  border-bottom: none;
+  border-right: 2px solid var(--line);
+  gap: 2px;
+  padding: 4px 0;
+}
+.app-shell.is-nav-collapsed .sidebar-tab {
+  padding: 10px 0;
+  border-bottom: none;
+  border-right: 2px solid transparent;
+  margin-bottom: 0;
+  margin-right: -2px;
+  flex-direction: column;
+  gap: 0;
+}
+.app-shell.is-nav-collapsed .sidebar-tab.is-active {
+  border-bottom-color: transparent;
+  border-right-color: var(--brand);
+}
+.app-shell.is-nav-collapsed .sidebar-tab span {
+  display: none;
+}
+/* Collapsed: layer picker version text hidden, picker pops to the right */
+.app-shell.is-nav-collapsed .sidebar-version { display: none; }
+.app-shell.is-nav-collapsed .layer-picker {
+  bottom: 0;
+  left: calc(100% + 8px);
+}
+
+/* ── File tab view-only mode ──────────────────────────── */
+.app-shell.is-file-mode .map-toolbar { display: none !important; }
+.app-shell.is-file-mode #map { cursor: default !important; }
 
 /* ── Map ────────────────────────────────────────────── */
 .map-wrap {

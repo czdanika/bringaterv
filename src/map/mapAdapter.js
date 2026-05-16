@@ -78,6 +78,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
 
     const parts = [];
     if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
+    if (nearest.hr != null) parts.push(`❤️ ${nearest.hr} bpm`);
     if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
     if (!parts.length) return;
 
@@ -306,24 +307,8 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   }
 
   function renderColoredRoute(geometry) {
-    coloredRouteGroup.clearLayers();
+    renderSegments(coloredRouteGroup, geometry, p => speedColor(p.speed), "#3B82F6");
     routeLayer.setLatLngs([]);
-
-    // Group consecutive same-color segments for performance
-    let segStart = 0;
-    let currentColor = speedColor(geometry[1]?.speed) ?? "#3B82F6";
-
-    for (let i = 2; i <= geometry.length; i++) {
-      const color = i < geometry.length ? (speedColor(geometry[i].speed) ?? "#3B82F6") : null;
-      if (color !== currentColor || i === geometry.length) {
-        const seg = geometry.slice(segStart, i).map(p => [p.lat, p.lng]);
-        L.polyline(seg, { color: currentColor, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" })
-          .addTo(coloredRouteGroup);
-        segStart = i - 1;
-        currentColor = color;
-      }
-    }
-
     if (!map.hasLayer(coloredRouteGroup)) coloredRouteGroup.addTo(map);
   }
 
@@ -332,8 +317,50 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     if (map.hasLayer(coloredRouteGroup)) map.removeLayer(coloredRouteGroup);
   }
 
+  // HR-colored route
+  const hrRouteGroup = L.layerGroup();
+
+  function hrColor(hr) {
+    if (hr == null) return null;
+    if (hr < 110) return "#3B82F6";  // kék    – könnyű
+    if (hr < 130) return "#22C55E";  // zöld   – aerob
+    if (hr < 150) return "#EAB308";  // sárga  – tempo
+    if (hr < 165) return "#F97316";  // narancs – küszöb
+    if (hr < 180) return "#EF4444";  // piros  – VO2 max
+    return "#A855F7";                // lila   – anaerob
+  }
+
+  function renderSegments(group, geometry, valueFn, fallback) {
+    group.clearLayers();
+    let segStart = 0;
+    let currentColor = valueFn(geometry[1]) ?? fallback;
+
+    for (let i = 2; i <= geometry.length; i++) {
+      const color = i < geometry.length ? (valueFn(geometry[i]) ?? fallback) : null;
+      if (color !== currentColor || i === geometry.length) {
+        const seg = geometry.slice(segStart, i).map(p => [p.lat, p.lng]);
+        L.polyline(seg, { color: currentColor, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" })
+          .addTo(group);
+        segStart = i - 1;
+        currentColor = color;
+      }
+    }
+  }
+
+  function renderHrRoute(geometry) {
+    renderSegments(hrRouteGroup, geometry, p => hrColor(p.hr), "#3B82F6");
+    routeLayer.setLatLngs([]);
+    if (!map.hasLayer(hrRouteGroup)) hrRouteGroup.addTo(map);
+  }
+
+  function clearHrRoute() {
+    hrRouteGroup.clearLayers();
+    if (map.hasLayer(hrRouteGroup)) map.removeLayer(hrRouteGroup);
+  }
+
   function renderRoute(geometry) {
     clearColoredRoute();
+    clearHrRoute();
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     if (geometry.length > 1) {
@@ -421,6 +448,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       }
     },
     clearColoredRoute,
+    renderHrRoute: (geometry) => {
+      hoverGeometry = geometry;
+      renderHrRoute(geometry);
+      if (geometry.length > 1) {
+        const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      }
+    },
+    clearHrRoute,
     renderWaypoints,
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);
