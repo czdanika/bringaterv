@@ -294,12 +294,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
 
   function speedColor(speed) {
     if (speed == null) return null;
-    if (speed < 20) return "#3B82F6";  // kék
-    if (speed < 25) return "#22C55E";  // zöld
-    if (speed < 30) return "#EAB308";  // sárga
-    if (speed < 35) return "#F97316";  // narancs
-    if (speed < 40) return "#EF4444";  // piros
-    return "#A855F7";                  // lila
+    if (speed <  5) return "#9CA3AF";  // szürke    – megállás / tolás
+    if (speed < 10) return "#1E3A8A";  // sötétkék  – nagyon lassú
+    if (speed < 15) return "#3B82F6";  // kék       – lassú
+    if (speed < 20) return "#06B6D4";  // cián      – közepes-lassú
+    if (speed < 25) return "#22C55E";  // zöld      – közepes
+    if (speed < 30) return "#EAB308";  // sárga     – gyors
+    if (speed < 35) return "#F97316";  // narancs   – nagyon gyors
+    if (speed < 40) return "#EF4444";  // piros     – sprint
+    return "#A855F7";                  // lila      – 40+
   }
 
   function renderColoredRoute(geometry) {
