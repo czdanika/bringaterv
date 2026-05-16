@@ -1,5 +1,7 @@
 # Bringaterv
 
+![Bringaterv](src/assets/banner.jpg)
+
 **Nyílt forráskódú GPX útvonaltervező kerékpárosoknak és gyalogosoknak.**
 Böngészőben fut, nincs backend, nincs regisztráció – egyszerűen megnyitod és tervezel.
 
