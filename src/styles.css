@@ -801,6 +801,10 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 8px;
+  transition: opacity 0.2s;
+}
+.speed-legend.is-disabled .speed-legend-items {
+  opacity: 0.35;
 }
 .speed-legend-item {
   display: flex;

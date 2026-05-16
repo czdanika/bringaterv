@@ -458,11 +458,14 @@ document.querySelector("#fileExportButton")?.addEventListener("click", () => {
 });
 document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
   if (!importedColoredGeometry) return;
+  const legend = document.querySelector("#speedLegend");
   if (e.target.checked) {
     mapAdapter.renderColoredRoute(importedColoredGeometry);
+    legend?.classList.remove("is-disabled");
   } else {
     mapAdapter.clearColoredRoute();
     mapAdapter.renderRoute(store.getState().routeGeometry);
+    legend?.classList.add("is-disabled");
   }
 });
 
