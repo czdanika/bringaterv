@@ -55,6 +55,50 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   let userLocationMarker;
   let userAccuracyCircle;
 
+  // Hover tooltip state
+  let hoverGeometry = [];
+  let hoverMarker = null;
+  const hoverTooltip = L.tooltip({ permanent: true, direction: "top", offset: [0, -10], className: "route-hover-tooltip" });
+  const HOVER_PX_THRESHOLD = 20;
+
+  map.on("mousemove", (e) => {
+    if (!hoverGeometry.length) return;
+    const nearest = findNearestPoint(hoverGeometry, e.latlng);
+    if (!nearest) return;
+
+    const nearestPx = map.latLngToContainerPoint([nearest.lat, nearest.lng]);
+    const dist = e.containerPoint.distanceTo(nearestPx);
+
+    if (dist > HOVER_PX_THRESHOLD) {
+      hoverMarker?.remove();
+      hoverMarker = null;
+      if (map.hasLayer(hoverTooltip)) hoverTooltip.remove();
+      return;
+    }
+
+    const parts = [];
+    if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
+    if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
+    if (!parts.length) return;
+
+    const latlng = [nearest.lat, nearest.lng];
+    if (!hoverMarker) {
+      hoverMarker = L.circleMarker(latlng, {
+        radius: 6, color: "#fff", weight: 2, fillColor: "#1976d2", fillOpacity: 1,
+      }).addTo(map);
+    } else {
+      hoverMarker.setLatLng(latlng);
+    }
+    hoverTooltip.setContent(parts.join("  ·  ")).setLatLng(latlng);
+    if (!map.hasLayer(hoverTooltip)) hoverTooltip.addTo(map);
+  });
+
+  map.on("mouseout", () => {
+    hoverMarker?.remove();
+    hoverMarker = null;
+    if (map.hasLayer(hoverTooltip)) hoverTooltip.remove();
+  });
+
   // Measurement mode
   let activeTool = "route";
   let measurePoints = [];
@@ -246,6 +290,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   }
 
   function renderRoute(geometry) {
+    hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     if (geometry.length > 1) {
       map.fitBounds(routeLayer.getBounds(), { padding: [44, 44], maxZoom: 15 });
@@ -359,6 +404,16 @@ function calcElevation(coords) {
     else descent += Math.abs(diff);
   }
   return { ascentMeters: Math.round(ascent), descentMeters: Math.round(descent) };
+}
+
+function findNearestPoint(geometry, latlng) {
+  let minDist = Infinity;
+  let nearest = null;
+  for (const pt of geometry) {
+    const d = latlng.distanceTo([pt.lat, pt.lng]);
+    if (d < minDist) { minDist = d; nearest = pt; }
+  }
+  return nearest;
 }
 
 export function straightLineRoute(waypoints) {

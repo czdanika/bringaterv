@@ -68,7 +68,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .app-shell {
   display: grid;
   grid-template-rows: 56px 1fr;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 320px 1fr;
   height: 100vh;
   min-height: 620px;
   transition: grid-template-columns 200ms ease;
@@ -96,10 +96,10 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   gap: 12px;
 }
 .topnav-logo {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
   flex-shrink: 0;
 }
 .topnav-brand-text {
@@ -110,12 +110,12 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .topnav-name {
   font-family: 'Montserrat', ui-sans-serif, sans-serif;
   font-weight: 700;
-  font-size: 17px;
+  font-size: 22px;
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
 .topnav-slogan {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
   font-weight: 500;
   white-space: nowrap;
@@ -231,7 +231,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 
 /* Sections */
 .sidebar-section {
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 .sidebar-section-title {
@@ -240,14 +240,14 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
-  margin: 0 0 4px;
-  padding: 0 14px;
+  margin: 0 0 6px;
+  padding: 0 16px;
 }
 .sidebar-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px 4px 14px;
+  padding: 0 12px 6px 16px;
 }
 .sidebar-section-header .sidebar-section-title {
   margin-bottom: 0;
@@ -258,7 +258,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .tool-menu {
   list-style: none;
   margin: 0;
-  padding: 0 6px;
+  padding: 0 8px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -302,7 +302,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   justify-content: space-between;
   gap: 12px;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
   font-weight: 500;
@@ -395,7 +395,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   grid-template-columns: 1fr auto auto;
   gap: 6px;
   margin-bottom: 8px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 .text-control {
   width: 100%;
@@ -407,7 +407,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   color: var(--text);
   font-size: 13px;
 }
-.search-results { display: grid; gap: 6px; margin-top: 6px; padding: 0 14px; }
+.search-results { display: grid; gap: 6px; margin-top: 6px; padding: 0 16px; }
 .result-button {
   width: 100%;
   padding: 8px 10px;
@@ -445,7 +445,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: grid;
   gap: 4px;
   margin: 0;
-  padding: 0 6px;
+  padding: 0 8px;
   list-style: none;
 }
 .waypoint {
@@ -520,7 +520,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   cursor: pointer;
   user-select: none;
 }
-.empty-state { margin: 4px 14px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.empty-state { margin: 4px 16px; color: var(--muted); font-size: 13px; line-height: 1.45; }
 
 /* Mini remove button */
 .mini-button {
@@ -652,7 +652,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  padding: 10px 6px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--line);
 }
 .stat-card {
@@ -724,6 +724,14 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   border-top: 1px solid var(--line);
   background: var(--sidebar-bg);
   flex-shrink: 0;
+  gap: 8px;
+}
+.sidebar-version {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
 }
 .nav-toggle-btn {
   display: grid;
@@ -975,6 +983,21 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   z-index: 600;
 }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+/* Route hover tooltip */
+.route-hover-tooltip {
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 5px 10px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.route-hover-tooltip::before { display: none !important; }
 
 /* Waypoint markers */
 .wpt-icon-outer {
