@@ -48,7 +48,7 @@ function switchTab(name) {
 tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
 
 // ── File tab helpers ────────────────────────────────────────
-function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters }) {
+function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false }) {
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
   details.hidden = false;
@@ -75,6 +75,10 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
     document.querySelector("#fileAvgSpeed").textContent = `${avg} km/h`;
     document.querySelector("#fileMaxSpeed").textContent = `${max} km/h`;
   }
+
+  // Speed legend
+  const legendEl = document.querySelector("#speedLegend");
+  if (legendEl) legendEl.hidden = !speedColored;
 
   window.lucide?.createIcons();
 }
@@ -415,7 +419,14 @@ elements.gpxInput.addEventListener("change", async () => {
   const distanceMeters = calculateImportedDistance(imported.geometry);
   store.setState({ distanceMeters, ascentMeters, descentMeters });
 
-  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters });
+  const hasSpeed = imported.geometry.some(p => p.speed != null);
+  if (hasSpeed) {
+    mapAdapter.renderColoredRoute(imported.geometry);
+  } else {
+    mapAdapter.renderRoute(imported.geometry);
+  }
+
+  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed });
   switchTab("file");
 
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
@@ -437,6 +448,7 @@ document.querySelector("#fileExportButton")?.addEventListener("click", () => {
 });
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
   store.clear();
+  mapAdapter.clearColoredRoute();
   clearFileTab();
   switchTab("plan");
 });
