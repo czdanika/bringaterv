@@ -3,8 +3,6 @@
 **Nyílt forráskódú GPX útvonaltervező kerékpárosoknak és gyalogosoknak.**
 Böngészőben fut, nincs backend, nincs regisztráció – egyszerűen megnyitod és tervezel.
 
-🌐 **Élő demo:** [bringaterv.app](https://preview--map-path-nav.lovable.app)
-
 ---
 
 ## Funkciók
