@@ -289,7 +289,48 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     return el;
   }
 
+  // Speed-colored route
+  const coloredRouteGroup = L.layerGroup();
+
+  function speedColor(speed) {
+    if (speed == null) return null;
+    if (speed < 20) return "#3B82F6";  // kék
+    if (speed < 25) return "#22C55E";  // zöld
+    if (speed < 30) return "#EAB308";  // sárga
+    if (speed < 35) return "#F97316";  // narancs
+    if (speed < 40) return "#EF4444";  // piros
+    return "#A855F7";                  // lila
+  }
+
+  function renderColoredRoute(geometry) {
+    coloredRouteGroup.clearLayers();
+    routeLayer.setLatLngs([]);
+
+    // Group consecutive same-color segments for performance
+    let segStart = 0;
+    let currentColor = speedColor(geometry[1]?.speed) ?? "#3B82F6";
+
+    for (let i = 2; i <= geometry.length; i++) {
+      const color = i < geometry.length ? (speedColor(geometry[i].speed) ?? "#3B82F6") : null;
+      if (color !== currentColor || i === geometry.length) {
+        const seg = geometry.slice(segStart, i).map(p => [p.lat, p.lng]);
+        L.polyline(seg, { color: currentColor, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" })
+          .addTo(coloredRouteGroup);
+        segStart = i - 1;
+        currentColor = color;
+      }
+    }
+
+    if (!map.hasLayer(coloredRouteGroup)) coloredRouteGroup.addTo(map);
+  }
+
+  function clearColoredRoute() {
+    coloredRouteGroup.clearLayers();
+    if (map.hasLayer(coloredRouteGroup)) map.removeLayer(coloredRouteGroup);
+  }
+
   function renderRoute(geometry) {
+    clearColoredRoute();
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     if (geometry.length > 1) {
@@ -368,6 +409,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     },
     focusWaypoint: (lat, lng) => map.setView([lat, lng], Math.max(map.getZoom(), 15)),
     renderRoute,
+    renderColoredRoute: (geometry) => {
+      hoverGeometry = geometry;
+      renderColoredRoute(geometry);
+      if (geometry.length > 1) {
+        const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      }
+    },
+    clearColoredRoute,
     renderWaypoints,
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);
