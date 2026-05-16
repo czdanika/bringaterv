@@ -207,7 +207,8 @@ store.subscribe(async (state) => {
   elements.redoButton.disabled = !state.canRedo;
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
-    if (importedColoredGeometry) {
+    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    if (importedColoredGeometry && speedOn) {
       mapAdapter.renderColoredRoute(importedColoredGeometry);
     } else {
       mapAdapter.renderRoute(state.routeGeometry);
@@ -427,6 +428,8 @@ elements.gpxInput.addEventListener("change", async () => {
   const hasSpeed = imported.geometry.some(p => p.speed != null);
   if (hasSpeed) {
     importedColoredGeometry = imported.geometry;
+    const toggle = document.querySelector("#speedMapToggle");
+    if (toggle) toggle.checked = true;
     mapAdapter.renderColoredRoute(imported.geometry);
   } else {
     importedColoredGeometry = null;
@@ -453,6 +456,16 @@ elements.gpxInput.addEventListener("change", async () => {
 document.querySelector("#fileExportButton")?.addEventListener("click", () => {
   elements.exportButton.click();
 });
+document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
+  if (!importedColoredGeometry) return;
+  if (e.target.checked) {
+    mapAdapter.renderColoredRoute(importedColoredGeometry);
+  } else {
+    mapAdapter.clearColoredRoute();
+    mapAdapter.renderRoute(store.getState().routeGeometry);
+  }
+});
+
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
   importedColoredGeometry = null;
   store.clear();
