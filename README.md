@@ -38,22 +38,6 @@ Böngészőben fut, nincs backend, nincs regisztráció – egyszerűen megnyito
 
 ---
 
-## Technológiai stack
-
-| Réteg | Megoldás |
-|---|---|
-| Térkép | [Leaflet.js](https://leafletjs.com/) 1.9 |
-| Alaptérkép | OpenStreetMap / CyclOSM / OpenTopoMap / Esri |
-| Útvonalszámítás | [BRouter](https://brouter.de/) (külső API) |
-| Geocoding | [Nominatim](https://nominatim.org/) (OSM) |
-| GPX | saját parser/generator, függőség nélkül |
-| Ikonok | [Lucide](https://lucide.dev/) (UMD CDN) |
-| Betűtípus | [Montserrat](https://fonts.google.com/specimen/Montserrat) (Google Fonts) |
-| Frontend | Vanilla JS ES modulok, CSS custom properties |
-| Backend | nincs – statikus fájlok |
-
----
-
 ## Projekt struktúra
 
 ```
@@ -153,3 +137,4 @@ MIT License – szabad felhasználás, módosítás és terjesztés.
 ---
 
 *Készítette: [@czdanika](https://github.com/czdanika)*
+
