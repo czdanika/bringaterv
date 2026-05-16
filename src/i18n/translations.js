@@ -25,6 +25,10 @@ export const translations = {
       defaultMode: "Default planning mode",
       defaultSnap: "Use road following by default",
     },
+    tabs: {
+      plan: "Planning",
+      file: "Loaded file",
+    },
     sections: {
       mode: "Mode",
       tools: "Tools",
@@ -121,6 +125,11 @@ export const translations = {
       points: "Points",
       ascent: "↑ Ascent",
       descent: "↓ Descent",
+      avgSpeed: "⌀ Avg speed",
+      maxSpeed: "Max speed",
+    },
+    file: {
+      empty: "Import a GPX file to view its details.",
     },
     map: {
       routeFailed: "Road routing failed, so the route is shown as a straight line.",
@@ -155,6 +164,10 @@ export const translations = {
       defaultRoute: "Alapértelmezett útvonal",
       defaultMode: "Alapértelmezett tervezési mód",
       defaultSnap: "Útra illesztés használata alapból",
+    },
+    tabs: {
+      plan: "Tervezés",
+      file: "Betöltött fájl",
     },
     sections: {
       mode: "Mód",
@@ -252,6 +265,11 @@ export const translations = {
       points: "Pontok",
       ascent: "↑ Emelkedő",
       descent: "↓ Ereszkedő",
+      avgSpeed: "⌀ Átlag sebesség",
+      maxSpeed: "Max sebesség",
+    },
+    file: {
+      empty: "Importálj egy GPX fájlt a részletek megtekintéséhez.",
     },
     map: {
       routeFailed: "Az útra illesztés nem sikerült, ezért egyenes vonalként jelenik meg.",
