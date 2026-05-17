@@ -1,8 +1,6 @@
 services:
   bringaterv:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/czdanika/bringaterv:latest
     ports:
       - "8080:80"
     restart: unless-stopped
