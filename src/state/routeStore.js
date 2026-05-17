@@ -84,7 +84,7 @@ export function createRouteStore() {
     state = {
       ...state,
       waypoints: waypoints.map((point) => ({
-        id: crypto.randomUUID(),
+        id: generateId(),
         name: point.name ?? "",
         note: point.note ?? "",
         lat: point.lat,
