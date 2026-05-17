@@ -11,6 +11,44 @@ import { buildElevationData, buildSpeedData, buildHrData, initElevationChart } f
 
 requireAuth();
 
+// ── Verzióellenőrzés ──────────────────────────────────────────────────────────
+const APP_VERSION = "v0.9.1";
+
+function parseVersion(v) {
+  return String(v).replace(/^v/, "").split(".").map(Number);
+}
+function isNewerVersion(latest, current) {
+  const l = parseVersion(latest);
+  const c = parseVersion(current);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    const lv = l[i] ?? 0;
+    const cv = c[i] ?? 0;
+    if (lv > cv) return true;
+    if (lv < cv) return false;
+  }
+  return false;
+}
+async function checkForUpdate() {
+  try {
+    const res = await fetch(
+      "https://api.github.com/repos/czdanika/bringaterv/releases/latest",
+      { cache: "no-store" }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const latest = data.tag_name;
+    if (latest && isNewerVersion(latest, APP_VERSION)) {
+      const dot = document.querySelector("#updateDot");
+      if (dot) {
+        dot.hidden = false;
+        dot.title = `Új verzió elérhető: ${latest}`;
+      }
+    }
+  } catch {
+    // hálózati hiba – csendben ignoráljuk
+  }
+}
+
 const initialLanguage = localStorage.getItem("routePlannerLanguage") || "hu";
 const i18n = createI18n(initialLanguage);
 const store = createRouteStore();
@@ -379,6 +417,7 @@ syncLayerPickerBtn(savedMapStyle);
 syncSidebarStyleBtn(savedMapStyle);
 syncFileStyleBtn(savedMapStyle);
 mapAdapter.setMapStyle(savedMapStyle);
+checkForUpdate(); // GitHub release ellenőrzés – oldalbetöltéskor
 elements.unitInputs.forEach((input) => {
   input.checked = input.value === units;
 });
@@ -1187,12 +1226,15 @@ elements.gpxInput.addEventListener("change", async () => {
   importedCadGeometry     = hasCad  ? imported.geometry : null;
   importedHrGeometry      = hasHr   ? imported.geometry : null;
 
+  // activeGeometry beállítása előbb, hogy applyRouteLayer(null) renderelhessen
+  updateElevationButton(imported.geometry);
   // Alapértelmezett megjelenítés: sima útvonal, togglek kikapcsolva
   applyRouteLayer(null);
+  // Biztosítjuk hogy a plain route mindig látszik
+  mapAdapter.renderRoute(imported.geometry);
 
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
-  updateElevationButton(imported.geometry);
 
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   setTimeout(() => mapAdapter.fitRoute(), 50);

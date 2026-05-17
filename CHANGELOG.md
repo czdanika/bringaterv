@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.1 – 2026-05-17
+
+### Javítások
+- Alapértelmezett megjelenítés: GPX betöltés után a sima útvonal azonnal látszik, a réteg kapcsolók (sebesség/pulzus/kadencia/lejtő) alapból kikapcsolva
+- Elemzés fülön megjelent a **Térképstílus** választó – kompakt gombként, a fájlnév mellett
+- Verzióellenőrzés: az app oldalbetöltéskor megnézi, elérhető-e újabb GitHub release; ha igen, pulzáló narancs pont jelzi az oldalsávban
+
+---
+
 ## v0.9 – 2026-05-17
 
 ### Szintprofil és diagramok
