@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.10 – 2026-05-17
+
+### Útvonalkönyvtár
+
+Szerver oldali GPX tároló Flask + Docker volume alapon. A könyvtár három szekcióból áll – mindhárom lenyíló (accordion) menüként jelenik meg.
+
+#### Backend (`routes-api`)
+- **Flask REST API** – külön Docker konténer, csak belső hálózaton elérhető (nginx proxy-n át)
+- **Végpontok:** `GET/POST /api/routes`, `GET/PATCH/DELETE /api/routes/:id`, `GET /api/samples`, `GET /api/samples/:id`, `GET /api/health`
+- **Adattárolás:** Docker volume (`routes-data`) – perzisztens, újraindítás után is megmarad
+- **Atomikus index írás** – temp fájl + rename, hogy ne sérüljön az `index.json`
+- **Metaadat mezők:** távolság (km), időtartam (perc), emelkedő (m), típus, leírás
+- **Minta útvonalak** – Docker image-be égetett GPX + JSON párok (Balatoni kör, Tisza-tó kör)
+
+#### nginx proxy
+- `/api/` prefix → `routes-api:5001` belső proxy, max 10 MB GPX méret
+
+#### Könyvtár fül – Mentett útvonalak
+- **Új „Könyvtár" fül** az oldalsávban – saját mentések, edzések és beépített minták
+- **Mentés** – az export modalban külön „Mentés a könyvtárba" gomb (GPX letöltéstől elválasztva)
+- **Kártyák** – távolság, időtartam és emelkedő chipek az egyes útvonalak alatt
+- **Szerkesztés** – mentett útvonal neve, típusa (kerékpár/gyalogos) és leírása módosítható
+- **GPX letöltés** – könyvtárból közvetlenül letölthető bármelyik útvonal
+- **Törlés** – saját útvonalak törölhetők megerősítés után
+- **Betöltés** – egy kattintással töltődik be a Tervezés fülre
+
+#### Könyvtár fül – Edzések
+- **Edzés mentése** – Elemzés fülön „Mentés könyvtárba" gomb: az eredeti GPX fájl (összes adatával) kerül a szerverre `workout` típusként
+- **Betöltés elemzésre** – edzés kártyákon a betöltés gomb az Elemzés fülre tölti vissza a fájlt, megőrizve a sebesség/pulzus/kadencia/időadat adatokat
+- **Eredeti GPX megőrzése** – mentéskor nem generált, hanem az eredeti nyers GPX kerül tárolásra
+
+#### Hibajavítások
+- Mentett útvonalaknál a távolság és időtartam mostantól helyesen jelenik meg a kártyán
+- Könyvtárból visszatöltött edzéseknél a togglek (sebesség, pulzus, szintprofil) működnek
+
+---
+
 ## v0.9.2 – 2026-05-17
 
 ### Új funkciók

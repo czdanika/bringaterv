@@ -1,0 +1,4 @@
+# Bringaterv Routes API – Python függőségek
+flask==3.1.1
+flask-cors==5.0.1
+gunicorn==23.0.0
