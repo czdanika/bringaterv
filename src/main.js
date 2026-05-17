@@ -1,9 +1,14 @@
+import { requireAuth, logout } from "./auth.js";
+import { config } from "./config.js";
+import { getSettings, saveSetting } from "./appSettings.js";
 import { createI18n } from "./i18n/i18n.js";
 import { createRouteStore } from "./state/routeStore.js";
 import { createMapAdapter } from "./map/mapAdapter.js";
-import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry } from "./gpx/gpx.js";
+import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
+
+requireAuth();
 
 const initialLanguage = localStorage.getItem("routePlannerLanguage") || "hu";
 const i18n = createI18n(initialLanguage);
@@ -51,12 +56,50 @@ function switchTab(name) {
 tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
 
 // ── File tab helpers ────────────────────────────────────────
-function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false }) {
+function formatDuration(ms) {
+  if (ms == null || ms <= 0) return null;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {} }) {
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
   details.hidden = false;
 
   document.querySelector("#importedFileName").textContent = filename;
+
+  // Metaadatok
+  const metaBlock = document.querySelector("#fileMetaBlock");
+  const nameRow  = document.querySelector("#fileMetaNameRow");
+  const typeRow  = document.querySelector("#fileMetaTypeRow");
+  const descRow  = document.querySelector("#fileMetaDescRow");
+  const startRow = document.querySelector("#fileMetaStartRow");
+  const hasMeta  = meta.name || meta.type || meta.desc || meta.startTime;
+  if (metaBlock) metaBlock.hidden = !hasMeta;
+  if (nameRow)  { nameRow.hidden  = !meta.name; if (meta.name)  document.querySelector("#fileMetaName").textContent = meta.name; }
+  if (typeRow)  { typeRow.hidden  = !meta.type; if (meta.type)  document.querySelector("#fileMetaType").textContent = meta.type; }
+  if (descRow)  { descRow.hidden  = !meta.desc; if (meta.desc)  document.querySelector("#fileMetaDesc").textContent = meta.desc; }
+  if (startRow && meta.startTime) {
+    const d = new Date(meta.startTime);
+    document.querySelector("#fileMetaStart").textContent =
+      d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) + " " +
+      d.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+    startRow.hidden = false;
+  } else if (startRow) startRow.hidden = true;
+
+  // Időtartam
+  const totalDurRow   = document.querySelector("#fileTotalDurRow");
+  const movingDurRow  = document.querySelector("#fileMovingDurRow");
+  const totalDurStr   = formatDuration(meta.totalDuration);
+  const movingDurStr  = formatDuration(meta.movingDuration);
+  if (totalDurRow)  { totalDurRow.hidden  = !totalDurStr; if (totalDurStr)  document.querySelector("#fileTotalDur").textContent  = totalDurStr; }
+  if (movingDurRow) { movingDurRow.hidden = !movingDurStr; if (movingDurStr) document.querySelector("#fileMovingDur").textContent = movingDurStr; }
   document.querySelector("#fileDistance").textContent = formatDisplayDistance(distanceMeters);
   document.querySelector("#filePoints").textContent = geometry.length.toLocaleString();
 
@@ -95,6 +138,22 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
     if (maxHrEl) maxHrEl.textContent = `${maxHr} bpm`;
   }
 
+  // Cadence stats
+  const cads = geometry.map(p => p.cad).filter(c => c != null && c > 0);
+  const hasCad = cads.length > 0;
+  const avgCadRowEl = document.querySelector("#fileAvgCadRow");
+  const maxCadRowEl = document.querySelector("#fileMaxCadRow");
+  if (avgCadRowEl) avgCadRowEl.hidden = !hasCad;
+  if (maxCadRowEl) maxCadRowEl.hidden = !hasCad;
+  if (hasCad) {
+    const avgCad = Math.round(cads.reduce((a, b) => a + b, 0) / cads.length);
+    const maxCad = Math.max(...cads);
+    const avgCadEl = document.querySelector("#fileAvgCad");
+    const maxCadEl = document.querySelector("#fileMaxCad");
+    if (avgCadEl) avgCadEl.textContent = `${avgCad} rpm`;
+    if (maxCadEl) maxCadEl.textContent = `${maxCad} rpm`;
+  }
+
   // Speed legend
   const legendEl = document.querySelector("#speedLegend");
   if (legendEl) legendEl.hidden = !speedColored;
@@ -102,6 +161,10 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
   // HR legend
   const hrLegendEl = document.querySelector("#hrLegend");
   if (hrLegendEl) hrLegendEl.hidden = !hasHr;
+
+  // Cadence legend
+  const cadLegendEl = document.querySelector("#cadLegend");
+  if (cadLegendEl) cadLegendEl.hidden = !hasCad;
 
   window.lucide?.createIcons();
 }
@@ -111,8 +174,12 @@ function clearFileTab() {
   document.querySelector("#fileDetails").hidden = true;
   const speedLeg = document.querySelector("#speedLegend");
   const hrLeg = document.querySelector("#hrLegend");
+  const cadLeg = document.querySelector("#cadLegend");
   if (speedLeg) speedLeg.hidden = true;
   if (hrLeg) hrLeg.hidden = true;
+  if (cadLeg) cadLeg.hidden = true;
+  const metaBlock = document.querySelector("#fileMetaBlock");
+  if (metaBlock) metaBlock.hidden = true;
 }
 
 const elements = {
@@ -122,6 +189,8 @@ const elements = {
   unitInputs: document.querySelectorAll("input[name='units']"),
   showStageInfo: document.querySelector("#showStageInfo"),
   snapToRoads: document.querySelector("#snapToRoads"),
+  showStageInfoSettings: document.querySelector("#settingsShowStageInfo"),
+  snapToRoadsSettings: document.querySelector("#settingsSnapToRoads"),
   routeModeButtons: document.querySelectorAll("[data-route-mode]"),
   toolButtons: document.querySelectorAll("[data-tool]"),
   waypointList: document.querySelector("#waypointList"),
@@ -155,7 +224,54 @@ const elements = {
   measurePointCount: document.querySelector("#measurePointCount"),
   measureClear: document.querySelector("#measureClear"),
   gpxSampleWaypoints: document.querySelector("#gpxSampleWaypoints"),
+  gpxSampleWaypointsSettings: document.querySelector("#settingsGpxSampleWaypoints"),
+  sidebarExportButton: document.querySelector("#sidebarExportButton"),
+  exportOverlay: document.querySelector("#exportOverlay"),
+  exportClose: document.querySelector("#exportClose"),
+  exportConfirm: document.querySelector("#exportConfirm"),
+  exportName: document.querySelector("#exportName"),
+  exportDesc: document.querySelector("#exportDesc"),
+  exportFilename: document.querySelector("#exportFilename"),
+  fileExportButton: document.querySelector("#fileExportButton"),
 };
+
+const STYLE_ICONS = {
+  standard:  "map",
+  cycling:   "bike",
+  topo:      "mountain",
+  satellite: "satellite",
+  hybrid:    "satellite",
+  light:     "sun",
+  dark:      "moon",
+};
+
+function syncLayerPickerBtn(style) {
+  const pickerBtn = document.querySelector("#layerPickerBtn");
+  if (!pickerBtn) return;
+  const icon = STYLE_ICONS[style] ?? "layers";
+  pickerBtn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
+  pickerBtn.title = `Térképstílus: ${style}`;
+  window.lucide?.createIcons();
+}
+
+const STYLE_LABELS = {
+  standard:  "Standard",
+  cycling:   "Kerékpár",
+  topo:      "Domborzat",
+  satellite: "Műhold",
+  hybrid:    "Hybrid",
+  light:     "Világos",
+  dark:      "Sötét",
+};
+
+function syncSidebarStyleBtn(style) {
+  const btn = document.querySelector("#sidebarStyleBtn");
+  const label = document.querySelector("#sidebarStyleLabel");
+  if (!btn || !label) return;
+  const icon = STYLE_ICONS[style] ?? "map";
+  btn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span id="sidebarStyleLabel">${STYLE_LABELS[style] ?? style}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
+  window.lucide?.createIcons();
+}
 
 async function addWaypointWithName(point) {
   store.addWaypoint(point);
@@ -175,8 +291,11 @@ async function relocateWaypointWithName(id, lat, lng) {
   }
 }
 
+const appSettings = getSettings();
+
 const mapAdapter = createMapAdapter({
   elementId: "map",
+  startView: appSettings.startView ?? null,
   onMapClick: (point) => {
     if (currentTab === "file") return; // view-only in file tab
     addWaypointWithName(point);
@@ -211,10 +330,11 @@ let dragSrcIndex = null;
 let activeTool = "route";
 let importedColoredGeometry = null; // ha van sebességszínezés
 let importedHrGeometry = null;      // ha van pulzusszínezés
+let importedCadGeometry = null;     // ha van kadenciaszínezés
 
 store.setState({
   mode: localStorage.getItem("route4meDefaultRouteMode") || "cycling",
-  snapToRoads: localStorage.getItem("route4meDefaultSnapToRoads") !== "false",
+  snapToRoads: getSettings().snapToRoads,
 });
 
 i18n.apply();
@@ -224,24 +344,54 @@ updateThemeIcon();
 document.querySelector("#themeToggle")?.addEventListener("click", toggleTheme);
 const savedMapStyle = localStorage.getItem("route4meMapStyle") || "standard";
 syncMapStyleButtons(savedMapStyle);
+syncLayerPickerBtn(savedMapStyle);
+syncSidebarStyleBtn(savedMapStyle);
 mapAdapter.setMapStyle(savedMapStyle);
 elements.unitInputs.forEach((input) => {
   input.checked = input.value === units;
 });
-elements.snapToRoads.checked = store.getState().snapToRoads;
+// Export buttons start disabled (no waypoints yet)
+elements.exportButton.disabled = true;
+if (elements.fileExportButton) elements.fileExportButton.disabled = true;
+
+const _initSettings = getSettings();
+// sidebar toggles
+if (elements.snapToRoads) elements.snapToRoads.checked = _initSettings.snapToRoads;
+if (elements.showStageInfo) elements.showStageInfo.checked = _initSettings.showStageInfo;
+if (elements.gpxSampleWaypoints) elements.gpxSampleWaypoints.checked = _initSettings.gpxSampleWaypoints;
+// settings panel toggles
+if (elements.snapToRoadsSettings) elements.snapToRoadsSettings.checked = _initSettings.snapToRoads;
+if (elements.showStageInfoSettings) elements.showStageInfoSettings.checked = _initSettings.showStageInfo;
+if (elements.gpxSampleWaypointsSettings) elements.gpxSampleWaypointsSettings.checked = _initSettings.gpxSampleWaypoints;
+// Apply showStageInfo on load
+if (document.querySelector(".stats-panel")) {
+  document.querySelector(".stats-panel").hidden = !_initSettings.showStageInfo;
+}
 syncRouteModeButtons(store.getState().mode);
-setTimeout(() => mapAdapter.invalidateSize(), 300);
+const _sv = getSettings().startView;
+setTimeout(() => {
+  mapAdapter.invalidateSize();
+  if (_sv) mapAdapter.setView(_sv.lat, _sv.lng, _sv.zoom);
+}, 100);
+if (_sv) setTimeout(() => mapAdapter.setView(_sv.lat, _sv.lng, _sv.zoom), 500);
 
 store.subscribe(async (state) => {
   renderSidebar(state);
   elements.undoButton.disabled = !state.canUndo;
   elements.redoButton.disabled = !state.canRedo;
+  const hasPoints = state.waypoints.length > 0;
+  elements.exportButton.disabled = !hasPoints;
+  if (elements.fileExportButton) elements.fileExportButton.disabled = !hasPoints;
+  if (elements.sidebarExportButton) elements.sidebarExportButton.hidden = !hasPoints;
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
     const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
     const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
+    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
     if (importedColoredGeometry && speedOn) {
       mapAdapter.renderColoredRoute(importedColoredGeometry);
+    } else if (importedCadGeometry && cadOn) {
+      mapAdapter.renderCadRoute(importedCadGeometry);
     } else if (importedHrGeometry && hrOn) {
       mapAdapter.renderHrRoute(importedHrGeometry);
     } else {
@@ -277,23 +427,76 @@ elements.routeModeButtons.forEach((button) => {
   });
 });
 
-elements.snapToRoads.addEventListener("change", () => {
-  store.setState({ snapToRoads: elements.snapToRoads.checked });
-});
+// Helper: apply a boolean setting and keep sidebar + settings in sync
+function applySnapToRoads(val) {
+  store.setState({ snapToRoads: val });
+  saveSetting("snapToRoads", val);
+  if (elements.snapToRoads) elements.snapToRoads.checked = val;
+  if (elements.snapToRoadsSettings) elements.snapToRoadsSettings.checked = val;
+}
+function applyShowStageInfo(val) {
+  const statsPanel = document.querySelector(".stats-panel");
+  if (statsPanel) statsPanel.hidden = !val;
+  saveSetting("showStageInfo", val);
+  if (elements.showStageInfo) elements.showStageInfo.checked = val;
+  if (elements.showStageInfoSettings) elements.showStageInfoSettings.checked = val;
+}
+function applyGpxSampleWaypoints(val) {
+  saveSetting("gpxSampleWaypoints", val);
+  if (elements.gpxSampleWaypoints) elements.gpxSampleWaypoints.checked = val;
+  if (elements.gpxSampleWaypointsSettings) elements.gpxSampleWaypointsSettings.checked = val;
+}
+
+elements.snapToRoads?.addEventListener("change", () => applySnapToRoads(elements.snapToRoads.checked));
+elements.snapToRoadsSettings?.addEventListener("change", () => applySnapToRoads(elements.snapToRoadsSettings.checked));
+
+elements.showStageInfo?.addEventListener("change", () => applyShowStageInfo(elements.showStageInfo.checked));
+elements.showStageInfoSettings?.addEventListener("change", () => applyShowStageInfo(elements.showStageInfoSettings.checked));
+
+elements.gpxSampleWaypoints?.addEventListener("change", () => applyGpxSampleWaypoints(elements.gpxSampleWaypoints.checked));
+elements.gpxSampleWaypointsSettings?.addEventListener("change", () => applyGpxSampleWaypoints(elements.gpxSampleWaypointsSettings.checked));
 
 elements.mapStyleButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     const style = btn.dataset.mapStyle;
     localStorage.setItem("route4meMapStyle", style);
+    saveSetting("mapStyle", style);
     syncMapStyleButtons(style);
     mapAdapter.setMapStyle(style);
-    // close layer picker if open
+    // close layer picker
     const picker = document.querySelector("#layerPicker");
     const pickerBtn = document.querySelector("#layerPickerBtn");
     if (picker) picker.hidden = true;
-    if (pickerBtn) pickerBtn.classList.remove("is-active");
+    if (pickerBtn) {
+      pickerBtn.classList.remove("is-active");
+      syncLayerPickerBtn(style);
+    }
+    // close sidebar style picker
+    const sidebarPicker = document.querySelector("#sidebarStylePicker");
+    const sidebarBtn = document.querySelector("#sidebarStyleBtn");
+    if (sidebarPicker) sidebarPicker.hidden = true;
+    if (sidebarBtn) sidebarBtn.classList.remove("is-open");
+    syncSidebarStyleBtn(style);
   });
 });
+
+// Sidebar style picker toggle
+const sidebarStyleBtn = document.querySelector("#sidebarStyleBtn");
+const sidebarStylePicker = document.querySelector("#sidebarStylePicker");
+sidebarStyleBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = !sidebarStylePicker.hidden;
+  sidebarStylePicker.hidden = isOpen;
+  sidebarStyleBtn.classList.toggle("is-open", !isOpen);
+  if (!isOpen) window.lucide?.createIcons();
+});
+document.addEventListener("click", () => {
+  if (sidebarStylePicker && !sidebarStylePicker.hidden) {
+    sidebarStylePicker.hidden = true;
+    sidebarStyleBtn?.classList.remove("is-open");
+  }
+});
+sidebarStylePicker?.addEventListener("click", (e) => e.stopPropagation());
 
 // Layer picker toggle
 const layerPickerBtn = document.querySelector("#layerPickerBtn");
@@ -350,14 +553,159 @@ elements.shortcutOverlay.addEventListener("click", (e) => {
   if (e.target === elements.shortcutOverlay) elements.shortcutOverlay.hidden = true;
 });
 
+// Logout — only shown when login is enabled in config
+if (config.login) {
+  const logoutBtn = document.querySelector("#logoutButton");
+  const logoutDivider = document.querySelector("#logoutDivider");
+  if (logoutBtn) logoutBtn.hidden = false;
+  if (logoutDivider) logoutDivider.hidden = false;
+  logoutBtn?.addEventListener("click", () => {
+    logout();
+    window.location.replace("./login.html");
+  });
+}
+
 elements.saveRouteButton.addEventListener("click", () => {
   showToast("Mentés hamarosan elérhető.");
 });
 elements.shareRouteButton.addEventListener("click", () => {
   showToast("Megosztás hamarosan elérhető.");
 });
-elements.settingsButton.addEventListener("click", () => {
-  showToast("Beállítások hamarosan elérhető.");
+
+// Settings overlay
+const settingsOverlay = document.querySelector("#settingsOverlay");
+const settingsClose   = document.querySelector("#settingsClose");
+
+function openSettings() {
+  if (topnavDropdown) topnavDropdown.hidden = true;
+  syncStartViewDisplay();
+  settingsOverlay.hidden = false;
+  window.lucide?.createIcons();
+}
+
+elements.settingsButton.addEventListener("click", openSettings);
+settingsClose?.addEventListener("click", () => { settingsOverlay.hidden = true; });
+settingsOverlay?.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.hidden = true;
+});
+
+// ── Kezdő nézet ────────────────────────────────────────────
+function syncStartViewDisplay() {
+  const sv = getSettings().startView;
+  const currentEl  = document.querySelector("#startViewCurrent");
+  const labelEl    = document.querySelector("#startViewLabel");
+  if (!currentEl || !labelEl) return;
+  if (sv) {
+    labelEl.textContent = sv.label || `${sv.lat.toFixed(4)}, ${sv.lng.toFixed(4)} — zoom ${sv.zoom}`;
+    currentEl.hidden = false;
+  } else {
+    currentEl.hidden = true;
+  }
+  window.lucide?.createIcons();
+}
+
+// Jelenlegi nézet mentése
+document.querySelector("#startViewCurrentBtn")?.addEventListener("click", () => {
+  const view = mapAdapter.getCurrentView();
+  const label = `${view.lat.toFixed(5)}, ${view.lng.toFixed(5)}  (zoom ${view.zoom})`;
+  saveSetting("startView", { ...view, label });
+  syncStartViewDisplay();
+  // Flash the map to the saved location so the user sees it in the background
+  mapAdapter.setView(view.lat, view.lng, view.zoom);
+  showToast("Induló nézet mentve.");
+});
+
+// GPS pozíció lekérése
+document.querySelector("#startViewGpsBtn")?.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    showToast("GPS nem elérhető a böngészőben.");
+    return;
+  }
+  const btn = document.querySelector("#startViewGpsBtn");
+  if (btn) btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const label = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      saveSetting("startView", { lat, lng, zoom: 13, label });
+      syncStartViewDisplay();
+      mapAdapter.setView(lat, lng, 13);
+      if (btn) btn.disabled = false;
+      showToast("GPS pozíció mentve induló nézetként.");
+    },
+    (error) => {
+      const msg =
+        error.code === 1 ? "GPS engedély megtagadva." :
+        error.code === 3 ? "GPS időtúllépés." :
+        "GPS hiba.";
+      showToast(msg);
+      if (btn) btn.disabled = false;
+    },
+    { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+  );
+});
+
+// Törlés
+document.querySelector("#startViewClearBtn")?.addEventListener("click", () => {
+  saveSetting("startView", null);
+  syncStartViewDisplay();
+});
+
+// Keresés — dropdown position: fixed, viewport-relatív
+function positionStartViewResults() {
+  const input = document.querySelector("#startViewSearch");
+  const resultsEl = document.querySelector("#startViewResults");
+  if (!input || !resultsEl) return;
+  const rect = input.getBoundingClientRect();
+  resultsEl.style.top  = `${rect.bottom + 4}px`;
+  resultsEl.style.left = `${rect.left}px`;
+  resultsEl.style.width = `${rect.width}px`;
+}
+
+let startViewSearchTimer = null;
+document.querySelector("#startViewSearch")?.addEventListener("input", (e) => {
+  clearTimeout(startViewSearchTimer);
+  const q = e.target.value.trim();
+  const resultsEl = document.querySelector("#startViewResults");
+  if (!q) { resultsEl.hidden = true; return; }
+  startViewSearchTimer = setTimeout(async () => {
+    try {
+      const places = await searchPlaces(q, "hu");
+      resultsEl.innerHTML = "";
+      if (!places.length) {
+        resultsEl.hidden = true;
+        return;
+      }
+      places.slice(0, 5).forEach((place) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "settings-result-btn";
+        btn.textContent = place.name;
+        btn.addEventListener("click", () => {
+          mapAdapter.focusWaypoint(place.lat, place.lng);
+          // Save after focus so zoom reflects the actual displayed zoom
+          setTimeout(() => {
+            const view = mapAdapter.getCurrentView();
+            saveSetting("startView", { lat: view.lat, lng: view.lng, zoom: view.zoom, label: place.name });
+            syncStartViewDisplay();
+          }, 350);
+          document.querySelector("#startViewSearch").value = "";
+          resultsEl.hidden = true;
+          showToast("Induló nézet mentve.");
+        });
+        resultsEl.append(btn);
+      });
+      positionStartViewResults();
+      resultsEl.hidden = false;
+    } catch { resultsEl.hidden = true; }
+  }, 350);
+});
+document.querySelector("#startViewSearch")?.addEventListener("blur", () => {
+  setTimeout(() => {
+    const resultsEl = document.querySelector("#startViewResults");
+    if (resultsEl) resultsEl.hidden = true;
+  }, 200);
 });
 
 elements.unitInputs.forEach((input) => {
@@ -366,10 +714,6 @@ elements.unitInputs.forEach((input) => {
     localStorage.setItem("route4meUnits", units);
     renderSidebar(store.getState());
   });
-});
-
-elements.showStageInfo.addEventListener("change", () => {
-  document.querySelector(".stats-panel").hidden = !elements.showStageInfo.checked;
 });
 
 function syncMapStyleButtons(style) {
@@ -381,8 +725,10 @@ function syncMapStyleButtons(style) {
 function clearAllRouteState() {
   importedColoredGeometry = null;
   importedHrGeometry = null;
+  importedCadGeometry = null;
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
+  mapAdapter.clearCadRoute();
   store.clear();
   clearFileTab();
 }
@@ -461,21 +807,82 @@ elements.locateButton.addEventListener("click", () => {
   );
 });
 
-elements.exportButton.addEventListener("click", () => {
-  const state = store.getState();
-  if (state.waypoints.length < 2) {
-    showToast(i18n.t("route.needsPoints"));
-    return;
-  }
+// ── Export modal ───────────────────────────────────────────
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")  // ékezetek eltávolítása
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "utvonal";
+}
 
+function buildExportName(waypoints) {
+  const first = waypoints[0]?.name;
+  const last = waypoints[waypoints.length - 1]?.name;
+  if (first && last && first !== last) return `${first} – ${last}`;
+  if (first) return first;
+  return "Bringaterv útvonal";
+}
+
+function openExportModal() {
+  const state = store.getState();
+  const suggestedName = buildExportName(state.waypoints);
+  const today = new Date().toISOString().slice(0, 10);
+  const suggestedFilename = `${slugify(suggestedName)}-${today}`;
+
+  elements.exportName.value = suggestedName;
+  elements.exportDesc.value = "";
+  elements.exportFilename.value = suggestedFilename;
+  // Set mode radio to current route mode
+  const modeRadio = elements.exportOverlay.querySelector(`input[name="exportMode"][value="${state.mode}"]`);
+  if (modeRadio) modeRadio.checked = true;
+  elements.exportOverlay.hidden = false;
+  window.lucide?.createIcons();
+  setTimeout(() => elements.exportName.select(), 50);
+}
+
+// Auto-update filename when name changes
+elements.exportName?.addEventListener("input", () => {
+  const today = new Date().toISOString().slice(0, 10);
+  elements.exportFilename.value = `${slugify(elements.exportName.value)}-${today}`;
+});
+
+// Confirm: build GPX and download
+elements.exportConfirm?.addEventListener("click", () => {
+  const state = store.getState();
+  const name = elements.exportName.value.trim() || "Bringaterv útvonal";
+  const desc = elements.exportDesc.value.trim();
+  const filename = (elements.exportFilename.value.trim() || slugify(name)) + ".gpx";
+
+  const selectedMode = elements.exportOverlay.querySelector("input[name=\"exportMode\"]:checked")?.value ?? state.mode;
   const content = exportGpx({
     waypoints: state.waypoints,
     geometry: state.routeGeometry,
-    name: "Bringaterv",
-    mode: state.mode,
+    name,
+    desc,
+    mode: selectedMode,
   });
-  downloadGpx(`route-${new Date().toISOString().slice(0, 10)}.gpx`, content);
+  downloadGpx(filename, content);
+  elements.exportOverlay.hidden = true;
 });
+
+// Close modal
+elements.exportClose?.addEventListener("click", () => {
+  elements.exportOverlay.hidden = true;
+});
+elements.exportOverlay?.addEventListener("click", (e) => {
+  if (e.target === elements.exportOverlay) elements.exportOverlay.hidden = true;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && elements.exportOverlay && !elements.exportOverlay.hidden) {
+    elements.exportOverlay.hidden = true;
+  }
+});
+
+// All export buttons open the modal
+elements.exportButton.addEventListener("click", () => openExportModal());
+elements.sidebarExportButton?.addEventListener("click", () => openExportModal());
 
 elements.importButton.addEventListener("click", () => elements.gpxInput.click());
 document.querySelector("#fileEmptyState")?.addEventListener("click", () => elements.gpxInput.click());
@@ -494,6 +901,7 @@ elements.gpxInput.addEventListener("change", async () => {
 
   const hasSpeed = imported.geometry.some(p => p.speed != null);
   const hasHr = imported.geometry.some(p => p.hr != null);
+  const hasCad = imported.geometry.some(p => p.cad != null);
 
   if (hasSpeed) {
     importedColoredGeometry = imported.geometry;
@@ -505,22 +913,33 @@ elements.gpxInput.addEventListener("change", async () => {
     mapAdapter.clearColoredRoute();
   }
 
+  if (hasCad) {
+    importedCadGeometry = imported.geometry;
+    const toggle = document.querySelector("#cadMapToggle");
+    if (toggle) toggle.checked = true;
+    // Only render cadence if speed isn't already showing
+    if (!hasSpeed) mapAdapter.renderCadRoute(imported.geometry);
+  } else {
+    importedCadGeometry = null;
+    mapAdapter.clearCadRoute();
+  }
+
   if (hasHr) {
     importedHrGeometry = imported.geometry;
     const toggle = document.querySelector("#hrMapToggle");
     if (toggle) toggle.checked = true;
-    // Only render HR route if speed isn't already showing
-    if (!hasSpeed) mapAdapter.renderHrRoute(imported.geometry);
+    // Only render HR route if speed and cadence aren't already showing
+    if (!hasSpeed && !hasCad) mapAdapter.renderHrRoute(imported.geometry);
   } else {
     importedHrGeometry = null;
     mapAdapter.clearHrRoute();
   }
 
-  if (!hasSpeed && !hasHr) {
+  if (!hasSpeed && !hasCad && !hasHr) {
     mapAdapter.renderRoute(imported.geometry);
   }
 
-  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed });
+  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
 
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
@@ -536,10 +955,8 @@ elements.gpxInput.addEventListener("change", async () => {
   }
 });
 
-// File tab action buttons
-document.querySelector("#fileExportButton")?.addEventListener("click", () => {
-  elements.exportButton.click();
-});
+// File tab export button — same modal
+elements.fileExportButton?.addEventListener("click", () => openExportModal());
 
 // Legend accordion (expand/collapse color items on header click)
 document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
@@ -558,9 +975,12 @@ document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
     legend?.classList.remove("is-disabled");
   } else {
     mapAdapter.clearColoredRoute();
-    // Fall back to HR or plain route
+    // Fall back to cadence, HR, or plain route (speed > cad > hr priority)
+    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
     const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
-    if (importedHrGeometry && hrOn) {
+    if (importedCadGeometry && cadOn) {
+      mapAdapter.renderCadRoute(importedCadGeometry);
+    } else if (importedHrGeometry && hrOn) {
       mapAdapter.renderHrRoute(importedHrGeometry);
     } else {
       mapAdapter.renderRoute(store.getState().routeGeometry);
@@ -573,17 +993,45 @@ document.querySelector("#hrMapToggle")?.addEventListener("change", (e) => {
   if (!importedHrGeometry) return;
   const legend = document.querySelector("#hrLegend");
   if (e.target.checked) {
-    // Only show HR if speed is off (speed takes priority)
+    // Only show HR if speed and cadence are off (speed > cad > hr priority)
     const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    if (!importedColoredGeometry || !speedOn) {
+    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
+    if ((!importedColoredGeometry || !speedOn) && (!importedCadGeometry || !cadOn)) {
       mapAdapter.renderHrRoute(importedHrGeometry);
     }
     legend?.classList.remove("is-disabled");
   } else {
     mapAdapter.clearHrRoute();
     const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    if (!importedColoredGeometry || !speedOn) {
+    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
+    if ((!importedColoredGeometry || !speedOn) && (!importedCadGeometry || !cadOn)) {
       mapAdapter.renderRoute(store.getState().routeGeometry);
+    }
+    legend?.classList.add("is-disabled");
+  }
+});
+
+document.querySelector("#cadMapToggle")?.addEventListener("change", (e) => {
+  if (!importedCadGeometry) return;
+  const legend = document.querySelector("#cadLegend");
+  if (e.target.checked) {
+    // Only show cadence if speed is off (speed takes priority)
+    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    if (!importedColoredGeometry || !speedOn) {
+      mapAdapter.renderCadRoute(importedCadGeometry);
+    }
+    legend?.classList.remove("is-disabled");
+  } else {
+    mapAdapter.clearCadRoute();
+    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
+    // Fall back to HR or plain route
+    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
+    if (!importedColoredGeometry || !speedOn) {
+      if (importedHrGeometry && hrOn) {
+        mapAdapter.renderHrRoute(importedHrGeometry);
+      } else {
+        mapAdapter.renderRoute(store.getState().routeGeometry);
+      }
     }
     legend?.classList.add("is-disabled");
   }
@@ -800,6 +1248,64 @@ function calculateImportedDistance(geometry) {
     return total + earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, 0);
 }
+
+// ── Hint tooltips ─────────────────────────────────────────
+(function setupHintTooltips() {
+  const tooltip = document.getElementById("hintTooltip");
+  if (!tooltip) return;
+
+  let activeBtn = null;
+
+  function showTooltip(btn) {
+    const text = btn.dataset.hint;
+    if (!text) return;
+    tooltip.textContent = text;
+    tooltip.hidden = false;
+    activeBtn = btn;
+    positionTooltip(btn);
+  }
+
+  function positionTooltip(btn) {
+    const rect = btn.getBoundingClientRect();
+    const tw = 240;
+    const gap = 8;
+    let left = rect.left + rect.width / 2 - tw / 2;
+    let top = rect.top - gap;
+
+    // clamp horizontally
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+
+    // decide above or below
+    tooltip.style.maxWidth = tw + "px";
+    tooltip.style.left = left + "px";
+
+    // first render above, then check if it fits
+    tooltip.style.top = (top - tooltip.offsetHeight) + "px";
+    if (rect.top - tooltip.offsetHeight - gap < 8) {
+      // show below
+      tooltip.style.top = (rect.bottom + gap) + "px";
+    }
+  }
+
+  function hideTooltip() {
+    tooltip.hidden = true;
+    activeBtn = null;
+  }
+
+  document.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest(".hint-btn");
+    if (btn && btn !== activeBtn) showTooltip(btn);
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    if (e.target.closest(".hint-btn")) hideTooltip();
+  });
+
+  document.addEventListener("click", hideTooltip);
+  document.addEventListener("scroll", () => {
+    if (activeBtn) positionTooltip(activeBtn);
+  }, true);
+})();
 
 function renderSearchResults(places) {
   elements.searchResults.innerHTML = "";

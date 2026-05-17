@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bringaterv – Bejelentkezés</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #0d0d0d;
+      overflow: hidden;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      background-image: url('./src/assets/btervlogin.png');
+      background-size: cover;
+      background-position: center 40%;
+      filter: brightness(0.45) saturate(0.8);
+      transform: scale(1.04);
+      transition: filter 0.6s ease;
+    }
+
+    .card {
+      position: relative;
+      z-index: 10;
+      width: 360px;
+      padding: 44px 40px 40px;
+      background: rgba(15, 15, 15, 0.72);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 22px;
+      color: #fff;
+      text-align: center;
+      box-shadow: 0 28px 64px rgba(0, 0, 0, 0.55);
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .logo-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+    }
+
+    .logo-text {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .logo-text .accent { color: #fc4c02; }
+
+    .subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .input-wrap {
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .input-wrap svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 13px 16px 13px 44px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 11px;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input::placeholder { color: rgba(255, 255, 255, 0.28); }
+
+    input:focus {
+      border-color: #fc4c02;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .error-msg {
+      font-size: 13px;
+      color: #ff7070;
+      margin-bottom: 12px;
+      min-height: 18px;
+      text-align: left;
+      padding-left: 4px;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: #fc4c02;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.1s;
+      letter-spacing: 0.2px;
+      margin-top: 4px;
+    }
+
+    .login-btn:hover { background: #e04400; }
+    .login-btn:active { transform: scale(0.98); }
+
+    .card-footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <div class="card">
+    <div class="logo-wrap">
+      <img src="./src/assets/logo.png" alt="Bringaterv logó" class="logo-img">
+      <span class="logo-text">Bringa<span class="accent">terv</span></span>
+    </div>
+
+    <p class="subtitle">Tervezz. Tekerj. Fedezd fel.</p>
+
+    <form id="loginForm" novalidate>
+      <div class="input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <input id="username" type="text" name="username"
+          placeholder="Felhasználónév" autofocus autocomplete="username">
+      </div>
+
+      <div class="input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <input id="password" type="password" name="password"
+          placeholder="Jelszó" autocomplete="current-password">
+      </div>
+
+      <p class="error-msg" id="errorMsg" aria-live="polite"></p>
+
+      <button class="login-btn" type="submit">Belépés</button>
+    </form>
+
+    <p class="card-footer">Bringaterv &nbsp;·&nbsp; v0.7 &nbsp;·&nbsp; © Czibolya Dániel 2026</p>
+  </div>
+
+  <script type="module">
+    import { login, isAuthenticated } from "./src/auth.js";
+
+    // Already logged in → skip to app
+    if (isAuthenticated()) {
+      window.location.replace("./index.html");
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value;
+      const errEl = document.getElementById("errorMsg");
+
+      if (login(user, pass)) {
+        window.location.replace("./index.html");
+      } else {
+        errEl.textContent = "Hibás felhasználónév vagy jelszó.";
+        document.getElementById("password").value = "";
+        document.getElementById("password").focus();
+      }
+    });
+  </script>
+</body>
+</html>
