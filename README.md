@@ -5,6 +5,11 @@
 **Nyílt forráskódú GPX útvonaltervező és edzésnapló kerékpárosoknak és gyalogosoknak.**
 Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és könyvtár egy helyen.
 
+<p align="center">
+  <img src="https://github.com/czdanika/bringaterv/releases/download/v0.11/screen1_small.png" alt="Elemzés – egymás alatti diagramok" width="49%" />
+  <img src="https://github.com/czdanika/bringaterv/releases/download/v0.11/screen2_small.png" alt="Tervezés – útvonaltervező" width="49%" />
+</p>
+
 ---
 
 ## Funkciók
