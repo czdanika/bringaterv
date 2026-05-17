@@ -3,7 +3,7 @@ const sportTypeMap = {
   walking: "hiking",
 };
 
-export function exportGpx({ waypoints, geometry, name = "Route4Me", mode = "cycling" }) {
+export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", mode = "cycling" }) {
   const trackPoints = (geometry.length ? geometry : waypoints)
     .map((point) => `      <trkpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}"></trkpt>`)
     .join("\n");
@@ -11,17 +11,18 @@ export function exportGpx({ waypoints, geometry, name = "Route4Me", mode = "cycl
   const waypointNodes = waypoints
     .map((point, index) => {
       const label = escapeXml(point.name || `Point ${index + 1}`);
-      const desc = point.note ? `\n    <desc>${escapeXml(point.note)}</desc>` : "";
-      return `  <wpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">\n    <name>${label}</name>${desc}\n  </wpt>`;
+      const wptDesc = point.note ? `\n    <desc>${escapeXml(point.note)}</desc>` : "";
+      return `  <wpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">\n    <name>${label}</name>${wptDesc}\n  </wpt>`;
     })
     .join("\n");
 
   const sport = sportTypeMap[mode] ?? "cycling";
+  const metaDesc = desc ? `\n    <desc>${escapeXml(desc)}</desc>` : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Route4Me" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="Bringaterv" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
-    <name>${escapeXml(name)}</name>
+    <name>${escapeXml(name)}</name>${metaDesc}
   </metadata>
 ${waypointNodes}
   <trk>
@@ -62,12 +63,53 @@ export async function importGpx(file, { sampleWaypoints = false } = {}) {
     : summarizeGeometryAsWaypoints(geometry, sampleWaypoints ? 12 : 0);
 
   const geometryWithSpeed = calcSpeedForGeometry(geometry);
+  const simplifiedGeometry = simplifyGeometry(geometryWithSpeed);
+
+  // Metadata
+  const metaName = documentXml.querySelector("metadata > name")?.textContent?.trim() || null;
+  const metaDesc = documentXml.querySelector("metadata > desc")?.textContent?.trim() || null;
+  const trkName  = documentXml.getElementsByTagNameNS("*", "trk")[0]
+                    ?.querySelector("name")?.textContent?.trim() || null;
+  const trkType  = documentXml.getElementsByTagNameNS("*", "trk")[0]
+                    ?.querySelector("type")?.textContent?.trim() || null;
+  const activityName = metaName || trkName || null;
+  const activityType = trkType || null;
+  const activityDesc = metaDesc || null;
+
+  // Timing from raw geometry (before simplification)
+  const timing = calcTiming(geometryWithSpeed);
 
   return {
-    geometry: simplifyGeometry(geometryWithSpeed),
+    geometry: simplifiedGeometry,
     sourcePointCount: geometry.length,
     waypoints,
+    meta: {
+      name: activityName,
+      desc: activityDesc,
+      type: activityType,
+      startTime: timing.startTime,
+      totalDuration: timing.totalDuration,
+      movingDuration: timing.movingDuration,
+    },
   };
+}
+
+export function calcTiming(geometry) {
+  const withTime = geometry.filter(p => p.time != null);
+  if (withTime.length < 2) return { startTime: null, totalDuration: null, movingDuration: null };
+
+  const startTime = withTime[0].time;
+  const totalDuration = withTime[withTime.length - 1].time - startTime; // ms
+
+  // Moving time: sum segments where speed > 0.5 km/h
+  let movingMs = 0;
+  for (let i = 1; i < withTime.length; i++) {
+    const dt = withTime[i].time - withTime[i - 1].time;
+    const speed = withTime[i].speed ?? withTime[i - 1].speed ?? null;
+    if (dt > 0 && (speed == null || speed > 0.5)) movingMs += dt;
+  }
+
+  return { startTime, totalDuration, movingDuration: movingMs };
 }
 
 function nodesToPoints(nodes) {
@@ -78,12 +120,15 @@ function nodesToPoints(nodes) {
     // HR: Garmin uses <gpxtpx:hr>, namespace-agnostic query
     const hrNode = node.getElementsByTagNameNS("*", "hr")[0];
     const hr = hrNode ? Number(hrNode.textContent) : null;
+    const cadNode = node.getElementsByTagNameNS("*", "cad")[0];
+    const cad = cadNode ? Number(cadNode.textContent) : null;
     return {
       lat: Number(node.getAttribute("lat")),
       lng: Number(node.getAttribute("lon")),
       ele: Number.isFinite(ele) && eleText != null ? ele : null,
       time: timeText ? new Date(timeText).getTime() : null,
       hr: hr != null && Number.isFinite(hr) && hr > 0 ? hr : null,
+      cad: cad != null && Number.isFinite(cad) && cad >= 0 ? cad : null,
       name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
       note: node.querySelector("desc")?.textContent || "",
     };

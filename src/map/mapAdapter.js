@@ -42,8 +42,10 @@ const tileLayers = {
   },
 };
 
-export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate }) {
-  const map = L.map(elementId, { zoomControl: false }).setView([47.4979, 19.0402], 12);
+export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, startView }) {
+  const defaultCenter = startView ? [startView.lat, startView.lng] : [47.4979, 19.0402];
+  const defaultZoom   = startView?.zoom ?? 12;
+  const map = L.map(elementId, { zoomControl: false }).setView(defaultCenter, defaultZoom);
   const markers = L.layerGroup().addTo(map);
   const routeLayer = L.polyline([], {
     color: "#1976d2",
@@ -79,6 +81,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     const parts = [];
     if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
     if (nearest.hr != null) parts.push(`❤️ ${nearest.hr} bpm`);
+    if (nearest.cad != null) parts.push(`⚙️ ${nearest.cad} rpm`);
     if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
     if (!parts.length) return;
 
@@ -330,6 +333,31 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     return "#A855F7";                // lila   – anaerob
   }
 
+  // Cadence-colored route
+  const cadRouteGroup = L.layerGroup();
+
+  function cadColor(cad) {
+    if (cad == null) return null;
+    if (cad <  60) return "#9CA3AF";  // szürke  – nagyon lassú
+    if (cad <  70) return "#3B82F6";  // kék     – lassú
+    if (cad <  80) return "#22C55E";  // zöld    – közepes
+    if (cad <  90) return "#84CC16";  // lime    – optimális
+    if (cad < 100) return "#EAB308";  // sárga   – gyors
+    if (cad < 110) return "#F97316";  // narancs – nagyon gyors
+    return "#EF4444";                 // piros   – sprint
+  }
+
+  function renderCadRoute(geometry) {
+    renderSegments(cadRouteGroup, geometry, p => cadColor(p.cad), "#22C55E");
+    routeLayer.setLatLngs([]);
+    if (!map.hasLayer(cadRouteGroup)) cadRouteGroup.addTo(map);
+  }
+
+  function clearCadRoute() {
+    cadRouteGroup.clearLayers();
+    if (map.hasLayer(cadRouteGroup)) map.removeLayer(cadRouteGroup);
+  }
+
   function renderSegments(group, geometry, valueFn, fallback) {
     group.clearLayers();
     let segStart = 0;
@@ -361,6 +389,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   function renderRoute(geometry) {
     clearColoredRoute();
     clearHrRoute();
+    clearCadRoute();
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     if (geometry.length > 1) {
@@ -431,7 +460,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
 
   return {
     calculateRoute,
-    invalidateSize: () => map.invalidateSize(),
+    invalidateSize: () => map.invalidateSize({ pan: false }),
     fitRoute: () => {
       if (routeLayer.getLatLngs().length > 1) {
         map.fitBounds(routeLayer.getBounds(), { padding: [44, 44], maxZoom: 15 });
@@ -457,6 +486,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       }
     },
     clearHrRoute,
+    renderCadRoute: (geometry) => {
+      hoverGeometry = geometry;
+      renderCadRoute(geometry);
+      if (geometry.length > 1) {
+        const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      }
+    },
+    clearCadRoute,
     renderWaypoints,
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);
@@ -474,6 +512,12 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       map.getContainer().style.cursor = tool === "measure" ? "crosshair" : "";
     },
     clearMeasurement,
+    getCurrentView: () => ({
+      lat: map.getCenter().lat,
+      lng: map.getCenter().lng,
+      zoom: map.getZoom(),
+    }),
+    setView: (lat, lng, zoom) => map.setView([lat, lng], zoom),
   };
 }
 

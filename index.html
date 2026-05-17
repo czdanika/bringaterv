@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bringaterv</title>
-    <link rel="icon" type="image/png" href="./src/assets/logo.png">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="./src/assets/logo.png">
     <link rel="apple-touch-icon" href="./src/assets/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +31,7 @@
           </div>
         </div>
         <div class="topnav-end">
-          <a href="https://github.com/czdanika/map-path-nav" target="_blank" rel="noopener"
+          <a href="https://github.com/czdanika/bringaterv" target="_blank" rel="noopener"
             class="topnav-icon-btn" title="GitHub">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
@@ -65,6 +66,11 @@
                 <i data-lucide="settings" aria-hidden="true"></i>
                 <span data-i18n="nav.settings">Beállítások</span>
               </button>
+              <div class="dropdown-divider" id="logoutDivider" hidden></div>
+              <button class="dropdown-item dropdown-item--danger" id="logoutButton" type="button" hidden>
+                <i data-lucide="log-out" aria-hidden="true"></i>
+                <span>Kijelentkezés</span>
+              </button>
             </div>
           </div>
         </div>
@@ -80,8 +86,8 @@
             <span data-i18n="tabs.plan">Tervezés</span>
           </button>
           <button class="sidebar-tab" data-tab="file" type="button">
-            <i data-lucide="file-input" aria-hidden="true"></i>
-            <span data-i18n="tabs.file">Betöltött fájl</span>
+            <i data-lucide="chart-line" aria-hidden="true"></i>
+            <span data-i18n="tabs.file">Elemzés</span>
           </button>
         </div>
 
@@ -93,20 +99,27 @@
 
             <!-- Mód -->
             <section class="sidebar-section collapsed-visible">
-              <h2 class="sidebar-section-title" data-i18n="sections.mode">Mód</h2>
+              <h2 class="sidebar-section-title">
+                <span data-i18n="sections.mode">Mód</span>
+                <button class="hint-btn" type="button" data-hint="Az útvonaltervezés módja. Kerékpáros módban kerékpárutakat és kerékpárbarát utakat részesít előnyben. Gyalogos módban gyalogutak és ösvények alapján tervez." aria-label="Segítség">
+                  <i data-lucide="info" aria-hidden="true"></i>
+                </button>
+              </h2>
               <ul class="tool-menu" role="group" aria-label="Routing mode">
                 <li>
-                  <button class="tool-menu-btn" data-route-mode="walking" type="button"
-                    title="Gyalog" data-i18n-title="modes.walking">
-                    <i data-lucide="footprints" aria-hidden="true"></i>
-                    <span data-i18n="modes.walking">Gyalog</span>
+                  <button class="tool-menu-btn is-active" data-route-mode="cycling" type="button"
+                    title="Kerékpár" data-i18n-title="modes.cycling"
+                    data-hint="Kerékpáros útvonaltervezés: kerékpárutakat, kerékpársávokat és alacsony forgalmú utakat részesít előnyben.">
+                    <i data-lucide="bike" aria-hidden="true"></i>
+                    <span data-i18n="modes.cycling">Kerékpár</span>
                   </button>
                 </li>
                 <li>
-                  <button class="tool-menu-btn is-active" data-route-mode="cycling" type="button"
-                    title="Kerékpár" data-i18n-title="modes.cycling">
-                    <i data-lucide="bike" aria-hidden="true"></i>
-                    <span data-i18n="modes.cycling">Kerékpár</span>
+                  <button class="tool-menu-btn" data-route-mode="walking" type="button"
+                    title="Gyalog" data-i18n-title="modes.walking"
+                    data-hint="Gyalogos útvonaltervezés: gyalogutak, ösvények és parkok alapján számítja ki az útvonalat.">
+                    <i data-lucide="footprints" aria-hidden="true"></i>
+                    <span data-i18n="modes.walking">Gyalog</span>
                   </button>
                 </li>
               </ul>
@@ -114,57 +127,101 @@
 
             <!-- Útvonal beállításai -->
             <section class="sidebar-section">
-              <h2 class="sidebar-section-title" data-i18n="sections.options">Útvonal beállításai</h2>
+              <h2 class="sidebar-section-title">
+                <span data-i18n="sections.options">Útvonal beállításai</span>
+                <button class="hint-btn" type="button" data-hint="Az útvonaltervezés viselkedését szabályozó kapcsolók. Az itt beállított értékek azonnal érvénybe lépnek, és a Beállítások menüben is megtalálhatók." aria-label="Segítség">
+                  <i data-lucide="info" aria-hidden="true"></i>
+                </button>
+              </h2>
 
               <div class="option-row">
-                <span data-i18n="controls.snap">Útra illesztés</span>
+                <span class="option-label-wrap">
+                  <span data-i18n="controls.snap">Útra illesztés</span>
+                  <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal pontjai automatikusan a legközelebbi útra illeszkednek. Kikapcsolva a pontokat légvonalban köti össze." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </span>
                 <label class="toggle-switch">
-                  <input id="snapToRoads" type="checkbox" checked>
+                  <input id="snapToRoads" type="checkbox">
                   <span class="toggle-track"></span>
                 </label>
               </div>
 
               <div class="option-row">
-                <span data-i18n="controls.mapStyle">Térképstílus</span>
-                <div class="map-style-strip" role="group" aria-label="Térképstílus">
-                  <button class="style-btn" data-map-style="cycling" type="button" title="Kerékpáros" data-i18n-title="mapStyles.cycling">
-                    <i data-lucide="bike" aria-hidden="true"></i>
+                <span class="option-label-wrap">
+                  <span data-i18n="controls.stageInfo">Szakasz infó</span>
+                  <button class="hint-btn" type="button" data-hint="Az útvonal egyes szakaszainak részletes adatait (távolság, szintkülönbség) jeleníti meg a térkép alatt." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
                   </button>
-                  <button class="style-btn is-active" data-map-style="standard" type="button" title="Standard" data-i18n-title="mapStyles.standard">
-                    <i data-lucide="map" aria-hidden="true"></i>
-                  </button>
-                  <button class="style-btn" data-map-style="satellite" type="button" title="Műholdas" data-i18n-title="mapStyles.satellite">
-                    <i data-lucide="satellite" aria-hidden="true"></i>
-                  </button>
-                  <button class="style-btn" data-map-style="topo" type="button" title="Domborzat" data-i18n-title="mapStyles.topo">
-                    <i data-lucide="mountain" aria-hidden="true"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="option-row">
-                <span data-i18n="controls.units">Mértékegység</span>
-                <div class="radio-group" role="radiogroup" aria-label="Measurement units">
-                  <label><input type="radio" name="units" value="metric" checked> <span data-i18n="units.metric">Metrikus</span></label>
-                  <label><input type="radio" name="units" value="imperial"> <span data-i18n="units.imperial">Imperial</span></label>
-                </div>
-              </div>
-
-              <div class="option-row">
-                <span data-i18n="controls.stageInfo">Szakasz infó</span>
+                </span>
                 <label class="toggle-switch">
-                  <input id="showStageInfo" type="checkbox" checked>
+                  <input id="showStageInfo" type="checkbox">
                   <span class="toggle-track"></span>
                 </label>
               </div>
 
               <div class="option-row">
-                <span data-i18n="controls.gpxSample">GPX köztes pontok</span>
+                <span class="option-label-wrap">
+                  <span data-i18n="controls.gpxSample">GPX köztes pontok</span>
+                  <button class="hint-btn" type="button" data-hint="GPX fájl betöltésekor az útvonalon lévő összes köztes pontot beolvassa. Kikapcsolva csak a kezdő- és végpontot veszi figyelembe." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </span>
                 <label class="toggle-switch">
                   <input id="gpxSampleWaypoints" type="checkbox">
                   <span class="toggle-track"></span>
                 </label>
               </div>
+
+              <div class="option-row">
+                <span class="option-label-wrap">
+                  <span data-i18n="controls.mapStyle">Térképstílus</span>
+                  <button class="hint-btn" type="button" data-hint="A térkép vizuális megjelenítési módja. Kerékpár nézetben az utak és kerékpárutak kiemelve látszanak, a műholdas nézet valós légifotókat mutat." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </span>
+                <div class="sidebar-style-picker-wrap">
+                  <button id="sidebarStyleBtn" class="sidebar-style-btn" type="button">
+                    <i data-lucide="map" aria-hidden="true"></i>
+                    <span id="sidebarStyleLabel">Standard</span>
+                    <i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>
+                  </button>
+                  <div id="sidebarStylePicker" class="sidebar-style-popup" hidden>
+                    <div class="settings-map-styles sidebar-map-styles">
+                      <button class="settings-style-btn" data-map-style="standard" type="button">
+                        <span class="settings-style-preview settings-style-preview--standard"></span>
+                        <span class="settings-style-label">Standard</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="cycling" type="button">
+                        <span class="settings-style-preview settings-style-preview--cycling"></span>
+                        <span class="settings-style-label">Kerékpár</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="topo" type="button">
+                        <span class="settings-style-preview settings-style-preview--topo"></span>
+                        <span class="settings-style-label">Domborzat</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="satellite" type="button">
+                        <span class="settings-style-preview settings-style-preview--satellite"></span>
+                        <span class="settings-style-label">Műhold</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="hybrid" type="button">
+                        <span class="settings-style-preview settings-style-preview--hybrid"></span>
+                        <span class="settings-style-label">Hybrid</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="light" type="button">
+                        <span class="settings-style-preview settings-style-preview--light"></span>
+                        <span class="settings-style-label">Világos</span>
+                      </button>
+                      <button class="settings-style-btn" data-map-style="dark" type="button">
+                        <span class="settings-style-preview settings-style-preview--dark"></span>
+                        <span class="settings-style-label">Sötét</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
             </section>
 
             <!-- Útvonal -->
@@ -214,6 +271,12 @@
                   <strong id="descentValue">—</strong>
                 </div>
               </div>
+
+              <!-- Sidebar export gomb — csak ha van pont -->
+              <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
+                <i data-lucide="download" aria-hidden="true"></i>
+                <span>GPX exportálás</span>
+              </button>
             </section>
 
           </div><!-- /tabPlan -->
@@ -235,7 +298,35 @@
                 <span id="importedFileName" class="file-name"></span>
               </div>
 
+              <!-- Metaadatok -->
+              <div id="fileMetaBlock" class="file-meta-block" hidden>
+                <div class="file-meta-row" id="fileMetaNameRow" hidden>
+                  <i data-lucide="tag" aria-hidden="true"></i>
+                  <span id="fileMetaName"></span>
+                </div>
+                <div class="file-meta-row" id="fileMetaTypeRow" hidden>
+                  <i data-lucide="activity" aria-hidden="true"></i>
+                  <span id="fileMetaType"></span>
+                </div>
+                <div class="file-meta-row" id="fileMetaDescRow" hidden>
+                  <i data-lucide="align-left" aria-hidden="true"></i>
+                  <span id="fileMetaDesc"></span>
+                </div>
+                <div class="file-meta-row" id="fileMetaStartRow" hidden>
+                  <i data-lucide="calendar-clock" aria-hidden="true"></i>
+                  <span id="fileMetaStart"></span>
+                </div>
+              </div>
+
               <div class="stats-panel file-stats">
+                <div class="stat-card" id="fileTotalDurRow" hidden>
+                  <span>Időtartam</span>
+                  <strong id="fileTotalDur">—</strong>
+                </div>
+                <div class="stat-card" id="fileMovingDurRow" hidden>
+                  <span>Mozgási idő</span>
+                  <strong id="fileMovingDur">—</strong>
+                </div>
                 <div class="stat-card">
                   <span data-i18n="stats.distance">Távolság</span>
                   <strong id="fileDistance">—</strong>
@@ -268,6 +359,14 @@
                   <span>Max pulzus</span>
                   <strong id="fileMaxHr">—</strong>
                 </div>
+                <div class="stat-card" id="fileAvgCadRow" hidden>
+                  <span>⌀ Átlag kadencia</span>
+                  <strong id="fileAvgCad">—</strong>
+                </div>
+                <div class="stat-card" id="fileMaxCadRow" hidden>
+                  <span>Max kadencia</span>
+                  <strong id="fileMaxCad">—</strong>
+                </div>
               </div>
 
               <!-- Sebesség térkép kapcsoló -->
@@ -292,6 +391,29 @@
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#F97316"></span>30–35 km/h</div>
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>35–40 km/h</div>
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#A855F7"></span>40+ km/h</div>
+                </div>
+              </div>
+
+              <!-- Kadencia térkép kapcsoló -->
+              <div id="cadLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Kadencia térkép</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <label class="toggle-switch" title="Kadenciatérkép be/ki">
+                    <input id="cadMapToggle" type="checkbox" checked>
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#9CA3AF"></span>&lt; 60 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#3B82F6"></span>60–70 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#22C55E"></span>70–80 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#84CC16"></span>80–90 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EAB308"></span>90–100 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#F97316"></span>100–110 rpm</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>110+ rpm</div>
                 </div>
               </div>
 
@@ -339,42 +461,8 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <div class="layer-picker-wrap">
-            <button id="layerPickerBtn" class="nav-toggle-btn" type="button" title="Térképstílus">
-              <i data-lucide="layers" aria-hidden="true"></i>
-            </button>
-            <div id="layerPicker" class="layer-picker" hidden>
-              <button class="layer-option" data-map-style="standard" type="button" title="Standard">
-                <i data-lucide="map" aria-hidden="true"></i>
-                <span>Standard</span>
-              </button>
-              <button class="layer-option" data-map-style="cycling" type="button" title="Kerékpáros">
-                <i data-lucide="bike" aria-hidden="true"></i>
-                <span>Kerékpár</span>
-              </button>
-              <button class="layer-option" data-map-style="topo" type="button" title="Domborzat">
-                <i data-lucide="mountain" aria-hidden="true"></i>
-                <span>Domborzat</span>
-              </button>
-              <button class="layer-option" data-map-style="satellite" type="button" title="Műholdas">
-                <i data-lucide="satellite" aria-hidden="true"></i>
-                <span>Műhold</span>
-              </button>
-              <button class="layer-option" data-map-style="hybrid" type="button" title="Hybrid">
-                <i data-lucide="satellite" aria-hidden="true"></i>
-                <span>Hybrid</span>
-              </button>
-              <button class="layer-option" data-map-style="light" type="button" title="Világos">
-                <i data-lucide="sun" aria-hidden="true"></i>
-                <span>Világos</span>
-              </button>
-              <button class="layer-option" data-map-style="dark" type="button" title="Sötét">
-                <i data-lucide="moon" aria-hidden="true"></i>
-                <span>Sötét</span>
-              </button>
-            </div>
-          </div>
-          <span class="sidebar-version">v0.6</span>
+          <span class="sidebar-version">v0.7</span>
+          <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
 
       </aside>
@@ -387,6 +475,44 @@
           <button id="importButton" class="toolbar-btn" type="button" title="GPX importálása" data-i18n-title="actions.import">
             <i data-lucide="upload" aria-hidden="true"></i>
           </button>
+          <div class="toolbar-divider"></div>
+          <div class="layer-picker-wrap">
+            <button id="layerPickerBtn" class="toolbar-btn" type="button" title="Térképstílus">
+              <i data-lucide="layers" aria-hidden="true"></i>
+            </button>
+            <div id="layerPicker" class="layer-picker" hidden>
+              <div class="layer-picker-grid">
+                <button class="settings-style-btn" data-map-style="standard" type="button">
+                  <span class="settings-style-preview settings-style-preview--standard"></span>
+                  <span class="settings-style-label">Standard</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="cycling" type="button">
+                  <span class="settings-style-preview settings-style-preview--cycling"></span>
+                  <span class="settings-style-label">Kerékpár</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="topo" type="button">
+                  <span class="settings-style-preview settings-style-preview--topo"></span>
+                  <span class="settings-style-label">Domborzat</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="satellite" type="button">
+                  <span class="settings-style-preview settings-style-preview--satellite"></span>
+                  <span class="settings-style-label">Műhold</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="hybrid" type="button">
+                  <span class="settings-style-preview settings-style-preview--hybrid"></span>
+                  <span class="settings-style-label">Hybrid</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="light" type="button">
+                  <span class="settings-style-preview settings-style-preview--light"></span>
+                  <span class="settings-style-label">Világos</span>
+                </button>
+                <button class="settings-style-btn" data-map-style="dark" type="button">
+                  <span class="settings-style-preview settings-style-preview--dark"></span>
+                  <span class="settings-style-label">Sötét</span>
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="toolbar-divider"></div>
           <button id="reverseRouteButton" class="toolbar-btn" type="button" title="Megfordítás" data-i18n-title="actions.reverse">
             <i data-lucide="arrow-left-right" aria-hidden="true"></i>
@@ -417,6 +543,173 @@
             <i data-lucide="x" aria-hidden="true"></i>
             Mérés törlése
           </button>
+        </div>
+
+        <!-- Settings overlay -->
+        <div id="settingsOverlay" class="shortcut-overlay" hidden>
+          <div class="settings-panel">
+            <div class="settings-header">
+              <h3>Beállítások</h3>
+              <button id="settingsClose" class="shortcut-close" type="button" title="Bezárás">
+                <i data-lucide="x" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="settings-body">
+
+              <!-- Térképstílus -->
+              <section class="settings-section">
+                <h4 class="settings-section-title">
+                  <i data-lucide="layers" aria-hidden="true"></i>
+                  Térképstílus
+                  <button class="hint-btn" type="button" data-hint="A térkép vizuális megjelenítési módja. Kerékpár nézetben az utak és kerékpárutak kiemelve látszanak, a műholdas nézet valós légifotókat mutat." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </h4>
+                <div class="settings-map-styles">
+                  <button class="settings-style-btn" data-map-style="standard" type="button">
+                    <span class="settings-style-preview settings-style-preview--standard"></span>
+                    <span class="settings-style-label">Standard</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="cycling" type="button">
+                    <span class="settings-style-preview settings-style-preview--cycling"></span>
+                    <span class="settings-style-label">Kerékpár</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="topo" type="button">
+                    <span class="settings-style-preview settings-style-preview--topo"></span>
+                    <span class="settings-style-label">Domborzat</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="satellite" type="button">
+                    <span class="settings-style-preview settings-style-preview--satellite"></span>
+                    <span class="settings-style-label">Műhold</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="hybrid" type="button">
+                    <span class="settings-style-preview settings-style-preview--hybrid"></span>
+                    <span class="settings-style-label">Hybrid</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="light" type="button">
+                    <span class="settings-style-preview settings-style-preview--light"></span>
+                    <span class="settings-style-label">Világos</span>
+                  </button>
+                  <button class="settings-style-btn" data-map-style="dark" type="button">
+                    <span class="settings-style-preview settings-style-preview--dark"></span>
+                    <span class="settings-style-label">Sötét</span>
+                  </button>
+                </div>
+              </section>
+
+              <!-- Mértékegység -->
+              <section class="settings-section">
+                <h4 class="settings-section-title">
+                  <i data-lucide="ruler" aria-hidden="true"></i>
+                  Mértékegység
+                  <button class="hint-btn" type="button" data-hint="A távolságok és magasságok megjelenítési egysége. Metrikus: km és méter. Imperial: mérföld és láb." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </h4>
+                <div class="settings-unit-group">
+                  <label class="settings-unit-btn">
+                    <input type="radio" name="units" value="metric" checked>
+                    <span>
+                      <i data-lucide="gauge" aria-hidden="true"></i>
+                      Metrikus
+                      <small>km, m</small>
+                    </span>
+                  </label>
+                  <label class="settings-unit-btn">
+                    <input type="radio" name="units" value="imperial">
+                    <span>
+                      <i data-lucide="gauge" aria-hidden="true"></i>
+                      Imperial
+                      <small>mi, ft</small>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <!-- Tervezési beállítások -->
+              <section class="settings-section">
+                <h4 class="settings-section-title">
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                  Tervezési beállítások
+                </h4>
+
+                <div class="settings-toggle-row">
+                  <div class="settings-toggle-label">
+                    <span>Útra illesztés</span>
+                    <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal pontjai automatikusan a legközelebbi útra illeszkednek. Kikapcsolva a pontokat légvonalban köti össze." aria-label="Segítség">
+                      <i data-lucide="info" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <label class="toggle-switch">
+                    <input id="settingsSnapToRoads" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+
+                <div class="settings-toggle-row">
+                  <div class="settings-toggle-label">
+                    <span>Szakasz infó</span>
+                    <button class="hint-btn" type="button" data-hint="Az útvonal egyes szakaszainak részletes adatait (távolság, szintkülönbség) jeleníti meg a térkép alatt." aria-label="Segítség">
+                      <i data-lucide="info" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <label class="toggle-switch">
+                    <input id="settingsShowStageInfo" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+
+                <div class="settings-toggle-row">
+                  <div class="settings-toggle-label">
+                    <span>GPX köztes pontok</span>
+                    <button class="hint-btn" type="button" data-hint="GPX fájl betöltésekor az útvonalon lévő összes köztes pontot beolvassa. Kikapcsolva csak a kezdő- és végpontot veszi figyelembe." aria-label="Segítség">
+                      <i data-lucide="info" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <label class="toggle-switch">
+                    <input id="settingsGpxSampleWaypoints" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+              </section>
+
+              <!-- Kezdő nézet -->
+              <section class="settings-section">
+                <h4 class="settings-section-title">
+                  <i data-lucide="map-pin" aria-hidden="true"></i>
+                  Induló nézet
+                  <button class="hint-btn" type="button" data-hint="Az alkalmazás megnyitásakor a térkép automatikusan erre a helyre és zoomszintre ugrik." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
+                </h4>
+                <p class="settings-hint">A térkép ezen a helyen és zoomszinten nyílik meg.</p>
+                <div class="settings-startview-search">
+                  <div class="settings-search-wrap">
+                    <input id="startViewSearch" class="settings-search-input" type="text"
+                      placeholder="Keress helyet…" autocomplete="off">
+                    <div id="startViewResults" class="settings-search-results" hidden></div>
+                  </div>
+                  <button id="startViewCurrentBtn" class="settings-action-btn" type="button" title="A térkép jelenlegi középpontjának mentése induló nézetként">
+                    <i data-lucide="frame" aria-hidden="true"></i>
+                    Térkép nézete
+                  </button>
+                  <button id="startViewGpsBtn" class="settings-action-btn" type="button" title="GPS pozíció lekérése">
+                    <i data-lucide="locate" aria-hidden="true"></i>
+                    GPS
+                  </button>
+                </div>
+                <div id="startViewCurrent" class="settings-startview-current" hidden>
+                  <i data-lucide="map-pin-check" aria-hidden="true"></i>
+                  <span id="startViewLabel">—</span>
+                  <button id="startViewClearBtn" class="settings-clear-btn" type="button" title="Törlés">
+                    <i data-lucide="trash-2" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </section>
+
+            </div>
+          </div>
         </div>
 
         <!-- Shortcut overlay -->
@@ -451,5 +744,56 @@
     ></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script type="module" src="./src/main.js"></script>
+    <!-- Tooltip singleton -->
+    <div id="hintTooltip" class="hint-tooltip" hidden role="tooltip"></div>
+
+    <!-- GPX Export modal -->
+    <div id="exportOverlay" class="shortcut-overlay" hidden>
+      <div class="export-panel">
+        <div class="export-header">
+          <h3>GPX exportálás</h3>
+          <button id="exportClose" class="shortcut-close" type="button" title="Bezárás">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="export-body">
+          <div class="export-field">
+            <label class="export-label" for="exportName">Útvonal neve</label>
+            <input id="exportName" class="export-input" type="text" placeholder="pl. Gyöngyös–Kékes körút" autocomplete="off">
+          </div>
+          <div class="export-field">
+            <label class="export-label" for="exportMode">Aktivitás típusa</label>
+            <div class="export-mode-group">
+              <label class="export-mode-btn">
+                <input type="radio" name="exportMode" value="cycling" checked>
+                <span><i data-lucide="bike" aria-hidden="true"></i> Kerékpározás</span>
+              </label>
+              <label class="export-mode-btn">
+                <input type="radio" name="exportMode" value="walking">
+                <span><i data-lucide="footprints" aria-hidden="true"></i> Gyaloglás</span>
+              </label>
+            </div>
+          </div>
+          <div class="export-field">
+            <label class="export-label" for="exportDesc">Leírás <span class="export-optional">(opcionális)</span></label>
+            <textarea id="exportDesc" class="export-textarea" rows="3" placeholder="Rövid leírás, megjegyzés az útvonalról…"></textarea>
+          </div>
+          <div class="export-field">
+            <label class="export-label" for="exportFilename">Fájlnév</label>
+            <div class="export-filename-wrap">
+              <input id="exportFilename" class="export-input" type="text" autocomplete="off" spellcheck="false">
+              <span class="export-ext">.gpx</span>
+            </div>
+            <p class="export-field-hint">A letöltött fájl neve — módosítható.</p>
+          </div>
+        </div>
+        <div class="export-footer">
+          <button id="exportConfirm" class="export-confirm-btn" type="button">
+            <i data-lucide="download" aria-hidden="true"></i>
+            Letöltés
+          </button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
