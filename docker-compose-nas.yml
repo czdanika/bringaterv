@@ -1,0 +1,53 @@
+# ── Bringaterv – NAS / éles telepítés ────────────────────────────────────────
+#
+# Ez a fájl NAS-on és éles szerveren használandó.
+# A képeket a GitHub Container Registry-ből húzza (GitHub Actions buildeli).
+#
+# Helyi fejlesztéshez / Pi teszthez: docker-compose.yml (build: direktívával)
+
+services:
+
+  # ── Frontend (nginx) ────────────────────────────────────────────────────────
+  bringaterv:
+    image: ghcr.io/czdanika/bringaterv:latest
+    ports:
+      - "8088:80"
+    environment:
+      LOGIN_ENABLED: true
+      LOGIN_USER: bringa
+      LOGIN_PASSWORD: terv
+    depends_on:
+      - routes-api
+    networks:
+      - bringaterv-net
+    restart: unless-stopped
+
+  # ── Útvonaltár API (Flask) ──────────────────────────────────────────────────
+  # Kívülről NEM elérhető – csak az nginx-en keresztül, belső hálózaton
+  routes-api:
+    image: ghcr.io/czdanika/bringaterv-api:latest
+    environment:
+      DATA_DIR:    /data/routes   # felhasználói GPX-ek (volume-ban)
+      SAMPLES_DIR: /samples       # beépített minták (image-be égetve)
+    volumes:
+      - routes-data:/data/routes  # perzisztens tároló
+    networks:
+      - bringaterv-net
+    restart: unless-stopped
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  routes-data:
+    # Docker kezeli a helyét – frissítéskor megmarad, adatvesztés nélkül
+    #
+    # Ha konkrét NAS mappát akarsz bind mount-ként (opcionális):
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /volume1/docker/bringaterv-data
+
+# ── Hálózat ──────────────────────────────────────────────────────────────────
+networks:
+  bringaterv-net:
+    driver: bridge
