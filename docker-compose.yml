@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: bringaterv:latest
+    pull_policy: build
     ports:
       - "8080:80"
     restart: unless-stopped
