@@ -7,6 +7,7 @@ import { createMapAdapter } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
+import { buildElevationData, buildSpeedData, buildHrData, initElevationChart } from "./ui/elevationProfile.js";
 
 requireAuth();
 
@@ -233,6 +234,29 @@ const elements = {
   exportDesc: document.querySelector("#exportDesc"),
   exportFilename: document.querySelector("#exportFilename"),
   fileExportButton: document.querySelector("#fileExportButton"),
+  elevationBtn: document.querySelector("#elevationBtn"),
+  elevationPanel: document.querySelector("#elevationPanel"),
+  elevationClose: document.querySelector("#elevationClose"),
+  elevationCanvas: document.querySelector("#elevationCanvas"),
+  elevationTooltip: document.querySelector("#elevationTooltip"),
+  elevationTooltipDist: document.querySelector("#elevationTooltipDist"),
+  elevationTooltipEle: document.querySelector("#elevationTooltipEle"),
+  elevationTooltipGrade: document.querySelector("#elevationTooltipGrade"),
+  elevationInfo: document.querySelector("#elevationInfo"),
+  speedMapToggle: document.querySelector("#speedMapToggle"),
+  hrMapToggle: document.querySelector("#hrMapToggle"),
+  cadMapToggle: document.querySelector("#cadMapToggle"),
+  gradeLegend: document.querySelector("#gradeLegend"),
+  gradeLegendPlan: document.querySelector("#gradeLegendPlan"),
+  gradeMapToggle: document.querySelector("#gradeMapToggle"),
+  gradeMapTogglePlan: document.querySelector("#gradeMapTogglePlan"),
+  gradeLegendChartBtn: document.querySelector("#gradeLegendChartBtn"),
+  gradeLegendChartBtnPlan: document.querySelector("#gradeLegendChartBtnPlan"),
+  speedLegend: document.querySelector("#speedLegend"),
+  hrLegend: document.querySelector("#hrLegend"),
+  cadLegend: document.querySelector("#cadLegend"),
+  speedChartBtn: document.querySelector("#speedChartBtn"),
+  hrChartBtn: document.querySelector("#hrChartBtn"),
 };
 
 const STYLE_ICONS = {
@@ -354,6 +378,228 @@ elements.unitInputs.forEach((input) => {
 elements.exportButton.disabled = true;
 if (elements.fileExportButton) elements.fileExportButton.disabled = true;
 
+// Szintprofil – aktív geometry (tervezett vagy importált)
+let activeGeometry = [];
+
+// Aktív chart típus: "elevation" | "speed" | "hr"
+let activeChartType = "elevation";
+
+// Chart panel inicializálása
+const elevationChart = initElevationChart(elements.elevationCanvas, {
+  onHover(pt, opts) {
+    if (!pt || pt.value == null) return;
+    mapAdapter.setElevationMarker(pt.lat, pt.lng);
+    if (elements.elevationTooltip) elements.elevationTooltip.hidden = false;
+    if (elements.elevationTooltipDist) {
+      elements.elevationTooltipDist.innerHTML = `<b>${(pt.dist / 1000).toFixed(2)} km</b>`;
+    }
+    if (elements.elevationTooltipEle) {
+      const unit = opts?.unit ?? "m";
+      const icons = { m: "⛰", "km/h": "🚴", bpm: "❤️" };
+      const icon = icons[unit] ?? "";
+      elements.elevationTooltipEle.innerHTML = `${icon} <b>${Math.round(pt.value)} ${unit}</b>`;
+    }
+    if (elements.elevationTooltipGrade) elements.elevationTooltipGrade.innerHTML = "";
+  },
+  onLeave() {
+    mapAdapter.clearElevationMarker();
+    if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
+  },
+});
+
+function updateElevationButton(geometry) {
+  activeGeometry = geometry ?? [];
+  const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
+  if (elements.elevationBtn) elements.elevationBtn.disabled = !hasEle;
+  if (elements.gradeLegend) elements.gradeLegend.hidden = !hasEle;
+  if (elements.gradeLegendPlan) elements.gradeLegendPlan.hidden = !hasEle;
+  // Ha nincs ele adat, töröld a grade route-ot és reseteld a togglekat
+  if (!hasEle) {
+    mapAdapter.clearGradeRoute();
+    if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
+    if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
+  }
+  // Ha a panel nyitva van, frissítsd a chartot
+  if (!elements.elevationPanel?.hidden) {
+    const data = buildElevationData(activeGeometry);
+    elevationChart.setData(data);
+    updateElevationPanelInfo(data);
+  }
+}
+
+function syncElevationBtnState(isOpen) {
+  // Toolbar gomb: aktív ha bármely chart nyitva van
+  if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", isOpen);
+
+  // Chart icon gombok: csak az aktív típus kiemelve
+  const typeMap = {
+    elevation: [elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan],
+    speed:     [elements.speedChartBtn],
+    hr:        [elements.hrChartBtn],
+  };
+  Object.entries(typeMap).forEach(([type, btns]) => {
+    const active = isOpen && activeChartType === type;
+    btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
+  });
+}
+
+// Egységes réteg-kapcsoló: csak egy lehet aktív egyszerre
+function applyRouteLayer(type) {
+  // 1. Minden toggle kikapcsol
+  if (elements.speedMapToggle) elements.speedMapToggle.checked = false;
+  if (elements.hrMapToggle)    elements.hrMapToggle.checked    = false;
+  if (elements.cadMapToggle)   elements.cadMapToggle.checked   = false;
+  if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
+  if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
+
+  // 2. Minden réteg törlése
+  mapAdapter.clearColoredRoute();
+  mapAdapter.clearHrRoute();
+  mapAdapter.clearCadRoute();
+  mapAdapter.clearGradeRoute();
+
+  // 3. Aktív réteg bekapcsolása
+  switch (type) {
+    case "speed":
+      if (importedColoredGeometry) {
+        if (elements.speedMapToggle) elements.speedMapToggle.checked = true;
+        mapAdapter.renderColoredRoute(importedColoredGeometry);
+      }
+      break;
+    case "hr":
+      if (importedHrGeometry) {
+        if (elements.hrMapToggle) elements.hrMapToggle.checked = true;
+        mapAdapter.renderHrRoute(importedHrGeometry);
+      }
+      break;
+    case "cad":
+      if (importedCadGeometry) {
+        if (elements.cadMapToggle) elements.cadMapToggle.checked = true;
+        mapAdapter.renderCadRoute(importedCadGeometry);
+      }
+      break;
+    case "grade":
+      if (activeGeometry.length > 1) {
+        if (elements.gradeMapToggle) elements.gradeMapToggle.checked = true;
+        if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = true;
+        mapAdapter.renderGradeRoute(activeGeometry);
+      }
+      break;
+    default:
+      // Sima útvonal
+      if (activeGeometry.length > 1) mapAdapter.renderRoute(activeGeometry);
+  }
+}
+
+// Toggle event handlerek — kizárólagos logika
+elements.speedMapToggle?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "speed" : null);
+});
+elements.hrMapToggle?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "hr" : null);
+});
+elements.cadMapToggle?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "cad" : null);
+});
+[elements.gradeMapToggle, elements.gradeMapTogglePlan].forEach((toggle) => {
+  toggle?.addEventListener("change", (e) => applyRouteLayer(e.target.checked ? "grade" : null));
+});
+
+// Chart gombok — kizárólagos: csak egy típus lehet aktív
+function handleChartBtn(type) {
+  if (!elements.elevationPanel?.hidden && activeChartType === type) {
+    closeElevationPanel();
+  } else {
+    openChartPanel(type);
+  }
+}
+
+[elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan].forEach((btn) => {
+  btn?.addEventListener("click", () => handleChartBtn("elevation"));
+});
+elements.speedChartBtn?.addEventListener("click", () => handleChartBtn("speed"));
+elements.hrChartBtn?.addEventListener("click",    () => handleChartBtn("hr"));
+
+function updateElevationPanelInfo(data) {
+  if (!elements.elevationInfo || !data.length) return;
+  const eles = data.map((p) => p.ele).filter((e) => e != null);
+  if (!eles.length) return;
+  const minEle = Math.min(...eles);
+  const maxEle = Math.max(...eles);
+  // Emelkedés / ereszkedés
+  let asc = 0, desc = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i].ele == null || data[i - 1].ele == null) continue;
+    const d = data[i].ele - data[i - 1].ele;
+    if (d > 0) asc += d; else desc += Math.abs(d);
+  }
+  elements.elevationInfo.innerHTML =
+    `<span>↑ <b>${Math.round(asc)} m</b></span>` +
+    `<span>↓ <b>${Math.round(desc)} m</b></span>` +
+    `<span>Min <b>${Math.round(minEle)} m</b></span>` +
+    `<span>Max <b>${Math.round(maxEle)} m</b></span>`;
+}
+
+// Chart panel megnyitása adott típussal
+function openChartPanel(type) {
+  if (!elements.elevationPanel) return;
+  activeChartType = type ?? "elevation";
+
+  let data, opts, title;
+  if (type === "speed") {
+    data = buildSpeedData(activeGeometry);
+    opts = { color: "#3B82F6", unit: "km/h" };
+    title = "Sebesség";
+  } else if (type === "hr") {
+    data = buildHrData(activeGeometry);
+    opts = { color: "#EF4444", unit: "bpm" };
+    title = "Pulzus";
+  } else {
+    data = buildElevationData(activeGeometry);
+    opts = { color: "#fc4c02", unit: "m" };
+    title = "Szintprofil";
+  }
+
+  elements.elevationPanel.hidden = false;
+  if (elements.elevationPanel.querySelector(".elevation-panel-title")) {
+    elements.elevationPanel.querySelector(".elevation-panel-title").textContent = title;
+  }
+  elevationChart.setData(data, opts);
+  updateElevationPanelInfo(data);
+  syncElevationBtnState(true);
+}
+
+// Szintprofil megnyitása
+function openElevationPanel() {
+  openChartPanel("elevation");
+}
+
+// Szintprofil bezárása
+function closeElevationPanel() {
+  if (elements.elevationPanel) elements.elevationPanel.hidden = true;
+  mapAdapter.clearElevationMarker();
+  if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
+  syncElevationBtnState(false);
+}
+
+// Toggle logika minden gombhoz
+function toggleElevationPanel() {
+  if (elements.elevationPanel?.hidden) {
+    openElevationPanel();
+  } else {
+    closeElevationPanel();
+  }
+}
+
+elements.elevationBtn?.addEventListener("click", toggleElevationPanel);
+
+// Szintprofil panel bezárása (X gomb)
+elements.elevationClose?.addEventListener("click", closeElevationPanel);
+
+// Resize observer a canvas újrarajzoláshoz
+const elevationResizeObserver = new ResizeObserver(() => elevationChart.resize());
+if (elements.elevationPanel) elevationResizeObserver.observe(elements.elevationPanel);
+
 const _initSettings = getSettings();
 // sidebar toggles
 if (elements.snapToRoads) elements.snapToRoads.checked = _initSettings.snapToRoads;
@@ -385,18 +631,7 @@ store.subscribe(async (state) => {
   if (elements.sidebarExportButton) elements.sidebarExportButton.hidden = !hasPoints;
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
-    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
-    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
-    if (importedColoredGeometry && speedOn) {
-      mapAdapter.renderColoredRoute(importedColoredGeometry);
-    } else if (importedCadGeometry && cadOn) {
-      mapAdapter.renderCadRoute(importedCadGeometry);
-    } else if (importedHrGeometry && hrOn) {
-      mapAdapter.renderHrRoute(importedHrGeometry);
-    } else {
-      mapAdapter.renderRoute(state.routeGeometry);
-    }
+    // Az aktív toggle határozza meg a megjelenítést
     return;
   }
   const routeSignature = JSON.stringify({
@@ -419,6 +654,7 @@ store.subscribe(async (state) => {
     sourcePointCount: 0,
   });
   mapAdapter.renderRoute(route.geometry);
+  updateElevationButton(route.geometry);
 });
 
 elements.routeModeButtons.forEach((button) => {
@@ -729,8 +965,11 @@ function clearAllRouteState() {
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
+  mapAdapter.clearGradeRoute();
   store.clear();
   clearFileTab();
+  updateElevationButton([]);
+  closeElevationPanel();
 }
 
 elements.clearRoute.addEventListener("click", () => {
@@ -911,44 +1150,20 @@ elements.gpxInput.addEventListener("change", async () => {
   const hasHr = imported.geometry.some(p => p.hr != null);
   const hasCad = imported.geometry.some(p => p.cad != null);
 
-  if (hasSpeed) {
-    importedColoredGeometry = imported.geometry;
-    const toggle = document.querySelector("#speedMapToggle");
-    if (toggle) toggle.checked = true;
-    mapAdapter.renderColoredRoute(imported.geometry);
-  } else {
-    importedColoredGeometry = null;
-    mapAdapter.clearColoredRoute();
-  }
+  // Geometriák tárolása (togglekhoz)
+  importedColoredGeometry = hasSpeed ? imported.geometry : null;
+  importedCadGeometry     = hasCad  ? imported.geometry : null;
+  importedHrGeometry      = hasHr   ? imported.geometry : null;
 
-  if (hasCad) {
-    importedCadGeometry = imported.geometry;
-    const toggle = document.querySelector("#cadMapToggle");
-    if (toggle) toggle.checked = true;
-    // Only render cadence if speed isn't already showing
-    if (!hasSpeed) mapAdapter.renderCadRoute(imported.geometry);
-  } else {
-    importedCadGeometry = null;
-    mapAdapter.clearCadRoute();
-  }
-
-  if (hasHr) {
-    importedHrGeometry = imported.geometry;
-    const toggle = document.querySelector("#hrMapToggle");
-    if (toggle) toggle.checked = true;
-    // Only render HR route if speed and cadence aren't already showing
-    if (!hasSpeed && !hasCad) mapAdapter.renderHrRoute(imported.geometry);
-  } else {
-    importedHrGeometry = null;
-    mapAdapter.clearHrRoute();
-  }
-
-  if (!hasSpeed && !hasCad && !hasHr) {
-    mapAdapter.renderRoute(imported.geometry);
-  }
+  // Alapértelmezett megjelenítés: sebesség > kadencia > pulzus > sima
+  if (hasSpeed)       applyRouteLayer("speed");
+  else if (hasCad)    applyRouteLayer("cad");
+  else if (hasHr)     applyRouteLayer("hr");
+  else                applyRouteLayer(null);
 
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
+  updateElevationButton(imported.geometry);
 
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   setTimeout(() => mapAdapter.fitRoute(), 50);
@@ -974,75 +1189,6 @@ document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
     btn.setAttribute("aria-expanded", String(expanded));
     window.lucide?.createIcons();
   });
-});
-document.querySelector("#speedMapToggle")?.addEventListener("change", (e) => {
-  if (!importedColoredGeometry) return;
-  const legend = document.querySelector("#speedLegend");
-  if (e.target.checked) {
-    mapAdapter.renderColoredRoute(importedColoredGeometry);
-    legend?.classList.remove("is-disabled");
-  } else {
-    mapAdapter.clearColoredRoute();
-    // Fall back to cadence, HR, or plain route (speed > cad > hr priority)
-    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
-    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
-    if (importedCadGeometry && cadOn) {
-      mapAdapter.renderCadRoute(importedCadGeometry);
-    } else if (importedHrGeometry && hrOn) {
-      mapAdapter.renderHrRoute(importedHrGeometry);
-    } else {
-      mapAdapter.renderRoute(store.getState().routeGeometry);
-    }
-    legend?.classList.add("is-disabled");
-  }
-});
-
-document.querySelector("#hrMapToggle")?.addEventListener("change", (e) => {
-  if (!importedHrGeometry) return;
-  const legend = document.querySelector("#hrLegend");
-  if (e.target.checked) {
-    // Only show HR if speed and cadence are off (speed > cad > hr priority)
-    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
-    if ((!importedColoredGeometry || !speedOn) && (!importedCadGeometry || !cadOn)) {
-      mapAdapter.renderHrRoute(importedHrGeometry);
-    }
-    legend?.classList.remove("is-disabled");
-  } else {
-    mapAdapter.clearHrRoute();
-    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    const cadOn = document.querySelector("#cadMapToggle")?.checked ?? true;
-    if ((!importedColoredGeometry || !speedOn) && (!importedCadGeometry || !cadOn)) {
-      mapAdapter.renderRoute(store.getState().routeGeometry);
-    }
-    legend?.classList.add("is-disabled");
-  }
-});
-
-document.querySelector("#cadMapToggle")?.addEventListener("change", (e) => {
-  if (!importedCadGeometry) return;
-  const legend = document.querySelector("#cadLegend");
-  if (e.target.checked) {
-    // Only show cadence if speed is off (speed takes priority)
-    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    if (!importedColoredGeometry || !speedOn) {
-      mapAdapter.renderCadRoute(importedCadGeometry);
-    }
-    legend?.classList.remove("is-disabled");
-  } else {
-    mapAdapter.clearCadRoute();
-    const speedOn = document.querySelector("#speedMapToggle")?.checked ?? true;
-    // Fall back to HR or plain route
-    const hrOn = document.querySelector("#hrMapToggle")?.checked ?? true;
-    if (!importedColoredGeometry || !speedOn) {
-      if (importedHrGeometry && hrOn) {
-        mapAdapter.renderHrRoute(importedHrGeometry);
-      } else {
-        mapAdapter.renderRoute(store.getState().routeGeometry);
-      }
-    }
-    legend?.classList.add("is-disabled");
-  }
 });
 
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {

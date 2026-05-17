@@ -1888,6 +1888,54 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .sidebar-export-btn svg { width: 15px; height: 15px; }
 .sidebar-export-btn[hidden] { display: none; }
 
+/* Grade chart ikon a legend headerben */
+.grade-chart-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.grade-chart-btn:hover,
+.grade-chart-btn.is-active {
+  background: var(--brand-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Szintprofil gomb a sidebarban */
+.sidebar-elevation-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 4px 16px;
+  padding: 9px 16px;
+  background: var(--panel-strong);
+  color: var(--text);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sidebar-elevation-btn:hover { background: var(--panel-bg); border-color: var(--accent); }
+.sidebar-elevation-btn.is-active {
+  background: var(--brand-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sidebar-elevation-btn[hidden] { display: none; }
+
 /* Disabled export buttons */
 #exportButton:disabled,
 #fileExportButton:disabled {
@@ -1909,3 +1957,103 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   }
   .map-wrap { grid-column: 1; }
 }
+
+/* ── Elevation Profile Panel ─────────────────────────────────── */
+.elevation-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 600;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  height: 200px;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px 12px 0 0;
+}
+.elevation-panel:not([hidden]) {
+  transform: translateY(0);
+}
+.elevation-panel[hidden] {
+  display: flex !important;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+.elevation-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+.elevation-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.elevation-panel-info {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.elevation-panel-info span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.elevation-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.elevation-panel-close:hover {
+  background: var(--panel-strong);
+  color: var(--text);
+}
+.elevation-panel-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.elevation-panel-body canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+.elevation-hover-info {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  white-space: nowrap;
+}
+.elevation-hover-info span { color: var(--text-muted); }
+.elevation-hover-info span b { color: var(--text); font-weight: 700; }

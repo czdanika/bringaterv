@@ -87,7 +87,7 @@
           </button>
           <button class="sidebar-tab" data-tab="file" type="button">
             <i data-lucide="chart-line" aria-hidden="true"></i>
-            <span data-i18n="tabs.file">Elemzés</span>
+            <span>Elemzés</span>
           </button>
         </div>
 
@@ -277,6 +277,37 @@
                 <i data-lucide="download" aria-hidden="true"></i>
                 <span>GPX exportálás</span>
               </button>
+              <!-- Szintprofil / Lejtő térkép — tervezésnél -->
+              <div id="gradeLegendPlan" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Szintprofil</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="gradeLegendChartBtnPlan" class="grade-chart-btn" type="button" title="Szintprofil diagram megjelenítése">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="3 17 8 12 13 15 18 7 21 10"/>
+                      <line x1="3" y1="20" x2="21" y2="20"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Lejtőtérkép be/ki">
+                    <input id="gradeMapTogglePlan" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#7F1D1D"></span>↑ &gt;8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#DC2626"></span>↑ 4–8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>↑ 2–4%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#FCA5A5"></span>↑ 0.5–2%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#9CA3AF"></span>→ &lt;0.5%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#86EFAC"></span>↓ 0.5–2%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#22C55E"></span>↓ 2–4%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#15803D"></span>↓ 4–8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#14532D"></span>↓ &gt;8%</div>
+                </div>
+              </div>
+
             </section>
 
           </div><!-- /tabPlan -->
@@ -376,6 +407,11 @@
                     <span class="speed-legend-title">Sebesség térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button id="speedChartBtn" class="grade-chart-btn" type="button" title="Sebességdiagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </button>
                   <label class="toggle-switch" title="Sebességtérkép be/ki">
                     <input id="speedMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
@@ -424,6 +460,11 @@
                     <span class="speed-legend-title">Pulzus térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button id="hrChartBtn" class="grade-chart-btn" type="button" title="Pulzusdiagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </button>
                   <label class="toggle-switch" title="Pulzustérkép be/ki">
                     <input id="hrMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
@@ -438,6 +479,38 @@
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#A855F7"></span>180+ bpm</div>
                 </div>
               </div>
+
+              <!-- Szintprofil / Lejtő térkép -->
+              <div id="gradeLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Szintprofil</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="gradeLegendChartBtn" class="grade-chart-btn" type="button" title="Szintprofil diagram megjelenítése">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="3 17 8 12 13 15 18 7 21 10"/>
+                      <line x1="3" y1="20" x2="21" y2="20"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Lejtőtérkép be/ki">
+                    <input id="gradeMapToggle" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#7F1D1D"></span>↑ &gt;8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#DC2626"></span>↑ 4–8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>↑ 2–4%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#FCA5A5"></span>↑ 0.5–2%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#9CA3AF"></span>→ &lt;0.5%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#86EFAC"></span>↓ 0.5–2%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#22C55E"></span>↓ 2–4%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#15803D"></span>↓ 4–8%</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#14532D"></span>↓ &gt;8%</div>
+                </div>
+              </div>
+
 
               <div class="file-actions">
                 <button id="fileExportButton" class="file-action-btn" type="button">
@@ -461,7 +534,7 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <span class="sidebar-version">v0.8</span>
+          <span class="sidebar-version">v0.9</span>
           <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
 
@@ -527,12 +600,40 @@
             <i data-lucide="trash-2" aria-hidden="true"></i>
           </button>
           <div class="toolbar-divider"></div>
+          <button id="elevationBtn" class="toolbar-btn" type="button" title="Szintprofil" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 17 8 12 13 15 18 7 21 10"/>
+              <line x1="3" y1="20" x2="21" y2="20"/>
+            </svg>
+          </button>
+          <div class="toolbar-divider"></div>
           <button id="exportButton" class="toolbar-btn toolbar-btn--primary" type="button" data-i18n="actions.export">
             GPX mentése
           </button>
         </div>
         <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml" hidden>
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+        <!-- Elevation Profile Panel -->
+        <div id="elevationPanel" class="elevation-panel" hidden>
+          <div class="elevation-panel-header">
+            <span class="elevation-panel-title">Szintprofil</span>
+            <div class="elevation-panel-info" id="elevationInfo"></div>
+            <button id="elevationClose" class="elevation-panel-close" type="button" title="Bezárás">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="elevation-panel-body">
+            <canvas id="elevationCanvas"></canvas>
+          </div>
+          <div id="elevationTooltip" class="elevation-hover-info" hidden>
+            <span id="elevationTooltipDist"></span>
+            <span id="elevationTooltipEle"></span>
+            <span id="elevationTooltipGrade"></span>
+          </div>
+        </div>
 
         <!-- Measure bar -->
         <div id="measureBar" class="measure-bar" hidden>

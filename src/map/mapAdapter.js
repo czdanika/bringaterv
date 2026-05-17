@@ -56,6 +56,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   }).addTo(map);
   let userLocationMarker;
   let userAccuracyCircle;
+  let elevationMarker = null;
 
   // Hover tooltip state
   let hoverGeometry = [];
@@ -336,6 +337,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   // Cadence-colored route
   const cadRouteGroup = L.layerGroup();
 
+  // Grade-colored route
+  const gradeRouteGroup = L.layerGroup();
+
   function cadColor(cad) {
     if (cad == null) return null;
     if (cad <  60) return "#9CA3AF";  // szürke  – nagyon lassú
@@ -356,6 +360,19 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   function clearCadRoute() {
     cadRouteGroup.clearLayers();
     if (map.hasLayer(cadRouteGroup)) map.removeLayer(cadRouteGroup);
+  }
+
+  function gradeColor(grade) {
+    if (grade == null) return '#9CA3AF';
+    if (grade > 8)   return '#7F1D1D';  // nagyon meredek emelkedő
+    if (grade > 4)   return '#DC2626';  // meredek
+    if (grade > 2)   return '#EF4444';  // közepes
+    if (grade > 0.5) return '#FCA5A5';  // enyhe emelkedő
+    if (grade > -0.5) return '#9CA3AF'; // egyenes
+    if (grade > -2)  return '#86EFAC';  // enyhe süllyedő
+    if (grade > -4)  return '#22C55E';  // közepes
+    if (grade > -8)  return '#15803D';  // meredek
+    return '#14532D';                   // nagyon meredek süllyedő
   }
 
   function renderSegments(group, geometry, valueFn, fallback) {
@@ -386,10 +403,57 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     if (map.hasLayer(hrRouteGroup)) map.removeLayer(hrRouteGroup);
   }
 
+  function renderGradeRoute(geometry) {
+    clearColoredRoute();
+    clearHrRoute();
+    clearCadRoute();
+
+    // 1. Kumulatív távolság egyetlen menetben
+    let acc = 0;
+    const withDist = geometry.map((pt, i) => {
+      if (i > 0) {
+        const prev = geometry[i - 1];
+        const dLat = (pt.lat - prev.lat) * Math.PI / 180;
+        const dLng = (pt.lng - prev.lng) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(prev.lat * Math.PI / 180) * Math.cos(pt.lat * Math.PI / 180) *
+          Math.sin(dLng / 2) ** 2;
+        acc += 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+      return { ...pt, cumDist: acc };
+    });
+
+    // 2. 150m ablakos simítás – minden pontnál visszakeresünk ~150m-t
+    const SMOOTH_M = 150;
+    const withGrade = withDist.map((pt, i) => {
+      if (i === 0 || pt.ele == null) return { ...pt, grade: null };
+      // Visszafelé haladunk amíg el nem érjük a 150m-es ablakot
+      let j = i - 1;
+      while (j > 0 && (withDist[i].cumDist - withDist[j].cumDist) < SMOOTH_M) j--;
+      const anchor = withDist[j];
+      if (!anchor || anchor.ele == null) return { ...pt, grade: 0 };
+      const dDist = pt.cumDist - anchor.cumDist;
+      const dEle = pt.ele - anchor.ele;
+      return { ...pt, grade: dDist > 1 ? (dEle / dDist) * 100 : 0 };
+    });
+
+    gradeRouteGroup.clearLayers();
+    if (!map.hasLayer(gradeRouteGroup)) gradeRouteGroup.addTo(map);
+    hoverGeometry = geometry;
+    routeLayer.setLatLngs([]);
+    renderSegments(gradeRouteGroup, withGrade, p => gradeColor(p.grade), '#9CA3AF');
+  }
+
+  function clearGradeRoute() {
+    gradeRouteGroup.clearLayers();
+    if (map.hasLayer(gradeRouteGroup)) map.removeLayer(gradeRouteGroup);
+  }
+
   function renderRoute(geometry) {
     clearColoredRoute();
     clearHrRoute();
     clearCadRoute();
+    clearGradeRoute();
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     if (geometry.length > 1) {
@@ -495,6 +559,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       }
     },
     clearCadRoute,
+    renderGradeRoute: (geometry) => {
+      hoverGeometry = geometry;
+      renderGradeRoute(geometry);
+      if (geometry.length > 1) {
+        const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      }
+    },
+    clearGradeRoute,
     renderWaypoints,
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);
@@ -518,6 +591,29 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       zoom: map.getZoom(),
     }),
     setView: (lat, lng, zoom) => map.setView([lat, lng], zoom),
+
+    // Szintprofil hover marker
+    setElevationMarker(lat, lng) {
+      if (!elevationMarker) {
+        elevationMarker = L.circleMarker([lat, lng], {
+          radius: 7,
+          color: "#fff",
+          weight: 2,
+          fillColor: "#fc4c02",
+          fillOpacity: 1,
+          interactive: false,
+          pane: "markerPane",
+        }).addTo(map);
+      } else {
+        elevationMarker.setLatLng([lat, lng]);
+      }
+    },
+    clearElevationMarker() {
+      if (elevationMarker) {
+        map.removeLayer(elevationMarker);
+        elevationMarker = null;
+      }
+    },
   };
 }
 
