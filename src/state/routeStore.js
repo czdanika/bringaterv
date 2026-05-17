@@ -67,6 +67,24 @@ export function createRouteStore() {
     emit();
   }
 
+  function insertWaypointAt(index, point) {
+    snapshot();
+    const newWp = {
+      id: generateId(),
+      name: point.name ?? "",
+      note: point.note ?? "",
+      lat: point.lat,
+      lng: point.lng,
+    };
+    const next = [...state.waypoints];
+    next.splice(index, 0, newWp);
+    // importedRoute és routeGeometry megmarad:
+    // az importált vonal változatlan marad, nem triggereljük az újratervezést.
+    // Ha a user vonszol egy pontot (updateWaypointPosition), az majd törli az importedRoute-ot.
+    state = { ...state, waypoints: next };
+    emit();
+  }
+
   function removeWaypoint(id) {
     snapshot();
     state = {
@@ -164,6 +182,7 @@ export function createRouteStore() {
 
   return {
     addWaypoint,
+    insertWaypointAt,
     clear,
     getState,
     removeWaypoint,

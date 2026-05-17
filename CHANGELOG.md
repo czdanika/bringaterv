@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.9.2 – 2026-05-17
+
+### Új funkciók
+
+- **Waypoint közbeszúrás útvonalra kattintással** – Tervezés fülön az egeret az útvonal fölé víve crosshair kurzor jelzi az interakciót, kattintásra új köztes waypoint kerül be a helyes pozícióba (loop-útvonalaknál is). A waypoint neve automatikusan kitöltődik visszafordított geocoding alapján. Az importált geometria megmarad, nem triggerel újratervezést.
+- **Visszaút és oda-vissza** – A cél-zászlóra kattintva két új gomb jelenik meg a marker popupban:
+  - *Visszaút* – hozzáadja a startpontot új végpontként (x+1), a BRouter megtervezi a legrövidebb hazautat a meglévő útvonal folytatásaképpen
+  - *Oda-vissza (automatikus)* – az útvonalat megduplázzá (A→B→C→B→A), teljes körútvonalat alkot
+
+### Tervezés / Elemzés szétválasztás
+
+- Tervezés fülön saját GPX import gomb: csak waypontokat tölt be, marad a Tervezés fülön
+- Tab váltás guard: ha van aktív adat, megerősítő párbeszéd jelenik meg (Mégse / Törlés / Mentés)
+- Elemzés fülön „Tervezés ez alapján" gomb: a fájl waypontjait betölti a Tervezés fülre
+
+### Hibajavítások
+
+- Race condition fix: importálás közben folyamatban lévő BRouter kérés már nem írja felül az importált geometriát
+- Loop-útvonal (körút) betöltésekor a start és végpont közötti közvetlen vonal helyett a teljes geometria jelenik meg
+- Waypoint közbeszúrás loop-útvonalnál helyes pozícióba kerül (végpont a geometria végéhez képez le, nem az elejéhez)
+
+---
+
 ## v0.9.1 – 2026-05-17
 
 ### Javítások

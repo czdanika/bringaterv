@@ -728,6 +728,32 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 .marker-popup-save:hover { background: var(--accent-strong); }
 
+.marker-popup-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 0 8px;
+}
+.marker-popup-return-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.marker-popup-return-btn:last-child { margin-bottom: 0; }
+.marker-popup-return-btn:hover { background: var(--surface-2, #f3f4f6); }
+.marker-popup-return-btn svg { flex-shrink: 0; color: var(--text-2); }
+
 /* Stats */
 .stats-panel {
   display: grid;
