@@ -251,6 +251,11 @@
               <p id="emptyState" class="empty-state" data-i18n="route.empty">
                 Kattints a térképre az első pont hozzáadásához.
               </p>
+              <button id="planImportBtn" class="plan-import-btn" type="button">
+                <i data-lucide="upload" aria-hidden="true"></i>
+                <span>GPX importálása tervezéshez</span>
+              </button>
+              <input id="planGpxInput" type="file" accept=".gpx" hidden>
 
               <!-- Statisztikák -->
               <div class="stats-panel" aria-label="Route statistics">
@@ -530,6 +535,12 @@
               </div>
 
 
+              <!-- Tervezés ez alapján gomb -->
+              <button id="planFromFileBtn" class="plan-from-file-btn" type="button">
+                <i data-lucide="map-pin-plus" aria-hidden="true"></i>
+                <span>Tervezés ez alapján</span>
+              </button>
+
               <div class="file-actions">
                 <button id="fileExportButton" class="file-action-btn" type="button">
                   <i data-lucide="download" aria-hidden="true"></i>
@@ -555,6 +566,18 @@
           <span class="sidebar-version" id="appVersion">v0.9.1</span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
           <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
+
+      <!-- Tab váltás megerősítő modal -->
+      <div id="tabSwitchModal" class="tab-switch-overlay" hidden role="dialog" aria-modal="true">
+        <div class="tab-switch-card">
+          <p id="tabSwitchMsg" class="tab-switch-msg"></p>
+          <div class="tab-switch-actions">
+            <button id="tabSwitchCancel" class="tab-switch-btn tab-switch-btn--secondary" type="button">Mégse</button>
+            <button id="tabSwitchDiscard" class="tab-switch-btn tab-switch-btn--danger" type="button">Törlés</button>
+            <button id="tabSwitchSave" class="tab-switch-btn tab-switch-btn--primary" type="button">Mentés</button>
+          </div>
+        </div>
+      </div>
 
       </aside>
 

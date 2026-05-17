@@ -237,6 +237,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   overflow: hidden;
   z-index: 610;
   border-right: 1px solid var(--line);
+  position: relative; /* tab-switch-overlay-hez */
 }
 
 .brand-accent { color: var(--brand); }
@@ -880,6 +881,114 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .file-action-btn:hover { background: var(--panel-strong); }
 .file-action-btn--danger { color: #e53e3e; border-color: rgba(229,62,62,0.3); }
 .file-action-btn--danger:hover { background: rgba(229,62,62,0.08); }
+
+/* "Tervezés ez alapján" gomb */
+.plan-from-file-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: calc(100% - 32px);
+  margin: 8px 16px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent, #3b82f6);
+  background: transparent;
+  color: var(--accent, #3b82f6);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.plan-from-file-btn:hover { background: rgba(59,130,246,0.08); }
+.plan-from-file-btn svg,
+.plan-from-file-btn i[data-lucide] { width: 15px; height: 15px; }
+
+/* Plan tab GPX import gomb */
+.plan-import-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: calc(100% - 32px);
+  margin: 6px 16px 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-2, #6b7280);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.plan-import-btn:hover {
+  background: var(--surface-2, #f3f4f6);
+  border-color: var(--accent, #3b82f6);
+  color: var(--accent, #3b82f6);
+}
+.plan-import-btn svg,
+.plan-import-btn i[data-lucide] { width: 13px; height: 13px; }
+
+/* Tab váltás megerősítő modal */
+.tab-switch-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  border-radius: inherit;
+}
+.tab-switch-card {
+  background: var(--panel, #fff);
+  border-radius: 12px;
+  padding: 20px 20px 16px;
+  margin: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  max-width: 280px;
+  width: 100%;
+}
+.tab-switch-msg {
+  font-size: 13px;
+  color: var(--text, #111);
+  line-height: 1.5;
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+.tab-switch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.tab-switch-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tab-switch-btn--secondary {
+  background: var(--panel);
+  color: var(--text-2, #6b7280);
+}
+.tab-switch-btn--secondary:hover { background: var(--surface-2, #f3f4f6); }
+.tab-switch-btn--danger {
+  background: transparent;
+  color: #e53e3e;
+  border-color: rgba(229,62,62,0.4);
+}
+.tab-switch-btn--danger:hover { background: rgba(229,62,62,0.08); }
+.tab-switch-btn--primary {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  border-color: var(--accent, #3b82f6);
+}
+.tab-switch-btn--primary:hover { opacity: 0.9; }
 
 /* Speed legend */
 .speed-legend {

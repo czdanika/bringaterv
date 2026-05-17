@@ -82,6 +82,7 @@ const tabButtons = document.querySelectorAll(".sidebar-tab");
 const tabPlan   = document.querySelector("#tabPlan");
 const tabFile   = document.querySelector("#tabFile");
 let currentTab = "plan";
+let hasImportedFile = false; // igaz, ha az Elemzés fülön van betöltött fájl
 
 function switchTab(name) {
   currentTab = name;
@@ -92,7 +93,68 @@ function switchTab(name) {
   window.lucide?.createIcons();
 }
 
-tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+// ── Tab váltás megerősítő ─────────────────────────────────────────────────────
+let pendingTabSwitch = null;
+
+function requestTabSwitch(targetTab) {
+  if (targetTab === currentTab) return;
+
+  const hasPlanData = store.getState().waypoints.length > 0;
+
+  if (currentTab === "plan" && targetTab === "file" && hasPlanData) {
+    showTabSwitchModal("plan→file");
+    pendingTabSwitch = targetTab;
+    return;
+  }
+  if (currentTab === "file" && targetTab === "plan" && hasImportedFile) {
+    showTabSwitchModal("file→plan");
+    pendingTabSwitch = targetTab;
+    return;
+  }
+
+  switchTab(targetTab);
+}
+
+function showTabSwitchModal(direction) {
+  const modal  = document.querySelector("#tabSwitchModal");
+  const msg    = document.querySelector("#tabSwitchMsg");
+  const saveBtn = document.querySelector("#tabSwitchSave");
+
+  if (direction === "plan→file") {
+    msg.textContent = "Van egy tervezett útvonalad. Exportálod GPX-ként mielőtt váltasz, vagy törlöd?";
+    saveBtn.hidden = false;
+  } else {
+    msg.textContent = "Van egy betöltött fájlod az Elemzés fülön. Törlöd és váltasz Tervezésre?";
+    saveBtn.hidden = true;
+  }
+  modal.hidden = false;
+}
+
+document.querySelector("#tabSwitchCancel")?.addEventListener("click", () => {
+  document.querySelector("#tabSwitchModal").hidden = true;
+  pendingTabSwitch = null;
+});
+
+document.querySelector("#tabSwitchDiscard")?.addEventListener("click", () => {
+  document.querySelector("#tabSwitchModal").hidden = true;
+  const target = pendingTabSwitch;
+  pendingTabSwitch = null;
+  clearAllRouteState();
+  switchTab(target);
+});
+
+document.querySelector("#tabSwitchSave")?.addEventListener("click", () => {
+  document.querySelector("#tabSwitchModal").hidden = true;
+  const target = pendingTabSwitch;
+  pendingTabSwitch = null;
+  openExportModal();
+  // Export után a felhasználó manuálisan vált – nem kényszerítjük
+  // Ha a pendingTabSwitch-t meg akarjuk tartani: a user az exportModalClose után vált
+  // Jelenlegi design: megnyílik az export, aztán marad a Tervezés fülön
+  // Ha exportál és utána valóban vált, a guard már nem fog tüzelni (nincs adat)
+});
+
+tabButtons.forEach(btn => btn.addEventListener("click", () => requestTabSwitch(btn.dataset.tab)));
 
 // ── File tab helpers ────────────────────────────────────────
 function formatDuration(ms) {
@@ -209,6 +271,7 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
 }
 
 function clearFileTab() {
+  hasImportedFile = false;
   document.querySelector("#fileEmptyState").hidden = false;
   document.querySelector("#fileDetails").hidden = true;
   const speedLeg = document.querySelector("#speedLegend");
@@ -1233,6 +1296,7 @@ elements.gpxInput.addEventListener("change", async () => {
   // Biztosítjuk hogy a plain route mindig látszik
   mapAdapter.renderRoute(imported.geometry);
 
+  hasImportedFile = true;
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
 
@@ -1265,6 +1329,49 @@ document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
   clearAllRouteState();
   switchTab("plan");
+});
+
+// ── Plan tab: GPX importálása (csak waypontok, nincs Elemzés váltás) ──────────
+const planGpxInput = document.querySelector("#planGpxInput");
+
+document.querySelector("#planImportBtn")?.addEventListener("click", () => planGpxInput?.click());
+
+planGpxInput?.addEventListener("change", async () => {
+  const [file] = planGpxInput.files;
+  if (!file) return;
+  let imported;
+  try {
+    imported = await importGpx(file, { sampleWaypoints: false });
+  } catch (err) {
+    showToast("Nem sikerült betölteni a fájlt. Ellenőrizd, hogy érvényes GPX fájl-e.");
+    planGpxInput.value = "";
+    console.error("Plan GPX import error:", err);
+    return;
+  }
+
+  // Csak a waypontokat töltjük be – nincs elemzés, maradunk Tervezés fülön
+  store.replaceWaypoints(imported.waypoints);
+  setTimeout(() => mapAdapter.fitRoute(), 50);
+  showToast(`${imported.waypoints.length} pont betöltve tervezéshez`);
+  planGpxInput.value = "";
+});
+
+// ── Elemzés → Tervezés ez alapján ────────────────────────────────────────────
+document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
+  // A waypontok már a store-ban vannak (az import feltöltötte)
+  // Csak az elemzés-specifikus állapotot töröljük, majd váltunk
+  importedColoredGeometry = null;
+  importedHrGeometry = null;
+  importedCadGeometry = null;
+  mapAdapter.clearColoredRoute();
+  mapAdapter.clearHrRoute();
+  mapAdapter.clearCadRoute();
+  mapAdapter.clearGradeRoute();
+  hasImportedFile = false;
+  clearFileTab();
+  applyRouteLayer(null);
+  switchTab("plan");
+  showToast("Útvonalpontok betöltve – folytathatod a tervezést");
 });
 
 document.addEventListener("keydown", (event) => {
