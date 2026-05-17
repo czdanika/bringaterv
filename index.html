@@ -49,15 +49,6 @@
               <i data-lucide="menu" aria-hidden="true"></i>
             </button>
             <div id="topnavDropdown" class="topnav-dropdown" hidden>
-              <button class="dropdown-item" id="saveRouteButton" type="button">
-                <i data-lucide="save" aria-hidden="true"></i>
-                <span data-i18n="actions.save">Mentés</span>
-              </button>
-              <button class="dropdown-item" id="shareRouteButton" type="button">
-                <i data-lucide="share-2" aria-hidden="true"></i>
-                <span data-i18n="actions.share">Megosztás</span>
-              </button>
-              <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="shortcutButton" type="button">
                 <i data-lucide="keyboard" aria-hidden="true"></i>
                 <span data-i18n="shortcuts.title">Billentyűparancsok</span>
@@ -658,7 +649,7 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <span class="sidebar-version" id="appVersion">v0.10</span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
+          <span class="sidebar-version" id="appVersion">v0.11</span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
           <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
 
@@ -751,19 +742,56 @@
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
         <!-- Elevation Profile Panel -->
+        <!-- Diagram konténer – több szekció egymás alatt -->
         <div id="elevationPanel" class="elevation-panel" hidden>
-          <div class="elevation-panel-header">
-            <span class="elevation-panel-title">Szintprofil</span>
-            <div class="elevation-panel-info" id="elevationInfo"></div>
-            <button id="elevationClose" class="elevation-panel-close" type="button" title="Bezárás">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
+
+          <!-- Szintprofil szekció -->
+          <div id="chartElevation" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Szintprofil</span>
+              <div class="elevation-panel-info" id="elevationInfo"></div>
+              <button id="closeChartElevation" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="elevationCanvas"></canvas>
+            </div>
           </div>
-          <div class="elevation-panel-body">
-            <canvas id="elevationCanvas"></canvas>
+
+          <!-- Sebesség szekció -->
+          <div id="chartSpeed" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Sebesség</span>
+              <button id="closeChartSpeed" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="speedCanvas"></canvas>
+            </div>
           </div>
+
+          <!-- Pulzus szekció -->
+          <div id="chartHr" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Pulzus</span>
+              <button id="closeChartHr" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="hrCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Közös hover tooltip -->
           <div id="elevationTooltip" class="elevation-hover-info" hidden>
             <span id="elevationTooltipDist"></span>
             <span id="elevationTooltipEle"></span>
@@ -1078,5 +1106,32 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Fájlnév prompt modal (könyvtár GPX letöltés) ───────────────────── -->
+    <div id="filenamePromptOverlay" class="shortcut-overlay" hidden>
+      <div class="shortcut-card filename-prompt-modal">
+        <div class="shortcut-header">
+          <span class="shortcut-title">GPX letöltés</span>
+          <button id="filenamePromptClose" class="shortcut-close" type="button" aria-label="Bezárás">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="filename-prompt-body">
+          <label class="filename-prompt-label" for="filenamePromptInput">Fájlnév</label>
+          <div class="filename-prompt-input-row">
+            <input id="filenamePromptInput" class="filename-prompt-input" type="text" spellcheck="false">
+            <span class="filename-prompt-ext">.gpx</span>
+          </div>
+        </div>
+        <div class="filename-prompt-footer">
+          <button id="filenamePromptCancel" class="export-confirm-btn export-confirm-btn--secondary" type="button">Mégse</button>
+          <button id="filenamePromptConfirm" class="export-confirm-btn export-confirm-btn--primary" type="button">
+            <i data-lucide="download" aria-hidden="true"></i>
+            Letöltés
+          </button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>
