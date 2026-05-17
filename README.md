@@ -90,20 +90,31 @@ docker run -d -p 8080:80 ghcr.io/czdanika/bringaterv:latest
 1. Portainer → **Stacks** → **Add Stack**
 2. Add meg a stack nevét: pl. `bringaterv`
 3. Válaszd a **Web editor** fület
-4. Illeszd be:
+4. Illeszd be és módosítsd az értékeket igény szerint:
 
 ```yaml
 services:
   bringaterv:
     image: ghcr.io/czdanika/bringaterv:latest
     ports:
-      - "8080:80"
+      - "8088:80"
+    environment:
+      LOGIN_ENABLED: true
+      LOGIN_USER: bringa
+      LOGIN_PASSWORD: terv
     restart: unless-stopped
 ```
 
 5. Kattints a **Deploy the stack** gombra
 
-Az alkalmazás elérhető: **http://[szerver-ip]:8080**
+Az alkalmazás elérhető: **http://[szerver-ip]:8088**
+
+| Változó | Leírás | Alapértelmezett |
+|---|---|---|
+| `LOGIN_ENABLED` | Bejelentkezés be/ki | `true` |
+| `LOGIN_USER` | Felhasználónév | `bringa` |
+| `LOGIN_PASSWORD` | Jelszó | `terv` |
+| `PORT` | Host port (bal oldal) | `8088` |
 
 ### Frissítés új verzióra
 

@@ -2,5 +2,9 @@ services:
   bringaterv:
     image: ghcr.io/czdanika/bringaterv:latest
     ports:
-      - "8080:80"
+      - "${PORT:-8088}:80"
+    environment:
+      LOGIN_ENABLED: ${LOGIN_ENABLED:-true}
+      LOGIN_USER: ${LOGIN_USER:-bringa}
+      LOGIN_PASSWORD: ${LOGIN_PASSWORD:-terv}
     restart: unless-stopped
