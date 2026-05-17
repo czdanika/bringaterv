@@ -42,7 +42,7 @@ const tileLayers = {
   },
 };
 
-export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, startView }) {
+export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, onReturnRoute, onRoundTrip, startView }) {
   const defaultCenter = startView ? [startView.lat, startView.lng] : [47.4979, 19.0402];
   const defaultZoom   = startView?.zoom ?? 12;
   const map = L.map(elementId, { zoomControl: false }).setView(defaultCenter, defaultZoom);
@@ -64,8 +64,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
   const hoverTooltip = L.tooltip({ permanent: true, direction: "top", offset: [0, -10], className: "route-hover-tooltip" });
   const HOVER_PX_THRESHOLD = 20;
 
+  let nearRouteFlag = false; // true ha az egér közel van az útvonalhoz
+  let routeClickEnabled = true; // false = Elemzés fülön (crosshair + click tiltva)
+
   map.on("mousemove", (e) => {
-    if (!hoverGeometry.length) return;
+    if (!hoverGeometry.length) {
+      if (nearRouteFlag) { map.getContainer().style.cursor = ""; nearRouteFlag = false; }
+      return;
+    }
     const nearest = findNearestPoint(hoverGeometry, e.latlng);
     if (!nearest) return;
 
@@ -76,15 +82,19 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
       hoverMarker?.remove();
       hoverMarker = null;
       if (map.hasLayer(hoverTooltip)) hoverTooltip.remove();
+      if (nearRouteFlag) { map.getContainer().style.cursor = ""; nearRouteFlag = false; }
       return;
     }
+
+    // Közel vagyunk az útvonalhoz – crosshair kurzor (csak ha kattintás engedélyezett)
+    if (routeClickEnabled && !nearRouteFlag) { map.getContainer().style.cursor = "crosshair"; nearRouteFlag = true; }
+    else if (!routeClickEnabled && nearRouteFlag) { map.getContainer().style.cursor = ""; nearRouteFlag = false; }
 
     const parts = [];
     if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
     if (nearest.hr != null) parts.push(`❤️ ${nearest.hr} bpm`);
     if (nearest.cad != null) parts.push(`⚙️ ${nearest.cad} rpm`);
     if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
-    if (!parts.length) return;
 
     const latlng = [nearest.lat, nearest.lng];
     if (!hoverMarker) {
@@ -94,7 +104,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     } else {
       hoverMarker.setLatLng(latlng);
     }
-    hoverTooltip.setContent(parts.join("  ·  ")).setLatLng(latlng);
+
+    // Tooltip: magasság és adatok mutatása
+    hoverTooltip.setContent(parts.length ? parts.join("  ·  ") : "").setLatLng(latlng);
     if (!map.hasLayer(hoverTooltip)) hoverTooltip.addTo(map);
   });
 
@@ -102,6 +114,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     hoverMarker?.remove();
     hoverMarker = null;
     if (map.hasLayer(hoverTooltip)) hoverTooltip.remove();
+    if (nearRouteFlag) { map.getContainer().style.cursor = ""; nearRouteFlag = false; }
   });
 
   // Measurement mode
@@ -162,9 +175,24 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     const { lat, lng } = event.latlng;
     if (activeTool === "measure") {
       handleMeasureClick(event.latlng);
-    } else {
-      onMapClick({ lat, lng });
+      return;
     }
+
+    // Ha közel vagyunk az útvonalhoz → waypoint közbeszúrás (csak ha engedélyezett)
+    if (routeClickEnabled && hoverGeometry.length && onRouteClick) {
+      const nearest = findNearestPoint(hoverGeometry, event.latlng);
+      if (nearest) {
+        const nearestPx = map.latLngToContainerPoint([nearest.lat, nearest.lng]);
+        const dist = event.containerPoint.distanceTo(nearestPx);
+        if (dist <= HOVER_PX_THRESHOLD) {
+          const geomIndex = findGeometryIndex(hoverGeometry, nearest);
+          onRouteClick({ lat: nearest.lat, lng: nearest.lng, geometryIndex: geomIndex });
+          return;
+        }
+      }
+    }
+
+    onMapClick({ lat, lng });
   });
 
   function renderWaypoints(waypoints) {
@@ -182,7 +210,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
         onMarkerDrag?.(point.id, lat, lng);
       });
 
-      const popup = buildMarkerPopup(point, index, marker);
+      const popup = buildMarkerPopup(point, index, marker, isDestination);
       marker.bindPopup(popup, { minWidth: 240, maxWidth: 300, className: "marker-popup-wrap" });
 
 
@@ -222,7 +250,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     });
   }
 
-  function buildMarkerPopup(point, index, marker) {
+  function buildMarkerPopup(point, index, marker, isDestination = false) {
     const el = document.createElement("div");
     el.className = "marker-popup";
 
@@ -291,6 +319,33 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
 
     actions.append(cancelBtn, saveBtn);
     el.append(header, nameLabel, noteLabel, actions);
+
+    // Cél-markernél: visszaút opciók
+    if (isDestination && (onReturnRoute || onRoundTrip)) {
+      const sep = document.createElement("div");
+      sep.className = "marker-popup-sep";
+
+      const returnBtn = document.createElement("button");
+      returnBtn.type = "button";
+      returnBtn.className = "marker-popup-return-btn";
+      returnBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> Visszaút`;
+      returnBtn.addEventListener("click", () => {
+        marker.closePopup();
+        onReturnRoute?.();
+      });
+
+      const roundBtn = document.createElement("button");
+      roundBtn.type = "button";
+      roundBtn.className = "marker-popup-return-btn";
+      roundBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Oda-vissza (automatikus)`;
+      roundBtn.addEventListener("click", () => {
+        marker.closePopup();
+        onRoundTrip?.();
+      });
+
+      el.append(sep, returnBtn, roundBtn);
+    }
+
     return el;
   }
 
@@ -569,6 +624,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteFallback, onMar
     },
     clearGradeRoute,
     renderWaypoints,
+    setRouteInteractive: (enabled) => {
+      // Ha false: a crosshair kurzor és a route click le van tiltva
+      routeClickEnabled = enabled;
+      if (!enabled && nearRouteFlag) {
+        map.getContainer().style.cursor = "";
+        nearRouteFlag = false;
+      }
+    },
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);
       if (overlayLayer) { map.removeLayer(overlayLayer); overlayLayer = null; }
@@ -643,6 +706,20 @@ function findNearestPoint(geometry, latlng) {
     if (d < minDist) { minDist = d; nearest = pt; }
   }
   return nearest;
+}
+
+function findGeometryIndex(geometry, point) {
+  for (let i = 0; i < geometry.length; i++) {
+    if (geometry[i] === point) return i;
+  }
+  // fallback: keresés koordináta szerint
+  let minDist = Infinity;
+  let idx = 0;
+  geometry.forEach((pt, i) => {
+    const d = Math.hypot(pt.lat - point.lat, pt.lng - point.lng);
+    if (d < minDist) { minDist = d; idx = i; }
+  });
+  return idx;
 }
 
 export function straightLineRoute(waypoints) {

@@ -12,7 +12,7 @@ import { buildElevationData, buildSpeedData, buildHrData, initElevationChart } f
 requireAuth();
 
 // ── Verzióellenőrzés ──────────────────────────────────────────────────────────
-const APP_VERSION = "v0.9.1";
+const APP_VERSION = "v0.9.2";
 
 function parseVersion(v) {
   return String(v).replace(/^v/, "").split(".").map(Number);
@@ -90,6 +90,8 @@ function switchTab(name) {
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
   tabPlan.hidden = name !== "plan";
   tabFile.hidden = name !== "file";
+  // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen nem
+  mapAdapter?.setRouteInteractive(name === "plan");
   window.lucide?.createIcons();
 }
 
@@ -155,6 +157,51 @@ document.querySelector("#tabSwitchSave")?.addEventListener("click", () => {
 });
 
 tabButtons.forEach(btn => btn.addEventListener("click", () => requestTabSwitch(btn.dataset.tab)));
+
+// ── Waypoint közbeszúrás: geometria-index alapján meghatározza a helyes pozíciót ──
+function findWaypointInsertIndex(waypoints, geometry, clickGeomIdx) {
+  if (!geometry || geometry.length === 0) return waypoints.length;
+
+  const N = geometry.length;
+  const numWp = waypoints.length;
+  if (numWp < 2) return numWp;
+
+  // Forward-search: minden waypointot az előző után keresünk a geometriában.
+  // Ez loop-útvonalaknál is helyes indexet ad (Start≈End esetén End → geometry vége).
+  const wpGeomIndices = [];
+  let searchFrom = 0;
+
+  for (let i = 0; i < numWp; i++) {
+    const wp = waypoints[i];
+    const isLast = i === numWp - 1;
+
+    // Loop detektálás: ha az utolsó waypoint nagyon közel van az elsőhöz,
+    // a geometria végéhez rendeljük (ne az elejéhez)
+    if (isLast && wpGeomIndices.length > 0) {
+      const dToFirst = Math.hypot(wp.lat - waypoints[0].lat, wp.lng - waypoints[0].lng);
+      if (dToFirst < 0.002) { // ~200m – loop esetén Start≈End
+        wpGeomIndices.push(N - 1);
+        continue;
+      }
+    }
+
+    let minD = Infinity;
+    let idx = searchFrom;
+    for (let j = searchFrom; j < N; j++) {
+      const d = Math.hypot(geometry[j].lat - wp.lat, geometry[j].lng - wp.lng);
+      if (d < minD) { minD = d; idx = j; }
+    }
+    wpGeomIndices.push(idx);
+    searchFrom = Math.min(idx + 1, N - 1);
+  }
+
+  // Az utolsó waypoint amelynek geom-indexe <= clickGeomIdx után szúrjuk be
+  let insertAfter = 0;
+  for (let i = 0; i < wpGeomIndices.length; i++) {
+    if (wpGeomIndices[i] <= clickGeomIdx) insertAfter = i;
+  }
+  return insertAfter + 1;
+}
 
 // ── File tab helpers ────────────────────────────────────────
 function formatDuration(ms) {
@@ -431,6 +478,45 @@ const mapAdapter = createMapAdapter({
   onMapClick: (point) => {
     if (currentTab === "file") return; // view-only in file tab
     addWaypointWithName(point);
+  },
+  onRouteClick: async ({ lat, lng, geometryIndex }) => {
+    const { waypoints } = store.getState();
+    if (waypoints.length < 2) {
+      addWaypointWithName({ lat, lng });
+      return;
+    }
+    const insertIdx = findWaypointInsertIndex(waypoints, activeGeometry, geometryIndex);
+    store.insertWaypointAt(insertIdx, { lat, lng });
+    // Az új waypoint ID-ja az insertIdx pozícióban van
+    const newId = store.getState().waypoints[insertIdx]?.id;
+    if (newId) {
+      const name = await reverseGeocode(lat, lng);
+      if (name && store.getState().waypoints.some(wp => wp.id === newId)) {
+        store.updateWaypoint(newId, { name });
+      }
+    }
+    showToast("Köztes waypoint hozzáadva");
+  },
+  onReturnRoute: () => {
+    // Visszaút: a startpontot hozzáadjuk x+1-ként – a meglévő út folytatásaként navigál haza
+    const { waypoints } = store.getState();
+    if (waypoints.length < 2) return;
+    const first = waypoints[0];
+    store.addWaypoint({ lat: first.lat, lng: first.lng, name: first.name });
+    showToast("Hazaút hozzáadva");
+  },
+  onRoundTrip: () => {
+    // Oda-vissza: az útvonal + visszaút egybe összefűzve (A→B→C→B→A)
+    const state = store.getState();
+    if (state.waypoints.length < 2) return;
+    const there = state.waypoints;
+    const back  = [...there].reverse().slice(1); // az első pont ne duplázódjon
+    store.replaceWaypoints([...there, ...back], {
+      importedRoute: false,
+      routeGeometry: [],
+      sourcePointCount: 0,
+    });
+    showToast("Oda-vissza útvonal létrehozva");
   },
   onRouteFallback: () => showToast(i18n.t("map.routeFailed")),
   onMarkerDrag: (id, lat, lng) => relocateWaypointWithName(id, lat, lng),
@@ -742,6 +828,8 @@ store.subscribe(async (state) => {
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
     // Az aktív toggle határozza meg a megjelenítést
+    // routeRequestId növelése hogy az esetleg folyamatban lévő korábbi routing kérés ne írja felül
+    routeRequestId++;
     return;
   }
   const routeSignature = JSON.stringify({
@@ -1257,7 +1345,14 @@ document.addEventListener("keydown", (e) => {
 elements.exportButton.addEventListener("click", () => openExportModal());
 elements.sidebarExportButton?.addEventListener("click", () => openExportModal());
 
-elements.importButton.addEventListener("click", () => elements.gpxInput.click());
+elements.importButton.addEventListener("click", () => {
+  // A térképes import gomb: Tervezés fülön waypontokat tölt be, Elemzés fülön teljes analízist
+  if (currentTab === "plan") {
+    planGpxInput?.click();
+  } else {
+    elements.gpxInput.click();
+  }
+});
 document.querySelector("#fileEmptyState")?.addEventListener("click", () => elements.gpxInput.click());
 elements.gpxInput.addEventListener("change", async () => {
   const [file] = elements.gpxInput.files;
@@ -1349,10 +1444,14 @@ planGpxInput?.addEventListener("change", async () => {
     return;
   }
 
-  // Csak a waypontokat töltjük be – nincs elemzés, maradunk Tervezés fülön
-  store.replaceWaypoints(imported.waypoints);
+  // Waypontok betöltése – importedRoute:true hogy ne induljon el auto-routing
+  // (fontos körbeutak esetén ahol start≈end, BRouter sikertelen lenne)
+  store.replaceWaypoints(imported.waypoints, { importedRoute: true });
+  // Az útvonal geometriáját mutatjuk előnézetként (tervezés közben eltűnik)
+  updateElevationButton(imported.geometry);
+  mapAdapter.renderRoute(imported.geometry);
   setTimeout(() => mapAdapter.fitRoute(), 50);
-  showToast(`${imported.waypoints.length} pont betöltve tervezéshez`);
+  showToast(`${imported.waypoints.length} pont betöltve – kattints a térképre a tervezéshez`);
   planGpxInput.value = "";
 });
 
@@ -1380,7 +1479,7 @@ document.addEventListener("keydown", (event) => {
   if (key === "z" && !event.shiftKey) { event.preventDefault(); store.undo(); }
   if (key === "z" && event.shiftKey)  { event.preventDefault(); store.redo(); }
   if (key === "y") { event.preventDefault(); store.redo(); }
-  if (key === "i") { event.preventDefault(); elements.gpxInput.click(); }
+  if (key === "i") { event.preventDefault(); currentTab === "plan" ? planGpxInput?.click() : elements.gpxInput.click(); }
   if (key === "e") { event.preventDefault(); elements.exportButton.click(); }
   if (key === "r") { event.preventDefault(); elements.resetRouteButton.click(); }
 });
