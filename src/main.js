@@ -13,7 +13,7 @@ import { routesApi } from "./api/routesApi.js";
 requireAuth();
 
 // ── Verzióellenőrzés ──────────────────────────────────────────────────────────
-const APP_VERSION = "v0.9.2";
+const APP_VERSION = "v0.10";
 
 function parseVersion(v) {
   return String(v).replace(/^v/, "").split(".").map(Number);
