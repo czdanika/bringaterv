@@ -410,6 +410,7 @@ const elevationChart = initElevationChart(elements.elevationCanvas, {
 function updateElevationButton(geometry) {
   activeGeometry = geometry ?? [];
   const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
+  console.log('[DEBUG] updateElevationButton: len=', activeGeometry.length, 'hasEle=', hasEle, 'firstEle=', activeGeometry[0]?.ele, 'gradeLegendEl=', !!elements.gradeLegend);
   if (elements.elevationBtn) elements.elevationBtn.disabled = !hasEle;
   if (elements.gradeLegend) elements.gradeLegend.hidden = !hasEle;
   if (elements.gradeLegendPlan) elements.gradeLegendPlan.hidden = !hasEle;
@@ -1163,7 +1164,9 @@ elements.gpxInput.addEventListener("change", async () => {
 
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
+  console.log('[DEBUG] before updateElevationButton, geometry points:', imported.geometry.length, 'sample ele:', imported.geometry[0]?.ele, imported.geometry[100]?.ele);
   updateElevationButton(imported.geometry);
+  console.log('[DEBUG] after updateElevationButton, gradeLegend.hidden=', document.querySelector('#gradeLegend')?.hidden);
 
   showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   setTimeout(() => mapAdapter.fitRoute(), 50);
