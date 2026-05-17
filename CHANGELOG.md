@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.9 – 2026-05-17
+
+### Szintprofil és diagramok
+- **Szintprofil diagram** – alul felcsúszó panel, egér húzásra a pozíció jelölve a térképen és a diagramon
+- **Sebességdiagram** – a sebesség térkép kapcsoló melletti ikon megnyitja a sebességprofilt (kék vonal, km/h)
+- **Pulzusdiagram** – a pulzus térkép kapcsoló melletti ikon megnyitja a pulzusprofit (piros vonal, bpm)
+- Diagramok kizárólagosak: egyszerre csak egy nyitható meg
+
+### Lejtőtérkép
+- **Szintprofil / lejtőtérkép kapcsoló** – a Sebesség/Pulzus/Kadencia togglekhoz hasonlóan, kizárólagos megjelenítés
+- Emelkedő piros árnyalatokban, süllyedő zöld árnyalatokban, egyenes szürkén
+- 0,5%-os küszöb: már enyhe emelkedők/süllyedők is láthatók
+- 150 méteres simítás: nem pöttyek, összefüggő szakaszok
+- Tervezett útvonalnál és betöltött GPX-nél egyaránt elérhető
+
+### Térkép rétegek
+- Kapcsolók kizárólagosak – egyszerre csak egy réteg (sebesség / pulzus / kadencia / lejtő) lehet aktív
+
+### Egyéb
+- „Betöltött fájl" fül átnevezve **„Elemzés"**-re
+- `crypto.randomUUID` polyfill: HTTP-n (helyi hálózat, NAS) is működik az app
+- GPX import hibakezelés: érvénytelen fájl esetén toast üzenet jelenik meg
+- nginx MIME típus javítás: ES modulok helyes `application/javascript` típussal töltődnek
+
+---
+
 ## v0.8 – 2026-05-17
 
 ### Docker / telepítés

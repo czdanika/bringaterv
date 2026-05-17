@@ -27,7 +27,7 @@ export const translations = {
     },
     tabs: {
       plan: "Planning",
-      file: "Loaded file",
+      file: "Analysis",
     },
     sections: {
       mode: "Mode",
@@ -167,7 +167,7 @@ export const translations = {
     },
     tabs: {
       plan: "Tervezés",
-      file: "Betöltött fájl",
+      file: "Elemzés",
     },
     sections: {
       mode: "Mód",
