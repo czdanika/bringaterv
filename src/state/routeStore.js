@@ -1,3 +1,17 @@
+// crypto.randomUUID() csak Secure Context-ben elérhető (HTTPS/localhost)
+// HTTP-n (pl. helyi hálózat) polyfill-t használunk
+function generateId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback: RFC 4122 v4 UUID
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function createRouteStore() {
   let state = {
     mode: "walking",
@@ -42,7 +56,7 @@ export function createRouteStore() {
       waypoints: [
         ...state.waypoints,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           name: point.name ?? "",
           note: point.note ?? "",
           lat: point.lat,
