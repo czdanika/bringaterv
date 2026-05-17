@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8 – 2026-05-17
+
+### Docker / telepítés
+- Bejelentkezési adatok és port konfigurálható docker-compose environment változókkal
+- `LOGIN_ENABLED`, `LOGIN_USER`, `LOGIN_PASSWORD`, `PORT` változók támogatása
+- Entrypoint script generálja a `config.js`-t induláskor
+- Alapértelmezett port: 8088
+
+---
+
 ## v0.7 – 2026-05-17
 
 ### Bejelentkezés
