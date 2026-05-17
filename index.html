@@ -315,50 +315,6 @@
           <!-- ===== BETÖLTÖTT FÁJL PANEL ===== -->
           <div class="tab-panel" id="tabFile" hidden>
 
-            <!-- Térképstílus (Elemzés fül) -->
-            <div class="sidebar-control-row">
-              <span class="sidebar-control-label">Térképstílus</span>
-              <div class="sidebar-style-picker-wrap">
-                <button id="fileStyleBtn" class="sidebar-style-btn" type="button">
-                  <i data-lucide="map" aria-hidden="true"></i>
-                  <span id="fileStyleLabel">Standard</span>
-                  <i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>
-                </button>
-                <div id="fileStylePicker" class="sidebar-style-popup" hidden>
-                  <div class="settings-map-styles sidebar-map-styles">
-                    <button class="settings-style-btn" data-map-style="standard" type="button">
-                      <span class="settings-style-preview settings-style-preview--standard"></span>
-                      <span class="settings-style-label">Standard</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="cycling" type="button">
-                      <span class="settings-style-preview settings-style-preview--cycling"></span>
-                      <span class="settings-style-label">Kerékpár</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="topo" type="button">
-                      <span class="settings-style-preview settings-style-preview--topo"></span>
-                      <span class="settings-style-label">Domborzat</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="satellite" type="button">
-                      <span class="settings-style-preview settings-style-preview--satellite"></span>
-                      <span class="settings-style-label">Műhold</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="hybrid" type="button">
-                      <span class="settings-style-preview settings-style-preview--hybrid"></span>
-                      <span class="settings-style-label">Hybrid</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="light" type="button">
-                      <span class="settings-style-preview settings-style-preview--light"></span>
-                      <span class="settings-style-label">Világos</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="dark" type="button">
-                      <span class="settings-style-preview settings-style-preview--dark"></span>
-                      <span class="settings-style-label">Sötét</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Üres állapot -->
             <button id="fileEmptyState" type="button" class="empty-state file-empty-state file-empty-trigger">
               <i data-lucide="file-input" aria-hidden="true"></i>
@@ -371,6 +327,24 @@
               <div class="file-header">
                 <i data-lucide="file-check-2" aria-hidden="true"></i>
                 <span id="importedFileName" class="file-name"></span>
+                <div class="sidebar-style-picker-wrap file-style-wrap">
+                  <button id="fileStyleBtn" class="file-style-btn" type="button" title="Térképstílus">
+                    <i data-lucide="map" aria-hidden="true"></i>
+                    <span id="fileStyleLabel">Standard</span>
+                    <i data-lucide="chevron-down" aria-hidden="true"></i>
+                  </button>
+                  <div id="fileStylePicker" class="sidebar-style-popup" hidden>
+                    <div class="settings-map-styles sidebar-map-styles">
+                      <button class="settings-style-btn" data-map-style="standard" type="button"><span class="settings-style-preview settings-style-preview--standard"></span><span class="settings-style-label">Standard</span></button>
+                      <button class="settings-style-btn" data-map-style="cycling" type="button"><span class="settings-style-preview settings-style-preview--cycling"></span><span class="settings-style-label">Kerékpár</span></button>
+                      <button class="settings-style-btn" data-map-style="topo" type="button"><span class="settings-style-preview settings-style-preview--topo"></span><span class="settings-style-label">Domborzat</span></button>
+                      <button class="settings-style-btn" data-map-style="satellite" type="button"><span class="settings-style-preview settings-style-preview--satellite"></span><span class="settings-style-label">Műhold</span></button>
+                      <button class="settings-style-btn" data-map-style="hybrid" type="button"><span class="settings-style-preview settings-style-preview--hybrid"></span><span class="settings-style-label">Hybrid</span></button>
+                      <button class="settings-style-btn" data-map-style="light" type="button"><span class="settings-style-preview settings-style-preview--light"></span><span class="settings-style-label">Világos</span></button>
+                      <button class="settings-style-btn" data-map-style="dark" type="button"><span class="settings-style-preview settings-style-preview--dark"></span><span class="settings-style-label">Sötét</span></button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Metaadatok -->
@@ -578,7 +552,7 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <span class="sidebar-version">v0.9</span>
+          <span class="sidebar-version" id="appVersion">v0.9.1</span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
           <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
 
