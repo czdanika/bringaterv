@@ -290,10 +290,17 @@ const STYLE_LABELS = {
 
 function syncSidebarStyleBtn(style) {
   const btn = document.querySelector("#sidebarStyleBtn");
-  const label = document.querySelector("#sidebarStyleLabel");
-  if (!btn || !label) return;
+  if (!btn) return;
   const icon = STYLE_ICONS[style] ?? "map";
   btn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span id="sidebarStyleLabel">${STYLE_LABELS[style] ?? style}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
+  window.lucide?.createIcons();
+}
+
+function syncFileStyleBtn(style) {
+  const btn = document.querySelector("#fileStyleBtn");
+  if (!btn) return;
+  const icon = STYLE_ICONS[style] ?? "map";
+  btn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span id="fileStyleLabel">${STYLE_LABELS[style] ?? style}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
   window.lucide?.createIcons();
 }
 
@@ -370,6 +377,7 @@ const savedMapStyle = localStorage.getItem("route4meMapStyle") || "standard";
 syncMapStyleButtons(savedMapStyle);
 syncLayerPickerBtn(savedMapStyle);
 syncSidebarStyleBtn(savedMapStyle);
+syncFileStyleBtn(savedMapStyle);
 mapAdapter.setMapStyle(savedMapStyle);
 elements.unitInputs.forEach((input) => {
   input.checked = input.value === units;
@@ -713,8 +721,32 @@ elements.mapStyleButtons.forEach((btn) => {
     if (sidebarPicker) sidebarPicker.hidden = true;
     if (sidebarBtn) sidebarBtn.classList.remove("is-open");
     syncSidebarStyleBtn(style);
+    syncFileStyleBtn(style);
+    // close file style picker
+    const filePicker = document.querySelector("#fileStylePicker");
+    const fileBtn = document.querySelector("#fileStyleBtn");
+    if (filePicker) filePicker.hidden = true;
+    if (fileBtn) fileBtn.classList.remove("is-open");
   });
 });
+
+// File tab style picker toggle
+const fileStyleBtn = document.querySelector("#fileStyleBtn");
+const fileStylePicker = document.querySelector("#fileStylePicker");
+fileStyleBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = !fileStylePicker.hidden;
+  fileStylePicker.hidden = isOpen;
+  fileStyleBtn.classList.toggle("is-open", !isOpen);
+  if (!isOpen) window.lucide?.createIcons();
+});
+document.addEventListener("click", () => {
+  if (fileStylePicker && !fileStylePicker.hidden) {
+    fileStylePicker.hidden = true;
+    fileStyleBtn?.classList.remove("is-open");
+  }
+});
+fileStylePicker?.addEventListener("click", (e) => e.stopPropagation());
 
 // Sidebar style picker toggle
 const sidebarStyleBtn = document.querySelector("#sidebarStyleBtn");
@@ -1155,11 +1187,8 @@ elements.gpxInput.addEventListener("change", async () => {
   importedCadGeometry     = hasCad  ? imported.geometry : null;
   importedHrGeometry      = hasHr   ? imported.geometry : null;
 
-  // Alapértelmezett megjelenítés: sebesség > kadencia > pulzus > sima
-  if (hasSpeed)       applyRouteLayer("speed");
-  else if (hasCad)    applyRouteLayer("cad");
-  else if (hasHr)     applyRouteLayer("hr");
-  else                applyRouteLayer(null);
+  // Alapértelmezett megjelenítés: sima útvonal, togglek kikapcsolva
+  applyRouteLayer(null);
 
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
