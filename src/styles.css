@@ -1695,6 +1695,10 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .app-shell.is-file-mode .map-toolbar { display: none !important; }
 .app-shell.is-file-mode #map { cursor: default !important; }
 
+/* Sidebar footer – csak Tervezés tabon látszik */
+.app-shell.is-file-mode .sidebar-footer,
+.app-shell.is-library-mode .sidebar-footer { display: none; }
+
 /* ── Map ────────────────────────────────────────────── */
 .map-wrap {
   grid-column: 2;
@@ -2057,6 +2061,58 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 .export-confirm-btn--primary:hover { opacity: 0.88; }
 
+/* ── Fájlnév prompt modal ─────────────────────────────────────────────────── */
+.filename-prompt-modal {
+  width: 340px;
+}
+.filename-prompt-body {
+  padding: 16px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filename-prompt-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #777);
+  letter-spacing: 0.03em;
+}
+.filename-prompt-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-bg, #fff);
+  transition: border-color 0.15s;
+}
+.filename-prompt-input-row:focus-within {
+  border-color: var(--brand, #fc4c02);
+}
+.filename-prompt-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text, #111);
+  outline: none;
+  min-width: 0;
+}
+.filename-prompt-ext {
+  padding: 8px 10px 8px 4px;
+  font-size: 13px;
+  color: var(--muted, #999);
+  white-space: nowrap;
+}
+.filename-prompt-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 20px 16px;
+}
+
 /* Sidebar export button */
 .sidebar-export-btn {
   display: flex;
@@ -2150,6 +2206,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 
 /* ── Elevation Profile Panel ─────────────────────────────────── */
+/* ── Diagram konténer (több szekció egymás alatt) ──────────────────────────── */
 .elevation-panel {
   position: absolute;
   bottom: 0;
@@ -2161,7 +2218,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
   display: flex;
   flex-direction: column;
-  height: 200px;
+  max-height: 420px;       /* max 3 szekció elfér */
+  overflow-y: auto;
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 12px 12px 0 0;
@@ -2174,18 +2232,31 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   transform: translateY(100%);
   pointer-events: none;
 }
-.elevation-panel-header {
+
+/* ── Egy szekció (szintprofil / sebesség / pulzus) ─────────────────────────── */
+.chart-section {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px 8px;
+  flex-direction: column;
+  height: 130px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--line);
 }
-.elevation-panel-title {
-  font-size: 13px;
+.chart-section:last-of-type { border-bottom: none; }
+.chart-section[hidden] { display: none !important; }
+
+.chart-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 4px;
+  flex-shrink: 0;
+}
+.chart-section-title {
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #777);
   flex-shrink: 0;
 }
 .elevation-panel-info {
@@ -2221,6 +2292,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 .elevation-panel-body canvas {
   display: block;
@@ -2569,6 +2641,16 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .library-delete-btn i[data-lucide] {
   width: 14px;
   height: 14px;
+}
+
+/* Betöltés spinner a könyvtár kártyákon */
+@keyframes lib-spin {
+  to { transform: rotate(360deg); }
+}
+.lib-load-spinner {
+  animation: lib-spin 0.7s linear infinite;
+  display: block;
+  color: currentColor;
 }
 
 /* Export modal – fájlnév mező hint */

@@ -227,6 +227,17 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
     return closest;
   }
 
+  function getIdxByDist(dist) {
+    if (!_data.length) return -1;
+    let closest = 0, minDiff = Infinity;
+    _data.forEach((pt, i) => {
+      if (pt.value == null) return;
+      const diff = Math.abs(pt.dist - dist);
+      if (diff < minDiff) { minDiff = diff; closest = i; }
+    });
+    return closest;
+  }
+
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -263,5 +274,17 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
       resize();
     },
     resize,
+    /** Külső hover szinkronizáláshoz: pozíció beállítása távolság alapján */
+    setHoverByDist(dist) {
+      const idx = getIdxByDist(dist);
+      if (idx < 0) return;
+      _hoverIdx = idx;
+      draw();
+    },
+    /** Külső hover törlése */
+    clearHover() {
+      _hoverIdx = -1;
+      draw();
+    },
   };
 }

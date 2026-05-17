@@ -13,7 +13,7 @@ import { routesApi } from "./api/routesApi.js";
 requireAuth();
 
 // ── Verzióellenőrzés ──────────────────────────────────────────────────────────
-const APP_VERSION = "v0.10";
+const APP_VERSION = "v0.11";
 
 function parseVersion(v) {
   return String(v).replace(/^v/, "").split(".").map(Number);
@@ -90,7 +90,8 @@ let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-ment
 
 function switchTab(name) {
   currentTab = name;
-  elements.appShell.classList.toggle("is-file-mode", name === "file");
+  elements.appShell.classList.toggle("is-file-mode",    name === "file");
+  elements.appShell.classList.toggle("is-library-mode", name === "library");
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
   tabPlan.hidden    = name !== "plan";
   tabFile.hidden    = name !== "file";
@@ -375,8 +376,6 @@ const elements = {
   undoButton: document.querySelector("#undoButton"),
   redoButton: document.querySelector("#redoButton"),
   gpxInput: document.querySelector("#gpxInput"),
-  saveRouteButton: document.querySelector("#saveRouteButton"),
-  shareRouteButton: document.querySelector("#shareRouteButton"),
   shortcutButton: document.querySelector("#shortcutButton"),
   shortcutOverlay: document.querySelector("#shortcutOverlay"),
   shortcutClose: document.querySelector("#shortcutClose"),
@@ -398,8 +397,15 @@ const elements = {
   fileSaveToLibraryButton: document.querySelector("#fileSaveToLibraryButton"),
   elevationBtn: document.querySelector("#elevationBtn"),
   elevationPanel: document.querySelector("#elevationPanel"),
-  elevationClose: document.querySelector("#elevationClose"),
+  chartElevation: document.querySelector("#chartElevation"),
+  chartSpeed: document.querySelector("#chartSpeed"),
+  chartHr: document.querySelector("#chartHr"),
   elevationCanvas: document.querySelector("#elevationCanvas"),
+  speedCanvas: document.querySelector("#speedCanvas"),
+  hrCanvas: document.querySelector("#hrCanvas"),
+  closeChartElevation: document.querySelector("#closeChartElevation"),
+  closeChartSpeed: document.querySelector("#closeChartSpeed"),
+  closeChartHr: document.querySelector("#closeChartHr"),
   elevationTooltip: document.querySelector("#elevationTooltip"),
   elevationTooltipDist: document.querySelector("#elevationTooltipDist"),
   elevationTooltipEle: document.querySelector("#elevationTooltipEle"),
@@ -592,31 +598,53 @@ if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled 
 // Szintprofil – aktív geometry (tervezett vagy importált)
 let activeGeometry = [];
 
-// Aktív chart típus: "elevation" | "speed" | "hr"
-let activeChartType = "elevation";
+// ── Chart példányok (mindhárom független, egymás alatt jelenhetnek meg) ───────
 
-// Chart panel inicializálása
-const elevationChart = initElevationChart(elements.elevationCanvas, {
-  onHover(pt, opts) {
-    if (!pt || pt.value == null) return;
-    mapAdapter.setElevationMarker(pt.lat, pt.lng);
-    if (elements.elevationTooltip) elements.elevationTooltip.hidden = false;
-    if (elements.elevationTooltipDist) {
-      elements.elevationTooltipDist.innerHTML = `<b>${(pt.dist / 1000).toFixed(2)} km</b>`;
-    }
-    if (elements.elevationTooltipEle) {
-      const unit = opts?.unit ?? "m";
-      const icons = { m: "⛰", "km/h": "🚴", bpm: "❤️" };
-      const icon = icons[unit] ?? "";
-      elements.elevationTooltipEle.innerHTML = `${icon} <b>${Math.round(pt.value)} ${unit}</b>`;
-    }
-    if (elements.elevationTooltipGrade) elements.elevationTooltipGrade.innerHTML = "";
-  },
-  onLeave() {
-    mapAdapter.clearElevationMarker();
-    if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
-  },
-});
+// Megosztott szinkron objektum: az összes chart instance ide kerül feltöltés után,
+// hogy hover eseménykor egymást szinkronizálhassák.
+const chartSync = { all: [] };
+
+function makeHoverHandler(unit) {
+  return {
+    onHover(pt) {
+      if (!pt || pt.value == null) return;
+      mapAdapter.setElevationMarker(pt.lat, pt.lng);
+      if (elements.elevationTooltip) elements.elevationTooltip.hidden = false;
+      if (elements.elevationTooltipDist) {
+        elements.elevationTooltipDist.innerHTML = `<b>${(pt.dist / 1000).toFixed(2)} km</b>`;
+      }
+      if (elements.elevationTooltipEle) {
+        const icons = { m: "⛰", "km/h": "🚴", bpm: "❤️" };
+        const icon = icons[unit] ?? "";
+        elements.elevationTooltipEle.innerHTML = `${icon} <b>${Math.round(pt.value)} ${unit}</b>`;
+      }
+      if (elements.elevationTooltipGrade) elements.elevationTooltipGrade.innerHTML = "";
+      // Szinkronizálás: az összes többi chart ugyanarra a távolságra ugrik
+      chartSync.all.forEach(c => c?.setHoverByDist(pt.dist));
+    },
+    onLeave() {
+      mapAdapter.clearElevationMarker();
+      if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
+      // Minden chart hover törlése
+      chartSync.all.forEach(c => c?.clearHover());
+    },
+  };
+}
+
+const elevationChart = initElevationChart(elements.elevationCanvas, makeHoverHandler("m"));
+const speedChart     = elements.speedCanvas
+  ? initElevationChart(elements.speedCanvas, makeHoverHandler("km/h"))
+  : null;
+const hrChart        = elements.hrCanvas
+  ? initElevationChart(elements.hrCanvas, makeHoverHandler("bpm"))
+  : null;
+
+// Az összes chart feltöltve — szinkronizálás mostantól működik
+chartSync.all = [elevationChart, speedChart, hrChart].filter(Boolean);
+
+// Melyik chart szekciók látszanak (elevation / speed / hr) — itt deklarálva, hogy
+// updateElevationButton() és a chart control függvények egyaránt hozzáférjenek
+const visibleSections = new Set();
 
 function updateElevationButton(geometry) {
   activeGeometry = geometry ?? [];
@@ -630,28 +658,18 @@ function updateElevationButton(geometry) {
     if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
     if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
   }
-  // Ha a panel nyitva van, frissítsd a chartot
-  if (!elements.elevationPanel?.hidden) {
+  // Ha bármelyik szekció nyitva van, frissítsd az adatot
+  if (visibleSections.has("elevation")) {
     const data = buildElevationData(activeGeometry);
-    elevationChart.setData(data);
+    elevationChart.setData(data, { color: "#fc4c02", unit: "m" });
     updateElevationPanelInfo(data);
   }
-}
-
-function syncElevationBtnState(isOpen) {
-  // Toolbar gomb: aktív ha bármely chart nyitva van
-  if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", isOpen);
-
-  // Chart icon gombok: csak az aktív típus kiemelve
-  const typeMap = {
-    elevation: [elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan],
-    speed:     [elements.speedChartBtn],
-    hr:        [elements.hrChartBtn],
-  };
-  Object.entries(typeMap).forEach(([type, btns]) => {
-    const active = isOpen && activeChartType === type;
-    btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
-  });
+  if (visibleSections.has("speed") && speedChart) {
+    speedChart.setData(buildSpeedData(activeGeometry), { color: "#3B82F6", unit: "km/h" });
+  }
+  if (visibleSections.has("hr") && hrChart) {
+    hrChart.setData(buildHrData(activeGeometry), { color: "#EF4444", unit: "bpm" });
+  }
 }
 
 // Egységes réteg-kapcsoló: csak egy lehet aktív egyszerre
@@ -716,12 +734,93 @@ elements.cadMapToggle?.addEventListener("change", (e) => {
   toggle?.addEventListener("change", (e) => applyRouteLayer(e.target.checked ? "grade" : null));
 });
 
-// Chart gombok — kizárólagos: csak egy típus lehet aktív
+// ── Multi-chart: minden szekció önállóan nyitható/zárható ─────────────────────
+
+// Segéd: visszaadja az adott típushoz tartozó elemeket és builder-t
+function chartConfig(type) {
+  if (type === "speed") {
+    return {
+      sectionEl: elements.chartSpeed,
+      chartInst: speedChart,
+      build: () => buildSpeedData(activeGeometry),
+      opts: { color: "#3B82F6", unit: "km/h" },
+      btns: [elements.speedChartBtn],
+    };
+  }
+  if (type === "hr") {
+    return {
+      sectionEl: elements.chartHr,
+      chartInst: hrChart,
+      build: () => buildHrData(activeGeometry),
+      opts: { color: "#EF4444", unit: "bpm" },
+      btns: [elements.hrChartBtn],
+    };
+  }
+  // "elevation" (alapértelmezett)
+  return {
+    sectionEl: elements.chartElevation,
+    chartInst: elevationChart,
+    build: () => buildElevationData(activeGeometry),
+    opts: { color: "#fc4c02", unit: "m" },
+    btns: [elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan],
+  };
+}
+
+function syncElevationBtnState() {
+  const anyOpen = visibleSections.size > 0;
+  if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", anyOpen);
+
+  ["elevation", "speed", "hr"].forEach((type) => {
+    const { btns } = chartConfig(type);
+    const active = visibleSections.has(type);
+    btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
+  });
+}
+
+// Adott szekció megjelenítése (a többit NEM zárja be)
+function showChartSection(type) {
+  if (!elements.elevationPanel) return;
+  const cfg = chartConfig(type);
+  if (!cfg.sectionEl || !cfg.chartInst) return;
+
+  const data = cfg.build();
+  if (!data.length) return; // nincs adat ehhez a típushoz
+
+  // Először mutassuk meg a DOM elemeket, hogy a canvas mérete kiszámítható legyen
+  elements.elevationPanel.hidden = false;
+  cfg.sectionEl.hidden = false;
+  visibleSections.add(type);
+
+  // Ezután rajzoljuk a chartot (resize() a látható canvas méretét veszi)
+  cfg.chartInst.setData(data, cfg.opts);
+
+  // Szintprofil info sávot csak elevation típusnál frissítjük
+  if (type === "elevation") updateElevationPanelInfo(data);
+
+  syncElevationBtnState();
+}
+
+// Adott szekció elrejtése
+function hideChartSection(type) {
+  const cfg = chartConfig(type);
+  if (cfg.sectionEl) cfg.sectionEl.hidden = true;
+  visibleSections.delete(type);
+
+  // Ha egyik sem látszik, zárjuk be a panelt is
+  if (visibleSections.size === 0) {
+    if (elements.elevationPanel) elements.elevationPanel.hidden = true;
+    mapAdapter.clearElevationMarker();
+    if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
+  }
+  syncElevationBtnState();
+}
+
+// Gombokhoz: toggle az adott szekció
 function handleChartBtn(type) {
-  if (!elements.elevationPanel?.hidden && activeChartType === type) {
-    closeElevationPanel();
+  if (visibleSections.has(type)) {
+    hideChartSection(type);
   } else {
-    openChartPanel(type);
+    showChartSection(type);
   }
 }
 
@@ -731,13 +830,17 @@ function handleChartBtn(type) {
 elements.speedChartBtn?.addEventListener("click", () => handleChartBtn("speed"));
 elements.hrChartBtn?.addEventListener("click",    () => handleChartBtn("hr"));
 
+// X gombok az egyes szekciókhoz
+elements.closeChartElevation?.addEventListener("click", () => hideChartSection("elevation"));
+elements.closeChartSpeed?.addEventListener("click",     () => hideChartSection("speed"));
+elements.closeChartHr?.addEventListener("click",        () => hideChartSection("hr"));
+
 function updateElevationPanelInfo(data) {
   if (!elements.elevationInfo || !data.length) return;
   const eles = data.map((p) => p.ele).filter((e) => e != null);
   if (!eles.length) return;
   const minEle = Math.min(...eles);
   const maxEle = Math.max(...eles);
-  // Emelkedés / ereszkedés
   let asc = 0, desc = 0;
   for (let i = 1; i < data.length; i++) {
     if (data[i].ele == null || data[i - 1].ele == null) continue;
@@ -751,51 +854,27 @@ function updateElevationPanelInfo(data) {
     `<span>Max <b>${Math.round(maxEle)} m</b></span>`;
 }
 
-// Chart panel megnyitása adott típussal
-function openChartPanel(type) {
-  if (!elements.elevationPanel) return;
-  activeChartType = type ?? "elevation";
-
-  let data, opts, title;
-  if (type === "speed") {
-    data = buildSpeedData(activeGeometry);
-    opts = { color: "#3B82F6", unit: "km/h" };
-    title = "Sebesség";
-  } else if (type === "hr") {
-    data = buildHrData(activeGeometry);
-    opts = { color: "#EF4444", unit: "bpm" };
-    title = "Pulzus";
-  } else {
-    data = buildElevationData(activeGeometry);
-    opts = { color: "#fc4c02", unit: "m" };
-    title = "Szintprofil";
-  }
-
-  elements.elevationPanel.hidden = false;
-  if (elements.elevationPanel.querySelector(".elevation-panel-title")) {
-    elements.elevationPanel.querySelector(".elevation-panel-title").textContent = title;
-  }
-  elevationChart.setData(data, opts);
-  updateElevationPanelInfo(data);
-  syncElevationBtnState(true);
-}
-
-// Szintprofil megnyitása
+// Kompatibilitás: openElevationPanel() az elevation szekcióra nyit
 function openElevationPanel() {
-  openChartPanel("elevation");
+  showChartSection("elevation");
 }
 
-// Szintprofil bezárása
+// Minden szekció bezárása (pl. új fájl betöltésekor)
 function closeElevationPanel() {
+  ["elevation", "speed", "hr"].forEach((type) => {
+    const cfg = chartConfig(type);
+    if (cfg.sectionEl) cfg.sectionEl.hidden = true;
+  });
+  visibleSections.clear();
   if (elements.elevationPanel) elements.elevationPanel.hidden = true;
   mapAdapter.clearElevationMarker();
   if (elements.elevationTooltip) elements.elevationTooltip.hidden = true;
-  syncElevationBtnState(false);
+  syncElevationBtnState();
 }
 
-// Toggle logika minden gombhoz
+// Toolbar elevationBtn: ha semmi nincs nyitva → elevation szekció; ha bármi nyitva → mindent zár
 function toggleElevationPanel() {
-  if (elements.elevationPanel?.hidden) {
+  if (visibleSections.size === 0) {
     openElevationPanel();
   } else {
     closeElevationPanel();
@@ -803,12 +882,14 @@ function toggleElevationPanel() {
 }
 
 elements.elevationBtn?.addEventListener("click", toggleElevationPanel);
-
-// Szintprofil panel bezárása (X gomb)
 elements.elevationClose?.addEventListener("click", closeElevationPanel);
 
-// Resize observer a canvas újrarajzoláshoz
-const elevationResizeObserver = new ResizeObserver(() => elevationChart.resize());
+// Resize observer – mindhárom canvas frissítése
+const elevationResizeObserver = new ResizeObserver(() => {
+  elevationChart.resize();
+  speedChart?.resize();
+  hrChart?.resize();
+});
 if (elements.elevationPanel) elevationResizeObserver.observe(elements.elevationPanel);
 
 const _initSettings = getSettings();
@@ -1038,13 +1119,6 @@ if (config.login) {
     window.location.replace("./login.html");
   });
 }
-
-elements.saveRouteButton.addEventListener("click", () => {
-  showToast("Mentés hamarosan elérhető.");
-});
-elements.shareRouteButton.addEventListener("click", () => {
-  showToast("Megosztás hamarosan elérhető.");
-});
 
 // Settings overlay
 const settingsOverlay = document.querySelector("#settingsOverlay");
@@ -1294,6 +1368,57 @@ function slugify(text) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "utvonal";
+}
+
+/**
+ * Fájlnév prompt modal – megkérdezi a letöltési fájlnevet a könyvtárból való GPX letöltés előtt.
+ * @param {string} suggested – előre kitöltött fájlnév (kiterjesztés nélkül)
+ * @returns {Promise<string|null>} fájlnév kiterjesztés nélkül, vagy null ha a felhasználó megszakította
+ */
+function promptFilename(suggested) {
+  return new Promise((resolve) => {
+    const overlay = document.querySelector("#filenamePromptOverlay");
+    const input   = document.querySelector("#filenamePromptInput");
+    const btnOk   = document.querySelector("#filenamePromptConfirm");
+    const btnCancel = document.querySelector("#filenamePromptCancel");
+    const btnClose  = document.querySelector("#filenamePromptClose");
+
+    input.value = suggested;
+    overlay.hidden = false;
+    window.lucide?.createIcons();
+    setTimeout(() => { input.select(); input.focus(); }, 50);
+
+    function finish(value) {
+      overlay.hidden = true;
+      cleanup();
+      resolve(value);
+    }
+
+    function onConfirm() {
+      const name = input.value.trim();
+      finish(name || suggested);
+    }
+    function onCancel() { finish(null); }
+    function onKey(e) {
+      if (e.key === "Enter")  { e.preventDefault(); onConfirm(); }
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+    }
+    function onOverlayClick(e) { if (e.target === overlay) onCancel(); }
+
+    function cleanup() {
+      btnOk.removeEventListener("click", onConfirm);
+      btnCancel.removeEventListener("click", onCancel);
+      btnClose.removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onOverlayClick);
+      document.removeEventListener("keydown", onKey);
+    }
+
+    btnOk.addEventListener("click", onConfirm);
+    btnCancel.addEventListener("click", onCancel);
+    btnClose.addEventListener("click", onCancel);
+    overlay.addEventListener("click", onOverlayClick);
+    document.addEventListener("keydown", onKey);
+  });
 }
 
 function buildExportName(waypoints) {
@@ -1748,17 +1873,32 @@ function createLibraryItem(route, isSample) {
   `;
 
   // Betöltés gomb – edzésnél Elemzés fülre, egyébként Tervezés fülre
-  li.querySelector(".library-load-btn").addEventListener("click", () => {
-    loadRouteFromLibrary(route.id, isSample, route.name, isWorkout ? "file" : "plan");
+  li.querySelector(".library-load-btn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="lib-load-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`;
+    try {
+      await loadRouteFromLibrary(route.id, isSample, route.name, isWorkout ? "file" : "plan");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      window.lucide?.createIcons({ nodes: [btn] });
+    }
   });
 
   // GPX letöltés gomb
   li.querySelector(".library-download-btn").addEventListener("click", async () => {
+    // Fájlnév kérése – útvonal neve alapján javasolt, szerkeszthető
+    const suggested = slugify(route.name) || route.id;
+    const filename  = await promptFilename(suggested);
+    if (filename === null) return; // felhasználó megszakította
+
     try {
       const gpxText = isSample
         ? await routesApi.loadSample(route.id)
         : await routesApi.loadRoute(route.id);
-      downloadGpx(`${route.id}.gpx`, gpxText);
+      downloadGpx(`${filename}.gpx`, gpxText);
     } catch (err) {
       console.error("GPX letöltési hiba:", err);
       showToast("Nem sikerült letölteni a GPX fájlt.");
