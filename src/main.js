@@ -889,7 +889,15 @@ document.querySelector("#fileEmptyState")?.addEventListener("click", () => eleme
 elements.gpxInput.addEventListener("change", async () => {
   const [file] = elements.gpxInput.files;
   if (!file) return;
-  const imported = await importGpx(file, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
+  let imported;
+  try {
+    imported = await importGpx(file, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
+  } catch (err) {
+    showToast("Nem sikerült betölteni a fájlt. Ellenőrizd, hogy érvényes GPX fájl-e.");
+    elements.gpxInput.value = "";
+    console.error("GPX import error:", err);
+    return;
+  }
   store.replaceWaypoints(imported.waypoints, {
     geometry: imported.geometry,
     importedRoute: true,
