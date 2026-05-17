@@ -89,6 +89,10 @@
             <i data-lucide="chart-line" aria-hidden="true"></i>
             <span>Elemzés</span>
           </button>
+          <button class="sidebar-tab" data-tab="library" type="button" title="Útvonalkönyvtár">
+            <i data-lucide="bookmark" aria-hidden="true"></i>
+            <span>Könyvtár</span>
+          </button>
         </div>
 
         <!-- SCROLLABLE BODY -->
@@ -277,10 +281,10 @@
                 </div>
               </div>
 
-              <!-- Sidebar export gomb — csak ha van pont -->
+              <!-- Sidebar mentés gomb — csak ha van pont -->
               <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
-                <i data-lucide="download" aria-hidden="true"></i>
-                <span>GPX exportálás</span>
+                <i data-lucide="save" aria-hidden="true"></i>
+                <span>Mentés</span>
               </button>
               <!-- Szintprofil / Lejtő térkép — tervezésnél -->
               <div id="gradeLegendPlan" class="speed-legend" hidden>
@@ -546,6 +550,10 @@
                   <i data-lucide="download" aria-hidden="true"></i>
                   <span data-i18n="actions.export">GPX mentése</span>
                 </button>
+                <button id="fileSaveToLibraryButton" class="file-action-btn file-action-btn--save" type="button">
+                  <i data-lucide="save" aria-hidden="true"></i>
+                  <span>Mentés könyvtárba</span>
+                </button>
                 <button id="fileClearButton" class="file-action-btn file-action-btn--danger" type="button">
                   <i data-lucide="trash-2" aria-hidden="true"></i>
                   <span data-i18n="actions.clear">Törlés</span>
@@ -554,6 +562,93 @@
             </div>
 
           </div><!-- /tabFile -->
+
+          <!-- ===== KÖNYVTÁR PANEL ===== -->
+          <div class="tab-panel" id="tabLibrary" hidden>
+
+            <!-- Betöltés állapot -->
+            <div id="libraryLoading" class="library-loading" hidden>
+              <i data-lucide="loader-circle" class="library-loading-icon" aria-hidden="true"></i>
+              <span>Betöltés…</span>
+            </div>
+
+            <!-- API nem elérhető -->
+            <div id="libraryOffline" class="library-offline" hidden>
+              <i data-lucide="wifi-off" aria-hidden="true"></i>
+              <p>Az útvonalkönyvtár nem érhető el.</p>
+              <p class="library-offline-hint">Győződj meg róla, hogy a <code>routes-api</code> konténer fut.</p>
+              <button id="libraryRetryBtn" class="library-retry-btn" type="button">
+                <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                Újrapróbálás
+              </button>
+            </div>
+
+            <!-- Tartalom (akkor látható, ha API elérhető) -->
+            <div id="libraryContent" hidden>
+
+              <!-- ── Saját mentett útvonalak ── -->
+              <section class="library-section is-open">
+                <div class="library-section-header">
+                  <button class="library-section-toggle" type="button" aria-expanded="true">
+                    <span class="library-section-title">
+                      <i data-lucide="save" aria-hidden="true"></i>
+                      Mentett útvonalak
+                    </span>
+                    <i data-lucide="chevron-down" class="library-section-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="libraryRefreshBtn" class="library-icon-btn" type="button" title="Frissítés">
+                    <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="library-section-body">
+                  <p id="libraryUserEmpty" class="library-empty" hidden>
+                    Még nincs mentett útvonal. Tervezz egyet, majd mentsd el!
+                  </p>
+                  <ul id="libraryUserList" class="library-list" aria-label="Mentett útvonalak"></ul>
+                </div>
+              </section>
+
+              <!-- ── Edzések ── -->
+              <section class="library-section is-open" id="libraryWorkoutSection">
+                <div class="library-section-header">
+                  <button class="library-section-toggle" type="button" aria-expanded="true">
+                    <span class="library-section-title">
+                      <i data-lucide="heart-pulse" aria-hidden="true"></i>
+                      Edzések
+                    </span>
+                    <i data-lucide="chevron-down" class="library-section-chevron" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="library-section-body">
+                  <p id="libraryWorkoutEmpty" class="library-empty" hidden>
+                    Még nincs mentett edzés. Töltj fel egy GPX fájlt az Elemzés fülön!
+                  </p>
+                  <ul id="libraryWorkoutList" class="library-list" aria-label="Edzések"></ul>
+                </div>
+              </section>
+
+              <!-- ── Beépített minták ── -->
+              <section class="library-section is-open">
+                <div class="library-section-header">
+                  <button class="library-section-toggle" type="button" aria-expanded="true">
+                    <span class="library-section-title">
+                      <i data-lucide="map" aria-hidden="true"></i>
+                      Minták
+                    </span>
+                    <i data-lucide="chevron-down" class="library-section-chevron" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="library-section-body">
+                  <p id="librarySamplesEmpty" class="library-empty" hidden>
+                    Nincsenek beépített minta útvonalak.
+                  </p>
+                  <ul id="librarySampleList" class="library-list" aria-label="Minta útvonalak"></ul>
+                </div>
+              </section>
+
+            </div><!-- /libraryContent -->
+
+          </div><!-- /tabLibrary -->
 
         </div><!-- /sidebar-body -->
 
@@ -648,8 +743,8 @@
             </svg>
           </button>
           <div class="toolbar-divider"></div>
-          <button id="exportButton" class="toolbar-btn toolbar-btn--primary" type="button" data-i18n="actions.export">
-            GPX mentése
+          <button id="exportButton" class="toolbar-btn" type="button" title="Mentés">
+            <i data-lucide="save" aria-hidden="true"></i>
           </button>
         </div>
         <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml" hidden>
@@ -889,6 +984,47 @@
     <!-- Tooltip singleton -->
     <div id="hintTooltip" class="hint-tooltip" hidden role="tooltip"></div>
 
+    <!-- Könyvtár szerkesztő modal -->
+    <div id="libraryEditOverlay" class="shortcut-overlay" hidden>
+      <div class="export-panel">
+        <div class="export-header">
+          <h3>Útvonal szerkesztése</h3>
+          <button id="libraryEditClose" class="shortcut-close" type="button" title="Bezárás">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="export-body">
+          <div class="export-field">
+            <label class="export-label" for="libraryEditName">Útvonal neve</label>
+            <input id="libraryEditName" class="export-input" type="text" autocomplete="off">
+          </div>
+          <div class="export-field">
+            <label class="export-label" for="libraryEditType">Típus</label>
+            <div class="export-mode-group">
+              <label class="export-mode-btn">
+                <input type="radio" name="libraryEditType" value="cycling" checked>
+                <span><i data-lucide="bike" aria-hidden="true"></i> Kerékpár</span>
+              </label>
+              <label class="export-mode-btn">
+                <input type="radio" name="libraryEditType" value="hiking">
+                <span><i data-lucide="footprints" aria-hidden="true"></i> Gyalogos</span>
+              </label>
+            </div>
+          </div>
+          <div class="export-field">
+            <label class="export-label" for="libraryEditDesc">Leírás <span class="export-optional">(opcionális)</span></label>
+            <textarea id="libraryEditDesc" class="export-textarea" rows="3" placeholder="Rövid leírás az útvonalról…"></textarea>
+          </div>
+        </div>
+        <div class="export-footer">
+          <button id="libraryEditSave" class="export-confirm-btn export-confirm-btn--primary" type="button">
+            <i data-lucide="check" aria-hidden="true"></i>
+            Mentés
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- GPX Export modal -->
     <div id="exportOverlay" class="shortcut-overlay" hidden>
       <div class="export-panel">
@@ -928,11 +1064,16 @@
             </div>
             <p class="export-field-hint">A letöltött fájl neve — módosítható.</p>
           </div>
+
         </div>
         <div class="export-footer">
-          <button id="exportConfirm" class="export-confirm-btn" type="button">
+          <button id="exportConfirm" class="export-confirm-btn export-confirm-btn--secondary" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
-            Letöltés
+            GPX letöltés
+          </button>
+          <button id="exportSaveToLibrary" class="export-confirm-btn export-confirm-btn--primary" type="button">
+            <i data-lucide="save" aria-hidden="true"></i>
+            Mentés a könyvtárba
           </button>
         </div>
       </div>

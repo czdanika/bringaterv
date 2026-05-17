@@ -1,11 +1,13 @@
-name: Build & Push Docker image
+name: Build & Push Docker images
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build:
+  # ── Frontend (nginx) ─────────────────────────────────────────────────────────
+  build-frontend:
+    name: Build bringaterv (frontend)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,9 +24,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ghcr.io/czdanika/bringaterv:latest
+
+  # ── Routes API (Flask) ────────────────────────────────────────────────────────
+  build-api:
+    name: Build bringaterv-api (Flask)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./routes-api
+          push: true
+          tags: ghcr.io/czdanika/bringaterv-api:latest

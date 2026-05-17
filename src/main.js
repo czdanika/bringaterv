@@ -8,6 +8,7 @@ import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTimin
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
 import { buildElevationData, buildSpeedData, buildHrData, initElevationChart } from "./ui/elevationProfile.js";
+import { routesApi } from "./api/routesApi.js";
 
 requireAuth();
 
@@ -78,20 +79,26 @@ function updateThemeIcon() {
 }
 
 // ── Tab state ──────────────────────────────────────────────
-const tabButtons = document.querySelectorAll(".sidebar-tab");
-const tabPlan   = document.querySelector("#tabPlan");
-const tabFile   = document.querySelector("#tabFile");
+const tabButtons  = document.querySelectorAll(".sidebar-tab");
+const tabPlan     = document.querySelector("#tabPlan");
+const tabFile     = document.querySelector("#tabFile");
+const tabLibrary  = document.querySelector("#tabLibrary");
 let currentTab = "plan";
-let hasImportedFile = false; // igaz, ha az Elemzés fülön van betöltött fájl
+let hasImportedFile = false;   // igaz, ha az Elemzés fülön van betöltött fájl
+let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
+let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
 
 function switchTab(name) {
   currentTab = name;
   elements.appShell.classList.toggle("is-file-mode", name === "file");
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
-  tabPlan.hidden = name !== "plan";
-  tabFile.hidden = name !== "file";
-  // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen nem
+  tabPlan.hidden    = name !== "plan";
+  tabFile.hidden    = name !== "file";
+  if (tabLibrary) tabLibrary.hidden = name !== "library";
+  // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen/Könyvtáron nem
   mapAdapter?.setRouteInteractive(name === "plan");
+  // Könyvtár fül megnyitásakor mindig frissítjük a listát
+  if (name === "library" && tabLibrary) loadRouteLibrary();
   window.lucide?.createIcons();
 }
 
@@ -102,6 +109,12 @@ function requestTabSwitch(targetTab) {
   if (targetTab === currentTab) return;
 
   const hasPlanData = store.getState().waypoints.length > 0;
+
+  // Könyvtár fülre/könyvtárból való váltásnál nincs megerősítés szükséges
+  if (!tabLibrary || targetTab === "library" || currentTab === "library") {
+    switchTab(targetTab);
+    return;
+  }
 
   if (currentTab === "plan" && targetTab === "file" && hasPlanData) {
     showTabSwitchModal("plan→file");
@@ -382,6 +395,7 @@ const elements = {
   exportDesc: document.querySelector("#exportDesc"),
   exportFilename: document.querySelector("#exportFilename"),
   fileExportButton: document.querySelector("#fileExportButton"),
+  fileSaveToLibraryButton: document.querySelector("#fileSaveToLibraryButton"),
   elevationBtn: document.querySelector("#elevationBtn"),
   elevationPanel: document.querySelector("#elevationPanel"),
   elevationClose: document.querySelector("#elevationClose"),
@@ -573,6 +587,7 @@ elements.unitInputs.forEach((input) => {
 // Export buttons start disabled (no waypoints yet)
 elements.exportButton.disabled = true;
 if (elements.fileExportButton) elements.fileExportButton.disabled = true;
+if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled = true;
 
 // Szintprofil – aktív geometry (tervezett vagy importált)
 let activeGeometry = [];
@@ -824,6 +839,7 @@ store.subscribe(async (state) => {
   const hasPoints = state.waypoints.length > 0;
   elements.exportButton.disabled = !hasPoints;
   if (elements.fileExportButton) elements.fileExportButton.disabled = !hasPoints;
+  if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled = !hasPoints;
   if (elements.sidebarExportButton) elements.sidebarExportButton.hidden = !hasPoints;
   mapAdapter.renderWaypoints(state.waypoints);
   if (state.importedRoute) {
@@ -1184,10 +1200,12 @@ function clearAllRouteState() {
   importedColoredGeometry = null;
   importedHrGeometry = null;
   importedCadGeometry = null;
+  importedGpxText = null;
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
   mapAdapter.clearGradeRoute();
+  mapAdapter.renderRoute([]);
   store.clear();
   clearFileTab();
   updateElevationButton([]);
@@ -1309,23 +1327,68 @@ elements.exportName?.addEventListener("input", () => {
   elements.exportFilename.value = `${slugify(elements.exportName.value)}-${today}`;
 });
 
-// Confirm: build GPX and download
-elements.exportConfirm?.addEventListener("click", () => {
-  const state = store.getState();
-  const name = elements.exportName.value.trim() || "Bringaterv útvonal";
-  const desc = elements.exportDesc.value.trim();
-  const filename = (elements.exportFilename.value.trim() || slugify(name)) + ".gpx";
+// ── Export modal közös segédfüggvény ─────────────────────────────────────────
 
-  const selectedMode = elements.exportOverlay.querySelector("input[name=\"exportMode\"]:checked")?.value ?? state.mode;
+/** Az export modal aktuális értékeiből GPX tartalmat és metaadatot állít elő. */
+function buildExportPayload() {
+  const state = store.getState();
+  const name  = elements.exportName.value.trim() || "Bringaterv útvonal";
+  const desc  = elements.exportDesc.value.trim();
+  const filename = (elements.exportFilename.value.trim() || slugify(name)) + ".gpx";
+  const selectedMode = elements.exportOverlay
+    .querySelector("input[name=\"exportMode\"]:checked")?.value ?? state.mode;
+
   const content = exportGpx({
     waypoints: state.waypoints,
-    geometry: state.routeGeometry,
-    name,
-    desc,
-    mode: selectedMode,
+    geometry:  state.routeGeometry,
+    name, desc, mode: selectedMode,
   });
+
+  // Távolság (km) – közvetlenül a store-ból (BRouter / import egyaránt beállítja)
+  const distanceKm = state.distanceMeters > 0
+    ? Math.round(state.distanceMeters / 100) / 10  // méter → km, 1 tizedesjegy
+    : null;
+
+  // Szintkülönbség – store-ból (BRouter / import egyaránt beállítja)
+  const ascentMeters = state.ascentMeters > 0 ? state.ascentMeters : 0;
+
+  // Becsült időtartam (kerékpár: 20 km/h, gyalogos: 5 km/h)
+  let durationMin = null;
+  if (distanceKm != null) {
+    const avgSpeed = selectedMode === "walking" ? 5 : 20;
+    durationMin = Math.round((distanceKm / avgSpeed) * 60);
+  }
+
+  return { name, desc, filename, content, selectedMode, distanceKm, ascentMeters, durationMin };
+}
+
+// ── GPX letöltés gomb ─────────────────────────────────────────────────────────
+elements.exportConfirm?.addEventListener("click", () => {
+  const { filename, content } = buildExportPayload();
   downloadGpx(filename, content);
   elements.exportOverlay.hidden = true;
+});
+
+// ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
+document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {
+  const { name, desc, content, selectedMode, distanceKm, ascentMeters, durationMin } = buildExportPayload();
+  elements.exportOverlay.hidden = true;
+
+  try {
+    await routesApi.saveRoute({
+      name,
+      gpxContent: content,
+      distance:  distanceKm,
+      duration:  durationMin,
+      elevation: ascentMeters || null,
+      type:      selectedMode === "walking" ? "hiking" : "cycling",
+      description: desc,
+    });
+    showToast(`„${name}" elmentve a könyvtárba`);
+  } catch (err) {
+    console.error("Könyvtár mentési hiba:", err);
+    showToast("Nem sikerült menteni a könyvtárba. Az API elérhető?");
+  }
 });
 
 // Close modal
@@ -1392,6 +1455,8 @@ elements.gpxInput.addEventListener("change", async () => {
   mapAdapter.renderRoute(imported.geometry);
 
   hasImportedFile = true;
+  importedFileName = file.name.replace(/\.gpx$/i, ""); // fájlnév kiterjesztés nélkül
+  importedGpxText  = await file.text();                // eredeti GPX megőrzése mentéshez
   populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
   switchTab("file");
 
@@ -1410,6 +1475,47 @@ elements.gpxInput.addEventListener("change", async () => {
 
 // File tab export button — same modal
 elements.fileExportButton?.addEventListener("click", () => openExportModal());
+
+// ── Edzés mentése könyvtárba (Elemzés fül) ────────────────────────────────────
+elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
+  const state = store.getState();
+  const name = importedFileName || "Edzés";
+
+  // Eredeti GPX tartalom használata ha elérhető (megőrzi a sebesség/pulzus/idő adatokat),
+  // különben fallback: újragenerálás geometriából (adatvesztéssel jár)
+  const content = importedGpxText ?? exportGpx({
+    waypoints: state.waypoints,
+    geometry:  state.routeGeometry,
+    name,
+    desc: "",
+    mode: state.mode,
+  });
+
+  const distanceKm = state.distanceMeters > 0
+    ? Math.round(state.distanceMeters / 100) / 10
+    : null;
+  const ascentMeters = state.ascentMeters > 0 ? state.ascentMeters : null;
+  // Becsült időtartam: kerékpár 20 km/h
+  const durationMin = distanceKm != null
+    ? Math.round((distanceKm / 20) * 60)
+    : null;
+
+  try {
+    await routesApi.saveRoute({
+      name,
+      gpxContent: content,
+      distance:   distanceKm,
+      duration:   durationMin,
+      elevation:  ascentMeters,
+      type:       "workout",
+      description: "",
+    });
+    showToast(`„${name}" mentve az Edzések közé`);
+  } catch (err) {
+    console.error("Edzés mentési hiba:", err);
+    showToast("Nem sikerült menteni. Az API elérhető?");
+  }
+});
 
 // Legend accordion (expand/collapse color items on header click)
 document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
@@ -1471,6 +1577,383 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   applyRouteLayer(null);
   switchTab("plan");
   showToast("Útvonalpontok betöltve – folytathatod a tervezést");
+});
+
+// ── Útvonalkönyvtár (Library tab) ────────────────────────────────────────────
+
+/**
+ * Útvonal betöltése könyvtárból.
+ * - target="plan"    → Tervezés fül (útvonalak, minták)
+ * - target="file"    → Elemzés fül  (edzések – teljes analízis, sebesség, pulzus stb.)
+ *
+ * @param {string}  id        – útvonal azonosítója
+ * @param {boolean} isSample  – true ha minta
+ * @param {string}  routeName – megjelenítési név
+ * @param {"plan"|"file"} [target="plan"]
+ */
+async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
+  let gpxText;
+  try {
+    gpxText = isSample
+      ? await routesApi.loadSample(id)
+      : await routesApi.loadRoute(id);
+  } catch (err) {
+    console.error("Könyvtár betöltési hiba:", err);
+    showToast("Nem sikerült betölteni az útvonalat.");
+    return;
+  }
+
+  let imported;
+  try {
+    const blob = new Blob([gpxText], { type: "application/gpx+xml" });
+    imported = await importGpx(blob, { sampleWaypoints: false });
+  } catch (err) {
+    console.error("GPX parse hiba:", err);
+    showToast("Érvénytelen GPX fájl a könyvtárban.");
+    return;
+  }
+
+  clearAllRouteState();
+
+  if (target === "file") {
+    // ── Elemzés fülre töltés (azonos logika mint a kézi GPX feltöltésnél) ──
+    store.replaceWaypoints(imported.waypoints, {
+      geometry: imported.geometry,
+      importedRoute: true,
+      sourcePointCount: imported.sourcePointCount,
+    });
+    const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
+    const distanceMeters = calculateImportedDistance(imported.geometry);
+    store.setState({ distanceMeters, ascentMeters, descentMeters });
+
+    const hasSpeed = imported.geometry.some(p => p.speed != null);
+    const hasHr    = imported.geometry.some(p => p.hr    != null);
+    const hasCad   = imported.geometry.some(p => p.cad   != null);
+
+    importedColoredGeometry = hasSpeed ? imported.geometry : null;
+    importedHrGeometry      = hasHr   ? imported.geometry : null;
+    importedCadGeometry     = hasCad  ? imported.geometry : null;
+
+    updateElevationButton(imported.geometry);
+    applyRouteLayer(null);
+    mapAdapter.renderRoute(imported.geometry);
+
+    hasImportedFile = true;
+    importedFileName = routeName;
+    importedGpxText  = gpxText; // eredeti GPX megőrzése (esetleges újramentéshez)
+    populateFileTab({
+      filename: `${routeName}.gpx`,
+      geometry: imported.geometry,
+      distanceMeters, ascentMeters, descentMeters,
+      speedColored: hasSpeed,
+      meta: imported.meta ?? {},
+    });
+    switchTab("file");
+    setTimeout(() => mapAdapter.fitRoute(), 50);
+    showToast(`„${routeName}" betöltve az Elemzés fülre`);
+
+  } else {
+    // ── Tervezés fülre töltés ─────────────────────────────────────────────
+    switchTab("plan");
+    store.replaceWaypoints(imported.waypoints, { importedRoute: true });
+    updateElevationButton(imported.geometry);
+    mapAdapter.renderRoute(imported.geometry);
+    setTimeout(() => mapAdapter.fitRoute(), 50);
+    showToast(`„${routeName}" betöltve – kattints a térképre a tervezéshez`);
+  }
+}
+
+/**
+ * Perceket olvasható formátumra alakít a könyvtár kártyákhoz.
+ * @param {number|null} minutes
+ * @returns {string}  pl. "3 ó 20 p" vagy ""
+ */
+function formatRouteDuration(minutes) {
+  if (minutes == null) return "";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} p`;
+  if (m === 0) return `${h} ó`;
+  return `${h} ó ${m} p`;
+}
+
+/**
+ * Könyvtár lista egy elemének HTML-je.
+ * Visszaad egy <li> elemet a betöltés és (saját útvonalon) törlés gombokkal.
+ *
+ * @param {{ id: string, name: string, date?: string, distance?: number|null,
+ *           duration?: number|null, elevation?: number|null,
+ *           type?: string, description?: string }} route
+ * @param {boolean} isSample
+ * @returns {HTMLLIElement}
+ */
+function createLibraryItem(route, isSample) {
+  const li = document.createElement("li");
+  li.className = "library-item";
+  li.dataset.id = route.id;
+
+  // Típus ikon és felirat
+  const isWorkout = route.type === "workout";
+  const isHiking  = route.type === "hiking";
+  const typeIcon  = isHiking ? "footprints" : "bike";
+  const typeLabel = isWorkout ? "Edzés" : isHiking ? "Gyalogos" : "Kerékpár";
+
+  // Statisztika chipek
+  const chips = [];
+  if (route.distance != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="route" aria-hidden="true"></i>${route.distance} km</span>`);
+  if (route.duration != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="clock" aria-hidden="true"></i>${formatRouteDuration(route.duration)}</span>`);
+  if (route.elevation != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="triangle" aria-hidden="true"></i>${route.elevation} m</span>`);
+
+  // Dátum (csak saját útvonalon)
+  const dateLabel = !isSample && route.date
+    ? `<span class="library-item-date">${route.date}</span>`
+    : "";
+
+  // Leírás (ha van)
+  const descEl = route.description
+    ? `<p class="library-item-desc">${route.description}</p>`
+    : "";
+
+  li.innerHTML = `
+    <div class="library-item-header">
+      <div class="library-item-type-badge library-item-type-badge--${route.type ?? "cycling"}">
+        <i data-lucide="${typeIcon}" aria-hidden="true"></i>
+      </div>
+      <div class="library-item-meta">
+        <span class="library-item-name">${route.name}</span>
+        ${dateLabel ? `<span class="library-item-date">${route.date}</span>` : ""}
+      </div>
+      <div class="library-item-actions">
+        <button class="library-load-btn" type="button"
+          title="${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezéshez"}">
+          <i data-lucide="${isWorkout ? "chart-line" : "map-pin-plus"}" aria-hidden="true"></i>
+        </button>
+        <button class="library-download-btn" type="button" title="GPX letöltés">
+          <i data-lucide="download" aria-hidden="true"></i>
+        </button>
+        ${!isSample ? `
+        <button class="library-edit-btn" type="button" title="Szerkesztés">
+          <i data-lucide="pencil" aria-hidden="true"></i>
+        </button>
+        <button class="library-delete-btn" type="button" title="Törlés">
+          <i data-lucide="trash-2" aria-hidden="true"></i>
+        </button>` : ""}
+      </div>
+    </div>
+    ${chips.length ? `<div class="library-item-chips">${chips.join("")}</div>` : ""}
+    ${descEl}
+  `;
+
+  // Betöltés gomb – edzésnél Elemzés fülre, egyébként Tervezés fülre
+  li.querySelector(".library-load-btn").addEventListener("click", () => {
+    loadRouteFromLibrary(route.id, isSample, route.name, isWorkout ? "file" : "plan");
+  });
+
+  // GPX letöltés gomb
+  li.querySelector(".library-download-btn").addEventListener("click", async () => {
+    try {
+      const gpxText = isSample
+        ? await routesApi.loadSample(route.id)
+        : await routesApi.loadRoute(route.id);
+      downloadGpx(`${route.id}.gpx`, gpxText);
+    } catch (err) {
+      console.error("GPX letöltési hiba:", err);
+      showToast("Nem sikerült letölteni a GPX fájlt.");
+    }
+  });
+
+  // Szerkesztés gomb (csak saját útvonalakon)
+  li.querySelector(".library-edit-btn")?.addEventListener("click", () => {
+    openLibraryEditModal(route, li);
+  });
+
+  // Törlés gomb (csak saját útvonalakhoz)
+  li.querySelector(".library-delete-btn")?.addEventListener("click", async () => {
+    if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
+    try {
+      await routesApi.deleteRoute(route.id);
+      li.remove();
+      showToast(`„${route.name}" törölve`);
+      // Ha az utolsó elem volt, megjelenítjük az üres állapotot
+      const list = document.querySelector("#libraryUserList");
+      if (list && !list.children.length) {
+        document.querySelector("#libraryUserEmpty").hidden = false;
+      }
+    } catch (err) {
+      console.error("Törlési hiba:", err);
+      showToast("Nem sikerült törölni az útvonalat.");
+    }
+  });
+
+  return li;
+}
+
+/**
+ * Megnyitja a szerkesztő modalt egy könyvtári útvonalhoz.
+ * Mentéskor PATCH kérést küld az API-nak, majd frissíti a kártya tartalmát.
+ *
+ * @param {{ id: string, name: string, type: string, description: string }} route
+ * @param {HTMLLIElement} li – a kártya DOM eleme (helyi frissítéshez)
+ */
+function openLibraryEditModal(route, li) {
+  const overlay  = document.querySelector("#libraryEditOverlay");
+  const nameInput = document.querySelector("#libraryEditName");
+  const descInput = document.querySelector("#libraryEditDesc");
+  const saveBtn  = document.querySelector("#libraryEditSave");
+
+  if (!overlay) return;
+
+  // Meglévő értékek betöltése
+  nameInput.value = route.name;
+  descInput.value = route.description ?? "";
+  const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${route.type ?? "cycling"}"]`);
+  if (typeRadio) typeRadio.checked = true;
+
+  overlay.hidden = false;
+  window.lucide?.createIcons();
+  setTimeout(() => nameInput.select(), 50);
+
+  // Mentés gomb – új handler minden megnyitáskor (removeEventListener helyett klónozás)
+  const newSaveBtn = saveBtn.cloneNode(true);
+  saveBtn.replaceWith(newSaveBtn);
+
+  newSaveBtn.addEventListener("click", async () => {
+    const newName = nameInput.value.trim() || route.name;
+    const newType = overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? route.type;
+    const newDesc = descInput.value.trim();
+
+    try {
+      const updated = await routesApi.updateRoute(route.id, {
+        name:        newName,
+        type:        newType,
+        description: newDesc,
+      });
+
+      // Kártya helyi frissítése (újratöltés nélkül)
+      route.name        = updated.name;
+      route.type        = updated.type;
+      route.description = updated.description;
+
+      const nameEl = li.querySelector(".library-item-name");
+      if (nameEl) nameEl.textContent = updated.name;
+
+      const descEl = li.querySelector(".library-item-desc");
+      if (descEl) {
+        descEl.textContent = updated.description;
+        descEl.hidden = !updated.description;
+      }
+
+      // Típus badge frissítése
+      const badge = li.querySelector(".library-item-type-badge");
+      if (badge) {
+        badge.className = `library-item-type-badge library-item-type-badge--${updated.type}`;
+        const icon = updated.type === "hiking" ? "footprints" : "bike";
+        badge.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
+        window.lucide?.createIcons();
+      }
+
+      overlay.hidden = true;
+      showToast(`„${updated.name}" frissítve`);
+    } catch (err) {
+      console.error("Szerkesztési hiba:", err);
+      showToast("Nem sikerült menteni a módosítást.");
+    }
+  });
+}
+
+// Edit modal bezárás
+document.querySelector("#libraryEditClose")?.addEventListener("click", () => {
+  document.querySelector("#libraryEditOverlay").hidden = true;
+});
+document.querySelector("#libraryEditOverlay")?.addEventListener("click", (e) => {
+  if (e.target === document.querySelector("#libraryEditOverlay"))
+    document.querySelector("#libraryEditOverlay").hidden = true;
+});
+
+/**
+ * Betölti és rendereli az útvonalkönyvtár teljes tartalmát.
+ * Megjeleníti a loading spinert, majd az API válasz alapján a listákat.
+ * Ha az API nem elérhető, az offline üzenet jelenik meg.
+ */
+async function loadRouteLibrary() {
+  const elLoading       = document.querySelector("#libraryLoading");
+  const elOffline       = document.querySelector("#libraryOffline");
+  const elContent       = document.querySelector("#libraryContent");
+  const elUserList      = document.querySelector("#libraryUserList");
+  const elUserEmpty     = document.querySelector("#libraryUserEmpty");
+  const elWorkoutList   = document.querySelector("#libraryWorkoutList");
+  const elWorkoutEmpty  = document.querySelector("#libraryWorkoutEmpty");
+  const elWorkoutSection = document.querySelector("#libraryWorkoutSection");
+  const elSampleList    = document.querySelector("#librarySampleList");
+  const elSamplesEmpty  = document.querySelector("#librarySamplesEmpty");
+
+  elLoading.hidden  = false;
+  elOffline.hidden  = true;
+  elContent.hidden  = true;
+
+  try {
+    const [userRoutes, samples] = await Promise.all([
+      routesApi.listRoutes(),
+      routesApi.listSamples(),
+    ]);
+
+    // Szétválasztás: edzések vs. tervezett útvonalak
+    const routes   = userRoutes.filter(r => r.type !== "workout");
+    const workouts = userRoutes.filter(r => r.type === "workout");
+
+    // Tervezett útvonalak
+    elUserList.innerHTML = "";
+    if (routes.length === 0) {
+      elUserEmpty.hidden = false;
+    } else {
+      elUserEmpty.hidden = true;
+      routes.forEach(r => elUserList.append(createLibraryItem(r, false)));
+    }
+
+    // Edzések
+    if (elWorkoutList && elWorkoutSection) {
+      elWorkoutList.innerHTML = "";
+      if (workouts.length === 0) {
+        if (elWorkoutEmpty) elWorkoutEmpty.hidden = false;
+      } else {
+        if (elWorkoutEmpty) elWorkoutEmpty.hidden = true;
+        workouts.forEach(r => elWorkoutList.append(createLibraryItem(r, false)));
+      }
+    }
+
+    // Minták
+    elSampleList.innerHTML = "";
+    if (samples.length === 0) {
+      elSamplesEmpty.hidden = false;
+    } else {
+      elSamplesEmpty.hidden = true;
+      samples.forEach(r => elSampleList.append(createLibraryItem(r, true)));
+    }
+
+    elContent.hidden = false;
+  } catch (err) {
+    console.error("Könyvtár betöltési hiba:", err);
+    elOffline.hidden = false;
+  } finally {
+    elLoading.hidden = true;
+    window.lucide?.createIcons();
+  }
+}
+
+// Frissítés és újrapróbálás gombok
+document.querySelector("#libraryRefreshBtn")?.addEventListener("click", loadRouteLibrary);
+document.querySelector("#libraryRetryBtn")?.addEventListener("click", loadRouteLibrary);
+
+// ── Könyvtár szekciók accordion (lenyíló) ────────────────────────────────────
+document.querySelectorAll(".library-section-toggle").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const section = btn.closest(".library-section");
+    const isOpen  = section.classList.toggle("is-open");
+    btn.setAttribute("aria-expanded", String(isOpen));
+  });
 });
 
 document.addEventListener("keydown", (event) => {

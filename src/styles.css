@@ -907,6 +907,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .file-action-btn:hover { background: var(--panel-strong); }
 .file-action-btn--danger { color: #e53e3e; border-color: rgba(229,62,62,0.3); }
 .file-action-btn--danger:hover { background: rgba(229,62,62,0.08); }
+.file-action-btn--save { color: var(--brand); border-color: rgba(252,76,2,0.3); }
+.file-action-btn--save:hover { background: rgba(252,76,2,0.08); }
 
 /* "Tervezés ez alapján" gomb */
 .plan-from-file-btn {
@@ -1236,6 +1238,9 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   white-space: nowrap;
 }
 .toolbar-btn--primary:hover:not(:disabled) { background: #e04400; }
+
+/* Mentés ikon gomb a toolbaron – semleges, mint a többi */
+.toolbar-btn--save i[data-lucide] { width: 17px; height: 17px; }
 .toolbar-divider {
   width: 1px;
   height: 20px;
@@ -2019,24 +2024,38 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   padding: 14px 20px 18px;
   border-top: 1px solid var(--line);
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
 }
 .export-confirm-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 20px;
-  background: var(--accent);
-  color: #fff;
+  padding: 9px 18px;
   border: none;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, background 0.15s;
 }
-.export-confirm-btn:hover { opacity: 0.88; }
-.export-confirm-btn svg { width: 15px; height: 15px; }
+.export-confirm-btn svg,
+.export-confirm-btn i[data-lucide] { width: 15px; height: 15px; }
+
+/* GPX letöltés – másodlagos (halvány) */
+.export-confirm-btn--secondary {
+  background: var(--panel-strong, #f0f0f0);
+  color: var(--text, #111);
+  border: 1px solid var(--line, #e5e5e5);
+}
+.export-confirm-btn--secondary:hover { background: var(--accent-soft, #e0e0e0); }
+
+/* Mentés a könyvtárba – elsődleges (teli) */
+.export-confirm-btn--primary {
+  background: var(--brand, #fc4c02);
+  color: #fff;
+}
+.export-confirm-btn--primary:hover { opacity: 0.88; }
 
 /* Sidebar export button */
 .sidebar-export-btn {
@@ -2047,7 +2066,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   width: calc(100% - 32px);
   margin: 8px 16px 4px;
   padding: 9px 16px;
-  background: var(--accent);
+  background: var(--brand);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -2229,3 +2248,328 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 .elevation-hover-info span { color: var(--text-muted); }
 .elevation-hover-info span b { color: var(--text); font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ÚTVONALKÖNYVTÁR – Library tab
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Töltés / offline állapot ─────────────────────────────────────────────── */
+.library-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--muted, #777);
+  font-size: 13px;
+}
+.library-loading-icon {
+  width: 16px;
+  height: 16px;
+  animation: library-spin 1s linear infinite;
+}
+@keyframes library-spin {
+  to { transform: rotate(360deg); }
+}
+
+.library-offline {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted, #777);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.library-offline i[data-lucide] {
+  display: block;
+  margin: 0 auto 8px;
+  width: 28px;
+  height: 28px;
+  opacity: 0.4;
+}
+.library-offline p { margin: 0 0 4px; }
+.library-offline-hint {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 12px !important;
+}
+.library-offline-hint code {
+  font-family: monospace;
+  background: var(--panel-strong, #f0f0f0);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.library-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 8px;
+  background: var(--panel-bg, #fff);
+  color: var(--text, #111);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.library-retry-btn:hover { background: var(--accent-soft, #ebebeb); }
+
+/* ── Szekció fejléc ───────────────────────────────────────────────────────── */
+.library-section {
+  border-bottom: 1px solid var(--line, #e5e5e5);
+}
+.library-section:last-child { border-bottom: none; }
+
+.library-section-header {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 0;
+}
+
+/* Toggle gomb – a fejléc kattintható területe */
+.library-section-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 8px 10px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-width: 0;
+}
+.library-section-toggle:hover .library-section-title {
+  color: var(--text, #111);
+}
+
+.library-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #777);
+  transition: color 0.15s;
+}
+.library-section-title i[data-lucide] {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+/* Chevron – forog nyitáskor */
+.library-section-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--muted, #777);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.library-section.is-open .library-section-chevron {
+  transform: rotate(180deg);
+}
+
+/* Body – sima max-height animáció */
+.library-section-body {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+}
+.library-section.is-open .library-section-body {
+  max-height: 2000px;
+}
+.library-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted, #777);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.library-icon-btn:hover {
+  background: var(--accent-soft, #ebebeb);
+  color: var(--text, #111);
+}
+.library-icon-btn i[data-lucide] { width: 14px; height: 14px; }
+
+/* ── Üres állapot ─────────────────────────────────────────────────────────── */
+.library-empty {
+  padding: 10px 16px 14px;
+  font-size: 12px;
+  color: var(--muted, #777);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Lista ────────────────────────────────────────────────────────────────── */
+.library-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+}
+
+/* ── Lista elem ───────────────────────────────────────────────────────────── */
+.library-item {
+  border-radius: 10px;
+  padding: 4px 2px;
+  transition: background 0.12s;
+}
+.library-item:hover { background: var(--accent-soft, #ebebeb); }
+
+.library-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+.library-item-icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: var(--brand, #fc4c02);
+}
+
+/* Típus badge (kerékpár / gyalogos) */
+.library-item-type-badge {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.library-item-type-badge i[data-lucide] { width: 16px; height: 16px; }
+.library-item-type-badge--cycling {
+  background: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+.library-item-type-badge--hiking {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+.library-item-type-badge--workout {
+  background: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+}
+
+.library-item-meta {
+  flex: 1;
+  min-width: 0;
+}
+.library-item-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #111);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.library-item-date {
+  display: block;
+  font-size: 11px;
+  color: var(--muted, #777);
+  margin-top: 1px;
+}
+
+/* Statisztika chipek (távolság / idő / szint) */
+.library-item-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 8px 6px 48px;
+}
+.lib-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--panel-strong, #f0f0f0);
+  color: var(--text, #111);
+  font-size: 11px;
+  font-weight: 600;
+}
+.lib-chip i[data-lucide] {
+  width: 11px;
+  height: 11px;
+  color: var(--muted, #777);
+}
+
+.library-item-desc {
+  font-size: 11px;
+  color: var(--muted, #777);
+  margin: 0 8px 6px 48px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Lista elem akció gombok ──────────────────────────────────────────────── */
+.library-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.library-load-btn,
+.library-download-btn,
+.library-edit-btn,
+.library-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.library-load-btn {
+  color: var(--route, #1976d2);
+}
+.library-load-btn:hover {
+  background: rgba(25, 118, 210, 0.10);
+}
+.library-delete-btn {
+  color: var(--muted, #777);
+}
+.library-delete-btn:hover {
+  background: rgba(197, 48, 48, 0.10);
+  color: var(--danger, #c53030);
+}
+.library-edit-btn {
+  color: var(--muted, #777);
+}
+.library-edit-btn:hover {
+  background: rgba(25, 118, 210, 0.10);
+  color: #1976d2;
+}
+.library-download-btn {
+  color: var(--muted, #777);
+}
+.library-download-btn:hover {
+  background: rgba(25, 118, 210, 0.10);
+  color: #1976d2;
+}
+.library-load-btn i[data-lucide],
+.library-download-btn i[data-lucide],
+.library-edit-btn i[data-lucide],
+.library-delete-btn i[data-lucide] {
+  width: 14px;
+  height: 14px;
+}
+
+/* Export modal – fájlnév mező hint */
+.export-field-hint { color: var(--muted, #777); font-size: 11px; margin-top: 4px; }

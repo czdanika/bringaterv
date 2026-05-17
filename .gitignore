@@ -1,4 +1,5 @@
 .DS_Store
 *.gpx
+!routes-api/samples/*.gpx
 .claude/
 

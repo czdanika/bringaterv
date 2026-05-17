@@ -1,10 +1,64 @@
+# ── Bringaterv – Docker Compose ──────────────────────────────────────────────
+#
+# Két szolgáltatás:
+#   bringaterv   – nginx, statikus frontend (port: ${PORT:-8088})
+#   routes-api   – Flask REST API, csak belső hálózaton érhető el
+#
+# Volume:
+#   routes-data  – felhasználói GPX fájlok és index.json tartós tárolása
+#                  (Docker volume, NAS-on /var/lib/docker/volumes/... alatt)
+#
+# Hálózat:
+#   bringaterv-net – belső bridge hálózat; routes-api kívülről NEM elérhető
+
 services:
+
+  # ── Frontend (nginx) ────────────────────────────────────────────────────────
   bringaterv:
-    image: ghcr.io/czdanika/bringaterv:latest
+    # Éles: image: ghcr.io/czdanika/bringaterv:latest
+    build:
+      context: .
     ports:
       - "${PORT:-8088}:80"
     environment:
       LOGIN_ENABLED: ${LOGIN_ENABLED:-true}
-      LOGIN_USER: ${LOGIN_USER:-bringa}
+      LOGIN_USER:    ${LOGIN_USER:-bringa}
       LOGIN_PASSWORD: ${LOGIN_PASSWORD:-terv}
+    depends_on:
+      - routes-api
+    networks:
+      - bringaterv-net
     restart: unless-stopped
+
+  # ── Útvonaltár API (Flask) ──────────────────────────────────────────────────
+  routes-api:
+    # Éles: GHCR-ről húzza (GitHub Actions buildeli)
+    # image: ghcr.io/czdanika/bringaterv-api:latest
+    # Helyi fejlesztés / első telepítés előtt:
+    build:
+      context: ./routes-api
+    environment:
+      DATA_DIR:    /data/routes   # felhasználói GPX-ek helye (volume-ban)
+      SAMPLES_DIR: /samples       # beépített minták (image-be égetve)
+    volumes:
+      - routes-data:/data/routes  # tartós tároló
+    networks:
+      - bringaterv-net
+    # Szándékosan NINCS ports: blokk → kívülről nem érhető el, csak nginx-en át
+    restart: unless-stopped
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  routes-data:
+    # Named volume – Docker kezeli a helyét (NAS-on is perzisztens)
+    # Ha konkrét NAS elérési utat akarsz, használd:
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /volume1/docker/bringaterv-routes
+
+# ── Hálózat ──────────────────────────────────────────────────────────────────
+networks:
+  bringaterv-net:
+    driver: bridge
