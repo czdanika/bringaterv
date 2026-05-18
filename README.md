@@ -201,15 +201,41 @@ Az alkalmazás elérhető: **http://[eszköz-ip]:8088**
 
 ### 3. Környezeti változók (opcionális)
 
-A `docker-compose.yml`-ben módosítható a jelszó és a port:
+A letöltött `docker-compose.yml` tartalma — itt módosítható a jelszó és a port:
 
 ```yaml
-environment:
-  LOGIN_ENABLED: true
-  LOGIN_USER: bringa
-  LOGIN_PASSWORD: sajat_jelszo
-ports:
-  - "8088:80"   # bal oldal: külső port
+services:
+  bringaterv:
+    image: ghcr.io/czdanika/bringaterv:latest
+    ports:
+      - "8088:80"       # bal oldal: külső port (ezt változtasd, ha kell)
+    environment:
+      LOGIN_ENABLED: true
+      LOGIN_USER: bringa
+      LOGIN_PASSWORD: terv   # ← ezt érdemes megváltoztatni
+    depends_on:
+      - routes-api
+    networks:
+      - bringaterv-net
+    restart: unless-stopped
+
+  routes-api:
+    image: ghcr.io/czdanika/bringaterv-api:latest
+    environment:
+      DATA_DIR:    /data/routes
+      SAMPLES_DIR: /samples
+    volumes:
+      - routes-data:/data/routes
+    networks:
+      - bringaterv-net
+    restart: unless-stopped
+
+volumes:
+  routes-data:
+
+networks:
+  bringaterv-net:
+    driver: bridge
 ```
 
 ### 4. Automatikus indítás (rendszerindításkor)
