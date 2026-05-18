@@ -170,6 +170,69 @@ docker compose up -d
 
 ---
 
+## Linux / Raspberry Pi telepítés
+
+Bármilyen Linux gépen (Ubuntu, Debian, Raspberry Pi OS) működik, ahol fut a Docker.
+
+### 1. Docker telepítése (ha még nincs)
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### 2. Bringaterv telepítése
+
+```bash
+mkdir -p ~/bringaterv
+cd ~/bringaterv
+
+curl -o docker-compose.yml \
+  "https://raw.githubusercontent.com/czdanika/bringaterv/main/docker-compose-nas.yml"
+
+docker compose pull
+docker compose up -d
+```
+
+Az alkalmazás elérhető: **http://[eszköz-ip]:8088**
+
+> Raspberry Pi-n az IP-cím lekérdezése: `hostname -I`
+
+### 3. Környezeti változók (opcionális)
+
+A `docker-compose.yml`-ben módosítható a jelszó és a port:
+
+```yaml
+environment:
+  LOGIN_ENABLED: true
+  LOGIN_USER: bringa
+  LOGIN_PASSWORD: sajat_jelszo
+ports:
+  - "8088:80"   # bal oldal: külső port
+```
+
+### 4. Automatikus indítás (rendszerindításkor)
+
+A `restart: unless-stopped` alapból be van kapcsolva a compose fájlban, így újraindítás után automatikusan elindul.
+
+Ellenőrzés:
+```bash
+docker compose ps
+```
+
+### 5. Frissítés
+
+```bash
+cd ~/bringaterv
+docker compose pull
+docker compose up -d
+```
+
+> **Adatok megmaradnak** – a `routes-data` Docker volume frissítéskor nem törlődik.
+
+---
+
 ## Helyi fejlesztés
 
 ```bash
