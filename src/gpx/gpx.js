@@ -1,5 +1,8 @@
 const sportTypeMap = {
   cycling: "cycling",
+  asphalt: "cycling",
+  gravel:  "cycling",
+  mtb:     "cycling",
   walking: "hiking",
 };
 

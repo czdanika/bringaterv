@@ -88,6 +88,12 @@ let hasImportedFile = false;   // igaz, ha az Elemzés fülön van betöltött f
 let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
 let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
 
+// ── Library state ──────────────────────────────────────────
+let _libraryData   = { routes: [], workouts: [], samples: [] };
+let _libraryFilter = { type: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
+const DIST_MAX = 500;  // km
+const DUR_MAX  = 600;  // perc (10 óra)
+
 function switchTab(name) {
   currentTab = name;
   elements.appShell.classList.toggle("is-file-mode",    name === "file");
@@ -96,6 +102,8 @@ function switchTab(name) {
   tabPlan.hidden    = name !== "plan";
   tabFile.hidden    = name !== "file";
   if (tabLibrary) tabLibrary.hidden = name !== "library";
+  const libraryMain = document.querySelector("#libraryMain");
+  if (libraryMain) libraryMain.hidden = name !== "library";
   // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen/Könyvtáron nem
   mapAdapter?.setRouteInteractive(name === "plan");
   // Könyvtár fül megnyitásakor mindig frissítjük a listát
@@ -354,7 +362,11 @@ const elements = {
   snapToRoads: document.querySelector("#snapToRoads"),
   showStageInfoSettings: document.querySelector("#settingsShowStageInfo"),
   snapToRoadsSettings: document.querySelector("#settingsSnapToRoads"),
-  routeModeButtons: document.querySelectorAll("[data-route-mode]"),
+  routeModeButtons:    document.querySelectorAll("[data-route-mode]"),
+  routeModePicker:     document.querySelector("#routeModePicker"),
+  routeModePopup:      document.querySelector("#routeModePopup"),
+  mapRouteModePicker:  document.querySelector("#mapRouteModePicker"),
+  mapRouteModePopup:   document.querySelector("#mapRouteModePopup"),
   toolButtons: document.querySelectorAll("[data-tool]"),
   waypointList: document.querySelector("#waypointList"),
   emptyState: document.querySelector("#emptyState"),
@@ -372,7 +384,9 @@ const elements = {
   exportButton: document.querySelector("#exportButton"),
   importButton: document.querySelector("#importButton"),
   resetRouteButton: document.querySelector("#resetRouteButton"),
-  reverseRouteButton: document.querySelector("#reverseRouteButton"),
+  reverseRouteButton:  document.querySelector("#reverseRouteButton"),
+  returnRouteButton:   document.querySelector("#returnRouteButton"),
+  roundTripButton:     document.querySelector("#roundTripButton"),
   undoButton: document.querySelector("#undoButton"),
   redoButton: document.querySelector("#redoButton"),
   gpxInput: document.querySelector("#gpxInput"),
@@ -427,6 +441,171 @@ const elements = {
   hrChartBtn: document.querySelector("#hrChartBtn"),
 };
 
+const ROUTE_MODE_META = {
+  asphalt: { label: "Aszfalt", lucide: "bike" },
+  gravel:  { label: "Gravel",  lucide: null },
+  mtb:     { label: "MTB",     lucide: "mountain" },
+  walking: { label: "Túra",    lucide: "footprints" },
+  cycling: { label: "Aszfalt", lucide: "bike" },
+};
+const GRAVEL_PICKER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M3 17 Q6 13 9 15 Q12 17 15 13 Q18 9 21 11"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`;
+
+const TOOLBAR_ITEMS_META = {
+  search:      { label: 'Keresés',       group: 'nav',      icon: 'search' },
+  routeMode:   { label: 'Tervezési mód', group: 'nav',      icon: null },
+  mapStyle:    { label: 'Térképstílus',  group: 'nav',      icon: 'layers' },
+  import:      { label: 'GPX import',    group: 'file',     icon: 'upload' },
+  reverse:     { label: 'Megfordítás',   group: 'edit',     icon: 'arrow-left-right' },
+  returnRoute: { label: 'Visszaút',      group: 'edit',     icon: 'corner-down-left' },
+  roundTrip:   { label: 'Oda-vissza',    group: 'edit',     icon: 'repeat' },
+  undo:        { label: 'Visszavonás',   group: 'edit',     icon: 'undo-2' },
+  redo:        { label: 'Újra',          group: 'edit',     icon: 'redo-2' },
+  reset:       { label: 'Törlés',        group: 'edit',     icon: 'trash-2' },
+  elevation:   { label: 'Szintprofil',   group: 'analysis', icon: null },
+  export:      { label: 'Mentés',        group: 'output',   icon: 'save' },
+};
+
+const DEFAULT_TOOLBAR_ORDER = [
+  'routeMode', 'mapStyle', 'search', 'import',
+  'reverse', 'returnRoute', 'roundTrip', 'undo', 'redo', 'reset',
+  'elevation', 'export',
+];
+
+function getHiddenItems() {
+  try {
+    const s = localStorage.getItem('bringaterv-toolbar-hidden');
+    if (s) return new Set(JSON.parse(s));
+  } catch (_) {}
+  return new Set();
+}
+
+function saveHiddenItems(set) {
+  localStorage.setItem('bringaterv-toolbar-hidden', JSON.stringify([...set]));
+}
+
+function applyToolbarOrder(order) {
+  const content = document.querySelector('#toolbarContent');
+  if (!content) return;
+  const hidden = getHiddenItems();
+
+  // Remove existing injected dividers
+  content.querySelectorAll('.toolbar-divider--auto').forEach(d => d.remove());
+
+  // Apply flex order + visibility
+  let prevGroup = null;
+  let visIdx = 0;
+  order.forEach((id) => {
+    const el = content.querySelector(`[data-toolbar-item="${id}"]`);
+    if (!el) return;
+    const isHidden = hidden.has(id);
+    el.style.display = isHidden ? 'none' : '';
+    if (isHidden) return;
+    el.style.order = visIdx * 2;
+    const group = TOOLBAR_ITEMS_META[id]?.group;
+    if (prevGroup && group !== prevGroup) {
+      const div = document.createElement('div');
+      div.className = 'toolbar-divider toolbar-divider--auto';
+      div.style.order = visIdx * 2 - 1;
+      content.appendChild(div);
+    }
+    prevGroup = group;
+    visIdx++;
+  });
+}
+
+function getToolbarOrder() {
+  try {
+    const saved = localStorage.getItem('bringaterv-toolbar-order');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (DEFAULT_TOOLBAR_ORDER.every(id => parsed.includes(id))) return parsed;
+    }
+  } catch (_) {}
+  return [...DEFAULT_TOOLBAR_ORDER];
+}
+
+function saveAndApplyToolbarOrder(order) {
+  localStorage.setItem('bringaterv-toolbar-order', JSON.stringify(order));
+  applyToolbarOrder(order);
+}
+
+function renderToolbarOrderSettings() {
+  const list = document.querySelector('#toolbarOrderList');
+  if (!list) return;
+  const order  = getToolbarOrder();
+  const hidden = getHiddenItems();
+  list.innerHTML = '';
+  order.forEach(id => {
+    const meta = TOOLBAR_ITEMS_META[id];
+    if (!meta) return;
+    const isHidden = hidden.has(id);
+    const li = document.createElement('li');
+    li.className = 'toolbar-order-item' + (isHidden ? ' is-hidden' : '');
+    li.draggable = true;
+    li.dataset.id = id;
+    const iconHtml = meta.icon
+      ? `<i data-lucide="${meta.icon}" aria-hidden="true"></i>`
+      : (id === 'routeMode'
+          ? GRAVEL_PICKER_SVG
+          : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 17 8 12 13 15 18 7 21 10"/><line x1="3" y1="20" x2="21" y2="20"/></svg>');
+    li.innerHTML = `
+      <span class="toolbar-order-handle"><i data-lucide="grip-vertical" aria-hidden="true"></i></span>
+      <span class="toolbar-order-icon">${iconHtml}</span>
+      <span class="toolbar-order-label">${meta.label}</span>
+      <span class="toolbar-order-group toolbar-order-group--${meta.group}"></span>
+      <button class="toolbar-order-vis-btn" type="button" title="${isHidden ? 'Megjelenítés' : 'Elrejtés'}">
+        <i data-lucide="${isHidden ? 'eye-off' : 'eye'}" aria-hidden="true"></i>
+      </button>
+    `;
+    // szem gomb toggle
+    li.querySelector('.toolbar-order-vis-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const h = getHiddenItems();
+      h.has(id) ? h.delete(id) : h.add(id);
+      saveHiddenItems(h);
+      applyToolbarOrder(getToolbarOrder());
+      renderToolbarOrderSettings();
+    });
+    list.append(li);
+  });
+  window.lucide?.createIcons({ nodes: [list] });
+  initToolbarDragDrop(list);
+}
+
+function initToolbarDragDrop(list) {
+  let dragSrc = null;
+
+  list.addEventListener('dragstart', e => {
+    dragSrc = e.target.closest('[draggable]');
+    if (!dragSrc) return;
+    dragSrc.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragend', () => {
+    dragSrc?.classList.remove('is-dragging');
+    list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrc = null;
+    const order = [...list.querySelectorAll('[data-id]')].map(el => el.dataset.id);
+    saveAndApplyToolbarOrder(order);
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragSrc) return;
+    const target = e.target.closest('[draggable]');
+    if (!target || target === dragSrc) return;
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      list.insertBefore(dragSrc, target);
+    } else {
+      list.insertBefore(dragSrc, target.nextSibling);
+    }
+  });
+
+  list.addEventListener('dragenter', e => e.preventDefault());
+}
+
 const STYLE_ICONS = {
   standard:  "map",
   cycling:   "bike",
@@ -440,9 +619,9 @@ const STYLE_ICONS = {
 function syncLayerPickerBtn(style) {
   const pickerBtn = document.querySelector("#layerPickerBtn");
   if (!pickerBtn) return;
-  const icon = STYLE_ICONS[style] ?? "layers";
-  pickerBtn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
-  pickerBtn.title = `Térképstílus: ${style}`;
+  // Mindig layers ikon – így nem ütközik a tervezési mód ikonjával
+  pickerBtn.innerHTML = `<i data-lucide="layers" aria-hidden="true"></i>`;
+  pickerBtn.title = `Térképstílus: ${STYLE_LABELS[style] ?? style}`;
   window.lucide?.createIcons();
 }
 
@@ -571,7 +750,7 @@ let importedHrGeometry = null;      // ha van pulzusszínezés
 let importedCadGeometry = null;     // ha van kadenciaszínezés
 
 store.setState({
-  mode: localStorage.getItem("route4meDefaultRouteMode") || "cycling",
+  mode: (() => { const m = localStorage.getItem("route4meDefaultRouteMode") || "asphalt"; return m === "cycling" ? "asphalt" : m; })(),
   snapToRoads: getSettings().snapToRoads,
 });
 
@@ -906,6 +1085,15 @@ if (document.querySelector(".stats-panel")) {
   document.querySelector(".stats-panel").hidden = !_initSettings.showStageInfo;
 }
 syncRouteModeButtons(store.getState().mode);
+applyToolbarOrder(getToolbarOrder());
+renderToolbarOrderSettings();
+
+document.querySelector('#toolbarOrderReset')?.addEventListener('click', () => {
+  localStorage.removeItem('bringaterv-toolbar-order');
+  localStorage.removeItem('bringaterv-toolbar-hidden');
+  applyToolbarOrder(getToolbarOrder());
+  renderToolbarOrderSettings();
+});
 const _sv = getSettings().startView;
 setTimeout(() => {
   mapAdapter.invalidateSize();
@@ -917,8 +1105,11 @@ store.subscribe(async (state) => {
   renderSidebar(state);
   elements.undoButton.disabled = !state.canUndo;
   elements.redoButton.disabled = !state.canRedo;
-  const hasPoints = state.waypoints.length > 0;
+  const hasPoints  = state.waypoints.length > 0;
+  const hasRoute   = state.waypoints.length >= 2;
   elements.exportButton.disabled = !hasPoints;
+  if (elements.returnRouteButton) elements.returnRouteButton.disabled = !hasRoute;
+  if (elements.roundTripButton)   elements.roundTripButton.disabled   = !hasRoute;
   if (elements.fileExportButton) elements.fileExportButton.disabled = !hasPoints;
   if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled = !hasPoints;
   if (elements.sidebarExportButton) elements.sidebarExportButton.hidden = !hasPoints;
@@ -955,7 +1146,55 @@ store.subscribe(async (state) => {
 elements.routeModeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setRouteMode(button.dataset.routeMode, { persistDefault: true });
+    // mindkét popup bezárása
+    if (elements.routeModePopup) elements.routeModePopup.hidden = true;
+    elements.routeModePicker?.classList.remove("is-open");
+    if (elements.mapRouteModePopup) elements.mapRouteModePopup.hidden = true;
+    elements.mapRouteModePicker?.classList.remove("is-open");
   });
+});
+
+// Tervezési mód picker popup toggle
+elements.routeModePicker?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const popup = elements.routeModePopup;
+  if (!popup) return;
+  const isOpen = !popup.hidden;
+  if (!isOpen) {
+    // fixed pozíció számítása – sidebar overflow-y:auto levágná az absolute-ot
+    const rect = elements.routeModePicker.getBoundingClientRect();
+    popup.style.top  = `${rect.bottom + 6}px`;
+    popup.style.right = `${window.innerWidth - rect.right}px`;
+    popup.style.left  = "auto";
+  }
+  popup.hidden = isOpen;
+  elements.routeModePicker.classList.toggle("is-open", !isOpen);
+});
+
+document.addEventListener("click", (e) => {
+  if (!elements.routeModePopup || elements.routeModePopup.hidden) return;
+  if (!elements.routeModePicker?.contains(e.target) && !elements.routeModePopup.contains(e.target)) {
+    elements.routeModePopup.hidden = true;
+    elements.routeModePicker?.classList.remove("is-open");
+  }
+});
+
+// Map toolbar mód picker
+elements.mapRouteModePicker?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const popup = elements.mapRouteModePopup;
+  if (!popup) return;
+  const isOpen = !popup.hidden;
+  popup.hidden = isOpen;
+  elements.mapRouteModePicker.classList.toggle("is-open", !isOpen);
+  if (!isOpen) window.lucide?.createIcons();
+});
+elements.mapRouteModePopup?.addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => {
+  if (elements.mapRouteModePopup && !elements.mapRouteModePopup.hidden) {
+    elements.mapRouteModePopup.hidden = true;
+    elements.mapRouteModePicker?.classList.remove("is-open");
+  }
 });
 
 // Helper: apply a boolean setting and keep sidebar + settings in sync
@@ -1070,6 +1309,163 @@ document.addEventListener("click", () => {
   }
 });
 layerPicker?.addEventListener("click", (e) => e.stopPropagation());
+
+// ── Toolbar kereső popup ──────────────────────────────────────────────────────
+(function initToolbarSearch() {
+  const btn     = document.querySelector("#toolbarSearchBtn");
+  const popup   = document.querySelector("#toolbarSearchPopup");
+  const input   = document.querySelector("#toolbarSearchInput");
+  const results = document.querySelector("#toolbarSearchResults");
+  if (!btn || !popup || !input || !results) return;
+
+  let searchTimer;
+
+  function openPopup() {
+    const rect = btn.getBoundingClientRect();
+    const popupW = 300;
+    // vízszintes pozíció: középre igazítva a gombhoz, viewport határain belül
+    let left = rect.left + rect.width / 2 - popupW / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+    // függőleges: alapból felülre, ha nincs elég hely akkor alulra
+    const popupH = 80; // becsült min magasság
+    const top = rect.top > popupH + 16 ? null : rect.bottom + 8;
+    const bottom = rect.top > popupH + 16 ? window.innerHeight - rect.top + 8 : null;
+    popup.style.left   = left + "px";
+    popup.style.right  = "auto";
+    if (bottom !== null) { popup.style.bottom = bottom + "px"; popup.style.top = "auto"; }
+    else                 { popup.style.top = top + "px";    popup.style.bottom = "auto"; }
+    popup.hidden = false;
+    window.lucide?.createIcons({ nodes: [popup] });
+    setTimeout(() => input.focus(), 30);
+  }
+
+  function closePopup() {
+    popup.hidden = true;
+    results.innerHTML = "";
+    input.value = "";
+    clearTimeout(searchTimer);
+  }
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    popup.hidden ? openPopup() : closePopup();
+  });
+
+  popup.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("click", () => { if (!popup.hidden) closePopup(); });
+
+  input.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    const q = input.value.trim();
+    if (!q) { results.innerHTML = ""; return; }
+    searchTimer = setTimeout(async () => {
+      results.innerHTML = "";
+      try {
+        const places = await searchPlaces(q, i18n.language);
+        if (!places.length) { results.textContent = i18n.t("search.noResults"); return; }
+        places.forEach((place) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "result-button";
+          b.textContent = place.name;
+          b.addEventListener("click", () => {
+            store.addWaypoint(place);
+            closePopup();
+          });
+          results.append(b);
+        });
+      } catch { showToast(i18n.t("search.failed")); }
+    }, 300);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePopup();
+    if (e.key === "Enter") { clearTimeout(searchTimer); input.dispatchEvent(new Event("input")); }
+  });
+})();
+
+// ── Toolbar: drag + collapse (grip gomb) ─────────────────────────────────────
+(function initToolbar() {
+  const toolbar    = document.querySelector("#mapToolbar");
+  const dragHandle = document.querySelector("#toolbarDragHandle");
+  if (!toolbar || !dragHandle) return;
+
+  // Összecsukás állapot visszaállítása
+  if (localStorage.getItem("bringaterv-toolbar-collapsed") === "1")
+    toolbar.classList.add("is-collapsed");
+
+  // --- Drag + click szétválasztás ---
+  const DRAG_THRESHOLD = 5; // px – ennél kisebb mozgás = kattintás
+  let pointerStartX, pointerStartY, startLeft, startTop;
+  let didDrag = false;
+
+  function getMapWrap() { return document.querySelector(".map-wrap"); }
+
+  function applyPos(x, y) {
+    const mw = getMapWrap(); if (!mw) return;
+    const mwR = mw.getBoundingClientRect();
+    toolbar.style.left = Math.max(0, Math.min(x, mwR.width  - toolbar.offsetWidth))  + "px";
+    toolbar.style.top  = Math.max(0, Math.min(y, mwR.height - toolbar.offsetHeight)) + "px";
+    toolbar.dataset.dragged = "1";
+  }
+
+  function onPointerDown(clientX, clientY) {
+    const mw = getMapWrap(); if (!mw) return;
+    const mwR = mw.getBoundingClientRect();
+    const tR  = toolbar.getBoundingClientRect();
+    pointerStartX = clientX;
+    pointerStartY = clientY;
+    startLeft = tR.left - mwR.left;
+    startTop  = tR.top  - mwR.top;
+    didDrag   = false;
+    // CSS centering → JS positioning átváltás előkészítése
+    toolbar.style.transform = "none";
+    toolbar.style.bottom    = "auto";
+    toolbar.dataset.dragged = "1";
+  }
+
+  function onPointerMove(clientX, clientY) {
+    const dx = clientX - pointerStartX;
+    const dy = clientY - pointerStartY;
+    if (!didDrag && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    didDrag = true;
+    dragHandle.style.cursor = "grabbing";
+    applyPos(startLeft + dx, startTop + dy);
+  }
+
+  function onPointerUp() {
+    dragHandle.style.cursor = "";
+    if (!didDrag) {
+      // kattintás → összecsukás toggle
+      const collapsed = toolbar.classList.toggle("is-collapsed");
+      localStorage.setItem("bringaterv-toolbar-collapsed", collapsed ? "1" : "0");
+    }
+    // drag vége → pozíciót NEM mentjük, mindig CSS alapértelmezés (center-bottom)
+    didDrag = false;
+  }
+
+  // Mouse events
+  dragHandle.addEventListener("mousedown", (e) => { e.preventDefault(); onPointerDown(e.clientX, e.clientY); });
+  document.addEventListener("mousemove",  (e) => { if (pointerStartX !== undefined) onPointerMove(e.clientX, e.clientY); });
+  document.addEventListener("mouseup",    () => { if (pointerStartX !== undefined) { onPointerUp(); pointerStartX = undefined; } });
+
+  // Touch events
+  dragHandle.addEventListener("touchstart", (e) => {
+    const t = e.touches[0]; onPointerDown(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener("touchmove", (e) => {
+    if (pointerStartX === undefined) return;
+    if (didDrag) e.preventDefault();
+    const t = e.touches[0]; onPointerMove(t.clientX, t.clientY);
+  }, { passive: false });
+  document.addEventListener("touchend", () => {
+    if (pointerStartX !== undefined) { onPointerUp(); pointerStartX = undefined; }
+  });
+
+  // Pozíció NEM mentődik/töltődik vissza – mindig CSS alapértelmezés (center-bottom)
+  localStorage.removeItem("bringaterv-toolbar-pos");
+})();
 
 elements.toolButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -1308,12 +1704,32 @@ elements.reverseRouteButton.addEventListener("click", () => {
   });
 });
 
-elements.searchForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const query = elements.searchInput.value.trim();
-  if (!query) return;
+elements.returnRouteButton?.addEventListener("click", () => {
+  const { waypoints } = store.getState();
+  if (waypoints.length < 2) return;
+  const first = waypoints[0];
+  store.addWaypoint({ lat: first.lat, lng: first.lng, name: first.name });
+  showToast("Hazaút hozzáadva");
+});
 
-  elements.searchResults.textContent = "";
+elements.roundTripButton?.addEventListener("click", () => {
+  const state = store.getState();
+  if (state.waypoints.length < 2) return;
+  const there = state.waypoints;
+  const back  = [...there].reverse().slice(1);
+  store.replaceWaypoints([...there, ...back], {
+    importedRoute: false,
+    routeGeometry: [],
+    sourcePointCount: 0,
+  });
+  showToast("Oda-vissza útvonal létrehozva");
+});
+
+// Helykeresés – live (gépelés közben, 300 ms debounce)
+let _searchTimer;
+async function runSearch(query) {
+  elements.searchResults.innerHTML = "";
+  if (!query) return;
   try {
     const places = await searchPlaces(query, i18n.language);
     if (!places.length) {
@@ -1324,6 +1740,25 @@ elements.searchForm.addEventListener("submit", async (event) => {
   } catch {
     showToast(i18n.t("search.failed"));
   }
+}
+
+elements.searchInput?.addEventListener("input", () => {
+  clearTimeout(_searchTimer);
+  const q = elements.searchInput.value.trim();
+  if (!q) { elements.searchResults.innerHTML = ""; return; }
+  _searchTimer = setTimeout(() => runSearch(q), 300);
+});
+
+// Enter – azonnal keres (debounce nélkül)
+elements.searchForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  clearTimeout(_searchTimer);
+  runSearch(elements.searchInput.value.trim());
+});
+
+// Escape – eredmények törlése
+elements.searchInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { elements.searchResults.innerHTML = ""; elements.searchInput.value = ""; }
 });
 
 elements.locateButton.addEventListener("click", () => {
@@ -1438,8 +1873,9 @@ function openExportModal() {
   elements.exportName.value = suggestedName;
   elements.exportDesc.value = "";
   elements.exportFilename.value = suggestedFilename;
-  // Set mode radio to current route mode
-  const modeRadio = elements.exportOverlay.querySelector(`input[name="exportMode"][value="${state.mode}"]`);
+  // Set mode radio to current route mode (cycling → asphalt for backwards compat)
+  const exportModeVal = state.mode === "cycling" ? "asphalt" : state.mode;
+  const modeRadio = elements.exportOverlay.querySelector(`input[name="exportMode"][value="${exportModeVal}"]`);
   if (modeRadio) modeRadio.checked = true;
   elements.exportOverlay.hidden = false;
   window.lucide?.createIcons();
@@ -1477,10 +1913,11 @@ function buildExportPayload() {
   // Szintkülönbség – store-ból (BRouter / import egyaránt beállítja)
   const ascentMeters = state.ascentMeters > 0 ? state.ascentMeters : 0;
 
-  // Becsült időtartam (kerékpár: 20 km/h, gyalogos: 5 km/h)
+  // Becsült időtartam módtól függő átlagsebesség alapján
   let durationMin = null;
   if (distanceKm != null) {
-    const avgSpeed = selectedMode === "walking" ? 5 : 20;
+    const avgSpeedMap = { asphalt: 22, gravel: 18, mtb: 12, walking: 5, cycling: 22 };
+    const avgSpeed = avgSpeedMap[selectedMode] ?? 20;
     durationMin = Math.round((distanceKm / avgSpeed) * 60);
   }
 
@@ -1506,7 +1943,7 @@ document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async 
       distance:  distanceKm,
       duration:  durationMin,
       elevation: ascentMeters || null,
-      type:      selectedMode === "walking" ? "hiking" : "cycling",
+      type:      selectedMode === "walking" ? "hiking" : selectedMode,
       description: desc,
     });
     showToast(`„${name}" elmentve a könyvtárba`);
@@ -1654,7 +2091,7 @@ document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
 
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
   clearAllRouteState();
-  switchTab("plan");
+  // Maradunk az Elemzés nézetben, nem váltunk Tervezésre
 });
 
 // ── Plan tab: GPX importálása (csak waypontok, nincs Elemzés váltás) ──────────
@@ -1780,7 +2217,14 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
   } else {
     // ── Tervezés fülre töltés ─────────────────────────────────────────────
     switchTab("plan");
-    store.replaceWaypoints(imported.waypoints, { importedRoute: true });
+    store.replaceWaypoints(imported.waypoints, {
+      geometry: imported.geometry,
+      importedRoute: true,
+      sourcePointCount: imported.sourcePointCount,
+    });
+    const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
+    const distanceMeters = calculateImportedDistance(imported.geometry);
+    store.setState({ distanceMeters, ascentMeters, descentMeters });
     updateElevationButton(imported.geometry);
     mapAdapter.renderRoute(imported.geometry);
     setTimeout(() => mapAdapter.fitRoute(), 50);
@@ -1819,9 +2263,10 @@ function createLibraryItem(route, isSample) {
 
   // Típus ikon és felirat
   const isWorkout = route.type === "workout";
-  const isHiking  = route.type === "hiking";
-  const typeIcon  = isHiking ? "footprints" : "bike";
-  const typeLabel = isWorkout ? "Edzés" : isHiking ? "Gyalogos" : "Kerékpár";
+  const TYPE_ICONS   = { hiking: "footprints", mtb: "mountain", workout: "chart-line" };
+  const TYPE_LABELS  = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Gyalogos", workout: "Edzés", cycling: "Kerékpár" };
+  const typeIcon  = TYPE_ICONS[route.type] ?? "bike";
+  const typeLabel = TYPE_LABELS[route.type] ?? "Kerékpár";
 
   // Statisztika chipek
   const chips = [];
@@ -1933,12 +2378,11 @@ function createLibraryItem(route, isSample) {
 
 /**
  * Megnyitja a szerkesztő modalt egy könyvtári útvonalhoz.
- * Mentéskor PATCH kérést küld az API-nak, majd frissíti a kártya tartalmát.
+ * Mentéskor PATCH kérést küld az API-nak, majd újrarendereli a rácsot.
  *
  * @param {{ id: string, name: string, type: string, description: string }} route
- * @param {HTMLLIElement} li – a kártya DOM eleme (helyi frissítéshez)
  */
-function openLibraryEditModal(route, li) {
+function openLibraryEditModal(route) {
   const overlay  = document.querySelector("#libraryEditOverlay");
   const nameInput = document.querySelector("#libraryEditName");
   const descInput = document.querySelector("#libraryEditDesc");
@@ -1949,7 +2393,9 @@ function openLibraryEditModal(route, li) {
   // Meglévő értékek betöltése
   nameInput.value = route.name;
   descInput.value = route.description ?? "";
-  const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${route.type ?? "cycling"}"]`);
+  // cycling → asphalt backwards compat
+  const editTypeVal = (route.type === "cycling" ? "asphalt" : route.type) ?? "asphalt";
+  const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${editTypeVal}"]`);
   if (typeRadio) typeRadio.checked = true;
 
   overlay.hidden = false;
@@ -1972,30 +2418,21 @@ function openLibraryEditModal(route, li) {
         description: newDesc,
       });
 
-      // Kártya helyi frissítése (újratöltés nélkül)
+      // _libraryData helyi frissítése, majd rács újrarenderelése
       route.name        = updated.name;
       route.type        = updated.type;
       route.description = updated.description;
 
-      const nameEl = li.querySelector(".library-item-name");
-      if (nameEl) nameEl.textContent = updated.name;
-
-      const descEl = li.querySelector(".library-item-desc");
-      if (descEl) {
-        descEl.textContent = updated.description;
-        descEl.hidden = !updated.description;
-      }
-
-      // Típus badge frissítése
-      const badge = li.querySelector(".library-item-type-badge");
-      if (badge) {
-        badge.className = `library-item-type-badge library-item-type-badge--${updated.type}`;
-        const icon = updated.type === "hiking" ? "footprints" : "bike";
-        badge.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
-        window.lucide?.createIcons();
-      }
+      // Frissítjük a _libraryData-ban tárolt referenciát is
+      const updateInList = (list) => {
+        const idx = list.findIndex(r => r.id === updated.id);
+        if (idx !== -1) { list[idx].name = updated.name; list[idx].type = updated.type; list[idx].description = updated.description; }
+      };
+      updateInList(_libraryData.routes);
+      updateInList(_libraryData.workouts);
 
       overlay.hidden = true;
+      renderLibraryGrid();
       showToast(`„${updated.name}" frissítve`);
     } catch (err) {
       console.error("Szerkesztési hiba:", err);
@@ -2014,66 +2451,28 @@ document.querySelector("#libraryEditOverlay")?.addEventListener("click", (e) => 
 });
 
 /**
- * Betölti és rendereli az útvonalkönyvtár teljes tartalmát.
- * Megjeleníti a loading spinert, majd az API válasz alapján a listákat.
+ * Betölti az útvonalkönyvtár adatait és megjeleníti a kártyarácsot.
  * Ha az API nem elérhető, az offline üzenet jelenik meg.
  */
 async function loadRouteLibrary() {
-  const elLoading       = document.querySelector("#libraryLoading");
-  const elOffline       = document.querySelector("#libraryOffline");
-  const elContent       = document.querySelector("#libraryContent");
-  const elUserList      = document.querySelector("#libraryUserList");
-  const elUserEmpty     = document.querySelector("#libraryUserEmpty");
-  const elWorkoutList   = document.querySelector("#libraryWorkoutList");
-  const elWorkoutEmpty  = document.querySelector("#libraryWorkoutEmpty");
-  const elWorkoutSection = document.querySelector("#libraryWorkoutSection");
-  const elSampleList    = document.querySelector("#librarySampleList");
-  const elSamplesEmpty  = document.querySelector("#librarySamplesEmpty");
+  const elLoading = document.querySelector("#libraryLoading");
+  const elOffline = document.querySelector("#libraryOffline");
+  const elFilter  = document.querySelector("#libraryFilterPanel");
 
-  elLoading.hidden  = false;
-  elOffline.hidden  = true;
-  elContent.hidden  = true;
+  elLoading.hidden = false;
+  elOffline.hidden = true;
+  if (elFilter) elFilter.hidden = true;
 
   try {
     const [userRoutes, samples] = await Promise.all([
       routesApi.listRoutes(),
       routesApi.listSamples(),
     ]);
-
-    // Szétválasztás: edzések vs. tervezett útvonalak
-    const routes   = userRoutes.filter(r => r.type !== "workout");
-    const workouts = userRoutes.filter(r => r.type === "workout");
-
-    // Tervezett útvonalak
-    elUserList.innerHTML = "";
-    if (routes.length === 0) {
-      elUserEmpty.hidden = false;
-    } else {
-      elUserEmpty.hidden = true;
-      routes.forEach(r => elUserList.append(createLibraryItem(r, false)));
-    }
-
-    // Edzések
-    if (elWorkoutList && elWorkoutSection) {
-      elWorkoutList.innerHTML = "";
-      if (workouts.length === 0) {
-        if (elWorkoutEmpty) elWorkoutEmpty.hidden = false;
-      } else {
-        if (elWorkoutEmpty) elWorkoutEmpty.hidden = true;
-        workouts.forEach(r => elWorkoutList.append(createLibraryItem(r, false)));
-      }
-    }
-
-    // Minták
-    elSampleList.innerHTML = "";
-    if (samples.length === 0) {
-      elSamplesEmpty.hidden = false;
-    } else {
-      elSamplesEmpty.hidden = true;
-      samples.forEach(r => elSampleList.append(createLibraryItem(r, true)));
-    }
-
-    elContent.hidden = false;
+    _libraryData.routes   = userRoutes.filter(r => r.type !== "workout");
+    _libraryData.workouts = userRoutes.filter(r => r.type === "workout");
+    _libraryData.samples  = samples;
+    if (elFilter) elFilter.hidden = false;
+    renderLibraryGrid();
   } catch (err) {
     console.error("Könyvtár betöltési hiba:", err);
     elOffline.hidden = false;
@@ -2083,16 +2482,254 @@ async function loadRouteLibrary() {
   }
 }
 
-// Frissítés és újrapróbálás gombok
+/**
+ * Szűri, rendezi és újrarendereli a könyvtár kártyarácsát.
+ */
+function renderLibraryGrid() {
+  const grid    = document.querySelector("#libraryGrid");
+  const emptyEl = document.querySelector("#libraryGridEmpty");
+  const countEl = document.querySelector("#libraryResultCount");
+  if (!grid) return;
+
+  // Összes elem összegyűjtése
+  const all = [
+    ..._libraryData.routes.map(r   => ({ route: r, category: 'route',   isSample: false })),
+    ..._libraryData.workouts.map(r => ({ route: r, category: 'workout', isSample: false })),
+    ..._libraryData.samples.map(r  => ({ route: r, category: 'sample',  isSample: true  })),
+  ];
+
+  // Szűrés típus szerint
+  let filtered = _libraryFilter.type === 'all'
+    ? all
+    : all.filter(({ category }) => category === _libraryFilter.type);
+
+  // Szűrés keresési kifejezés szerint
+  const q = _libraryFilter.query.toLowerCase().trim();
+  if (q) {
+    filtered = filtered.filter(({ route }) =>
+      (route.name ?? '').toLowerCase().includes(q) ||
+      (route.description ?? '').toLowerCase().includes(q)
+    );
+  }
+
+  // Távolság range szűrő (csak ha nem az alapértelmezett 0–max)
+  if (_libraryFilter.distMin > 0 || _libraryFilter.distMax < DIST_MAX) {
+    filtered = filtered.filter(({ route }) => {
+      const d = route.distance ?? null;
+      if (d == null) return _libraryFilter.distMin === 0; // nincs adat → csak ha min=0
+      return d >= _libraryFilter.distMin && d <= _libraryFilter.distMax;
+    });
+  }
+
+  // Edzésidő range szűrő (percben)
+  if (_libraryFilter.durMin > 0 || _libraryFilter.durMax < DUR_MAX) {
+    filtered = filtered.filter(({ route }) => {
+      const dur = route.duration ?? null;
+      if (dur == null) return _libraryFilter.durMin === 0;
+      return dur >= _libraryFilter.durMin && dur <= _libraryFilter.durMax;
+    });
+  }
+
+  // Rendezés
+  filtered = [...filtered].sort((a, b) => {
+    switch (_libraryFilter.sort) {
+      case 'oldest':   return (a.route.date ?? '') < (b.route.date ?? '') ? -1 : 1;
+      case 'name':     return (a.route.name ?? '').localeCompare(b.route.name ?? '');
+      case 'distance': return (b.route.distance ?? 0) - (a.route.distance ?? 0);
+      case 'duration': return (b.route.duration ?? 0) - (a.route.duration ?? 0);
+      default:         return (a.route.date ?? '') < (b.route.date ?? '') ? 1 : -1; // newest
+    }
+  });
+
+  // Eredményszámláló
+  if (countEl) countEl.textContent = `${filtered.length} találat`;
+
+  // Megjelenítés
+  grid.innerHTML = '';
+  if (filtered.length === 0) {
+    if (emptyEl) emptyEl.hidden = false;
+  } else {
+    if (emptyEl) emptyEl.hidden = true;
+    filtered.forEach(({ route, category, isSample }) => {
+      grid.append(createLibraryCard(route, category, isSample));
+    });
+    window.lucide?.createIcons({ nodes: [grid] });
+  }
+}
+
+/**
+ * Létrehoz egy könyvtárkártyát a megadott útvonalhoz.
+ *
+ * @param {{ id: string, name: string, date?: string, distance?: number|null,
+ *           duration?: number|null, elevation?: number|null,
+ *           type?: string, description?: string }} route
+ * @param {'route'|'workout'|'sample'} category
+ * @param {boolean} isSample
+ * @returns {HTMLDivElement}
+ */
+function createLibraryCard(route, category, isSample) {
+  const isWorkout = category === 'workout';
+  const TYPE_ICONS  = { hiking: 'footprints', mtb: 'mountain', workout: 'chart-line', sample: 'map' };
+  const TYPE_LABELS = { asphalt: 'Aszfalt', gravel: 'Gravel', mtb: 'MTB', hiking: 'Gyalogos', workout: 'Edzés', cycling: 'Kerékpár', sample: 'Minta' };
+  const badgeType = isSample ? 'sample' : (route.type ?? 'cycling');
+  const typeIcon  = TYPE_ICONS[isWorkout ? 'workout' : badgeType] ?? 'bike';
+  const typeLabel = TYPE_LABELS[badgeType] ?? 'Kerékpár';
+
+  const chips = [];
+  if (route.distance != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="route" aria-hidden="true"></i>${route.distance} km</span>`);
+  if (route.duration != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="clock" aria-hidden="true"></i>${formatRouteDuration(route.duration)}</span>`);
+  if (route.elevation != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="triangle" aria-hidden="true"></i>${route.elevation} m</span>`);
+
+  const card = document.createElement('div');
+  card.className = 'library-card';
+  card.dataset.id = route.id;
+  card.innerHTML = `
+    <div class="library-card-header">
+      <div class="library-card-badge library-card-badge--${badgeType}">
+        <i data-lucide="${typeIcon}" aria-hidden="true"></i>
+      </div>
+      <div class="library-card-info">
+        <div class="library-card-name" title="${route.name}">${route.name}</div>
+        ${!isSample && route.date
+          ? `<div class="library-card-date">${route.date}</div>`
+          : `<div class="library-card-date">${typeLabel}</div>`}
+      </div>
+    </div>
+    ${chips.length ? `<div class="library-card-chips">${chips.join('')}</div>` : ''}
+    ${route.description ? `<div class="library-card-desc">${route.description}</div>` : ''}
+    <div class="library-card-actions">
+      <button class="library-card-btn library-card-btn--primary library-load-btn" type="button" title="${isWorkout ? 'Betöltés elemzéshez' : 'Betöltés tervezéshez'}">
+        <i data-lucide="${isWorkout ? 'chart-line' : 'map-pin-plus'}" aria-hidden="true"></i>
+        ${isWorkout ? 'Elemzés' : 'Betöltés'}
+      </button>
+      <button class="library-card-btn library-download-btn" type="button" title="GPX letöltés">
+        <i data-lucide="download" aria-hidden="true"></i>
+      </button>
+      ${!isSample ? `
+      <button class="library-card-btn library-edit-btn" type="button" title="Szerkesztés">
+        <i data-lucide="pencil" aria-hidden="true"></i>
+      </button>
+      <button class="library-card-btn library-card-btn--danger library-delete-btn" type="button" title="Törlés">
+        <i data-lucide="trash-2" aria-hidden="true"></i>
+      </button>` : ''}
+    </div>
+  `;
+
+  // Betöltés gomb
+  card.querySelector('.library-load-btn').addEventListener('click', async () => {
+    await loadRouteFromLibrary(route.id, isSample, route.name, isWorkout ? 'file' : 'plan');
+  });
+
+  // GPX letöltés gomb
+  card.querySelector('.library-download-btn').addEventListener('click', async () => {
+    try {
+      const gpxText = isSample
+        ? await routesApi.loadSample(route.id)
+        : await routesApi.loadRoute(route.id);
+      downloadGpx(`${route.name}.gpx`, gpxText);
+    } catch { showToast('Nem sikerült letölteni a GPX fájlt.'); }
+  });
+
+  if (!isSample) {
+    // Szerkesztés gomb
+    card.querySelector('.library-edit-btn').addEventListener('click', () => {
+      openLibraryEditModal(route);
+    });
+
+    // Törlés gomb
+    card.querySelector('.library-delete-btn').addEventListener('click', async () => {
+      if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
+      try {
+        await routesApi.deleteRoute(route.id);
+        _libraryData.routes   = _libraryData.routes.filter(r => r.id !== route.id);
+        _libraryData.workouts = _libraryData.workouts.filter(r => r.id !== route.id);
+        renderLibraryGrid();
+        showToast(`„${route.name}" törölve`);
+      } catch (err) {
+        console.error("Törlési hiba:", err);
+        showToast('Nem sikerült törölni az útvonalat.');
+      }
+    });
+  }
+
+  return card;
+}
+
+// ── Könyvtár frissítés és újrapróbálás ───────────────────────────────────────
 document.querySelector("#libraryRefreshBtn")?.addEventListener("click", loadRouteLibrary);
 document.querySelector("#libraryRetryBtn")?.addEventListener("click", loadRouteLibrary);
 
-// ── Könyvtár szekciók accordion (lenyíló) ────────────────────────────────────
-document.querySelectorAll(".library-section-toggle").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const section = btn.closest(".library-section");
-    const isOpen  = section.classList.toggle("is-open");
-    btn.setAttribute("aria-expanded", String(isOpen));
+// ── Könyvtár szűrő események ─────────────────────────────────────────────────
+document.querySelector('#librarySearchInput')?.addEventListener('input', (e) => {
+  _libraryFilter.query = e.target.value;
+  renderLibraryGrid();
+});
+document.querySelectorAll('[data-lib-type]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-lib-type]').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    _libraryFilter.type = chip.dataset.libType;
+    renderLibraryGrid();
+  });
+});
+// ── Dual range slider inicializálás ──────────────────────────────────────────
+function initRangeSlider({ minId, maxId, fillId, labelId, maxVal, format, onUpdate }) {
+  const minEl  = document.querySelector(`#${minId}`);
+  const maxEl  = document.querySelector(`#${maxId}`);
+  const fillEl = document.querySelector(`#${fillId}`);
+  const lblEl  = document.querySelector(`#${labelId}`);
+  if (!minEl || !maxEl) return;
+
+  function updateUI() {
+    const lo = parseInt(minEl.value);
+    const hi = parseInt(maxEl.value);
+    const pLo = (lo / maxVal) * 100;
+    const pHi = (hi / maxVal) * 100;
+    if (fillEl) { fillEl.style.left = pLo + '%'; fillEl.style.width = (pHi - pLo) + '%'; }
+    if (lblEl)  lblEl.textContent = format(lo, hi, maxVal);
+  }
+
+  minEl.addEventListener('input', () => {
+    if (parseInt(minEl.value) > parseInt(maxEl.value)) minEl.value = maxEl.value;
+    updateUI();
+    onUpdate(parseInt(minEl.value), parseInt(maxEl.value));
+  });
+  maxEl.addEventListener('input', () => {
+    if (parseInt(maxEl.value) < parseInt(minEl.value)) maxEl.value = minEl.value;
+    updateUI();
+    onUpdate(parseInt(minEl.value), parseInt(maxEl.value));
+  });
+  updateUI();
+}
+
+initRangeSlider({
+  minId: 'libraryDistMin', maxId: 'libraryDistMax',
+  fillId: 'libraryDistFill', labelId: 'libraryDistLabel',
+  maxVal: DIST_MAX,
+  format: (lo, hi, max) => (lo === 0 && hi === max) ? 'Bármely' : `${lo} – ${hi === max ? hi + '+' : hi} km`,
+  onUpdate: (lo, hi) => { _libraryFilter.distMin = lo; _libraryFilter.distMax = hi; renderLibraryGrid(); },
+});
+
+initRangeSlider({
+  minId: 'libraryDurMin', maxId: 'libraryDurMax',
+  fillId: 'libraryDurFill', labelId: 'libraryDurLabel',
+  maxVal: DUR_MAX,
+  format: (lo, hi, max) => {
+    if (lo === 0 && hi === max) return 'Bármely';
+    const fmt = m => m < 60 ? `${m} p` : (m % 60 === 0 ? `${m/60} ó` : `${Math.floor(m/60)}ó ${m%60}p`);
+    return `${fmt(lo)} – ${hi === max ? fmt(hi) + '+' : fmt(hi)}`;
+  },
+  onUpdate: (lo, hi) => { _libraryFilter.durMin = lo; _libraryFilter.durMax = hi; renderLibraryGrid(); },
+});
+document.querySelectorAll('[data-lib-sort]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-lib-sort]').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    _libraryFilter.sort = chip.dataset.libSort;
+    renderLibraryGrid();
   });
 });
 
@@ -2140,10 +2777,29 @@ function setRouteMode(mode, { persistDefault }) {
 }
 
 function syncRouteModeButtons(mode) {
+  // popup elemek active állapota
   elements.routeModeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.routeMode === mode);
-    button.classList.toggle("mode-btn", true);
   });
+  // picker gomb ikon + felirat frissítése
+  const meta = ROUTE_MODE_META[mode] ?? ROUTE_MODE_META.asphalt;
+  const iconHtml = meta.lucide
+    ? `<i data-lucide="${meta.lucide}" aria-hidden="true"></i>`
+    : GRAVEL_PICKER_SVG;
+  if (elements.routeModePicker) {
+    elements.routeModePicker.innerHTML =
+      `${iconHtml}<span>${meta.label}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
+    window.lucide?.createIcons({ nodes: [elements.routeModePicker] });
+  }
+  // toolbar gomb: ikon + title frissítés
+  if (elements.mapRouteModePicker) {
+    const toolbarIcon = meta.lucide
+      ? `<i data-lucide="${meta.lucide}" aria-hidden="true"></i>`
+      : GRAVEL_PICKER_SVG;
+    elements.mapRouteModePicker.innerHTML = toolbarIcon;
+    elements.mapRouteModePicker.title = `Tervezési mód: ${meta.label}`;
+    window.lucide?.createIcons({ nodes: [elements.mapRouteModePicker] });
+  }
 }
 
 function renderSidebar(state) {
@@ -2359,6 +3015,44 @@ function calculateImportedDistance(geometry) {
   document.addEventListener("scroll", () => {
     if (activeBtn) positionTooltip(activeBtn);
   }, true);
+})();
+
+// ── Beállítások szekciók összecsukása ─────────────────────────────────────────
+(function initSettingsCollapse() {
+  const LS_KEY = "bringaterv-settings-collapsed";
+
+  function loadCollapsed() {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved === null) {
+      // Első látogatás / nincs mentett állapot → minden szekció becsukva alapból
+      return new Set(['mapStyle', 'units', 'planningDefaults', 'startView', 'toolbarOrder']);
+    }
+    try { return new Set(JSON.parse(saved) || []); }
+    catch { return new Set(); }
+  }
+  function saveCollapsed(set) {
+    localStorage.setItem(LS_KEY, JSON.stringify([...set]));
+  }
+
+  const collapsed = loadCollapsed();
+
+  document.querySelectorAll(".settings-section[data-settings-section]").forEach(section => {
+    const key = section.dataset.settingsSection;
+    const title = section.querySelector(".settings-section-title");
+    const body  = section.querySelector(".settings-section-body");
+    if (!title || !body) return;
+
+    if (collapsed.has(key)) section.classList.add("is-collapsed");
+
+    title.addEventListener("click", (e) => {
+      // Don't collapse when clicking hint-btn
+      if (e.target.closest(".hint-btn")) return;
+      const isNowCollapsed = section.classList.toggle("is-collapsed");
+      if (isNowCollapsed) collapsed.add(key);
+      else collapsed.delete(key);
+      saveCollapsed(collapsed);
+    });
+  });
 })();
 
 function renderSearchResults(places) {

@@ -1,7 +1,9 @@
 const profileMap = {
+  asphalt: "fastbike",
+  gravel:  "gravel",
+  mtb:     "mtb",
   walking: "trekking",
-  cycling: "fastbike",
-  driving: "car-test",
+  cycling: "fastbike", // backwards compatibility
 };
 
 const esriAttrib = 'Tiles &copy; <a href="https://www.esri.com">Esri</a>';
