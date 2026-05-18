@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.12 – 2026-05-18 *(nem pusholva)*
+
+### 4 tervezési mód
+
+A korábbi „Kerékpár / Gyalogos" váltó helyett 4 önálló tervezési mód:
+
+- **Aszfalt** – BRouter `fastbike` profil; kerékpársávokat, burkolt utakat részesít előnyben; átlagsebesség-becslés: 22 km/h
+- **Gravel** – BRouter `gravel` profil; kavicsos és földes utak aszfalttal vegyítve; 18 km/h
+- **MTB** – BRouter `mtb` profil; erdei utak, ösvények, nehezebb terep; 12 km/h
+- **Túra / Gyalogos** – BRouter `trekking` profil; gyalogutak, erdei ösvények, turistajelzések; 5 km/h
+
+Minden módhoz hover-hint tartozik a gombon.
+
+#### Érintett fájlok
+- `src/map/mapAdapter.js` – `profileMap` bővítve; `cycling` → `fastbike` visszafelé kompatibilitás megmarad
+- `index.html` – 2 gomb helyett 4 mód gomb (`data-route-mode`), export modal és könyvtár-szerkesztő modal 4 rádió opcióval
+- `src/gpx/gpx.js` – `sportTypeMap` bővítve (asphalt/gravel/mtb → `cycling` GPX típus)
+- `src/main.js`:
+  - Alapértelmezett mód: `cycling` → `asphalt` (localStorage-ban tárolt `cycling` érték is konvertálódik)
+  - `avgSpeedMap` módtól függő sebességbecslés
+  - Könyvtár mentéskor `type` mező: `asphalt` / `gravel` / `mtb` / `hiking` (walking → hiking)
+  - Badge ikonok: `mtb` → mountain, `hiking` → footprints, többi → bike
+  - Könyvtár-szerkesztő modal: `cycling` típusú régi kártyákon `asphalt` rádió van előre kiválasztva
+- `src/styles.css` – badge színek: asphalt (kék), gravel (barna), mtb (zöld), hiking (halvány zöld), workout (narancs)
+
+### Hibajavítás: könyvtárból tervezésre töltés – távolság 0
+
+Könyvtárból „Betöltés tervezéshez" után a távolságmező nem maradt 0. A `loadRouteFromLibrary` függvény most kiszámítja és beállítja a `distanceMeters`, `ascentMeters`, `descentMeters` értékeket a betöltött geometriából.
+
+---
+
 ## v0.10 – 2026-05-17
 
 ### Útvonalkönyvtár
