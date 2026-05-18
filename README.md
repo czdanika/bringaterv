@@ -182,58 +182,6 @@ Az alkalmazás elérhető: **http://localhost:8088**
 
 ---
 
-## CI/CD folyamat
-
-```
-git push → GitHub repó
-     ↓
-GitHub Actions (automatikus build)
-     ├── ghcr.io/czdanika/bringaterv:latest     (nginx frontend)
-     └── ghcr.io/czdanika/bringaterv-api:latest (Flask API)
-          ↓
-Portainer Pull and redeploy → mindkét konténer frissül
-```
-
----
-
-## Projekt struktúra
-
-```
-bringaterv/
-├── index.html
-├── login.html
-├── favicon.ico
-├── Dockerfile               ← frontend (nginx)
-├── docker-compose.yml       ← fejlesztés / Pi teszt
-├── nginx.conf
-├── CHANGELOG.md
-├── routes-api/              ← Flask REST API
-│   ├── Dockerfile
-│   ├── app.py
-│   ├── requirements.txt
-│   └── samples/             ← beépített minta GPX-ek
-│       ├── balatoni-kor.gpx
-│       ├── balatoni-kor.json
-│       ├── tisza-to-kor.gpx
-│       └── tisza-to-kor.json
-└── src/
-    ├── main.js
-    ├── styles.css
-    ├── config.js
-    ├── auth.js
-    ├── appSettings.js
-    ├── api/
-    │   └── routesApi.js     ← API kliens
-    ├── assets/
-    ├── i18n/
-    ├── state/
-    ├── map/
-    ├── gpx/
-    └── ui/
-```
-
----
-
 ## Licenc
 
 MIT License – szabad felhasználás, módosítás és terjesztés.
