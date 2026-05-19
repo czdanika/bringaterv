@@ -18,6 +18,7 @@ export function createRouteStore() {
     snapToRoads: true,
     waypoints: [],
     routeGeometry: [],
+    routeSegments: [],   // szegmensenként: [{ geometry, distanceMeters, ascentMeters, descentMeters, mode }]
     distanceMeters: 0,
     ascentMeters: 0,
     descentMeters: 0,
@@ -91,6 +92,7 @@ export function createRouteStore() {
       ...state,
       importedRoute: false,
       routeGeometry: [],
+      routeSegments: [],
       sourcePointCount: 0,
       waypoints: state.waypoints.filter((point) => point.id !== id),
     };
@@ -107,8 +109,10 @@ export function createRouteStore() {
         note: point.note ?? "",
         lat: point.lat,
         lng: point.lng,
+        ...(point.segmentMode != null ? { segmentMode: point.segmentMode } : {}),
       })),
       routeGeometry: options.geometry ?? [],
+      routeSegments: [],
       importedRoute: Boolean(options.importedRoute),
       sourcePointCount: options.sourcePointCount ?? 0,
     };
@@ -121,6 +125,7 @@ export function createRouteStore() {
       ...state,
       waypoints: [],
       routeGeometry: [],
+      routeSegments: [],
       distanceMeters: 0,
       ascentMeters: 0,
       descentMeters: 0,
@@ -136,7 +141,7 @@ export function createRouteStore() {
     const newWaypoints = [...state.waypoints];
     const [moved] = newWaypoints.splice(fromIndex, 1);
     newWaypoints.splice(toIndex, 0, moved);
-    state = { ...state, waypoints: newWaypoints, routeGeometry: [], distanceMeters: 0, importedRoute: false };
+    state = { ...state, waypoints: newWaypoints, routeGeometry: [], routeSegments: [], distanceMeters: 0, importedRoute: false };
     emit();
   }
 
@@ -154,6 +159,7 @@ export function createRouteStore() {
       ...state,
       waypoints: state.waypoints.map((wp) => (wp.id === id ? { ...wp, lat, lng } : wp)),
       routeGeometry: [],
+      routeSegments: [],
       distanceMeters: 0,
       importedRoute: false,
     };
@@ -163,14 +169,14 @@ export function createRouteStore() {
   function undo() {
     if (!past.length) return;
     future.push(structuredClone(state.waypoints));
-    state = { ...state, waypoints: past.pop(), routeGeometry: [], distanceMeters: 0, importedRoute: false };
+    state = { ...state, waypoints: past.pop(), routeGeometry: [], routeSegments: [], distanceMeters: 0, importedRoute: false };
     emit();
   }
 
   function redo() {
     if (!future.length) return;
     past.push(structuredClone(state.waypoints));
-    state = { ...state, waypoints: future.pop(), routeGeometry: [], distanceMeters: 0, importedRoute: false };
+    state = { ...state, waypoints: future.pop(), routeGeometry: [], routeSegments: [], distanceMeters: 0, importedRoute: false };
     emit();
   }
 

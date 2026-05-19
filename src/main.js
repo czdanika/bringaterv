@@ -14,7 +14,7 @@ requireAuth();
 
 // ── Verzióellenőrzés ──────────────────────────────────────────────────────────
 // Forrás: src/version.js (window.APP_VERSION) — egyetlen helyen kell frissíteni
-const APP_VERSION = window.APP_VERSION ?? "v0.70";
+const APP_VERSION = window.APP_VERSION ?? "v0.71";
 
 function parseVersion(v) {
   return String(v).replace(/^v/, "").split(".").map(Number);
@@ -1189,6 +1189,7 @@ store.subscribe(async (state) => {
 
   store.setState({
     routeGeometry: route.geometry,
+    routeSegments: route.segments ?? [],
     distanceMeters: route.distanceMeters,
     ascentMeters: route.ascentMeters ?? 0,
     descentMeters: route.descentMeters ?? 0,
@@ -1981,6 +1982,31 @@ function calcEstimatedTime(distanceKm, ascentM = 0, descentM = 0, mode = 'asphal
   return Math.round(Math.max(flatMin * 0.3, flatMin + climbMin - descentMin));
 }
 
+/**
+ * Vegyes tervezési módoknál szegmensenként számolja az időt, majd összegzi.
+ * Ha nincs szegmens adat (pl. egységes mód, importált útvonal), visszaesik
+ * a teljes távolság + globális mód alapú számításra.
+ *
+ * @param {Array}   segments         – store.routeSegments tömb
+ * @param {string}  globalMode       – a globális tervezési mód (fallback)
+ * @param {number}  totalDistKm      – teljes távolság km-ben (fallback)
+ * @param {number}  totalAscM        – teljes emelkedő méterben (fallback)
+ * @param {number}  totalDescM       – teljes süllyedő méterben (fallback)
+ * @param {boolean} elevationEnabled – figyelembe vegye-e a szintet
+ * @returns {number} percek (egész szám)
+ */
+function calcEstimatedTimeMixed(segments, globalMode, totalDistKm, totalAscM, totalDescM, elevationEnabled = true) {
+  if (segments && segments.length > 0) {
+    return segments.reduce((sum, seg) => {
+      const segDistKm = (seg.distanceMeters ?? 0) / 1000;
+      const segAsc    = elevationEnabled ? (seg.ascentMeters  ?? 0) : 0;
+      const segDesc   = elevationEnabled ? (seg.descentMeters ?? 0) : 0;
+      return sum + calcEstimatedTime(segDistKm, segAsc, segDesc, seg.mode ?? globalMode);
+    }, 0);
+  }
+  return calcEstimatedTime(totalDistKm, totalAscM, totalDescM, globalMode);
+}
+
 /** Az export modal aktuális értékeiből GPX tartalmat és metaadatot állít elő. */
 function buildExportPayload() {
   const state = store.getState();
@@ -2005,9 +2031,9 @@ function buildExportPayload() {
   const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : 0;
   const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
 
-  // Becsült időtartam – Naismith-formula: lapos idő + emelkedő − süllyedő megtakarítás
+  // Becsült időtartam – szegmensenként ha vegyes mód, egyébként Naismith-formula
   const durationMin = distanceKm != null
-    ? calcEstimatedTime(distanceKm, ascentMeters, descentMeters, selectedMode)
+    ? calcEstimatedTimeMixed(state.routeSegments, selectedMode, distanceKm, ascentMeters, descentMeters, true)
     : null;
 
   return { name, desc, filename, content, selectedMode, distanceKm, ascentMeters, durationMin };
@@ -2149,10 +2175,11 @@ elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
   const distanceKm = state.distanceMeters > 0
     ? Math.round(state.distanceMeters / 100) / 10
     : null;
-  const ascentMeters = state.ascentMeters > 0 ? state.ascentMeters : null;
-  // Becsült időtartam: kerékpár 20 km/h
+  const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : null;
+  const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
+  // Becsült időtartam – szegmensenként ha vegyes mód, egyébként Naismith-formula
   const durationMin = distanceKm != null
-    ? Math.round((distanceKm / 20) * 60)
+    ? calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
     : null;
 
   try {
@@ -3033,7 +3060,10 @@ function renderSidebar(state) {
       const distKm = Math.round(state.distanceMeters / 100) / 10;
       const ascM   = elevationTimeEnabled ? (state.ascentMeters  > 0 ? state.ascentMeters  : 0) : 0;
       const descM  = elevationTimeEnabled ? (state.descentMeters > 0 ? state.descentMeters : 0) : 0;
-      const mins   = calcEstimatedTime(distKm, ascM, descM, state.mode ?? 'asphalt');
+      const mins   = calcEstimatedTimeMixed(
+        state.routeSegments, state.mode ?? 'asphalt',
+        distKm, ascM, descM, elevationTimeEnabled
+      );
       const h = Math.floor(mins / 60);
       const m = mins % 60;
       elements.estimatedTimeValue.textContent = h > 0
