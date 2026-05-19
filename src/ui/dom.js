@@ -1,10 +1,10 @@
 export function createToast(element) {
   let timeoutId;
-  return function showToast(message) {
+  return function showToast(message, duration = 3200) {
     clearTimeout(timeoutId);
     element.textContent = message;
     element.classList.add("is-visible");
-    timeoutId = setTimeout(() => element.classList.remove("is-visible"), 3200);
+    timeoutId = setTimeout(() => element.classList.remove("is-visible"), duration);
   };
 }
 

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="./src/version.js"></script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -187,9 +188,12 @@
       <button class="login-btn" type="submit">Belépés</button>
     </form>
 
-    <p class="card-footer">Bringaterv &nbsp;·&nbsp; v0.9 &nbsp;·&nbsp; © Czibolya Dániel 2026</p>
+    <p class="card-footer">Bringaterv &nbsp;·&nbsp; <span id="loginVersion"></span> &nbsp;·&nbsp; © Czibolya Dániel 2026</p>
   </div>
 
+  <script>
+    document.getElementById("loginVersion").textContent = window.APP_VERSION ?? "";
+  </script>
   <script type="module">
     import { login, isAuthenticated } from "./src/auth.js";
 

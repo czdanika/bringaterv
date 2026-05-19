@@ -2,4 +2,5 @@
 *.gpx
 !routes-api/samples/*.gpx
 .claude/
+ROADMAP.md
 

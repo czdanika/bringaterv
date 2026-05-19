@@ -6,6 +6,13 @@ const profileMap = {
   cycling: "fastbike", // backwards compatibility
 };
 
+export const SEGMENT_COLORS = {
+  asphalt: "#1976d2",
+  gravel:  "#F97316",
+  mtb:     "#22C55E",
+  hiking:  "#A855F7",
+};
+
 const esriAttrib = 'Tiles &copy; <a href="https://www.esri.com">Esri</a>';
 const cartoAttrib = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>';
 
@@ -56,6 +63,10 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     lineCap: "round",
     lineJoin: "round",
   }).addTo(map);
+  // Átfedő szakaszok jelölő rétege (automatikusan töltődik renderRoute-ban)
+  const overlapLayerGroup = L.layerGroup();
+  // Szegmensenként színezett réteg (vegyes profil tervezésnél)
+  const segmentLayerGroup = L.layerGroup();
   let userLocationMarker;
   let userAccuracyCircle;
   let elevationMarker = null;
@@ -173,7 +184,19 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   let baseLayer = createTileLayer("standard").addTo(map);
   let overlayLayer = null;
 
+  // Popup nyitva van-e? Ha igen, map click-et ignorálunk (2. védelmi vonal)
+  let _popupIsOpen = false;
+  map.on("popupopen",  () => { _popupIsOpen = true; });
+  map.on("popupclose", () => {
+    // setTimeout(0): a popupclose + az azt esetleg követő DOM click esemény
+    // ugyanabban az event-loop körben futhat, ezért egy tick-et várunk
+    setTimeout(() => { _popupIsOpen = false; }, 0);
+  });
+
   map.on("click", (event) => {
+    // Ha popup nyitva van, ne adjunk hozzá új waypointot
+    if (_popupIsOpen) return;
+
     const { lat, lng } = event.latlng;
     if (activeTool === "measure") {
       handleMeasureClick(event.latlng);
@@ -197,14 +220,20 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     onMapClick({ lat, lng });
   });
 
-  function renderWaypoints(waypoints) {
+  function renderWaypoints(waypoints, globalMode = "asphalt") {
     markers.clearLayers();
+    const isLast = (i) => waypoints.length > 1 && i === waypoints.length - 1;
     waypoints.forEach((point, index) => {
-      const isDestination = waypoints.length > 1 && index === waypoints.length - 1;
+      const isDestination = isLast(index);
+      // Az effektív szín: ha a pont saját segmentMode-ja van → azt; ha nincs → a globális mód
+      const effectiveMode = point.segmentMode ?? globalMode ?? "asphalt";
+      const markerColor   = SEGMENT_COLORS[effectiveMode] ?? SEGMENT_COLORS.asphalt;
+
       const marker = L.marker([point.lat, point.lng], {
         title: point.name || `Point ${index + 1}`,
         draggable: true,
-        icon: isDestination ? destinationIcon() : defaultIcon(index + 1),
+        bubblingMouseEvents: false,   // kattintás ne "bubboggon át" a térképre → ne adjon hozzá új waypointot
+        icon: isDestination ? destinationIcon() : defaultIcon(index + 1, markerColor),
       });
 
       marker.on("dragend", () => {
@@ -212,18 +241,18 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         onMarkerDrag?.(point.id, lat, lng);
       });
 
-      const popup = buildMarkerPopup(point, index, marker, isDestination);
+      const isLastWaypoint = isLast(index);
+      const popup = buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint);
       marker.bindPopup(popup, { minWidth: 240, maxWidth: 300, className: "marker-popup-wrap" });
-
 
       marker.addTo(markers);
     });
   }
 
-  function defaultIcon(label) {
+  function defaultIcon(label, color = SEGMENT_COLORS.asphalt) {
     return L.divIcon({
       className: "wpt-icon-outer",
-      html: `<div class="wpt-marker">${label}</div>`,
+      html: `<div class="wpt-marker" style="background:${color}">${label}</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
       popupAnchor: [0, -16],
@@ -252,7 +281,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     });
   }
 
-  function buildMarkerPopup(point, index, marker, isDestination = false) {
+  const SEGMENT_MODE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra" };
+
+  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false) {
     const el = document.createElement("div");
     el.className = "marker-popup";
 
@@ -297,6 +328,54 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     noteTextarea.value = point.note || "";
     noteLabel.append(noteTextarea);
 
+    // Szakasz-profil sor (csak ha nem az utolsó pont)
+    // (az utolsó ponthoz nincs kimenő szegmens)
+    // A mód változása AZONNAL kerül a store-ba (mint a sidebar badge), nem "Mentés"-re vár.
+    let currentSegMode = point.segmentMode ?? null;
+
+    const modeRow = document.createElement("div");
+    modeRow.className = "marker-popup-mode-row";
+    const modeRowLabel = document.createElement("span");
+    modeRowLabel.className = "marker-popup-label-text";
+    modeRowLabel.textContent = "Szakasz módja";
+
+    const modeBtns = document.createElement("div");
+    modeBtns.className = "marker-popup-mode-btns";
+
+    function setActiveMode(newMode) {
+      currentSegMode = newMode;
+      // Aktív stílus frissítése
+      modeBtns.querySelectorAll(".popup-mode-btn").forEach((btn) => {
+        const m = btn.dataset.segMode ?? null;
+        btn.classList.toggle("is-active", m === newMode);
+      });
+      // Azonnali mentés a store-ba – ugyanúgy mint a sidebar badge
+      onWaypointUpdate?.(point.id, { segmentMode: newMode });
+    }
+
+    // "Alapértelmezett" gomb (örökölt mód visszaállítása)
+    const defaultBtn = document.createElement("button");
+    defaultBtn.type = "button";
+    defaultBtn.dataset.segMode = "";  // üres string → null-ként kezeljük
+    defaultBtn.className = `popup-mode-btn${currentSegMode === null ? " is-active" : ""}`;
+    defaultBtn.title = `Alapértelmezett (${SEGMENT_MODE_LABELS[globalMode] ?? globalMode})`;
+    defaultBtn.innerHTML = `<span class="seg-dot" style="background:${SEGMENT_COLORS[globalMode] ?? SEGMENT_COLORS.asphalt};opacity:0.35"></span>`;
+    defaultBtn.addEventListener("click", () => setActiveMode(null));
+    modeBtns.append(defaultBtn);
+
+    Object.keys(SEGMENT_COLORS).forEach((m) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.dataset.segMode = m;
+      btn.className = `popup-mode-btn${currentSegMode === m ? " is-active" : ""}`;
+      btn.title = SEGMENT_MODE_LABELS[m] ?? m;
+      btn.innerHTML = `<span class="seg-dot" style="background:${SEGMENT_COLORS[m]}"></span>`;
+      btn.addEventListener("click", () => setActiveMode(m));
+      modeBtns.append(btn);
+    });
+
+    modeRow.append(modeRowLabel, modeBtns);
+
     // Gombok: Mégse + Mentés
     const actions = document.createElement("div");
     actions.className = "marker-popup-actions";
@@ -312,15 +391,21 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     saveBtn.className = "marker-popup-save";
     saveBtn.textContent = "Mentés";
     saveBtn.addEventListener("click", () => {
-      marker.closePopup();
+      // segmentMode már azonnali – csak nevet és megjegyzést mentünk itt
       onWaypointUpdate?.(point.id, {
         name: nameInput.value.trim(),
         note: noteTextarea.value.trim(),
       });
+      marker.closePopup();
     });
 
     actions.append(cancelBtn, saveBtn);
-    el.append(header, nameLabel, noteLabel, actions);
+    // Szakasz mód sor csak ha van kimenő szegmens (nem az utolsó pont)
+    if (!isLastWaypoint) {
+      el.append(header, nameLabel, noteLabel, modeRow, actions);
+    } else {
+      el.append(header, nameLabel, noteLabel, actions);
+    }
 
     // Cél-markernél: visszaút opciók
     if (isDestination && (onReturnRoute || onRoundTrip)) {
@@ -506,13 +591,169 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (map.hasLayer(gradeRouteGroup)) map.removeLayer(gradeRouteGroup);
   }
 
-  function renderRoute(geometry) {
+  // Egy pont eltolása N méterrel merőlegesen az A→B irányra
+  function offsetGeometry(geometry, offsetMeters) {
+    return geometry.map((pt, i) => {
+      const prev = geometry[Math.max(0, i - 1)];
+      const next = geometry[Math.min(geometry.length - 1, i + 1)];
+      const dLng = next.lng - prev.lng;
+      const dLat = next.lat - prev.lat;
+      const bearing = Math.atan2(dLng * Math.cos(pt.lat * Math.PI / 180), dLat);
+      const perp = bearing + Math.PI / 2;
+      const R = 6371000;
+      const dlat = (offsetMeters * Math.cos(perp)) / R * (180 / Math.PI);
+      const dlng = (offsetMeters * Math.sin(perp)) / (R * Math.cos(pt.lat * Math.PI / 180)) * (180 / Math.PI);
+      return { ...pt, lat: pt.lat + dlat, lng: pt.lng + dlng };
+    });
+  }
+
+  // Két pont közötti távolság méterben (gyors, inline haversine)
+  function ptDist(a, b) {
+    const R = 6371000;
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLng = (b.lng - a.lng) * Math.PI / 180;
+    const s = Math.sin(dLat / 2) ** 2 +
+      Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  }
+
+  // Szegmens iránya radiánban (a→b bearing)
+  function segBearing(a, b) {
+    return Math.atan2(
+      (b.lng - a.lng) * Math.cos(a.lat * Math.PI / 180),
+      b.lat - a.lat
+    );
+  }
+
+  // Visszaadja hogy melyik pont-index tekinthető "átfedő" szakasz részének.
+  // Küszöb: 12m közelség + párhuzamos irány (±25° vagy ±155-180°)
+  function detectOverlapZones(geometry) {
+    const n = geometry.length;
+    if (n < 4) return new Array(n).fill(false);
+    const isOverlap = new Array(n).fill(false);
+    const THRESHOLD = 12; // méter
+    const BEAR_TOL  = 25 * Math.PI / 180; // radián
+
+    for (let i = 0; i < n - 1; i++) {
+      const midI = { lat: (geometry[i].lat + geometry[i+1].lat) / 2,
+                     lng: (geometry[i].lng + geometry[i+1].lng) / 2 };
+      const bI = segBearing(geometry[i], geometry[i+1]);
+
+      for (let j = i + 3; j < n - 1; j++) {
+        const midJ = { lat: (geometry[j].lat + geometry[j+1].lat) / 2,
+                       lng: (geometry[j].lng + geometry[j+1].lng) / 2 };
+        if (ptDist(midI, midJ) > THRESHOLD) continue;
+
+        const bJ = segBearing(geometry[j], geometry[j+1]);
+        let diff = Math.abs(bI - bJ) % (Math.PI * 2);
+        if (diff > Math.PI) diff = Math.PI * 2 - diff;
+        // párhuzamos (< 25°) vagy ellentétes (> 155°)
+        if (diff < BEAR_TOL || diff > Math.PI - BEAR_TOL) {
+          isOverlap[i] = isOverlap[i+1] = true;
+          isOverlap[j] = isOverlap[j+1] = true;
+        }
+      }
+    }
+    return isOverlap;
+  }
+
+  // Átfedő szakaszokat kiemeli eltolt szaggatott vonallal
+  function renderOverlapHighlight(geometry) {
+    overlapLayerGroup.clearLayers();
+    if (geometry.length < 4) return;
+
+    const isOverlap = detectOverlapZones(geometry);
+    // Összefüggő átfedő futamok kinyerése
+    let runStart = -1;
+    for (let i = 0; i <= geometry.length; i++) {
+      const inRun = i < geometry.length && isOverlap[i];
+      if (inRun && runStart < 0) { runStart = i; }
+      if (!inRun && runStart >= 0) {
+        const chunk = geometry.slice(runStart, i + 1);
+        if (chunk.length >= 2) {
+          const shifted = offsetGeometry(chunk, 5); // 5 méteres eltolás
+          L.polyline(shifted.map(p => [p.lat, p.lng]), {
+            color: "#6366f1",
+            weight: 4,
+            opacity: 0.85,
+            dashArray: "10 6",
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(overlapLayerGroup);
+        }
+        runStart = -1;
+      }
+    }
+
+    if (overlapLayerGroup.getLayers().length > 0) {
+      if (!map.hasLayer(overlapLayerGroup)) overlapLayerGroup.addTo(map);
+    }
+  }
+
+  function clearOverlapHighlight() {
+    overlapLayerGroup.clearLayers();
+    if (map.hasLayer(overlapLayerGroup)) map.removeLayer(overlapLayerGroup);
+  }
+
+  function clearSegmentedRoute() {
+    segmentLayerGroup.clearLayers();
+    if (map.hasLayer(segmentLayerGroup)) map.removeLayer(segmentLayerGroup);
+  }
+
+  function renderSegmentedRoute(segments, { fitView = false } = {}) {
     clearColoredRoute();
     clearHrRoute();
     clearCadRoute();
     clearGradeRoute();
+    clearOverlapHighlight();
+    clearSegmentedRoute();
+
+    // Fő routeLayer ürítése (a szegmens réteg veszi át a szerepét)
+    routeLayer.setLatLngs([]);
+
+    const fullGeometry = segments.flatMap((seg, i) =>
+      i === 0 ? seg.geometry : seg.geometry.slice(1)
+    );
+    hoverGeometry = fullGeometry;
+
+    segments.forEach((seg) => {
+      const color = SEGMENT_COLORS[seg.mode] ?? SEGMENT_COLORS.asphalt;
+      L.polyline(seg.geometry.map((p) => [p.lat, p.lng]), {
+        color,
+        opacity: 0.95,
+        weight: 5,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(segmentLayerGroup);
+    });
+
+    if (!map.hasLayer(segmentLayerGroup)) segmentLayerGroup.addTo(map);
+
+    renderOverlapHighlight(fullGeometry);
+
+    // fitView csak explicit kérésre (pl. library betöltés), mode-váltáskor NEM
+    if (fitView && fullGeometry.length > 1) {
+      const bounds = L.latLngBounds(fullGeometry.map((p) => [p.lat, p.lng]));
+      map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+    }
+  }
+
+  // Aktuális globális tervezési mód – routeLayer színéhez
+  let _currentMode = "asphalt";
+
+  function renderRoute(geometry, mode) {
+    if (mode) _currentMode = mode;
+    clearColoredRoute();
+    clearHrRoute();
+    clearCadRoute();
+    clearGradeRoute();
+    clearOverlapHighlight();
+    clearSegmentedRoute();
+    const routeColor = SEGMENT_COLORS[_currentMode] ?? SEGMENT_COLORS.asphalt;
+    routeLayer.setStyle({ color: routeColor });
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
+    renderOverlapHighlight(geometry);
     if (geometry.length > 1) {
       map.fitBounds(routeLayer.getBounds(), { padding: [44, 44], maxZoom: 15 });
     }
@@ -546,6 +787,30 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     map.setView(latLng, Math.max(map.getZoom(), 15));
   }
 
+  async function routeSegment(from, to, segMode) {
+    try {
+      const profile = profileMap[segMode] ?? profileMap.asphalt;
+      const coords = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
+      const url = `https://brouter.de/brouter?lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Segment routing failed");
+      const data = await response.json();
+      const feature = data.features?.[0];
+      const coordsList = feature?.geometry?.coordinates ?? [];
+      const geometry = coordsList.map(([lng, lat, ele]) => ({ lat, lng, ele: ele ?? null }));
+      const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
+      const { ascentMeters, descentMeters } = calcElevation(coordsList);
+      if (geometry.length < 2) throw new Error("No geometry");
+      return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode };
+    } catch {
+      const geometry = [
+        { lat: from.lat, lng: from.lng, ele: null },
+        { lat: to.lat,   lng: to.lng,   ele: null },
+      ];
+      return { geometry, distanceMeters: haversineDistance(geometry), ascentMeters: 0, descentMeters: 0, mode: segMode };
+    }
+  }
+
   async function calculateRoute({ waypoints, mode, snapToRoads }, forceSnapOff = false) {
     if (waypoints.length < 2) {
       return {
@@ -556,6 +821,26 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
     if (!snapToRoads || forceSnapOff) {
       return straightLineRoute(waypoints);
+    }
+
+    // Ha bármelyik útvonalon van egyedi szegmensprofil → per-segment routing
+    const hasMixedSegments = waypoints.slice(0, -1).some((wp) => wp.segmentMode != null);
+
+    if (hasMixedSegments) {
+      const segmentResults = await Promise.all(
+        waypoints.slice(0, -1).map((from, i) => {
+          const to = waypoints[i + 1];
+          const segMode = from.segmentMode ?? mode ?? "asphalt";
+          return routeSegment(from, to, segMode);
+        })
+      );
+      const fullGeometry = segmentResults.flatMap((seg, i) =>
+        i === 0 ? seg.geometry : seg.geometry.slice(1)
+      );
+      const distanceMeters = segmentResults.reduce((sum, s) => sum + s.distanceMeters, 0);
+      const ascentMeters   = segmentResults.reduce((sum, s) => sum + s.ascentMeters, 0);
+      const descentMeters  = segmentResults.reduce((sum, s) => sum + s.descentMeters, 0);
+      return { geometry: fullGeometry, distanceMeters, ascentMeters, descentMeters, segments: segmentResults };
     }
 
     try {
@@ -656,6 +941,10 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       zoom: map.getZoom(),
     }),
     setView: (lat, lng, zoom) => map.setView([lat, lng], zoom),
+
+    clearOverlapHighlight,
+    renderSegmentedRoute,
+    clearSegmentedRoute,
 
     // Szintprofil hover marker
     setElevationMarker(lat, lng) {
