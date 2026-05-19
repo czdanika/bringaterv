@@ -9,6 +9,7 @@ import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, initElevationChart } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
+import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
 
 requireAuth();
 
@@ -1982,6 +1983,299 @@ function calcEstimatedTime(distanceKm, ascentM = 0, descentM = 0, mode = 'asphal
   return Math.round(Math.max(flatMin * 0.3, flatMin + climbMin - descentMin));
 }
 
+// ── Douglas-Peucker rögzítő pont algoritmus ───────────────────────────────────
+
+/** Útvonal-rögzítő pontok toleranciája méterben */
+const DP_EPSILON_M = 200;
+
+/** Merőleges távolság méterben (pont a line segment-től), equirectangular közelítéssel */
+function _dpPerpendicularDistM(pt, a, b) {
+  const R   = 6371000;
+  const s   = R * Math.PI / 180;
+  const cosL = Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+  const ax = a.lng * cosL * s, ay = a.lat * s;
+  const bx = b.lng * cosL * s, by = b.lat * s;
+  const px = pt.lng * cosL * s, py = pt.lat * s;
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  return Math.sqrt((px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2);
+}
+
+/**
+ * Douglas-Peucker egyszerűsítés – visszaadja a megtartandó indexek rendezett listáját.
+ * Iteratív implementáció (nem rekurzív), biztonságos nagy geometriákon is.
+ */
+function douglasPeuckerIdx(points, epsilonM) {
+  const n = points.length;
+  if (n <= 2) return points.map((_, i) => i);
+  const keep = new Uint8Array(n);
+  keep[0] = 1; keep[n - 1] = 1;
+  const stack = [[0, n - 1]];
+  while (stack.length) {
+    const [lo, hi] = stack.pop();
+    if (hi <= lo + 1) continue;
+    let maxD = 0, maxI = lo + 1;
+    for (let i = lo + 1; i < hi; i++) {
+      const d = _dpPerpendicularDistM(points[i], points[lo], points[hi]);
+      if (d > maxD) { maxD = d; maxI = i; }
+    }
+    if (maxD > epsilonM) {
+      keep[maxI] = 1;
+      stack.push([lo, maxI], [maxI, hi]);
+    }
+  }
+  const result = [];
+  for (let i = 0; i < n; i++) if (keep[i]) result.push(i);
+  return result;
+}
+
+/**
+ * Anchor waypontok összeállítása D-P indexekből.
+ * Ha van surface-analysis eredmény (segments), minden pont megkapja
+ * a saját szegmensének módját (BRouter per-segment profilehoz szükséges).
+ *
+ * @param {number[]}  dpIndices  – douglasPeuckerIdx() eredménye
+ * @param {object}    imported   – importGpx() eredménye
+ * @param {Array|null} segments  – analyzeSurface() szegmensei (opcionális)
+ */
+function buildAnchorWaypoints(dpIndices, imported, segments = null) {
+  const geo      = imported.geometry;
+  const origStart = imported.waypoints[0];
+  const origEnd   = imported.waypoints[imported.waypoints.length - 1];
+
+  // DP indexek + surface átmeneti pontok egyesítése
+  const idxSet = new Set(dpIndices);
+  if (segments) {
+    for (const seg of segments) idxSet.add(seg.geomIdx);
+  }
+  const sortedIdx = [...idxSet].sort((a, b) => a - b);
+
+  return sortedIdx.map(idx => {
+    const pt      = geo[idx];
+    const isFirst = idx === 0;
+    const isLast  = idx === geo.length - 1;
+
+    // Meghatározzuk melyik surface szegmensbe esik ez a pont
+    // → hogy a BRouter a helyes profillal tervezzen
+    let mode = null;
+    if (segments && segments.length > 0) {
+      for (let s = segments.length - 1; s >= 0; s--) {
+        if (idx >= segments[s].geomIdx) { mode = segments[s].mode; break; }
+      }
+    }
+
+    return {
+      lat:         pt.lat,
+      lng:         pt.lng,
+      name:        isFirst ? (origStart?.name ?? "") : isLast ? (origEnd?.name ?? "") : "",
+      note:        isFirst ? (origStart?.note ?? "") : isLast ? (origEnd?.note ?? "") : "",
+      segmentMode: mode,
+    };
+  });
+}
+
+// ── GPX betöltés előnézet + szegmensvizsgálat modal ──────────────────────────
+
+/**
+ * Megmutatja az import előnézeti modalt és opcionálisan futtatja
+ * az OSM felületelemzést. Promise alapú: a hívó await-el vár rá.
+ *
+ * @param {object} imported        – importGpx() eredménye
+ * @param {string} routeName       – megjelenítendő név
+ * @param {number} distanceMeters  – előre kalkulált távolság
+ * @param {number} ascentMeters    – előre kalkulált emelkedő
+ * @returns {Promise<Array|null>}  – waypontok (esetleg segmentMode-dal),
+ *                                   vagy null ha a felhasználó X-szel bezárja
+ */
+function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
+  return new Promise((resolve) => {
+    const overlay        = document.getElementById("loadPreviewOverlay");
+    const titleEl        = document.getElementById("loadPreviewTitle");
+    const statsEl        = document.getElementById("loadPreviewStats");
+    const segExistingEl  = document.getElementById("loadPreviewSegExisting");
+    const analysisEl     = document.getElementById("loadPreviewAnalysisResult");
+    const analyzeBtn     = document.getElementById("loadPreviewAnalyzeBtn");
+    const analyzeHint    = overlay.querySelector(".load-preview-analyze-hint");
+    const skipBtn        = document.getElementById("loadPreviewSkipBtn");
+    const confirmBtn     = document.getElementById("loadPreviewConfirmBtn");
+    const closeBtn       = document.getElementById("loadPreviewClose");
+    const anchorSection  = document.getElementById("loadPreviewAnchorSection");
+    const anchorCheck    = document.getElementById("loadPreviewAnchorCheck");
+    const anchorCountEl  = document.getElementById("loadPreviewAnchorCount");
+
+    // --- reset ---
+    analysisEl.hidden  = true;
+    analysisEl.innerHTML = "";
+    analyzeBtn.hidden  = false;
+    analyzeBtn.disabled = false;
+    confirmBtn.disabled = true;
+    analyzeHint.hidden  = false;
+
+    // --- Rögzítő pontok szekció ---
+    // Csak akkor mutatjuk ha van elegendő geometria és kevés az eredeti waypont
+    const geoLen = imported.geometry.length;
+    const showAnchor = geoLen >= 20 && imported.waypoints.length <= 4;
+    anchorSection.hidden = !showAnchor;
+    if (showAnchor) {
+      anchorCheck.checked = true;
+      const dpIdx = douglasPeuckerIdx(imported.geometry, DP_EPSILON_M);
+      const intermediateCount = dpIdx.length - 2; // start és finish nem számít újnak
+      anchorCountEl.textContent = `(~${intermediateCount} köztes pont)`;
+    }
+
+    // --- cím ---
+    titleEl.textContent = routeName || "Útvonal betöltése";
+
+    // --- statisztikák ---
+    const distKm = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) : "—";
+    const ascStr = ascentMeters  > 0 ? `${Math.round(ascentMeters)} m` : "—";
+    statsEl.innerHTML = `
+      <div class="load-preview-stat">
+        <span class="load-preview-stat-label">Távolság</span>
+        <span class="load-preview-stat-value">${distKm} km</span>
+      </div>
+      <div class="load-preview-stat">
+        <span class="load-preview-stat-label">Waypont</span>
+        <span class="load-preview-stat-value">${imported.waypoints.length} db</span>
+      </div>
+      <div class="load-preview-stat">
+        <span class="load-preview-stat-label">Emelkedő</span>
+        <span class="load-preview-stat-value">${ascStr}</span>
+      </div>
+      <div class="load-preview-stat">
+        <span class="load-preview-stat-label">Trackpont</span>
+        <span class="load-preview-stat-value">${imported.geometry.length}</span>
+      </div>`;
+
+    // --- meglévő segmentMode info ---
+    const existingModes = imported.waypoints.filter(w => w.segmentMode != null);
+    if (existingModes.length > 0) {
+      const modeSet = [...new Set(existingModes.map(w => w.segmentMode))];
+      segExistingEl.innerHTML =
+        `<i data-lucide="info" aria-hidden="true"></i> Mentett módok: ${modeSet.map(m => MODE_LABELS[m] ?? m).join(", ")}`;
+      segExistingEl.hidden = false;
+    } else {
+      segExistingEl.hidden = true;
+    }
+
+    overlay.hidden = false;
+    if (typeof lucide !== "undefined") lucide.createIcons();
+
+    let resolvedResult  = null; // { waypoints, segmentedGeom, _segments }
+    let latestSegments  = null; // surface analysis szegmensek (D-P merge-hez confirm-kor)
+
+    function close(result) {
+      overlay.hidden = true;
+      closeBtn.onclick   = null;
+      skipBtn.onclick    = null;
+      confirmBtn.onclick = null;
+      analyzeBtn.onclick = null;
+      resolve(result);
+    }
+
+    /** D-P anchor waypontokat ad vissza, vagy az eredeti waypontokat ha nincs elég geometria */
+    function applyAnchor(segments = null) {
+      if (showAnchor && anchorCheck.checked) {
+        const dpIdx = douglasPeuckerIdx(imported.geometry, DP_EPSILON_M);
+        return buildAnchorWaypoints(dpIdx, imported, segments);
+      }
+      // Anchor nélkül: ha van surface analysis → az adja a waypontokat
+      if (segments) {
+        const origStart = imported.waypoints[0];
+        const origEnd   = imported.waypoints[imported.waypoints.length - 1];
+        const wps = [{ ...origStart, segmentMode: segments[0]?.mode ?? null }];
+        for (let i = 1; i < segments.length; i++) {
+          const pt = segments[i].geomPoint;
+          wps.push({ lat: pt.lat, lng: pt.lng, name: "", note: "", segmentMode: segments[i].mode });
+        }
+        wps.push({ ...origEnd, segmentMode: null });
+        return wps;
+      }
+      return imported.waypoints;
+    }
+
+    closeBtn.onclick   = () => close(null);
+    skipBtn.onclick    = () => close({ waypoints: applyAnchor(null), segmentedGeom: null });
+    confirmBtn.onclick = () => {
+      if (!resolvedResult) return;
+      const waypoints = applyAnchor(latestSegments);
+      close({ waypoints, segmentedGeom: resolvedResult.segmentedGeom });
+    };
+
+    analyzeBtn.onclick = async () => {
+      analyzeBtn.disabled = true;
+      analyzeHint.hidden  = true;
+      analysisEl.hidden   = false;
+      analysisEl.innerHTML = `<div class="load-preview-spinner">
+        <span class="spinner-inline"></span> OSM adatok lekérdezése…
+      </div>`;
+
+      try {
+        const { segments, totalDistKm } = await analyzeSurface(imported.geometry);
+
+        // ── Vizuális útvonalsáv ────────────────────────────────────────────
+        const barSegs = segments.map(seg => {
+          const pct = (seg.distanceKm / totalDistKm * 100).toFixed(1);
+          const color = SEGMENT_COLORS[seg.mode] ?? "#888";
+          return `<div class="load-preview-bar-seg" style="width:${pct}%;background:${color}"
+            title="${MODE_LABELS[seg.mode] ?? seg.mode}: ${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km"></div>`;
+        }).join("");
+
+        // ── Összesítés módok szerint ───────────────────────────────────────
+        const modeSummary = {};
+        for (const seg of segments) {
+          modeSummary[seg.mode] = (modeSummary[seg.mode] ?? 0) + seg.distanceKm;
+        }
+
+        const rows = segments.map(seg => `
+          <div class="load-preview-analysis-row">
+            <div class="load-preview-analysis-dot" style="background:${SEGMENT_COLORS[seg.mode] ?? "#888"}"></div>
+            <span class="load-preview-analysis-mode">${MODE_LABELS[seg.mode] ?? seg.mode}</span>
+            <span class="load-preview-analysis-dist">${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km</span>
+            <span class="load-preview-analysis-pct">${seg.distanceKm.toFixed(1)} km</span>
+          </div>`).join("");
+
+        const insertCount = segments.length - 1; // közbenső waypontok száma
+        analysisEl.innerHTML = `
+          <div class="load-preview-bar">${barSegs}</div>
+          <div class="load-preview-analysis-header">Szegmensek (${segments.length} db)</div>
+          <div class="load-preview-analysis-rows">${rows}</div>
+          <p class="load-preview-analyze-hint" style="padding:8px 12px;border-top:1px solid var(--line)">
+            Alkalmazáskor ${insertCount > 0 ? `${insertCount} közbenső waypont kerül beillesztésre` : "a mód beállítódik"} az átmeneti pontoknál.
+          </p>`;
+
+        // ── Waypontok összeállítása az elemzés alapján ────────────────────
+        // ── Szegmentált térkép-geometria (renderSegmentedRoute-hoz) ──────
+        const segmentedGeom = segments.map((seg, i) => {
+          const startIdx = seg.geomIdx;
+          const endIdx   = i + 1 < segments.length
+            ? segments[i + 1].geomIdx
+            : imported.geometry.length - 1;
+          return {
+            mode:     seg.mode,
+            geometry: imported.geometry.slice(startIdx, endIdx + 1),
+          };
+        });
+
+        latestSegments = segments; // confirmBtn-hoz szükséges (D-P merge)
+        resolvedResult = { segmentedGeom };
+        confirmBtn.disabled = false;
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+      } catch (err) {
+        console.error("Surface analysis hiba:", err);
+        analysisEl.innerHTML = `<div class="load-preview-spinner" style="color:var(--error,#e53935)">
+          Nem sikerült az elemzés: ${err.message}
+        </div>`;
+        analyzeBtn.disabled = false;
+        analyzeHint.hidden  = false;
+      }
+    };
+  });
+}
+
 /**
  * Vegyes tervezési módoknál szegmensenként számolja az időt, majd összegzi.
  * Ha nincs szegmens adat (pl. egységes mód, importált útvonal), visszaesik
@@ -2232,15 +2526,24 @@ planGpxInput?.addEventListener("change", async () => {
     return;
   }
 
-  // Waypontok betöltése – importedRoute:true hogy ne induljon el auto-routing
-  // (fontos körbeutak esetén ahol start≈end, BRouter sikertelen lenne)
-  store.replaceWaypoints(imported.waypoints, { importedRoute: true });
-  // Az útvonal geometriáját mutatjuk előnézetként (tervezés közben eltűnik)
-  updateElevationButton(imported.geometry);
-  mapAdapter.renderRoute(imported.geometry, store.getState().mode);
-  setTimeout(() => mapAdapter.fitRoute(), 50);
-  showToast(`${imported.waypoints.length} pont betöltve – kattints a térképre a tervezéshez`);
+  const { ascentMeters } = calcElevationFromGeometry(imported.geometry);
+  const distanceMeters   = calculateImportedDistance(imported.geometry);
+  const routeName        = file.name.replace(/\.gpx$/i, "");
+
+  const loadResult = await showLoadPreview(imported, routeName, distanceMeters, ascentMeters);
   planGpxInput.value = "";
+  if (loadResult === null) return; // X-szel bezárva
+  const { waypoints, segmentedGeom } = loadResult;
+
+  store.replaceWaypoints(waypoints, { importedRoute: true });
+  updateElevationButton(imported.geometry);
+  if (segmentedGeom) {
+    mapAdapter.renderSegmentedRoute(segmentedGeom);
+  } else {
+    mapAdapter.renderRoute(imported.geometry, store.getState().mode);
+  }
+  setTimeout(() => mapAdapter.fitRoute(), 50);
+  showToast(`${waypoints.length} pont betöltve`);
 });
 
 // ── Elemzés → Tervezés ez alapján ────────────────────────────────────────────
@@ -2295,9 +2598,8 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     return;
   }
 
-  clearAllRouteState();
-
   if (target === "file") {
+    clearAllRouteState();
     // ── Elemzés fülre töltés (azonos logika mint a kézi GPX feltöltésnél) ──
     store.replaceWaypoints(imported.waypoints, {
       geometry: imported.geometry,
@@ -2340,19 +2642,30 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
 
   } else {
     // ── Tervezés fülre töltés ─────────────────────────────────────────────
-    // importedRoute: false → BRouter re-route-olja a waypontokat → SRTM szintadat
+    const { ascentMeters: asc } = calcElevationFromGeometry(imported.geometry);
+    const distMeters = calculateImportedDistance(imported.geometry);
+
+    const loadResult = await showLoadPreview(imported, routeName, distMeters, asc);
+    if (loadResult === null) return; // felhasználó X-szel bezárta
+    const { waypoints, segmentedGeom } = loadResult;
+
+    clearAllRouteState();
     switchTab("plan");
-    autoOpenElevation = true; // BRouter visszatérése után automatikusan megnyitja a szintprofilt
-    store.replaceWaypoints(imported.waypoints, {
+    autoOpenElevation = true;
+    store.replaceWaypoints(waypoints, {
       geometry: imported.geometry,
       sourcePointCount: imported.sourcePointCount,
     });
-    mapAdapter.renderRoute(imported.geometry, store.getState().mode); // azonnali megjelenítés, BRouter felváltja majd
+    if (segmentedGeom) {
+      mapAdapter.renderSegmentedRoute(segmentedGeom);
+    } else {
+      mapAdapter.renderRoute(imported.geometry, store.getState().mode);
+    }
     setTimeout(() => mapAdapter.fitRoute(), 50);
     if (imported.sourcePointCount > imported.geometry.length) {
       showToast(`„${routeName}" betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);
     } else {
-      showToast(`„${routeName}" betöltve – kattints a térképre a tervezéshez`);
+      showToast(`„${routeName}" betöltve`);
     }
   }
 }

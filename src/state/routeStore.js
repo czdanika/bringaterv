@@ -146,9 +146,18 @@ export function createRouteStore() {
   }
 
   function updateWaypoint(id, changes) {
+    // Ha a segmentMode változik, töröljük az importedRoute flaget
+    // hogy a BRouter újratervezze az érintett szakaszt
+    const modeChanged = 'segmentMode' in changes;
     state = {
       ...state,
       waypoints: state.waypoints.map((wp) => (wp.id === id ? { ...wp, ...changes } : wp)),
+      ...(modeChanged ? {
+        importedRoute: false,
+        routeGeometry: [],
+        routeSegments: [],
+        distanceMeters: 0,
+      } : {}),
     };
     emit();
   }
