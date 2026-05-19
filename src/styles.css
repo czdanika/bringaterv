@@ -1613,8 +1613,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 .settings-section-body {
   overflow: hidden;
-  transition: max-height 0.25s ease, opacity 0.2s ease;
-  max-height: 600px;
+  transition: max-height 0.35s ease, opacity 0.2s ease;
+  max-height: 1400px;
   opacity: 1;
 }
 .settings-section.is-collapsed .settings-section-body {
@@ -1672,6 +1672,10 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   gap: 8px;
 }
+.settings-unit-group--2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
 .settings-unit-btn {
   flex: 1;
   cursor: pointer;
@@ -1686,8 +1690,11 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 12px 8px;
+  height: 100%;
+  box-sizing: border-box;
   border: 2px solid var(--line);
   border-radius: 10px;
   font-size: 13px;
@@ -2689,6 +2696,384 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   gap: 8px;
   justify-content: flex-end;
   padding: 12px 20px 16px;
+}
+
+/* ── Karvonen pulzuszóna – beállítások + elemzés ─────────────────────────── */
+
+.karvonen-slider-row {
+  margin-bottom: 14px;
+}
+.karvonen-slider-row:last-of-type { margin-bottom: 0; }
+
+.karvonen-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.karvonen-slider-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.karvonen-slider-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.karvonen-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.karvonen-slider-bounds {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.karvonen-zones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.karvonen-zone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--zone-color) 10%, transparent);
+  border-left: 3px solid var(--zone-color);
+}
+
+.karvonen-zone-name { flex: 0 0 120px; }
+
+.karvonen-zone-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zone-color);
+}
+
+.karvonen-zone-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.karvonen-zone-pct-hrr {
+  flex: 0 0 80px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.karvonen-zone-range {
+  flex: 1;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--zone-color);
+}
+
+/* ── Pulzuszóna elemzés panel (Elemzés fül) ─────────────────────────────── */
+
+/* A speed-legend grid layout-ját felülírjuk a zóna-body-nál */
+.hr-zone-analysis .speed-legend-items {
+  display: block;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.hr-zone-analysis.is-expanded .speed-legend-items {
+  max-height: 600px;
+  opacity: 1;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+
+.hr-zone-scores {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hr-score-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.hr-score-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.hr-score-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.hint-target {
+  cursor: help;
+}
+
+/* ── Max pulzus becslő ───────────────────────────────────────────────────── */
+
+.hrmax-estimator {
+  background: var(--panel-strong);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.hrmax-estimator-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.hrmax-formula-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.hrmax-formula-btn {
+  cursor: pointer;
+}
+
+.hrmax-formula-btn input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.hrmax-formula-btn span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.hrmax-formula-btn input:checked + span {
+  border-color: var(--brand);
+  color: var(--text);
+  background: var(--brand-soft);
+}
+
+.hrmax-formula-name {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 0 0 90px;
+}
+
+.hrmax-formula-eq {
+  flex: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hrmax-formula-result {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
+  flex: 0 0 auto;
+}
+
+.hrmax-apply-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.hrmax-apply-btn:hover { opacity: 0.85; }
+.hrmax-apply-btn svg, .hrmax-apply-btn i[data-lucide] { width: 14px; height: 14px; }
+
+.hr-zone-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.hr-zone-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 48px 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.hr-zone-row:last-child { border-bottom: none; }
+
+.hr-zone-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hr-zone-row-name {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.hr-zone-row-bpm {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.hr-zone-row-bar-wrap {
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hr-zone-row-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.hr-zone-row-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+  font-size: 11px;
+}
+
+.hr-zone-row-pct {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Egyedi zónahatárok – multi-handle slider ────────────────────────────── */
+
+.hr-multi-slider {
+  position: relative;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  margin: 10px 0 6px;
+  padding: 0 2px;
+}
+
+.hr-multi-slider-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: visible;
+}
+
+.hr-multi-slider-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.hr-multi-slider-handle {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  background: var(--panel-bg);
+  border: 2.5px solid #888;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  touch-action: none;
+  z-index: 3;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  transition: box-shadow .1s;
+}
+
+.hr-multi-slider-handle:hover,
+.hr-multi-slider-handle:active {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  cursor: grabbing;
+}
+
+.hr-custom-zone-display {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.hr-czd-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 56px;
+}
+
+.hr-czd-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hr-czd-name {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hr-czd-val {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* ── GPX betöltés előnézet modal ─────────────────────────────────────────── */

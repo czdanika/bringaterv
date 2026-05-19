@@ -10,6 +10,7 @@ import { searchPlaces, reverseGeocode } from "./ui/search.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, initElevationChart } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
+import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
 
 requireAuth();
 
@@ -260,6 +261,101 @@ function formatDuration(ms) {
     : `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** Pulzuszóna időeloszlás számítása a geometry alapján (time vagy pontszám proxy) */
+function calcHrZoneStats(geometry) {
+  const { restHR, maxHR, method, zoneModel, lthr, customBoundaries } = getHrZoneSettings();
+  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries);
+  const zoneDurMs = zones.map(() => 0);
+  let totalDurMs = 0;
+
+  for (let i = 1; i < geometry.length; i++) {
+    const pt   = geometry[i];
+    const prev = geometry[i - 1];
+    if (pt.hr == null || pt.hr <= 0) continue;
+    // időköz: ha van timestamp → azt használjuk, különben 1 egység (pontszám proxy)
+    const dt = (pt.time != null && prev.time != null)
+      ? Math.min(pt.time - prev.time, 60000) // max 1 perces gap
+      : 1000; // proxy: ~1 mp/pont
+    if (dt <= 0) continue;
+    totalDurMs += dt;
+    const hr = pt.hr;
+    let matched = false;
+    for (let z = 0; z < zones.length; z++) {
+      if (hr >= zones[z].low && hr <= zones[z].high) { zoneDurMs[z] += dt; matched = true; break; }
+    }
+    if (!matched) {
+      if (hr < zones[0].low) zoneDurMs[0] += dt;
+      else zoneDurMs[zones.length - 1] += dt;
+    }
+  }
+
+  return {
+    zones: zones.map((z, i) => ({
+      ...z,
+      durationMs: zoneDurMs[i],
+      pct: totalDurMs > 0 ? Math.round(zoneDurMs[i] / totalDurMs * 100) : 0,
+    })),
+    totalDurMs,
+  };
+}
+
+function fmtDurMs(ms) {
+  const totalSec = Math.round(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function calcEdwards(zones) {
+  // Edwards zónaalapú TRIMP: Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5 pont/perc
+  const weights = [1, 2, 3, 4, 5];
+  return Math.round(zones.reduce((sum, z, i) => sum + (z.durationMs / 60000) * weights[i], 0));
+}
+
+function renderHrZoneAnalysis(geometry) {
+  const rowsEl   = document.getElementById('hrZoneRows');
+  const scoresEl = document.getElementById('hrZoneScores');
+  if (!rowsEl) return;
+
+  const { zones, totalDurMs } = calcHrZoneStats(geometry);
+
+  rowsEl.innerHTML = zones.map(z => `
+    <div class="hr-zone-row hint-target" data-hint="${z.hint ?? ''}">
+      <div class="hr-zone-row-label">
+        <span class="hr-zone-row-name" style="color:${z.color}">${z.name}</span>
+        <span class="hr-zone-row-bpm">${z.low}–${z.high} bpm</span>
+      </div>
+      <div class="hr-zone-row-bar-wrap">
+        <div class="hr-zone-row-bar" style="width:${z.pct}%;background:${z.color}"></div>
+      </div>
+      <span class="hr-zone-row-time">${fmtDurMs(z.durationMs)}</span>
+      <span class="hr-zone-row-pct" style="color:${z.color}">${z.pct}%</span>
+    </div>`).join('');
+
+  // Terhelési pontszámok (TRIMP + Edwards RE) – csak ha van időadat
+  if (scoresEl && totalDurMs > 0) {
+    const { restHR, maxHR, sex } = getHrZoneSettings();
+    const hrs = geometry.map(p => p.hr).filter(h => h != null && h > 0);
+    if (hrs.length > 0) {
+      const avgHr  = Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
+      const trimp  = calculateTRIMP(totalDurMs / 60000, avgHr, restHR, maxHR, sex);
+      const edwards = calcEdwards(zones);
+      scoresEl.innerHTML = `
+        <div class="hr-score-item hint-target" data-hint="Banister TRIMP – folyamatos HR-arány alapú terhelési mutató. Exponenciálisan súlyozza a magas intenzitású időt. Férfi/nő koefficiensekkel.">
+          <span class="hr-score-label">TRIMP</span>
+          <span class="hr-score-value">${trimp}</span>
+        </div>
+        <div class="hr-score-item hint-target" data-hint="Edwards terhelési pontszám – zónaalapú becslés (Z1×1 + Z2×2 … Z5×5 pont/perc). A Strava Relative Effort-hoz hasonló módszer.">
+          <span class="hr-score-label">Effort</span>
+          <span class="hr-score-value">${edwards}</span>
+        </div>`;
+      scoresEl.hidden = false;
+    }
+  }
+}
+
 function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {} }) {
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
@@ -329,7 +425,15 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
     const maxHrEl = document.querySelector("#fileMaxHr");
     if (avgHrEl) avgHrEl.textContent = `${avgHr} bpm`;
     if (maxHrEl) maxHrEl.textContent = `${maxHr} bpm`;
+
+    // HR zóna elemzés
+    try {
+      renderHrZoneAnalysis(geometry);
+    } catch (err) {
+      console.error('HR zone analysis hiba:', err);
+    }
   }
+  // hrZoneAnalysis beolvasztva a hrLegend-be — nincs külön panel
 
   // Cadence stats
   const cads = geometry.map(p => p.cad).filter(c => c != null && c > 0);
@@ -354,6 +458,7 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
   // HR legend
   const hrLegendEl = document.querySelector("#hrLegend");
   if (hrLegendEl) hrLegendEl.hidden = !hasHr;
+  if (hasHr) renderHrZoneAnalysis(geometry);
 
   // Cadence legend
   const cadLegendEl = document.querySelector("#cadLegend");
@@ -921,7 +1026,7 @@ function applyRouteLayer(type) {
     case "hr":
       if (importedHrGeometry) {
         if (elements.hrMapToggle) elements.hrMapToggle.checked = true;
-        mapAdapter.renderHrRoute(importedHrGeometry);
+        mapAdapter.renderHrRoute(importedHrGeometry, buildHrZoneColorFn());
       }
       break;
     case "cad":
@@ -1594,6 +1699,344 @@ function openSettings() {
 
 elements.settingsButton.addEventListener("click", openSettings);
 settingsClose?.addEventListener("click", () => { settingsOverlay.hidden = true; });
+
+// ── Karvonen pulzuszóna beállítások ──────────────────────────────────────────
+
+const HR_ZONES_KEY = 'bringaterv.hrZones';
+
+function getHrZoneSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(HR_ZONES_KEY) || '{}');
+    return { restHR: s.rest ?? 60, maxHR: s.max ?? 190, method: s.method ?? 'karvonen', sex: s.sex ?? 'male', age: s.age ?? 30, zoneModel: s.zoneModel ?? 'friel', lthr: s.lthr ?? 160, customBoundaries: s.customBoundaries ?? [105, 139, 156, 173] };
+  } catch { return { restHR: 60, maxHR: 190, method: 'karvonen', sex: 'male', age: 30, zoneModel: 'friel', lthr: 160, customBoundaries: [105, 139, 156, 173] }; }
+}
+
+/** Zone-alapú HR szín-függvény a térképhez */
+function buildHrZoneColorFn() {
+  const { restHR, maxHR, method, zoneModel, lthr, customBoundaries } = getHrZoneSettings();
+  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries);
+  return (hr) => {
+    if (hr == null) return null;
+    for (const z of zones) {
+      if (hr >= z.low && hr <= z.high) return z.color;
+    }
+    return hr < zones[0].low ? zones[0].color : zones[zones.length - 1].color;
+  };
+}
+
+/** Zónák kiszámolása a beállított módszer és zónamodell szerint */
+function resolveZones(restHR, maxHR, method, zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173]) {
+  if (method === 'lthr')   return calculateZonesLTHR(lthr);
+  if (method === 'custom') return calculateZonesCustom(customBoundaries);
+  const defs = zoneModel === 'friel' ? ZONE_DEFS_FRIEL : undefined;
+  return method === 'maxhr' ? calculateZonesMaxHR(maxHR, defs) : calculateZones(restHR, maxHR, defs);
+}
+
+function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173]) {
+  const list = document.getElementById('karvonenZonesList');
+  if (!list) return;
+  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries);
+  const refLabel = method === 'maxhr' ? 'HRmax' : method === 'lthr' ? 'LTHR' : method === 'custom' ? '' : 'HRR';
+  list.innerHTML = zones.map(z => `
+    <div class="karvonen-zone-row" style="--zone-color:${z.color}">
+      <div class="karvonen-zone-name">
+        <div class="karvonen-zone-title">${z.name}</div>
+        <div class="karvonen-zone-subtitle">${z.sub}</div>
+      </div>
+      <div class="karvonen-zone-pct-hrr">${z.pctLow != null ? `${z.pctLow}–${z.pctHigh}% ${refLabel}` : 'egyedi'}</div>
+      <div class="karvonen-zone-range">${z.low === 0 ? '0' : z.low}–${z.high === 999 ? '∞' : z.high}</div>
+    </div>`).join('');
+}
+
+(function initHrZoneSettings() {
+  const restSlider        = document.getElementById('hrRestSlider');
+  const maxSlider         = document.getElementById('hrMaxSlider');
+  const lthrSlider        = document.getElementById('hrLthrSlider');
+  const restOut           = document.getElementById('hrRestOut');
+  const maxOut            = document.getElementById('hrMaxOut');
+  const lthrOut           = document.getElementById('hrLthrOut');
+  const restRow           = document.getElementById('hrRestSliderRow');
+  const lthrRow           = document.getElementById('hrLthrSliderRow');
+  const zoneModelRow      = document.getElementById('hrZoneModelRow');
+  const customRow         = document.getElementById('hrCustomBoundariesRow');
+  const customInputs      = [
+    document.getElementById('hrCustomB1'),
+    document.getElementById('hrCustomB2'),
+    document.getElementById('hrCustomB3'),
+    document.getElementById('hrCustomB4'),
+  ];
+  const methodRadios      = document.querySelectorAll('input[name="hrMethod"]');
+  const sexRadios         = document.querySelectorAll('input[name="hrSex"]');
+  const zoneModelRadios   = document.querySelectorAll('input[name="hrZoneModel"]');
+  if (!restSlider || !maxSlider) return;
+
+  const init = getHrZoneSettings();
+  restSlider.value = init.restHR;
+  maxSlider.value  = init.maxHR;
+  if (lthrSlider) lthrSlider.value = init.lthr;
+  restOut.textContent = init.restHR;
+  maxOut.textContent  = init.maxHR;
+  if (lthrOut) lthrOut.textContent = init.lthr;
+  methodRadios.forEach(r => { r.checked = r.value === init.method; });
+  sexRadios.forEach(r => { r.checked = r.value === init.sex; });
+  zoneModelRadios.forEach(r => { r.checked = r.value === init.zoneModel; });
+  customInputs.forEach((inp, i) => { if (inp) inp.value = init.customBoundaries[i]; });
+  updateMethodVisibility(init.method);
+  renderKarvonenZonesList(init.restHR, init.maxHR, init.method, init.zoneModel, init.lthr, init.customBoundaries);
+
+  function currentMethod()    { return [...methodRadios].find(r => r.checked)?.value ?? 'karvonen'; }
+  function currentSex()       { return [...sexRadios].find(r => r.checked)?.value ?? 'male'; }
+  function currentZoneModel() { return [...zoneModelRadios].find(r => r.checked)?.value ?? 'friel'; }
+  function currentLthr()      { return parseInt(lthrSlider?.value ?? 160, 10); }
+  function currentCustomBoundaries() {
+    return customInputs.map(inp => parseInt(inp?.value ?? 0, 10));
+  }
+
+  function updateMethodVisibility(method) {
+    if (restRow)      restRow.hidden      = method !== 'karvonen';
+    if (lthrRow)      lthrRow.hidden      = method !== 'lthr';
+    if (zoneModelRow) zoneModelRow.hidden = method === 'lthr' || method === 'custom';
+    if (customRow)    customRow.hidden    = method !== 'custom';
+  }
+
+  function saveAndDispatch() {
+    const rest             = parseInt(restSlider.value, 10);
+    const max              = parseInt(maxSlider.value,  10);
+    const method           = currentMethod();
+    const sex              = currentSex();
+    const zoneModel        = currentZoneModel();
+    const lthr             = currentLthr();
+    const customBoundaries = currentCustomBoundaries();
+    const age              = parseInt(document.getElementById('hrAgeSlider')?.value ?? 30, 10);
+    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest, max, method, sex, age, zoneModel, lthr, customBoundaries }));
+    window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: { rest, max, method, sex, zoneModel, lthr, customBoundaries } }));
+  }
+
+  function onSliderChange() {
+    let rest = parseInt(restSlider.value, 10);
+    let max  = parseInt(maxSlider.value,  10);
+    if (max <= rest + 30) { max = rest + 30; maxSlider.value = max; }
+    restOut.textContent = rest;
+    maxOut.textContent  = max;
+    renderKarvonenZonesList(rest, max, currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
+    saveAndDispatch();
+  }
+
+  function onLthrSliderChange() {
+    const lthr = currentLthr();
+    if (lthrOut) lthrOut.textContent = lthr;
+    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), lthr, currentCustomBoundaries());
+    saveAndDispatch();
+  }
+
+  function onMethodChange() {
+    const method = currentMethod();
+    updateMethodVisibility(method);
+    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), method, currentZoneModel(), currentLthr(), currentCustomBoundaries());
+    saveAndDispatch();
+  }
+
+  function onZoneModelChange() {
+    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
+    saveAndDispatch();
+  }
+
+  function onCustomBoundaryChange() {
+    updateMultiSlider();
+    updateZoneDisplay();
+    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
+    saveAndDispatch();
+  }
+
+  function updateZoneDisplay() {
+    const el = document.getElementById('hrCustomZoneDisplay');
+    if (!el) return;
+    const colors = ['#888780', '#1D9E75', '#378ADD', '#EF9F27', '#E24B4A'];
+    const cb = currentCustomBoundaries();
+    const ranges = [`0–${cb[0]}`, `${cb[0]}–${cb[1]}`, `${cb[1]}–${cb[2]}`, `${cb[2]}–${cb[3]}`, `${cb[3]}+`];
+    el.innerHTML = colors.map((c, i) =>
+      `<span class="hr-czd-item">
+        <span class="hr-czd-dot" style="background:${c}"></span>
+        <span class="hr-czd-name" style="color:${c}">Z${i + 1}</span>
+        <span class="hr-czd-val">${ranges[i]}</span>
+      </span>`
+    ).join('');
+  }
+
+  // ── Multi-handle csúszka ────────────────────────────────────────────────
+  const SLIDER_MIN = 40, SLIDER_MAX = 220;
+  const ZONE_COLORS = ['#888780', '#1D9E75', '#378ADD', '#EF9F27', '#E24B4A'];
+  const sliderEl = document.getElementById('hrMultiSlider');
+  const sliderHandles = [];
+  const sliderSegments = [];
+
+  function valToPct(v) { return (v - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN) * 100; }
+  function pctToVal(p) { return Math.round(SLIDER_MIN + p / 100 * (SLIDER_MAX - SLIDER_MIN)); }
+
+  function updateMultiSlider() {
+    if (!sliderEl || sliderSegments.length === 0) return;
+    const cb = currentCustomBoundaries();
+    const pcts = [0, ...cb.map(valToPct), 100];
+    sliderSegments.forEach((seg, i) => {
+      seg.style.left  = pcts[i] + '%';
+      seg.style.width = (pcts[i + 1] - pcts[i]) + '%';
+    });
+    sliderHandles.forEach((h, i) => {
+      h.style.left = valToPct(cb[i]) + '%';
+    });
+  }
+
+  if (sliderEl) {
+    const track = sliderEl.querySelector('.hr-multi-slider-track');
+    // Szegmensek
+    for (let i = 0; i < 5; i++) {
+      const seg = document.createElement('div');
+      seg.className = 'hr-multi-slider-segment';
+      seg.style.background = ZONE_COLORS[i];
+      track.appendChild(seg);
+      sliderSegments.push(seg);
+    }
+    // Fogópontok
+    for (let i = 0; i < 4; i++) {
+      const h = document.createElement('div');
+      h.className = 'hr-multi-slider-handle';
+      h.style.borderColor = ZONE_COLORS[i + 1];
+      sliderEl.appendChild(h);
+      sliderHandles.push(h);
+
+      h.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        h.setPointerCapture(e.pointerId);
+
+        function onMove(ev) {
+          const rect = sliderEl.getBoundingClientRect();
+          let pct = (ev.clientX - rect.left) / rect.width * 100;
+          pct = Math.max(0, Math.min(100, pct));
+          let val = pctToVal(pct);
+          const cb = currentCustomBoundaries();
+          const minV = i > 0 ? cb[i - 1] + 2 : SLIDER_MIN + 2;
+          const maxV = i < 3 ? cb[i + 1] - 2 : SLIDER_MAX - 2;
+          val = Math.max(minV, Math.min(maxV, val));
+          if (customInputs[i]) customInputs[i].value = val;
+          updateMultiSlider();
+          updateZoneDisplay();
+          renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
+        }
+
+        function onUp() {
+          h.removeEventListener('pointermove', onMove);
+          h.removeEventListener('pointerup', onUp);
+          saveAndDispatch();
+        }
+
+        h.addEventListener('pointermove', onMove);
+        h.addEventListener('pointerup', onUp);
+      });
+    }
+    updateMultiSlider();
+    updateZoneDisplay();
+  }
+
+  restSlider.addEventListener('input', onSliderChange);
+  maxSlider.addEventListener('input', onSliderChange);
+  lthrSlider?.addEventListener('input', onLthrSliderChange);
+  methodRadios.forEach(r => r.addEventListener('change', onMethodChange));
+  sexRadios.forEach(r => r.addEventListener('change', saveAndDispatch));
+  zoneModelRadios.forEach(r => r.addEventListener('change', onZoneModelChange));
+  customInputs.forEach(inp => inp?.addEventListener('change', onCustomBoundaryChange));
+})();
+
+// Max pulzus becslő (életkor alapján)
+(function initHrMaxEstimator() {
+  const ageSlider     = document.getElementById('hrAgeSlider');
+  const ageOut        = document.getElementById('hrAgeOut');
+  const tanakaResult  = document.getElementById('hrMaxTanakaResult');
+  const classicResult = document.getElementById('hrMaxClassicResult');
+  const applyBtn      = document.getElementById('hrMaxApplyBtn');
+  const formulaRadios = document.querySelectorAll('input[name="hrFormula"]');
+  if (!ageSlider || !applyBtn) return;
+
+  const tanakaName  = document.getElementById('hrFormulaTanakaName');
+  const tanakaEq    = document.getElementById('hrFormulaTanakaEq');
+  const tanakaSpan  = document.getElementById('hrFormulaTanakaSpan');
+  const sexRadiosEst = document.querySelectorAll('input[name="hrSex"]');
+
+  function calcTanaka(age)  { return Math.round(208 - 0.7 * age); }
+  function calcMiller(age)  { return Math.round(216 - 1.09 * age); }
+  function calcClassic(age) { return Math.round(220 - age); }
+  function currentSexEst()  { return [...sexRadiosEst].find(r => r.checked)?.value ?? 'male'; }
+
+  function updateFormulaMeta() {
+    const female = currentSexEst() === 'female';
+    if (tanakaName) tanakaName.textContent = female ? 'Miller' : 'Tanaka';
+    if (tanakaEq)   tanakaEq.textContent   = female ? '216 − (1.09 × kor)' : '208 − (0.7 × kor)';
+    if (tanakaSpan) tanakaSpan.dataset.hint = female
+      ? 'Miller (1993): 216 − (1.09 × kor). Nőkre optimalizált képlet, pontosabb mint a Tanaka nőknél. Ajánlott módszer nők számára.'
+      : 'Tanaka (2001): 208 − (0.7 × kor). 351 tanulmány meta-analíziséből, pontosabb aktív felnőtteknél. Ajánlott módszer.';
+  }
+
+  function calcBestFormula(age) {
+    return currentSexEst() === 'female' ? calcMiller(age) : calcTanaka(age);
+  }
+
+  function updateResults() {
+    const age = parseInt(ageSlider.value, 10);
+    if (ageOut) ageOut.textContent = age;
+    if (tanakaResult)  tanakaResult.textContent  = calcBestFormula(age) + ' bpm';
+    if (classicResult) classicResult.textContent = calcClassic(age) + ' bpm';
+  }
+
+  function selectedFormula() {
+    return [...formulaRadios].find(r => r.checked)?.value ?? 'tanaka';
+  }
+
+  // Életkor betöltése
+  const savedAge = getHrZoneSettings().age;
+  ageSlider.value = savedAge;
+
+  function saveAge() {
+    const s = getHrZoneSettings();
+    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest: s.restHR, max: s.maxHR, method: s.method, sex: s.sex, age: parseInt(ageSlider.value, 10), zoneModel: s.zoneModel, lthr: s.lthr, customBoundaries: s.customBoundaries }));
+  }
+
+  ageSlider.addEventListener('input', () => { updateResults(); saveAge(); });
+  formulaRadios.forEach(r => r.addEventListener('change', updateResults));
+  sexRadiosEst.forEach(r => r.addEventListener('change', () => { updateFormulaMeta(); updateResults(); }));
+  updateFormulaMeta();
+  updateResults();
+
+  applyBtn.addEventListener('click', () => {
+    const age = parseInt(ageSlider.value, 10);
+    const val = selectedFormula() === 'tanaka' ? calcBestFormula(age) : calcClassic(age);
+    const maxSlider = document.getElementById('hrMaxSlider');
+    const maxOut    = document.getElementById('hrMaxOut');
+    if (maxSlider) { maxSlider.value = val; }
+    if (maxOut)    maxOut.textContent = val;
+    // Mentés + értesítés
+    const { restHR, method, sex, zoneModel, lthr, customBoundaries } = getHrZoneSettings();
+    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest: restHR, max: val, method, sex, age, zoneModel, lthr, customBoundaries }));
+    window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: { rest: restHR, max: val, method, sex, age, zoneModel, lthr, customBoundaries } }));
+    // Vizuális visszajelzés
+    applyBtn.textContent = '✓ Beállítva';
+    applyBtn.style.background = 'var(--success, #1D9E75)';
+    setTimeout(() => {
+      applyBtn.innerHTML = '<i data-lucide="check" aria-hidden="true"></i> Beállítás max pulzusként';
+      applyBtn.style.background = '';
+      window.lucide?.createIcons();
+    }, 1500);
+  });
+})();
+
+// Panel csúszkák eltávolítva – beállítás csak a Beállítások menüben lehetséges
+
+// Ha a zónák változnak és van betöltött edzés → újraszámoljuk az elemzést + térképszínt
+window.addEventListener('hrZonesChanged', () => {
+  if (importedHrGeometry) {
+    renderHrZoneAnalysis(importedHrGeometry);
+    mapAdapter.recolorHrRoute(importedHrGeometry, buildHrZoneColorFn());
+  }
+});
+
 settingsOverlay?.addEventListener("click", (e) => {
   if (e.target === settingsOverlay) settingsOverlay.hidden = true;
 });
@@ -2076,6 +2519,25 @@ function buildAnchorWaypoints(dpIndices, imported, segments = null) {
   });
 }
 
+// ── Névtelen waypontok geokódolása (háttér) ───────────────────────────────────
+
+/**
+ * A store-ban lévő, névtelen waypontokat sorra megnevezi Nominatim
+ * fordított geokódolással. Tűz-és-elfelejt (nem kell await-elni).
+ * 120 ms szünet van minden kérés között a rate limit betartásához.
+ */
+async function geocodeNamelessWaypoints() {
+  const toGeocode = store.getState().waypoints.filter(wp => !wp.name);
+  for (const wp of toGeocode) {
+    if (!store.getState().waypoints.some(w => w.id === wp.id)) continue;
+    const name = await reverseGeocode(wp.lat, wp.lng);
+    if (name && store.getState().waypoints.some(w => w.id === wp.id)) {
+      store.updateWaypoint(wp.id, { name });
+    }
+    await new Promise(r => setTimeout(r, 120));
+  }
+}
+
 // ── GPX betöltés előnézet + szegmensvizsgálat modal ──────────────────────────
 
 /**
@@ -2538,12 +3000,12 @@ planGpxInput?.addEventListener("change", async () => {
   store.replaceWaypoints(waypoints, { importedRoute: true });
   updateElevationButton(imported.geometry);
   if (segmentedGeom) {
-    mapAdapter.renderSegmentedRoute(segmentedGeom);
+    mapAdapter.renderSegmentedRoute(segmentedGeom, { fitView: true });
   } else {
     mapAdapter.renderRoute(imported.geometry, store.getState().mode);
   }
-  setTimeout(() => mapAdapter.fitRoute(), 50);
   showToast(`${waypoints.length} pont betöltve`);
+  geocodeNamelessWaypoints(); // névtelen anchor pontok elnevezése háttérben
 });
 
 // ── Elemzés → Tervezés ez alapján ────────────────────────────────────────────
@@ -2657,16 +3119,16 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       sourcePointCount: imported.sourcePointCount,
     });
     if (segmentedGeom) {
-      mapAdapter.renderSegmentedRoute(segmentedGeom);
+      mapAdapter.renderSegmentedRoute(segmentedGeom, { fitView: true });
     } else {
       mapAdapter.renderRoute(imported.geometry, store.getState().mode);
     }
-    setTimeout(() => mapAdapter.fitRoute(), 50);
     if (imported.sourcePointCount > imported.geometry.length) {
       showToast(`„${routeName}" betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);
     } else {
       showToast(`„${routeName}" betöltve`);
     }
+    geocodeNamelessWaypoints(); // névtelen anchor pontok elnevezése háttérben
   }
 }
 
@@ -3606,12 +4068,12 @@ function calculateImportedDistance(geometry) {
   }
 
   document.addEventListener("mouseover", (e) => {
-    const btn = e.target.closest(".hint-btn");
+    const btn = e.target.closest(".hint-btn, .hint-target");
     if (btn && btn !== activeBtn) showTooltip(btn);
   });
 
   document.addEventListener("mouseout", (e) => {
-    if (e.target.closest(".hint-btn")) hideTooltip();
+    if (e.target.closest(".hint-btn, .hint-target")) hideTooltip();
   });
 
   document.addEventListener("click", hideTooltip);
@@ -3624,8 +4086,12 @@ function calculateImportedDistance(geometry) {
 (function initSettingsCollapse() {
   const LS_KEY      = "bringaterv-settings-collapsed";
   const LS_VER_KEY  = "bringaterv-settings-version";
-  const CURRENT_VER = "3"; // bump ha új szekció kerül az alapból-csukott halmazba
-  const ALL_SECTIONS = ['mapStyle', 'units', 'planningDefaults', 'startView', 'toolbarOrder'];
+  const CURRENT_VER = "8"; // bump ha új szekció kerül az alapból-csukott halmazba
+  const ALL_SECTIONS = ['mapStyle', 'units', 'planningDefaults', 'startView', 'toolbarOrder', 'hrZones'];
+
+  function saveCollapsed(set) {
+    localStorage.setItem(LS_KEY, JSON.stringify([...set]));
+  }
 
   function loadCollapsed() {
     const saved   = localStorage.getItem(LS_KEY);
@@ -3633,13 +4099,12 @@ function calculateImportedDistance(geometry) {
     // Első látogatás VAGY verzió változás → minden szekció becsukva alapból
     if (saved === null || version !== CURRENT_VER) {
       localStorage.setItem(LS_VER_KEY, CURRENT_VER);
-      return new Set(ALL_SECTIONS);
+      const defaultSet = new Set(ALL_SECTIONS);
+      saveCollapsed(defaultSet); // ← mentés is, ne csak memóriában legyen
+      return defaultSet;
     }
     try { return new Set(JSON.parse(saved) || []); }
     catch { return new Set(); }
-  }
-  function saveCollapsed(set) {
-    localStorage.setItem(LS_KEY, JSON.stringify([...set]));
   }
 
   const collapsed = loadCollapsed();
