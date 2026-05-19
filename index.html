@@ -17,6 +17,7 @@
       crossorigin=""
     >
     <link rel="stylesheet" href="./src/styles.css">
+    <script src="./src/version.js"></script>
   </head>
   <body>
     <div class="app-shell" id="appShell">
@@ -280,9 +281,9 @@
                   <span data-i18n="stats.distance">Távolság</span>
                   <strong id="distanceValue">—</strong>
                 </div>
-                <div class="stat-card">
-                  <span data-i18n="stats.points">Pontok</span>
-                  <strong id="pointCount">0</strong>
+                <div class="stat-card" id="estimatedTimeRow" hidden>
+                  <span title="Naismith-szabály: lapos sebesség + emelkedő alapján">⏱ Becsült idő</span>
+                  <strong id="estimatedTimeValue">—</strong>
                 </div>
                 <div class="stat-card" id="ascentRow" hidden>
                   <span data-i18n="stats.ascent">↑ Emelkedő</span>
@@ -292,6 +293,15 @@
                   <span data-i18n="stats.descent">↓ Ereszkedő</span>
                   <strong id="descentValue">—</strong>
                 </div>
+              </div>
+
+<!-- Szintadat alapú időbecslés kapcsoló -->
+              <div class="plan-elev-toggle-row">
+                <span class="plan-elev-toggle-label">Szintadat az időbecsléshez</span>
+                <label class="toggle-switch" title="Emelkedő és süllyedő figyelembevétele a becsült időnél">
+                  <input id="planElevTimeToggle" type="checkbox" checked>
+                  <span class="toggle-track"></span>
+                </label>
               </div>
 
               <!-- Sidebar mentés gomb — csak ha van pont -->
@@ -476,6 +486,12 @@
                   <button class="speed-legend-expand" type="button" aria-expanded="false">
                     <span class="speed-legend-title">Kadencia térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="cadChartBtn" class="grade-chart-btn" type="button" title="Kadenciadiagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="3 17 8 12 13 15 18 7 21 10"/>
+                      <line x1="3" y1="20" x2="21" y2="20"/>
+                    </svg>
                   </button>
                   <label class="toggle-switch" title="Kadenciatérkép be/ki">
                     <input id="cadMapToggle" type="checkbox" checked>
@@ -670,7 +686,7 @@
             title="Menü összecsukása" data-i18n-title="nav.collapse">
             <i data-lucide="panel-left-close" aria-hidden="true"></i>
           </button>
-          <span class="sidebar-version" id="appVersion">v0.12</span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
+          <span class="sidebar-version" id="appVersion"></span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
           <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
         </footer>
 
@@ -870,6 +886,21 @@
             </div>
           </div>
 
+          <!-- Kadencia szekció -->
+          <div id="chartCad" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Kadencia</span>
+              <button id="closeChartCad" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="cadCanvas"></canvas>
+            </div>
+          </div>
+
           <!-- Közös hover tooltip -->
           <div id="elevationTooltip" class="elevation-hover-info" hidden>
             <span id="elevationTooltipDist"></span>
@@ -982,6 +1013,9 @@
                 <h4 class="settings-section-title">
                   <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
                   Tervezési beállítások
+                  <button class="hint-btn" type="button" data-hint="Útvonaltervezési alapbeállítások: útra illesztés, szakaszinfo, sebességbecslés módja és átlagsebességek módok szerint." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
                   <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
                 </h4>
                 <div class="settings-section-body">
@@ -1023,6 +1057,70 @@
                       <span class="toggle-track"></span>
                     </label>
                   </div>
+
+                  <!-- Szintadat az időbecsléshez -->
+                  <div class="settings-toggle-row">
+                    <div class="settings-toggle-label">
+                      <span>Szintadat az időbecsléshez</span>
+                      <button class="hint-btn" type="button" data-hint="Bekapcsolva az emelkedő és süllyedő figyelembevételével számítja a becsült útidőt (Naismith-szabály). Kikapcsolva csak a lapos átlagsebesség alapján számol." aria-label="Segítség">
+                        <i data-lucide="info" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <label class="toggle-switch">
+                      <input id="elevationTimeToggle" type="checkbox" checked>
+                      <span class="toggle-track"></span>
+                    </label>
+                  </div>
+
+                  <!-- Átlagsebesség csúszkák -->
+                  <div class="settings-divider"></div>
+                  <div class="settings-speed-title">
+                    Átlagsebesség módok szerint
+                    <button class="hint-btn" type="button" data-hint="A becsült útidő számításához használt alapsebességek. Ezeket az értékeket súlyozza az emelkedő és süllyedő." aria-label="Segítség">
+                      <i data-lucide="info" aria-hidden="true"></i>
+                    </button>
+                  </div>
+
+                  <div class="speed-slider-row">
+                    <div class="speed-slider-info">
+                      <i data-lucide="bike" aria-hidden="true"></i>
+                      <span>Aszfalt</span>
+                      <span class="speed-val-wrap"><span id="speedAsphaltVal">22</span> km/h</span>
+                    </div>
+                    <input type="range" id="speedAsphalt" class="speed-slider" min="8" max="45" value="22" step="1" data-speed-mode="asphalt">
+                  </div>
+
+                  <div class="speed-slider-row">
+                    <div class="speed-slider-info">
+                      <i data-lucide="gauge" aria-hidden="true"></i>
+                      <span>Gravel</span>
+                      <span class="speed-val-wrap"><span id="speedGravelVal">18</span> km/h</span>
+                    </div>
+                    <input type="range" id="speedGravel" class="speed-slider" min="5" max="40" value="18" step="1" data-speed-mode="gravel">
+                  </div>
+
+                  <div class="speed-slider-row">
+                    <div class="speed-slider-info">
+                      <i data-lucide="mountain" aria-hidden="true"></i>
+                      <span>MTB</span>
+                      <span class="speed-val-wrap"><span id="speedMtbVal">12</span> km/h</span>
+                    </div>
+                    <input type="range" id="speedMtb" class="speed-slider" min="3" max="30" value="12" step="1" data-speed-mode="mtb">
+                  </div>
+
+                  <div class="speed-slider-row">
+                    <div class="speed-slider-info">
+                      <i data-lucide="footprints" aria-hidden="true"></i>
+                      <span>Gyalogos</span>
+                      <span class="speed-val-wrap"><span id="speedHikingVal">5</span> km/h</span>
+                    </div>
+                    <input type="range" id="speedHiking" class="speed-slider" min="1" max="15" value="5" step="1" data-speed-mode="hiking">
+                  </div>
+
+                  <button id="resetSpeedDefaults" class="speed-reset-btn" type="button">
+                    <i data-lucide="rotate-ccw" aria-hidden="true"></i> Visszaállítás
+                  </button>
+
                 </div>
               </section>
 
@@ -1068,6 +1166,9 @@
                 <h4 class="settings-section-title">
                   <i data-lucide="grip-horizontal" aria-hidden="true"></i>
                   Toolbar sorrend
+                  <button class="hint-btn" type="button" data-hint="A térkép alsó eszköztárán lévő gombok sorrendje és láthatósága. Húzással rendezhető, a szem ikonnal elrejthetők egyes elemek." aria-label="Segítség">
+                    <i data-lucide="info" aria-hidden="true"></i>
+                  </button>
                   <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
                 </h4>
                 <div class="settings-section-body">

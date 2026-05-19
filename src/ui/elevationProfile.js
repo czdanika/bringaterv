@@ -43,6 +43,16 @@ export function buildSpeedData(geometry) {
     .filter((_, i) => geometry[i].speed != null || i === 0); // ne szűrjük ki a nullakat teljesen
 }
 
+/** Kadencia adat: { dist, value: cad rpm, lat, lng } */
+export function buildCadData(geometry) {
+  if (!geometry || geometry.length < 2) return [];
+  if (!geometry.some((p) => p.cad != null)) return [];
+  const dists = buildDistances(geometry);
+  return geometry.map((pt, i) => ({
+    dist: dists[i], value: pt.cad ?? null, lat: pt.lat, lng: pt.lng,
+  }));
+}
+
 /** Pulzus adat: { dist, value: hr bpm, lat, lng } */
 export function buildHrData(geometry) {
   if (!geometry || geometry.length < 2) return [];

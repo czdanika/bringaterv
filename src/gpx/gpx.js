@@ -8,7 +8,10 @@ const sportTypeMap = {
 
 export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", mode = "cycling" }) {
   const trackPoints = (geometry.length ? geometry : waypoints)
-    .map((point) => `      <trkpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}"></trkpt>`)
+    .map((point) => {
+      const ele = point.ele != null ? `\n        <ele>${point.ele.toFixed(1)}</ele>` : "";
+      return `      <trkpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">${ele}\n      </trkpt>`;
+    })
     .join("\n");
 
   const waypointNodes = waypoints
@@ -194,7 +197,7 @@ function summarizeGeometryAsWaypoints(geometry, sampleCount = 0) {
   ];
 }
 
-function simplifyGeometry(geometry, maxPoints = 1200) {
+function simplifyGeometry(geometry, maxPoints = 3000) {
   if (geometry.length <= maxPoints) return geometry;
   const lastIndex = geometry.length - 1;
   const step = lastIndex / (maxPoints - 1);
