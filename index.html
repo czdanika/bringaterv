@@ -1361,6 +1361,53 @@
       </div>
     </div>
 
+    <!-- ── GPX betöltés előnézet + szegmensvizsgálat modal ─────────────────── -->
+    <div id="loadPreviewOverlay" class="shortcut-overlay" hidden>
+      <div class="export-panel load-preview-panel">
+        <div class="export-header">
+          <h3 id="loadPreviewTitle">Útvonal betöltése</h3>
+          <button id="loadPreviewClose" class="shortcut-close" type="button" aria-label="Bezárás">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="export-body load-preview-body">
+          <!-- Statisztikák -->
+          <div class="load-preview-stats" id="loadPreviewStats"></div>
+          <!-- Meglévő szegmens info (ha van) -->
+          <div id="loadPreviewSegExisting" class="load-preview-seg-existing" hidden></div>
+          <!-- Vizsgálat eredménye -->
+          <div id="loadPreviewAnalysisResult" class="load-preview-analysis-result" hidden></div>
+          <!-- Vizsgálat gomb -->
+          <button id="loadPreviewAnalyzeBtn" class="load-preview-analyze-btn" type="button">
+            <i data-lucide="scan-line" aria-hidden="true"></i>
+            Szegmensvizsgálat futtatása
+          </button>
+          <p class="load-preview-analyze-hint">Az útvonal mentén lekérdezi az OSM útburkolat adatokat és automatikusan beállítja a tervezési módokat.</p>
+
+          <!-- Rögzítő pontok (Douglas-Peucker) -->
+          <div id="loadPreviewAnchorSection" class="load-preview-anchor-section" hidden>
+            <p class="load-preview-anchor-hint">
+              Ha módot váltasz egy szakaszon, az alkalmazás újratervezi az útvonalat –
+              ilyenkor rövidebb utat is választhat. Ez az opció a legfontosabb fordulópontokat
+              rögzíti, hogy az útvonal az eredeti nyomvonalon maradjon.
+            </p>
+            <label class="load-preview-anchor-label">
+              <input type="checkbox" id="loadPreviewAnchorCheck" checked>
+              <span>Fordulópontok rögzítése</span>
+              <span id="loadPreviewAnchorCount" class="load-preview-anchor-count"></span>
+            </label>
+          </div>
+        </div>
+        <div class="export-footer">
+          <button id="loadPreviewSkipBtn" class="export-confirm-btn export-confirm-btn--secondary" type="button">Betöltés vizsgálat nélkül</button>
+          <button id="loadPreviewConfirmBtn" class="export-confirm-btn export-confirm-btn--primary" type="button" disabled>
+            <i data-lucide="check" aria-hidden="true"></i>
+            Alkalmazás és betöltés
+          </button>
+        </div>
+      </div>
+    </div>
+
   <!-- Toolbar kereső popup -->
   <div id="toolbarSearchPopup" class="toolbar-search-popup" hidden>
     <div class="toolbar-search-input-wrap">
