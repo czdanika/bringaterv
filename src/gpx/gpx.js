@@ -18,7 +18,10 @@ export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", m
     .map((point, index) => {
       const label = escapeXml(point.name || `Point ${index + 1}`);
       const wptDesc = point.note ? `\n    <desc>${escapeXml(point.note)}</desc>` : "";
-      return `  <wpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">\n    <name>${label}</name>${wptDesc}\n  </wpt>`;
+      const segExt  = point.segmentMode
+        ? `\n    <extensions><bringaterv:segmentMode>${escapeXml(point.segmentMode)}</bringaterv:segmentMode></extensions>`
+        : "";
+      return `  <wpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">\n    <name>${label}</name>${wptDesc}${segExt}\n  </wpt>`;
     })
     .join("\n");
 
@@ -26,7 +29,7 @@ export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", m
   const metaDesc = desc ? `\n    <desc>${escapeXml(desc)}</desc>` : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Bringaterv" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="Bringaterv" xmlns="http://www.topografix.com/GPX/1/1" xmlns:bringaterv="https://bringaterv.app/gpx/1">
   <metadata>
     <name>${escapeXml(name)}</name>${metaDesc}
   </metadata>
@@ -128,6 +131,8 @@ function nodesToPoints(nodes) {
     const hr = hrNode ? Number(hrNode.textContent) : null;
     const cadNode = node.getElementsByTagNameNS("*", "cad")[0];
     const cad = cadNode ? Number(cadNode.textContent) : null;
+    const segModeNode = node.getElementsByTagNameNS("*", "segmentMode")[0];
+    const segmentMode = segModeNode?.textContent?.trim() || null;
     return {
       lat: Number(node.getAttribute("lat")),
       lng: Number(node.getAttribute("lon")),
@@ -137,6 +142,7 @@ function nodesToPoints(nodes) {
       cad: cad != null && Number.isFinite(cad) && cad >= 0 ? cad : null,
       name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
       note: node.querySelector("desc")?.textContent || "",
+      segmentMode,
     };
   }).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
 }
