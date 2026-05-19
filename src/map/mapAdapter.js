@@ -534,8 +534,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     }
   }
 
-  function renderHrRoute(geometry) {
-    renderSegments(hrRouteGroup, geometry, p => hrColor(p.hr), "#3B82F6");
+  function renderHrRoute(geometry, colorFn) {
+    const fn = colorFn ?? hrColor;
+    renderSegments(hrRouteGroup, geometry, p => fn(p.hr), "#888780");
     routeLayer.setLatLngs([]);
     if (!map.hasLayer(hrRouteGroup)) hrRouteGroup.addTo(map);
   }
@@ -883,13 +884,17 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       }
     },
     clearColoredRoute,
-    renderHrRoute: (geometry) => {
+    renderHrRoute: (geometry, colorFn) => {
       hoverGeometry = geometry;
-      renderHrRoute(geometry);
+      renderHrRoute(geometry, colorFn);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
         map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
       }
+    },
+    recolorHrRoute: (geometry, colorFn) => {
+      if (!map.hasLayer(hrRouteGroup)) return; // csak ha látható
+      renderHrRoute(geometry, colorFn);
     },
     clearHrRoute,
     renderCadRoute: (geometry) => {
