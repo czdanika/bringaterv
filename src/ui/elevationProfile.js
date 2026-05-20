@@ -53,6 +53,16 @@ export function buildCadData(geometry) {
   }));
 }
 
+/** Power adat: { dist, value: watts, lat, lng } */
+export function buildPowerData(geometry) {
+  if (!geometry || geometry.length < 2) return [];
+  if (!geometry.some((p) => p.power != null)) return [];
+  const dists = buildDistances(geometry);
+  return geometry.map((pt, i) => ({
+    dist: dists[i], value: pt.power ?? null, lat: pt.lat, lng: pt.lng,
+  }));
+}
+
 /** Pulzus adat: { dist, value: hr bpm, lat, lng } */
 export function buildHrData(geometry) {
   if (!geometry || geometry.length < 2) return [];

@@ -21,9 +21,10 @@ services:
     ports:
       - "${PORT:-8088}:80"
     environment:
-      LOGIN_ENABLED: ${LOGIN_ENABLED:-true}
-      LOGIN_USER:    ${LOGIN_USER:-bringa}
+      LOGIN_ENABLED:  ${LOGIN_ENABLED:-true}
+      LOGIN_USER:     ${LOGIN_USER:-bringa}
       LOGIN_PASSWORD: ${LOGIN_PASSWORD:-terv}
+      APP_MODE:       ${APP_MODE:-single}
     depends_on:
       - routes-api
     networks:
@@ -49,8 +50,9 @@ services:
       # ── Multi mód beállítások (single módban figyelmen kívül hagyva) ─────
       DB_PATH:        /data/bringaterv.db     # SQLite adatbázis
       MULTI_DATA_DIR: /data/users             # per-user mappák
-      ADMIN_EMAIL:    ${ADMIN_EMAIL:-admin@bringaterv.local}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password123}
+      # Multi módban a LOGIN_USER/PASSWORD lesz az admin – ha külön ADMIN_* nincs megadva
+      ADMIN_EMAIL:    ${ADMIN_EMAIL:-${LOGIN_USER:-bringa}}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-terv}}
       JWT_SECRET:     ${JWT_SECRET:-change-me-please}
       JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-30}
     volumes:

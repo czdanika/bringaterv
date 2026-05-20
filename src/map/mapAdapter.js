@@ -105,6 +105,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
     const parts = [];
     if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
+    if (nearest.power != null) parts.push(`⚡ ${Math.round(nearest.power)} W`);
     if (nearest.hr != null) parts.push(`❤️ ${nearest.hr} bpm`);
     if (nearest.cad != null) parts.push(`⚙️ ${nearest.cad} rpm`);
     if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
@@ -479,6 +480,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   // Cadence-colored route
   const cadRouteGroup = L.layerGroup();
 
+  // Power-colored route
+  const powerRouteGroup = L.layerGroup();
+
   // Grade-colored route
   const gradeRouteGroup = L.layerGroup();
 
@@ -502,6 +506,30 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   function clearCadRoute() {
     cadRouteGroup.clearLayers();
     if (map.hasLayer(cadRouteGroup)) map.removeLayer(cadRouteGroup);
+  }
+
+  function powerColor(watts) {
+    if (watts == null) return null;
+    if (watts <  50)  return "#9CA3AF";  // szürke  – gurulás
+    if (watts < 100)  return "#60A5FA";  // kék     – nagyon könnyű
+    if (watts < 150)  return "#34D399";  // zöldeskék – könnyű
+    if (watts < 200)  return "#22C55E";  // zöld    – aerob alap
+    if (watts < 250)  return "#84CC16";  // lime    – tempo
+    if (watts < 300)  return "#EAB308";  // sárga   – küszöb
+    if (watts < 350)  return "#F97316";  // narancs – VO2 max
+    if (watts < 400)  return "#EF4444";  // piros   – anaerob
+    return "#A855F7";                    // lila    – sprint
+  }
+
+  function renderPowerRoute(geometry) {
+    renderSegments(powerRouteGroup, geometry, p => powerColor(p.power), "#EAB308");
+    routeLayer.setLatLngs([]);
+    if (!map.hasLayer(powerRouteGroup)) powerRouteGroup.addTo(map);
+  }
+
+  function clearPowerRoute() {
+    powerRouteGroup.clearLayers();
+    if (map.hasLayer(powerRouteGroup)) map.removeLayer(powerRouteGroup);
   }
 
   function gradeColor(grade) {
@@ -915,6 +943,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       }
     },
     clearGradeRoute,
+    renderPowerRoute: (geometry) => {
+      hoverGeometry = geometry;
+      renderPowerRoute(geometry);
+      if (geometry.length > 1) {
+        const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      }
+    },
+    clearPowerRoute,
     renderWaypoints,
     setRouteInteractive: (enabled) => {
       // Ha false: a crosshair kurzor és a route click le van tiltva

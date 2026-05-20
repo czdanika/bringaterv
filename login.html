@@ -195,24 +195,46 @@
     document.getElementById("loginVersion").textContent = window.APP_VERSION ?? "";
   </script>
   <script type="module">
-    import { login, isAuthenticated } from "./src/auth.js";
+    import { login, loginMulti, isAuthenticated, isMultiMode } from "./src/auth.js";
 
     if (isAuthenticated()) {
       window.location.replace("./index.html");
     }
 
-    document.getElementById("loginForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const user = document.getElementById("username").value.trim();
-      const pass = document.getElementById("password").value;
-      const errEl = document.getElementById("errorMsg");
+    const form   = document.getElementById("loginForm");
+    const errEl  = document.getElementById("errorMsg");
+    const btn    = form.querySelector(".login-btn");
 
-      if (login(user, pass)) {
-        window.location.replace("./index.html");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      errEl.textContent = "";
+
+      if (isMultiMode()) {
+        // Multi mód: JWT a Flask API-tól
+        btn.disabled = true;
+        btn.textContent = "Belépés…";
+        try {
+          await loginMulti(username, password);
+          window.location.replace("./index.html");
+        } catch (err) {
+          errEl.textContent = err.message || "Hibás felhasználónév vagy jelszó.";
+          document.getElementById("password").value = "";
+          document.getElementById("password").focus();
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Belépés";
+        }
       } else {
-        errEl.textContent = "Hibás felhasználónév vagy jelszó.";
-        document.getElementById("password").value = "";
-        document.getElementById("password").focus();
+        // Single mód: kliens oldali ellenőrzés
+        if (login(username, password)) {
+          window.location.replace("./index.html");
+        } else {
+          errEl.textContent = "Hibás felhasználónév vagy jelszó.";
+          document.getElementById("password").value = "";
+          document.getElementById("password").focus();
+        }
       }
     });
   </script>
