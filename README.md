@@ -44,8 +44,8 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 - GPX letöltés könyvtárból
 
 ### Beállítások
-- Bejelentkezés (opcionális, config.js-ben kapcsolható)
-- Perzisztens beállítások: térképstílus, mértékegység, induló nézet
+- Bejelentkezés (opcionális, `LOGIN_ENABLED=false`-zal kikapcsolható)
+- Perzisztens beállítások: térképstílus, mértékegység, induló nézet, HR zónák
 - Hint tooltipek minden beállítás elemhez
 
 ---
@@ -61,15 +61,16 @@ Böngésző
     └── /api/ (REST API proxy)
             nginx → routes-api konténer (Flask)
                          │
-                    routes-data volume
-                    (GPX fájlok, index.json)
+                    routes-data volume (/data)
+                    ├── bringaterv.db   ← SQLite (felhasználók, munkamenetek)
+                    └── users/          ← per-user GPX könyvtárak
 ```
 
 Két Docker konténer fut:
 | Konténer | Kép | Feladat |
 |---|---|---|
 | `bringaterv` | `ghcr.io/czdanika/bringaterv:latest` | nginx – statikus frontend |
-| `routes-api` | `ghcr.io/czdanika/bringaterv-api:latest` | Flask REST API – GPX tárolás |
+| `routes-api` | `ghcr.io/czdanika/bringaterv-api:latest` | Flask REST API – JWT auth, per-user GPX tárolás |
 
 A `routes-api` konténer kívülről **nem érhető el** – csak az nginx-en keresztül, belső hálózaton kommunikál.
 
@@ -92,8 +93,6 @@ services:
       - "8088:80"
     environment:
       LOGIN_ENABLED: true
-      LOGIN_USER: bringa
-      LOGIN_PASSWORD: terv
     depends_on:
       - routes-api
     networks:
@@ -103,10 +102,14 @@ services:
   routes-api:
     image: ghcr.io/czdanika/bringaterv-api:latest
     environment:
-      DATA_DIR:    /data/routes
-      SAMPLES_DIR: /samples
+      SAMPLES_DIR:     /samples
+      DB_PATH:         /data/bringaterv.db
+      MULTI_DATA_DIR:  /data/users
+      ADMIN_EMAIL:     bringa           # ← admin belépési email/felhasználónév
+      ADMIN_PASSWORD:  terv             # ← admin jelszó (változtasd meg!)
+      JWT_SECRET:      valtozd_meg      # ← kötelező megváltoztatni élesben!
     volumes:
-      - routes-data:/data/routes
+      - routes-data:/data
     networks:
       - bringaterv-net
     restart: unless-stopped
@@ -125,11 +128,13 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088**
 
 ### 2. Környezeti változók
 
-| Változó | Leírás | Alapértelmezett |
-|---|---|---|
-| `LOGIN_ENABLED` | Bejelentkezés be/ki | `true` |
-| `LOGIN_USER` | Felhasználónév | `bringa` |
-| `LOGIN_PASSWORD` | Jelszó | `terv` |
+| Változó | Konténer | Leírás | Alapértelmezett |
+|---|---|---|---|
+| `LOGIN_ENABLED` | bringaterv | Bejelentkezés be/ki | `true` |
+| `ADMIN_EMAIL` | routes-api | Admin felhasználónév / email | `bringa` |
+| `ADMIN_PASSWORD` | routes-api | Admin jelszó | `terv` |
+| `JWT_SECRET` | routes-api | JWT aláíró kulcs – **élesben kötelező megváltoztatni!** | `change-me-please` |
+| `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
 
 ### 3. Frissítés új verzióra
 
@@ -138,7 +143,7 @@ Ha új verzió jelent meg (GitHub Actions lefutott):
 1. Portainer → **Stacks** → `bringaterv`
 2. Kattints a **Pull and redeploy** gombra
 
-> **Figyelem:** A `routes-data` volume megmarad frissítéskor – a mentett útvonalak és edzések nem vesznek el.
+> **Figyelem:** A `routes-data` volume megmarad frissítéskor – a mentett útvonalak, edzések és felhasználói adatok nem vesznek el.
 
 ---
 
@@ -211,8 +216,6 @@ services:
       - "8088:80"       # bal oldal: külső port (ezt változtasd, ha kell)
     environment:
       LOGIN_ENABLED: true
-      LOGIN_USER: bringa
-      LOGIN_PASSWORD: terv   # ← ezt érdemes megváltoztatni
     depends_on:
       - routes-api
     networks:
@@ -222,10 +225,14 @@ services:
   routes-api:
     image: ghcr.io/czdanika/bringaterv-api:latest
     environment:
-      DATA_DIR:    /data/routes
-      SAMPLES_DIR: /samples
+      SAMPLES_DIR:    /samples
+      DB_PATH:        /data/bringaterv.db
+      MULTI_DATA_DIR: /data/users
+      ADMIN_EMAIL:    bringa            # ← admin felhasználónév
+      ADMIN_PASSWORD: terv              # ← ezt érdemes megváltoztatni!
+      JWT_SECRET:     valtozd_meg       # ← kötelező megváltoztatni élesben!
     volumes:
-      - routes-data:/data/routes
+      - routes-data:/data
     networks:
       - bringaterv-net
     restart: unless-stopped

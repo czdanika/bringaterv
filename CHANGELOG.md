@@ -1,5 +1,47 @@
 # Changelog
 
+## v2.0 – 2026-05-20 – Multi-user rendszer, admin panel
+
+### Összefoglalás
+
+Az alkalmazás most már kizárólag **multi-user módban** fut. A korábbi single/multi mód megkülönböztetés megszűnt. Az admin felhasználó ugyanúgy belép, mint bárki más – az egyetlen különbség a `role=admin` jogkör.
+
+### Főbb változások
+
+#### Multi-user infrastruktúra
+- **JWT autentikáció** – PyJWT HS256, bcrypt jelszóhashek
+- **SQLite adatbázis** – `users`, `user_sessions`, `workouts`, `routes` táblák
+- **Per-user útvonaltár** – minden felhasználó saját `/data/users/<uid>/routes/` mappában tárol
+- **DB séma v5** – verziózott migrációk, `first_name` + `last_name` oszlopok, névsorend javítás
+- **`fcntl.flock()`** – gunicorn több worker esetén biztonságos DB inicializáció
+
+#### Admin panel (`admin.html`)
+- Felhasználólista, létrehozás, szerkesztés
+- Felhasználónév/email és jelszó módosítható adminból
+- Vezetéknév + Keresztnév mezők (magyar sorrend)
+- Admin szerepkörű usernél nincs Tiltás gomb
+- Útvonalkezelés: felhasználó fájljainak listája, törlés
+
+#### Beállítások szerver-szinkron
+- `GET/PUT /api/user/settings` – HR zónák, térképstílus, mértékegység, induló nézet szinkronizálva
+
+#### CSS / Z-index javítások
+- `#topnavDropdown` és `#settingsOverlay` a `<body>` végére mozgatva – sidebar stacking context okozta levágás kiküszöbölve
+- Könyvtár nézetben is megjelenik a beállítások overlay és a navigáció dropdown
+
+#### Single mód eltávolítása
+- `APP_MODE` env változó megszűnt – mindig multi mód
+- `config.js`-ben csak `login: true/false` marad
+- `LOGIN_USER` / `LOGIN_PASSWORD` a frontend containerből kikerült – csak az API-ban kellenek (admin init)
+- `isMultiMode()` JS függvény törölve mindenhonnan
+- `docker-compose-nas.yml` és `docker-compose.yml` frissítve
+
+### Migráció régi verzióról
+
+Ha korábban single módban használtad az alkalmazást és van mentett útvonalad (`/data/routes/index.json`), az első induláskor automatikusan átmigrálódnak az admin user mappájába (v3 DB migráció).
+
+---
+
 ## v0.12 – 2026-05-18 *(nem pusholva)*
 
 ### 4 tervezési mód
