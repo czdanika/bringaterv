@@ -370,7 +370,7 @@
 
   <!-- Fájlok modal -->
   <div class="modal-overlay" id="filesModal" hidden>
-    <div class="modal" style="max-width:700px">
+    <div class="modal" style="max-width:min(960px,calc(100vw - 40px));width:100%">
       <div class="modal-header">
         <span class="modal-title" id="filesModalTitle">Útvonalak</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -410,7 +410,7 @@
         </div>
         <div id="uploadStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
-      <div class="modal-body" style="padding:0;max-height:420px;overflow-y:auto" id="filesModalBody">
+      <div class="modal-body" style="padding:0;max-height:520px;overflow-y:auto" id="filesModalBody">
         <div class="loading">Betöltés…</div>
       </div>
     </div>
@@ -732,29 +732,29 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
         return;
       }
       body.innerHTML = `
-        <table class="user-table" id="filesTable">
+        <table class="user-table" id="filesTable" style="table-layout:fixed;width:100%">
           <thead>
             <tr>
-              <th>Név</th>
-              <th>Típus</th>
-              <th>Dátum</th>
-              <th>Táv</th>
-              <th>Méret</th>
-              <th style="width:110px"></th>
+              <th style="width:auto">Név</th>
+              <th style="width:80px">Típus</th>
+              <th style="width:90px">Dátum</th>
+              <th style="width:60px">Táv</th>
+              <th style="width:65px">Méret</th>
+              <th style="width:100px"></th>
             </tr>
           </thead>
           <tbody>
             ${routes.map(r => `
               <tr data-route-id="${r.id}">
-                <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
                     title="${escHtml(r.name)}">${escHtml(r.name)}</td>
-                <td><span class="badge badge-user">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
-                <td style="white-space:nowrap;color:var(--muted)">${r.date || '–'}</td>
-                <td style="white-space:nowrap">${r.distance != null ? r.distance + ' km' : '–'}</td>
-                <td style="white-space:nowrap;color:var(--muted)">${r.size_kb} KB</td>
+                <td><span class="badge badge-user" style="font-size:11px">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
+                <td style="white-space:nowrap;color:var(--muted);font-size:12px">${r.date || '–'}</td>
+                <td style="white-space:nowrap;font-size:12px">${r.distance != null ? r.distance + ' km' : '–'}</td>
+                <td style="white-space:nowrap;color:var(--muted);font-size:12px">${r.size_kb} KB</td>
                 <td>
-                  <div style="display:flex;gap:4px;justify-content:flex-end">
-                    <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px" title="Letöltés"
+                  <div style="display:flex;gap:3px;justify-content:flex-end">
+                    <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="Letöltés"
                       data-action="dl" data-route="${r.id}">↓</button>
                     <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px" title="Szerkesztés"
                       data-action="edit" data-route="${r.id}" data-name="${escHtml(r.name)}"
