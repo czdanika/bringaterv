@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.0 – 2026-05-20 – Multi-user rendszer, admin panel
+## v0.8 – 2026-05-20 – Multi-user rendszer, admin panel
 
 ### Összefoglalás
 
