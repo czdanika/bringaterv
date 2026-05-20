@@ -370,12 +370,47 @@
 
   <!-- Fájlok modal -->
   <div class="modal-overlay" id="filesModal" hidden>
-    <div class="modal" style="max-width:580px">
+    <div class="modal" style="max-width:700px">
       <div class="modal-header">
         <span class="modal-title" id="filesModalTitle">Útvonalak</span>
-        <button class="modal-close" id="filesModalClose" type="button">×</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-secondary" id="filesUploadToggle" type="button"
+            style="padding:5px 12px;font-size:13px">+ Feltöltés</button>
+          <button class="modal-close" id="filesModalClose" type="button">×</button>
+        </div>
       </div>
-      <div class="modal-body" style="padding:0;max-height:460px;overflow-y:auto" id="filesModalBody">
+      <!-- feltöltés panel -->
+      <div id="filesUploadPanel" hidden style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:0 0 auto">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">GPX fájl *</label>
+            <input type="file" id="uploadGpxFile" accept=".gpx"
+              style="font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;cursor:pointer">
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Név</label>
+            <input type="text" id="uploadName" placeholder="Útvonal neve"
+              style="width:100%;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+          </div>
+          <div style="flex:0 0 auto">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Típus</label>
+            <select id="uploadType"
+              style="padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+              <option value="asphalt">Aszfalt</option>
+              <option value="gravel">Gravel</option>
+              <option value="mtb">MTB</option>
+              <option value="hiking">Túra</option>
+              <option value="workout">Edzés</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;flex:0 0 auto">
+            <button class="btn btn-primary" id="uploadSubmitBtn" type="button" style="padding:7px 14px;font-size:13px">Feltölt</button>
+            <button class="btn btn-secondary" id="uploadCancelBtn" type="button" style="padding:7px 14px;font-size:13px">Mégsem</button>
+          </div>
+        </div>
+        <div id="uploadStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+      <div class="modal-body" style="padding:0;max-height:420px;overflow-y:auto" id="filesModalBody">
         <div class="loading">Betöltés…</div>
       </div>
     </div>
@@ -615,12 +650,47 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     });
 
     // ── Fájlok modal ─────────────────────────────────────────────────────────
-    const filesModal = document.querySelector("#filesModal");
-    document.querySelector("#filesModalClose").addEventListener("click", () => { filesModal.hidden = true; });
+    const filesModal       = document.querySelector("#filesModal");
+    const filesUploadPanel = document.querySelector("#filesUploadPanel");
+    const filesUploadToggle= document.querySelector("#filesUploadToggle");
+    const uploadCancelBtn  = document.querySelector("#uploadCancelBtn");
+    const uploadSubmitBtn  = document.querySelector("#uploadSubmitBtn");
+    const uploadGpxFile    = document.querySelector("#uploadGpxFile");
+    const uploadName       = document.querySelector("#uploadName");
+    const uploadType       = document.querySelector("#uploadType");
+    const uploadStatus     = document.querySelector("#uploadStatus");
+
+    document.querySelector("#filesModalClose").addEventListener("click", () => {
+      filesModal.hidden = true;
+      filesUploadPanel.hidden = true;
+    });
+
+    filesUploadToggle.addEventListener("click", () => {
+      filesUploadPanel.hidden = !filesUploadPanel.hidden;
+      if (!filesUploadPanel.hidden) {
+        uploadGpxFile.value = "";
+        uploadName.value = "";
+        uploadType.value = "asphalt";
+        uploadStatus.textContent = "";
+      }
+    });
+    uploadCancelBtn.addEventListener("click", () => { filesUploadPanel.hidden = true; });
+
+    // GPX fájl kiválasztásakor auto-kitölti a nevet
+    uploadGpxFile.addEventListener("change", () => {
+      const file = uploadGpxFile.files[0];
+      if (file && !uploadName.value.trim()) {
+        uploadName.value = file.name.replace(/\.gpx$/i, "");
+      }
+    });
+
+    let _filesUserId = null;
 
     async function openFilesModal(userId, userName) {
+      _filesUserId = userId;
       document.querySelector("#filesModalTitle").textContent = `${userName} – útvonalai`;
       document.querySelector("#filesModalBody").innerHTML = `<div class="loading">Betöltés…</div>`;
+      filesUploadPanel.hidden = true;
       filesModal.hidden = false;
       try {
         const routes = await routesApi.admin.listUserRoutes(userId);
@@ -631,6 +701,34 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       }
     }
 
+    // Feltöltés
+    uploadSubmitBtn.addEventListener("click", async () => {
+      const file = uploadGpxFile.files[0];
+      if (!file) { uploadStatus.textContent = "⚠ Válassz GPX fájlt!"; return; }
+      const name = uploadName.value.trim() || file.name.replace(/\.gpx$/i, "");
+      uploadSubmitBtn.disabled = true;
+      uploadStatus.textContent = "Feltöltés…";
+      try {
+        const gpxContent = await file.text();
+        await routesApi.admin.uploadUserRoute(_filesUserId, {
+          name, gpxContent, type: uploadType.value,
+        });
+        uploadStatus.textContent = "✓ Sikeresen feltöltve!";
+        uploadGpxFile.value = "";
+        uploadName.value = "";
+        setTimeout(() => { uploadStatus.textContent = ""; }, 2000);
+        const routes = await routesApi.admin.listUserRoutes(_filesUserId);
+        renderFilesModal(_filesUserId, routes);
+        await loadUsers();
+      } catch (e) {
+        uploadStatus.textContent = "Hiba: " + e.message;
+      } finally {
+        uploadSubmitBtn.disabled = false;
+      }
+    });
+
+    const TYPE_LABELS = { asphalt:"Aszfalt", gravel:"Gravel", mtb:"MTB", hiking:"Túra", workout:"Edzés", cycling:"Kerékpár" };
+
     function renderFilesModal(userId, routes) {
       const body = document.querySelector("#filesModalBody");
       if (!routes.length) {
@@ -638,7 +736,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
         return;
       }
       body.innerHTML = `
-        <table class="user-table">
+        <table class="user-table" id="filesTable">
           <thead>
             <tr>
               <th>Név</th>
@@ -646,37 +744,139 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               <th>Dátum</th>
               <th>Táv</th>
               <th>Méret</th>
-              <th></th>
+              <th style="width:110px"></th>
             </tr>
           </thead>
           <tbody>
             ${routes.map(r => `
-              <tr>
-                <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</td>
-                <td><span class="badge badge-user">${escHtml(r.type || '–')}</span></td>
+              <tr data-route-id="${r.id}">
+                <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                    title="${escHtml(r.name)}">${escHtml(r.name)}</td>
+                <td><span class="badge badge-user">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
                 <td style="white-space:nowrap;color:var(--muted)">${r.date || '–'}</td>
                 <td style="white-space:nowrap">${r.distance != null ? r.distance + ' km' : '–'}</td>
                 <td style="white-space:nowrap;color:var(--muted)">${r.size_kb} KB</td>
                 <td>
-                  <button class="btn btn-danger" style="padding:4px 8px;font-size:12px"
-                    data-del-user="${userId}" data-del-route="${r.id}" data-del-name="${escHtml(r.name)}">
-                    Töröl
-                  </button>
+                  <div style="display:flex;gap:4px;justify-content:flex-end">
+                    <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px" title="Letöltés"
+                      data-action="dl" data-route="${r.id}">↓</button>
+                    <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px" title="Szerkesztés"
+                      data-action="edit" data-route="${r.id}" data-name="${escHtml(r.name)}"
+                      data-type="${escHtml(r.type||'asphalt')}" data-desc="${escHtml(r.description||'')}">✏</button>
+                    <button class="btn btn-danger" style="padding:3px 8px;font-size:12px" title="Törlés"
+                      data-action="del" data-route="${r.id}" data-name="${escHtml(r.name)}">🗑</button>
+                  </div>
                 </td>
               </tr>
             `).join("")}
           </tbody>
         </table>`;
 
-      body.querySelectorAll("[data-del-route]").forEach(btn => {
+      body.querySelectorAll("[data-action]").forEach(btn => {
         btn.addEventListener("click", async () => {
-          if (!confirm(`Törlöd: „${btn.dataset.delName}"?`)) return;
-          try {
-            await routesApi.admin.deleteUserRoute(btn.dataset.delUser, btn.dataset.delRoute);
-            const routes = await routesApi.admin.listUserRoutes(btn.dataset.delUser);
-            renderFilesModal(btn.dataset.delUser, routes);
-            await loadUsers();
-          } catch (e) { alert("Hiba: " + e.message); }
+          const action  = btn.dataset.action;
+          const routeId = btn.dataset.route;
+
+          if (action === "dl") {
+            try {
+              btn.textContent = "…";
+              const gpx = await routesApi.admin.getUserRouteGpx(userId, routeId);
+              const blob = new Blob([gpx], { type: "application/gpx+xml" });
+              const url  = URL.createObjectURL(blob);
+              const a    = document.createElement("a");
+              a.href = url; a.download = `${routeId}.gpx`; a.click();
+              URL.revokeObjectURL(url);
+            } catch (e) { alert("Letöltési hiba: " + e.message); }
+            finally { btn.textContent = "↓"; }
+          }
+
+          if (action === "edit") {
+            // ha már nyitva van szerkesztő sor, zárjuk be
+            body.querySelectorAll(".edit-row").forEach(r => r.remove());
+            body.querySelectorAll("[data-action='edit']").forEach(b => { b.textContent = "✏"; b.dataset.open = ""; });
+
+            if (btn.dataset.open === "1") { btn.dataset.open = ""; return; }
+            btn.dataset.open = "1";
+            btn.textContent = "▲";
+
+            const tr = btn.closest("tr");
+            const editRow = document.createElement("tr");
+            editRow.className = "edit-row";
+            editRow.innerHTML = `
+              <td colspan="6" style="padding:10px 14px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                  <div style="flex:1;min-width:140px">
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Név</label>
+                    <input type="text" id="editName_${routeId}" value="${btn.dataset.name}"
+                      style="width:100%;padding:6px 9px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                  </div>
+                  <div style="flex:0 0 auto">
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Típus</label>
+                    <select id="editType_${routeId}"
+                      style="padding:6px 9px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                      <option value="asphalt">Aszfalt</option>
+                      <option value="gravel">Gravel</option>
+                      <option value="mtb">MTB</option>
+                      <option value="hiking">Túra</option>
+                      <option value="workout">Edzés</option>
+                    </select>
+                  </div>
+                  <div style="flex:2;min-width:160px">
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Leírás</label>
+                    <input type="text" id="editDesc_${routeId}" value="${btn.dataset.desc}" placeholder="(opcionális)"
+                      style="width:100%;padding:6px 9px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit">
+                  </div>
+                  <div style="display:flex;gap:6px;flex:0 0 auto">
+                    <button class="btn btn-primary" id="editSave_${routeId}" style="padding:6px 12px;font-size:13px">Mentés</button>
+                    <button class="btn btn-secondary" id="editCancel_${routeId}" style="padding:6px 12px;font-size:13px">Mégsem</button>
+                  </div>
+                  <div id="editStatus_${routeId}" style="font-size:12px;color:var(--muted);flex-basis:100%"></div>
+                </div>
+              </td>`;
+            tr.after(editRow);
+
+            // Típus előre beállítása
+            editRow.querySelector(`#editType_${routeId}`).value = btn.dataset.type;
+
+            editRow.querySelector(`#editCancel_${routeId}`).addEventListener("click", () => {
+              editRow.remove(); btn.textContent = "✏"; btn.dataset.open = "";
+            });
+
+            editRow.querySelector(`#editSave_${routeId}`).addEventListener("click", async () => {
+              const saveBtn = editRow.querySelector(`#editSave_${routeId}`);
+              const status  = editRow.querySelector(`#editStatus_${routeId}`);
+              saveBtn.disabled = true;
+              status.textContent = "Mentés…";
+              try {
+                const updated = await routesApi.admin.updateUserRoute(userId, routeId, {
+                  name:        editRow.querySelector(`#editName_${routeId}`).value.trim(),
+                  type:        editRow.querySelector(`#editType_${routeId}`).value,
+                  description: editRow.querySelector(`#editDesc_${routeId}`).value.trim(),
+                });
+                status.textContent = "✓ Mentve!";
+                // frissítjük a sort a DOM-ban
+                tr.querySelector("td:first-child").textContent = updated.name;
+                tr.querySelector(".badge").textContent = TYPE_LABELS[updated.type] || updated.type;
+                btn.dataset.name = escHtml(updated.name);
+                btn.dataset.type = updated.type;
+                btn.dataset.desc = escHtml(updated.description || "");
+                setTimeout(() => { editRow.remove(); btn.textContent = "✏"; btn.dataset.open = ""; }, 800);
+              } catch (e) {
+                status.textContent = "Hiba: " + e.message;
+                saveBtn.disabled = false;
+              }
+            });
+          }
+
+          if (action === "del") {
+            if (!confirm(`Törlöd: „${btn.dataset.name}"?`)) return;
+            try {
+              await routesApi.admin.deleteUserRoute(userId, routeId);
+              const routes = await routesApi.admin.listUserRoutes(userId);
+              renderFilesModal(userId, routes);
+              await loadUsers();
+            } catch (e) { alert("Hiba: " + e.message); }
+          }
         });
       });
     }

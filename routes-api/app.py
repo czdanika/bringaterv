@@ -670,6 +670,126 @@ def admin_delete_user_route(user_id: str, route_id: str):
     return "", 204
 
 
+@app.route("/api/admin/users/<user_id>/routes/<route_id>/gpx", methods=["GET"])
+@require_auth
+@require_admin
+def admin_get_user_route_gpx(user_id: str, route_id: str):
+    """Admin: letölti egy user útvonalának GPX fájlját."""
+    route_id   = _safe_id(route_id)
+    routes_dir = _user_routes_dir(user_id)
+    gpx_path   = os.path.join(routes_dir, f"{route_id}.gpx")
+    if not os.path.isfile(gpx_path):
+        abort(404, description="GPX fájl nem található")
+    idx_path = os.path.join(routes_dir, "index.json")
+    index    = _load_index(idx_path)
+    entry    = next((r for r in index if r.get("id") == route_id), None)
+    raw_name = entry["name"] if entry else route_id
+    # fájlnév: ASCII-biztos, whitespace → underscore
+    safe_name = re.sub(r"[^\w\-.]", "_", raw_name) or route_id
+    with open(gpx_path, encoding="utf-8") as f:
+        content = f.read()
+    return content, 200, {
+        "Content-Type": "application/gpx+xml; charset=utf-8",
+        "Content-Disposition": f'attachment; filename="{safe_name}.gpx"',
+    }
+
+
+@app.route("/api/admin/users/<user_id>/routes/<route_id>", methods=["PATCH"])
+@require_auth
+@require_admin
+def admin_update_user_route(user_id: str, route_id: str):
+    """Admin: módosítja egy user útvonalának metaadatait (name, type, description)."""
+    route_id   = _safe_id(route_id)
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    data  = request.get_json(silent=True) or {}
+    index = _load_index(idx_path)
+    entry = next((r for r in index if r.get("id") == route_id), None)
+    if not entry:
+        abort(404, description="Útvonal nem található")
+    if "name"        in data: entry["name"]        = (data["name"] or "Névtelen").strip()
+    if "type"        in data: entry["type"]        = data["type"]
+    if "description" in data: entry["description"] = (data["description"] or "").strip()
+    _save_index(index, idx_path)
+    with _db() as conn:
+        conn.execute(
+            "UPDATE routes SET name=?, route_type=?, description=? WHERE id=? AND user_id=?",
+            (entry.get("name"), entry.get("type"), entry.get("description"), route_id, user_id),
+        )
+    log.info("Admin frissítette: %s / %s", user_id, route_id)
+    return jsonify(entry)
+
+
+@app.route("/api/admin/users/<user_id>/routes", methods=["POST"])
+@require_auth
+@require_admin
+def admin_upload_user_route(user_id: str):
+    """Admin: új GPX fájlt tölt fel egy usernek (JSON body, gpxContent mezővel)."""
+    with _db() as conn:
+        user = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        abort(404, description="Felhasználó nem található")
+
+    data        = request.get_json(silent=True) or {}
+    name        = (data.get("name") or "Névtelen útvonal").strip()
+    gpx_content = (data.get("gpxContent") or "").strip()
+    distance    = data.get("distance")
+    duration    = data.get("duration")
+    elevation   = data.get("elevation")
+    route_type  = data.get("type", "cycling")
+    description = (data.get("description") or "").strip()
+
+    if not gpx_content:
+        abort(400, description="Hiányzó gpxContent mező")
+
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    route_id   = uuid.uuid4().hex[:8]
+    gpx_path   = os.path.join(routes_dir, f"{route_id}.gpx")
+
+    try:
+        with open(gpx_path, "w", encoding="utf-8") as f:
+            f.write(gpx_content)
+    except OSError as exc:
+        log.error("GPX írási hiba: %s", exc)
+        abort(500, description="Fájl írási hiba")
+
+    entry = {
+        "id":          route_id,
+        "name":        name,
+        "date":        _now_date(),
+        "distance":    round(distance, 1) if isinstance(distance, (int, float)) else None,
+        "duration":    int(duration)      if isinstance(duration,  (int, float)) else None,
+        "elevation":   int(elevation)     if isinstance(elevation, (int, float)) else None,
+        "type":        route_type,
+        "description": description,
+    }
+    index = _load_index(idx_path)
+    index.append(entry)
+    try:
+        _save_index(index, idx_path)
+    except OSError:
+        os.remove(gpx_path)
+        abort(500, description="Index írási hiba")
+
+    with _db() as conn:
+        conn.execute("""
+            INSERT INTO routes
+              (id, user_id, name, date, created_at, distance_m,
+               duration_min, elevation_m, route_type, description, gpx_path)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            route_id, user_id, name, _now_date(), _now_dt(),
+            distance * 1000 if isinstance(distance, (int, float)) else None,
+            int(duration)   if isinstance(duration,  (int, float)) else None,
+            int(elevation)  if isinstance(elevation, (int, float)) else None,
+            route_type, description, gpx_path,
+        ))
+
+    log.info("Admin feltöltött: %s / %s (%s)", user_id, route_id, name)
+    return jsonify(entry), 201
+
+
 @app.route("/api/admin/stats", methods=["GET"])
 @require_auth
 @require_admin
