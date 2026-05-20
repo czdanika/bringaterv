@@ -382,15 +382,10 @@
   </div>
 
   <script type="module">
-    import { requireAdmin, isMultiMode } from "./src/auth.js";
+    import { requireAdmin } from "./src/auth.js";
     import { routesApi } from "./src/api/routesApi.js";
 
     requireAdmin();
-
-    if (!isMultiMode()) {
-      document.querySelector("#adminDesc").textContent = "Az admin panel csak multi módban érhető el.";
-      document.querySelector("#createUserBtn").disabled = true;
-    }
 
     // ── Stat kártyák ──────────────────────────────────────────────────────────
     async function loadStats() {
@@ -401,7 +396,7 @@
         document.querySelector("#statToday").textContent  = s.logins_today;
         document.querySelector("#statsRow").hidden = false;
         document.querySelector("#adminDesc").textContent =
-          `Mód: ${s.mode} · Összesen ${s.total_users} felhasználó`;
+          `Összesen ${s.total_users} felhasználó`;
       } catch (e) {
         document.querySelector("#adminDesc").textContent = "Hiba: " + e.message;
       }

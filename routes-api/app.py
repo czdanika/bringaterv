@@ -1,38 +1,34 @@
 """
 Bringaterv – Útvonaltár API  v2
 ================================
-APP_MODE=single  →  Egyfelhasználós mód. Nincs auth, minden adat közös.
-                     Teljes visszafelé kompatibilitás az eredeti API-val.
-APP_MODE=multi   →  Többfelhasználós mód. JWT auth, per-user adatok,
-                     admin felület, kvótakezelés, SQLite statisztika.
+JWT autentikáció, per-user adatok, admin felület, kvótakezelés, SQLite statisztika.
 
 Környezeti változók:
-  APP_MODE          single | multi            (alapért.: single)
-  DATA_DIR          felhasználói adatok       (alapért.: /data/routes)
+  DATA_DIR          (migráció miatt megőrizve, alapért.: /data/routes)
   SAMPLES_DIR       minta fájlok              (alapért.: /samples)
   DB_PATH           SQLite adatbázis          (alapért.: /data/bringaterv.db)
-  MULTI_DATA_DIR    multi mód user mappák     (alapért.: /data/users)
+  MULTI_DATA_DIR    per-user mappák           (alapért.: /data/users)
   ADMIN_EMAIL       admin email               (alapért.: admin@bringaterv.local)
-  ADMIN_PASSWORD    admin jelszó              (kötelező multi módban)
-  JWT_SECRET        JWT aláíró kulcs          (kötelező multi módban)
+  ADMIN_PASSWORD    admin jelszó
+  JWT_SECRET        JWT aláíró kulcs
   JWT_EXPIRY_DAYS   token élettartam napban   (alapért.: 30)
 
-single mód végpontok (változatlan):
+Végpontok:
+  POST              /api/auth/login
+  GET               /api/auth/me
+  GET/PUT           /api/user/settings
   GET/POST          /api/routes
   GET/PATCH/DELETE  /api/routes/<id>
   GET               /api/samples
   GET               /api/samples/<id>
   GET               /api/health
-
-multi mód extra végpontok:
-  POST  /api/auth/login
-  GET   /api/auth/me
-  GET   /api/admin/users
-  POST  /api/admin/users
-  GET   /api/admin/users/<id>
-  PATCH /api/admin/users/<id>
-  POST  /api/admin/users/<id>/password
-  GET   /api/admin/stats
+  GET               /api/admin/users
+  POST              /api/admin/users
+  GET/PATCH         /api/admin/users/<id>
+  POST              /api/admin/users/<id>/password
+  GET               /api/admin/users/<id>/routes
+  DELETE            /api/admin/users/<id>/routes/<rid>
+  GET               /api/admin/stats
 """
 
 import json
@@ -49,10 +45,7 @@ from flask_cors import CORS
 
 # ── Konfiguráció ──────────────────────────────────────────────────────────────
 
-APP_MODE       = os.environ.get("APP_MODE", "single").lower()
-IS_MULTI       = APP_MODE == "multi"
-
-DATA_DIR       = os.environ.get("DATA_DIR",       "/data/routes")
+DATA_DIR       = os.environ.get("DATA_DIR",       "/data/routes")   # migráció miatt
 SAMPLES_DIR    = os.environ.get("SAMPLES_DIR",    "/samples")
 DB_PATH        = os.environ.get("DB_PATH",        "/data/bringaterv.db")
 MULTI_DATA_DIR = os.environ.get("MULTI_DATA_DIR", "/data/users")
@@ -62,20 +55,17 @@ ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "password123")
 JWT_SECRET      = os.environ.get("JWT_SECRET",     "change-me-in-production")
 JWT_EXPIRY_DAYS = int(os.environ.get("JWT_EXPIRY_DAYS", "30"))
 
-# single mód fix útvonalak (változatlan)
-USER_DIR   = os.path.join(DATA_DIR, "user")
-INDEX_FILE = os.path.join(DATA_DIR, "index.json")
+# Single módos útvonalak helye (csak a v3 migrációhoz szükséges)
+_LEGACY_USER_DIR   = os.path.join(DATA_DIR, "user")
+_LEGACY_INDEX_FILE = os.path.join(DATA_DIR, "index.json")
 
-# Multi módhoz szükséges csomagok
-if IS_MULTI:
-    try:
-        import jwt as pyjwt
-        import bcrypt
-    except ImportError as exc:
-        raise ImportError(
-            "Multi módhoz PyJWT és bcrypt szükséges. "
-            "Telepítsd: pip install PyJWT bcrypt"
-        ) from exc
+try:
+    import jwt as pyjwt
+    import bcrypt
+except ImportError as exc:
+    raise ImportError(
+        "PyJWT és bcrypt szükséges. Telepítsd: pip install PyJWT bcrypt"
+    ) from exc
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -91,8 +81,7 @@ log = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-log.info("APP_MODE: %s", APP_MODE)
-os.makedirs(USER_DIR, exist_ok=True)
+os.makedirs(_LEGACY_USER_DIR, exist_ok=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -104,8 +93,7 @@ def _safe_id(raw: str) -> str:
     return re.sub(r"[^a-zA-Z0-9\-]", "", raw)
 
 
-def _load_index(path=None) -> list:
-    path = path or INDEX_FILE
+def _load_index(path: str) -> list:
     if not os.path.exists(path):
         return []
     try:
@@ -116,8 +104,7 @@ def _load_index(path=None) -> list:
         return []
 
 
-def _save_index(index: list, path=None) -> None:
-    path = path or INDEX_FILE
+def _save_index(index: list, path: str) -> None:
     tmp  = path + ".tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as f:
@@ -314,10 +301,10 @@ def _db_create_user(conn, email: str, name: str, password: str, role: str = "use
 
 
 def _migrate_single_routes_to_user(user_id: str) -> None:
-    """Single módos útvonalakat átmásolja az admin user mappájába (első multi indításkor)."""
+    """Régi single-módos útvonalakat átmásolja az admin user mappájába (egyszeri migráció)."""
     import shutil
-    src_index = INDEX_FILE
-    src_dir   = USER_DIR
+    src_index = _LEGACY_INDEX_FILE
+    src_dir   = _LEGACY_USER_DIR
     if not os.path.isfile(src_index):
         log.info("Migráció: nincs single-módos index, kihagyva.")
         return
@@ -393,12 +380,9 @@ def _decode_token(token: str) -> dict:
 # ── Auth dekorátorok ──────────────────────────────────────────────────────────
 
 def require_auth(f):
-    """JWT ellenőrzés. Single módban mindig átengedi a kérést (g.user = None)."""
+    """JWT ellenőrzés."""
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not IS_MULTI:
-            g.user = None
-            return f(*args, **kwargs)
         header = request.headers.get("Authorization", "")
         if not header.startswith("Bearer "):
             abort(401, description="Hiányzó token")
@@ -422,16 +406,14 @@ def require_auth(f):
 def require_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if IS_MULTI and g.user.get("role") != "admin":
+        if g.user.get("role") != "admin":
             abort(403, description="Admin jogkör szükséges")
         return f(*args, **kwargs)
     return wrapper
 
 
 def _resolve_dirs():
-    """Single: közös mappa. Multi: user-specifikus mappa."""
-    if not IS_MULTI:
-        return USER_DIR, INDEX_FILE
+    """Felhasználó-specifikus útvonal mappa."""
     d = _user_routes_dir(g.user["id"])
     return d, os.path.join(d, "index.json")
 
@@ -442,8 +424,6 @@ def _resolve_dirs():
 
 @app.route("/api/auth/login", methods=["POST"])
 def auth_login():
-    if not IS_MULTI:
-        abort(404)
     data     = request.get_json(silent=True) or {}
     # "email" vagy "username" mezőt egyaránt elfogadunk
     email    = (data.get("email") or data.get("username") or "").strip().lower()
@@ -477,8 +457,6 @@ def auth_login():
 @app.route("/api/auth/me", methods=["GET"])
 @require_auth
 def auth_me():
-    if not IS_MULTI:
-        return jsonify({"mode": "single"})
     u = g.user
     return jsonify({"id": u["id"], "email": u["email"],
                     "name": u["name"], "role": u["role"]})
@@ -487,9 +465,7 @@ def auth_me():
 @app.route("/api/user/settings", methods=["GET"])
 @require_auth
 def get_user_settings():
-    """Felhasználó személyes beállításainak lekérése (multi mód)."""
-    if not IS_MULTI:
-        return jsonify({})
+    """Felhasználó személyes beállításainak lekérése."""
     raw = g.user.get("settings") or "{}"
     try:
         return jsonify(json.loads(raw))
@@ -500,9 +476,7 @@ def get_user_settings():
 @app.route("/api/user/settings", methods=["PUT"])
 @require_auth
 def put_user_settings():
-    """Felhasználó személyes beállításainak mentése (multi mód)."""
-    if not IS_MULTI:
-        return jsonify({"ok": True})
+    """Felhasználó személyes beállításainak mentése."""
     data = request.get_json(silent=True)
     if data is None:
         abort(400, description="Hiányzó JSON body")
@@ -706,12 +680,11 @@ def admin_stats():
         today  = conn.execute(
             "SELECT COUNT(*) FROM user_sessions WHERE logged_in_at >= ?", (_now_date(),)
         ).fetchone()[0]
-    return jsonify({"mode": APP_MODE, "total_users": total,
-                    "active_users": active, "logins_today": today})
+    return jsonify({"total_users": total, "active_users": active, "logins_today": today})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ROUTES VÉGPONTOK  (single + multi – közös logika)
+# ROUTES VÉGPONTOK
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/routes", methods=["GET"])
@@ -740,10 +713,9 @@ def save_route():
     if not gpx_content:
         abort(400, description="Hiányzó gpxContent mező")
 
-    if IS_MULTI:
-        index = _load_index(idx)
-        if len(index) >= g.user.get("quota_routes", 50):
-            abort(429, description=f"Útvonal kvóta elérve ({g.user['quota_routes']} db)")
+    index = _load_index(idx)
+    if len(index) >= g.user.get("quota_routes", 50):
+        abort(429, description=f"Útvonal kvóta elérve ({g.user['quota_routes']} db)")
 
     route_id = uuid.uuid4().hex[:8]
     gpx_path = os.path.join(user_dir, f"{route_id}.gpx")
@@ -772,20 +744,19 @@ def save_route():
         os.remove(gpx_path)
         abort(500, description="Index írási hiba")
 
-    if IS_MULTI:
-        with _db() as conn:
-            conn.execute("""
-                INSERT INTO routes
-                  (id, user_id, name, date, created_at, distance_m,
-                   duration_min, elevation_m, route_type, description, gpx_path)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                route_id, g.user["id"], name, _now_date(), _now_dt(),
-                distance * 1000 if isinstance(distance, (int, float)) else None,
-                int(duration)   if isinstance(duration,  (int, float)) else None,
-                int(elevation)  if isinstance(elevation, (int, float)) else None,
-                route_type, description, gpx_path,
-            ))
+    with _db() as conn:
+        conn.execute("""
+            INSERT INTO routes
+              (id, user_id, name, date, created_at, distance_m,
+               duration_min, elevation_m, route_type, description, gpx_path)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            route_id, g.user["id"], name, _now_date(), _now_dt(),
+            distance * 1000 if isinstance(distance, (int, float)) else None,
+            int(duration)   if isinstance(duration,  (int, float)) else None,
+            int(elevation)  if isinstance(elevation, (int, float)) else None,
+            route_type, description, gpx_path,
+        ))
 
     log.info("Új útvonal: %s (%s)", route_id, name)
     return jsonify({"id": route_id}), 201
@@ -842,10 +813,9 @@ def delete_route(route_id: str):
         log.error("GPX törlési hiba: %s", exc)
         abort(500)
     _save_index([r for r in _load_index(idx) if r.get("id") != route_id], idx)
-    if IS_MULTI:
-        with _db() as conn:
-            conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?",
-                         (route_id, g.user["id"]))
+    with _db() as conn:
+        conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?",
+                     (route_id, g.user["id"]))
     return "", 204
 
 
@@ -902,19 +872,15 @@ def get_sample(sample_id: str):
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    index        = _load_index()
     sample_count = (
         sum(1 for f in os.listdir(SAMPLES_DIR) if f.endswith(".gpx"))
         if os.path.isdir(SAMPLES_DIR) else 0
     )
-    result = {"status": "ok", "mode": APP_MODE,
-              "user_routes": len(index), "samples": sample_count}
-    if IS_MULTI:
-        with _db() as conn:
-            result["active_users"] = conn.execute(
-                "SELECT COUNT(*) FROM users WHERE active = 1"
-            ).fetchone()[0]
-    return jsonify(result)
+    with _db() as conn:
+        active_users = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE active = 1"
+        ).fetchone()[0]
+    return jsonify({"status": "ok", "samples": sample_count, "active_users": active_users})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -936,9 +902,8 @@ def json_error(e):
 # INDÍTÁS
 # ══════════════════════════════════════════════════════════════════════════════
 
-if IS_MULTI:
-    with app.app_context():
-        _db_init()
+with app.app_context():
+    _db_init()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=False)

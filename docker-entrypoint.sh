@@ -5,10 +5,7 @@ cat > /usr/share/nginx/html/src/config.js << EOF
 // Automatically generated at container startup from environment variables.
 
 export const config = {
-  login:    ${LOGIN_ENABLED:-true},
-  mode:     "${APP_MODE:-single}",
-  user:     "${LOGIN_USER:-bringa}",
-  password: "${LOGIN_PASSWORD:-terv}",
+  login: ${LOGIN_ENABLED:-true},
 };
 EOF
 

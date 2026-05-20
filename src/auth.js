@@ -1,17 +1,10 @@
 import { config } from "./config.js";
 
 // ── Tárolási kulcsok ───────────────────────────────────────────────────────────
-const SINGLE_KEY  = "bringaterv_auth";
-const JWT_KEY     = "bringaterv_jwt";
-const USER_KEY    = "bringaterv_user";
+const JWT_KEY  = "bringaterv_jwt";
+const USER_KEY = "bringaterv_user";
 
-// ── Mód lekérdezés ────────────────────────────────────────────────────────────
-
-export function isMultiMode() {
-  return (config.mode ?? "single") === "multi";
-}
-
-// ── Token kezelés (multi mód) ─────────────────────────────────────────────────
+// ── Token kezelés ─────────────────────────────────────────────────────────────
 
 export function getToken() {
   return localStorage.getItem(JWT_KEY);
@@ -40,23 +33,13 @@ export function authHeaders() {
 
 export function isAuthenticated() {
   if (!config.login) return true;
-  if (isMultiMode()) return !!getToken();
-  return sessionStorage.getItem(SINGLE_KEY) === "1";
+  return !!getToken();
 }
 
 // ── Bejelentkezés ─────────────────────────────────────────────────────────────
 
-/** Single mód: kliens oldali ellenőrzés config.js alapján */
-export function login(user, password) {
-  if (user === config.user && password === config.password) {
-    sessionStorage.setItem(SINGLE_KEY, "1");
-    return true;
-  }
-  return false;
-}
-
-/** Multi mód: JWT kérés a Flask API-tól */
-export async function loginMulti(username, password) {
+/** JWT kérés a Flask API-tól */
+export async function login(username, password) {
   const res = await fetch("/api/auth/login", {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
@@ -75,7 +58,6 @@ export async function loginMulti(username, password) {
 // ── Kijelentkezés ─────────────────────────────────────────────────────────────
 
 export function logout() {
-  sessionStorage.removeItem(SINGLE_KEY);
   localStorage.removeItem(JWT_KEY);
   localStorage.removeItem(USER_KEY);
 }
@@ -95,7 +77,7 @@ export function requireAdmin() {
     window.location.replace("./login.html");
     return;
   }
-  if (isMultiMode() && !isAdmin()) {
+  if (!isAdmin()) {
     window.location.replace("./index.html");
   }
 }

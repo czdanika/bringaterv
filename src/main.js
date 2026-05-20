@@ -1,4 +1,4 @@
-import { requireAuth, logout, isMultiMode, isAdmin, getUser } from "./auth.js";
+import { requireAuth, logout, isAdmin, getUser } from "./auth.js";
 import { config } from "./config.js";
 import { getSettings, saveSetting } from "./appSettings.js";
 import { createI18n } from "./i18n/i18n.js";
@@ -1753,16 +1753,16 @@ if (config.login) {
   });
 }
 
-// Admin link – csak multi módban, admin szerepkörrel
-if (isMultiMode() && isAdmin()) {
+// Admin link – admin szerepkörrel
+if (isAdmin()) {
   const adminBtn = document.querySelector("#adminButton");
   const adminDivider = document.querySelector("#adminDivider");
   if (adminBtn) adminBtn.hidden = false;
   if (adminDivider) adminDivider.hidden = false;
 }
 
-// Multi mód: felhasználó neve a dropdown tetején
-if (isMultiMode()) {
+// Felhasználó neve a dropdown tetején
+{
   const user = getUser();
   const userLabel = document.querySelector("#topnavUserLabel");
   if (userLabel && user) {
@@ -1771,8 +1771,8 @@ if (isMultiMode()) {
   }
 }
 
-// Multi mód: beállítások szinkronizálása a szerverrel
-if (isMultiMode()) {
+// Beállítások szinkronizálása a szerverrel
+{
   // Betöltéskor szerver → localStorage felülírás
   routesApi.getSettings().then(serverSettings => {
     if (serverSettings && Object.keys(serverSettings).length > 0) {

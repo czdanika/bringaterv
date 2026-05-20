@@ -21,10 +21,7 @@ services:
     ports:
       - "${PORT:-8088}:80"
     environment:
-      LOGIN_ENABLED:  ${LOGIN_ENABLED:-true}
-      LOGIN_USER:     ${LOGIN_USER:-bringa}
-      LOGIN_PASSWORD: ${LOGIN_PASSWORD:-terv}
-      APP_MODE:       ${APP_MODE:-single}
+      LOGIN_ENABLED: ${LOGIN_ENABLED:-true}
     depends_on:
       - routes-api
     networks:
@@ -39,18 +36,12 @@ services:
     build:
       context: ./routes-api
     environment:
-      DATA_DIR:    /data/routes   # felhasználói GPX-ek helye (volume-ban)
+      DATA_DIR:    /data/routes   # (migráció miatt megőrizve)
       SAMPLES_DIR: /samples       # beépített minták (image-be égetve)
 
-      # ── APP_MODE: single (alapért.) | multi ──────────────────────────────
-      # single → minden marad ahogy volt, nincs auth
-      # multi  → JWT auth, per-user adatok, admin panel, kvóta
-      APP_MODE: ${APP_MODE:-single}
-
-      # ── Multi mód beállítások (single módban figyelmen kívül hagyva) ─────
+      # ── Adatbázis és per-user tárolás ────────────────────────────────────
       DB_PATH:        /data/bringaterv.db     # SQLite adatbázis
       MULTI_DATA_DIR: /data/users             # per-user mappák
-      # Multi módban a LOGIN_USER/PASSWORD lesz az admin – ha külön ADMIN_* nincs megadva
       ADMIN_EMAIL:    ${ADMIN_EMAIL:-${LOGIN_USER:-bringa}}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-terv}}
       JWT_SECRET:     ${JWT_SECRET:-change-me-please}
