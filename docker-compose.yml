@@ -40,8 +40,21 @@ services:
     environment:
       DATA_DIR:    /data/routes   # felhasználói GPX-ek helye (volume-ban)
       SAMPLES_DIR: /samples       # beépített minták (image-be égetve)
+
+      # ── APP_MODE: single (alapért.) | multi ──────────────────────────────
+      # single → minden marad ahogy volt, nincs auth
+      # multi  → JWT auth, per-user adatok, admin panel, kvóta
+      APP_MODE: ${APP_MODE:-single}
+
+      # ── Multi mód beállítások (single módban figyelmen kívül hagyva) ─────
+      DB_PATH:        /data/bringaterv.db     # SQLite adatbázis
+      MULTI_DATA_DIR: /data/users             # per-user mappák
+      ADMIN_EMAIL:    ${ADMIN_EMAIL:-admin@bringaterv.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-password123}
+      JWT_SECRET:     ${JWT_SECRET:-change-me-please}
+      JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-30}
     volumes:
-      - routes-data:/data/routes  # tartós tároló
+      - routes-data:/data    # tartós tároló (routes + db + users)
     networks:
       - bringaterv-net
     # Szándékosan NINCS ports: blokk → kívülről nem érhető el, csak nginx-en át
