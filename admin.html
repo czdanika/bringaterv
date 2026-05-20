@@ -470,14 +470,9 @@
             ${users.map(u => `
               <tr data-id="${u.id}">
                 <td>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <div>
-                      <div class="user-name">${escHtml(u.name)}</div>
-                      <div class="user-email">${escHtml(u.email)}</div>
-                    </div>
-                    <button class="btn btn-ghost" style="padding:4px 6px;flex-shrink:0" title="Fájlok megtekintése" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                    </button>
+                  <div>
+                    <div class="user-name">${escHtml(u.name)}</div>
+                    <div class="user-email">${escHtml(u.email)}</div>
                   </div>
                 </td>
                 <td><span class="badge badge-${u.role}">${u.role === "admin" ? "Admin" : "User"}</span></td>
@@ -488,6 +483,7 @@
                 <td>${u.login_count}</td>
                 <td>
                   <div class="row-actions">
+                    <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">Útvonalak</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
                     ${u.role !== "admin" ? `
                     <button class="btn ${u.active ? "btn-danger" : "btn-ghost"}" style="padding:5px 10px;font-size:12px" data-action="toggle" data-id="${u.id}" data-active="${u.active}">
