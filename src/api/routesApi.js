@@ -227,6 +227,19 @@ export const routesApi = {
     resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
+    getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },
+    updateUserRoute(userId, routeId, fields) {
+      return fetchJson(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(fields),
+      });
+    },
+    uploadUserRoute(userId, data) {
+      return fetchJson(`${BASE}/admin/users/${userId}/routes`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
     async deleteUserRoute(userId, routeId) {
       const res = await fetch(`${BASE}/admin/users/${userId}/routes/${routeId}`, {
         method: "DELETE", headers: authHeaders(),
