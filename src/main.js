@@ -1,4 +1,4 @@
-import { requireAuth, logout } from "./auth.js";
+import { requireAuth, logout, isMultiMode, isAdmin, getUser } from "./auth.js";
 import { config } from "./config.js";
 import { getSettings, saveSetting } from "./appSettings.js";
 import { createI18n } from "./i18n/i18n.js";
@@ -7,7 +7,7 @@ import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
-import { buildElevationData, buildSpeedData, buildHrData, buildCadData, initElevationChart } from "./ui/elevationProfile.js";
+import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
 import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
@@ -464,6 +464,26 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
   const cadLegendEl = document.querySelector("#cadLegend");
   if (cadLegendEl) cadLegendEl.hidden = !hasCad;
 
+  // Power stats
+  const powers = geometry.map(p => p.power).filter(p => p != null && p >= 0);
+  const hasPower = powers.length > 0;
+  const avgPowerRowEl = document.querySelector("#fileAvgPowerRow");
+  const maxPowerRowEl = document.querySelector("#fileMaxPowerRow");
+  if (avgPowerRowEl) avgPowerRowEl.hidden = !hasPower;
+  if (maxPowerRowEl) maxPowerRowEl.hidden = !hasPower;
+  if (hasPower) {
+    const avgPower = Math.round(powers.reduce((a, b) => a + b, 0) / powers.length);
+    const maxPower = Math.round(Math.max(...powers));
+    const avgPowerEl = document.querySelector("#fileAvgPower");
+    const maxPowerEl = document.querySelector("#fileMaxPower");
+    if (avgPowerEl) avgPowerEl.textContent = `${avgPower} W`;
+    if (maxPowerEl) maxPowerEl.textContent = `${maxPower} W`;
+  }
+
+  // Power legend
+  const powerLegendEl = document.querySelector("#powerLegend");
+  if (powerLegendEl) powerLegendEl.hidden = !hasPower;
+
   window.lucide?.createIcons();
 }
 
@@ -474,9 +494,11 @@ function clearFileTab() {
   const speedLeg = document.querySelector("#speedLegend");
   const hrLeg = document.querySelector("#hrLegend");
   const cadLeg = document.querySelector("#cadLegend");
+  const powerLeg = document.querySelector("#powerLegend");
   if (speedLeg) speedLeg.hidden = true;
   if (hrLeg) hrLeg.hidden = true;
   if (cadLeg) cadLeg.hidden = true;
+  if (powerLeg) powerLeg.hidden = true;
   const metaBlock = document.querySelector("#fileMetaBlock");
   if (metaBlock) metaBlock.hidden = true;
 }
@@ -549,10 +571,12 @@ const elements = {
   speedCanvas: document.querySelector("#speedCanvas"),
   hrCanvas: document.querySelector("#hrCanvas"),
   cadCanvas: document.querySelector("#cadCanvas"),
+  powerCanvas: document.querySelector("#powerCanvas"),
   closeChartElevation: document.querySelector("#closeChartElevation"),
   closeChartSpeed: document.querySelector("#closeChartSpeed"),
   closeChartHr: document.querySelector("#closeChartHr"),
   closeChartCad: document.querySelector("#closeChartCad"),
+  closeChartPower: document.querySelector("#closeChartPower"),
   elevationTooltip: document.querySelector("#elevationTooltip"),
   elevationTooltipDist: document.querySelector("#elevationTooltipDist"),
   elevationTooltipEle: document.querySelector("#elevationTooltipEle"),
@@ -561,6 +585,7 @@ const elements = {
   speedMapToggle: document.querySelector("#speedMapToggle"),
   hrMapToggle: document.querySelector("#hrMapToggle"),
   cadMapToggle: document.querySelector("#cadMapToggle"),
+  powerMapToggle: document.querySelector("#powerMapToggle"),
   gradeLegend: document.querySelector("#gradeLegend"),
   gradeLegendPlan: document.querySelector("#gradeLegendPlan"),
   gradeMapToggle: document.querySelector("#gradeMapToggle"),
@@ -570,9 +595,12 @@ const elements = {
   speedLegend: document.querySelector("#speedLegend"),
   hrLegend: document.querySelector("#hrLegend"),
   cadLegend: document.querySelector("#cadLegend"),
+  powerLegend: document.querySelector("#powerLegend"),
   speedChartBtn: document.querySelector("#speedChartBtn"),
   hrChartBtn: document.querySelector("#hrChartBtn"),
   cadChartBtn: document.querySelector("#cadChartBtn"),
+  powerChartBtn: document.querySelector("#powerChartBtn"),
+  chartPower: document.querySelector("#chartPower"),
 };
 
 const ROUTE_MODE_META = {
@@ -883,6 +911,7 @@ let activeTool = "route";
 let importedColoredGeometry = null; // ha van sebességszínezés
 let importedHrGeometry = null;      // ha van pulzusszínezés
 let importedCadGeometry = null;     // ha van kadenciaszínezés
+let importedPowerGeometry = null;   // ha van teljesítményszínezés
 
 store.setState({
   mode: (() => { const m = localStorage.getItem("route4meDefaultRouteMode") || "asphalt"; return m === "cycling" ? "asphalt" : m; })(),
@@ -959,9 +988,12 @@ const hrChart        = elements.hrCanvas
 const cadChart       = elements.cadCanvas
   ? initElevationChart(elements.cadCanvas, makeHoverHandler("rpm"))
   : null;
+const powerChart     = elements.powerCanvas
+  ? initElevationChart(elements.powerCanvas, makeHoverHandler("W"))
+  : null;
 
 // Az összes chart feltöltve — szinkronizálás mostantól működik
-chartSync.all = [elevationChart, speedChart, hrChart, cadChart].filter(Boolean);
+chartSync.all = [elevationChart, speedChart, hrChart, cadChart, powerChart].filter(Boolean);
 
 // Melyik chart szekciók látszanak (elevation / speed / hr) — itt deklarálva, hogy
 // updateElevationButton() és a chart control függvények egyaránt hozzáférjenek
@@ -998,6 +1030,9 @@ function updateElevationButton(geometry) {
   if (visibleSections.has("cad") && cadChart) {
     cadChart.setData(buildCadData(activeGeometry), { color: "#A855F7", unit: "rpm" });
   }
+  if (visibleSections.has("power") && powerChart) {
+    powerChart.setData(buildPowerData(activeGeometry), { color: "#EAB308", unit: "W" });
+  }
 }
 
 // Egységes réteg-kapcsoló: csak egy lehet aktív egyszerre
@@ -1006,6 +1041,7 @@ function applyRouteLayer(type) {
   if (elements.speedMapToggle) elements.speedMapToggle.checked = false;
   if (elements.hrMapToggle)    elements.hrMapToggle.checked    = false;
   if (elements.cadMapToggle)   elements.cadMapToggle.checked   = false;
+  if (elements.powerMapToggle) elements.powerMapToggle.checked = false;
   if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
   if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
 
@@ -1013,6 +1049,7 @@ function applyRouteLayer(type) {
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
+  mapAdapter.clearPowerRoute();
   mapAdapter.clearGradeRoute();
 
   // 3. Aktív réteg bekapcsolása
@@ -1033,6 +1070,12 @@ function applyRouteLayer(type) {
       if (importedCadGeometry) {
         if (elements.cadMapToggle) elements.cadMapToggle.checked = true;
         mapAdapter.renderCadRoute(importedCadGeometry);
+      }
+      break;
+    case "power":
+      if (importedPowerGeometry) {
+        if (elements.powerMapToggle) elements.powerMapToggle.checked = true;
+        mapAdapter.renderPowerRoute(importedPowerGeometry);
       }
       break;
     case "grade":
@@ -1057,6 +1100,9 @@ elements.hrMapToggle?.addEventListener("change", (e) => {
 });
 elements.cadMapToggle?.addEventListener("change", (e) => {
   applyRouteLayer(e.target.checked ? "cad" : null);
+});
+elements.powerMapToggle?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "power" : null);
 });
 [elements.gradeMapToggle, elements.gradeMapTogglePlan].forEach((toggle) => {
   toggle?.addEventListener("change", (e) => applyRouteLayer(e.target.checked ? "grade" : null));
@@ -1093,6 +1139,15 @@ function chartConfig(type) {
       btns: [elements.cadChartBtn],
     };
   }
+  if (type === "power") {
+    return {
+      sectionEl: elements.chartPower,
+      chartInst: powerChart,
+      build: () => buildPowerData(activeGeometry),
+      opts: { color: "#EAB308", unit: "W" },
+      btns: [elements.powerChartBtn],
+    };
+  }
   // "elevation" (alapértelmezett)
   return {
     sectionEl: elements.chartElevation,
@@ -1107,7 +1162,7 @@ function syncElevationBtnState() {
   const anyOpen = visibleSections.size > 0;
   if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", anyOpen);
 
-  ["elevation", "speed", "hr", "cad"].forEach((type) => {
+  ["elevation", "speed", "hr", "cad", "power"].forEach((type) => {
     const { btns } = chartConfig(type);
     const active = visibleSections.has(type);
     btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
@@ -1167,12 +1222,14 @@ function handleChartBtn(type) {
 elements.speedChartBtn?.addEventListener("click", () => handleChartBtn("speed"));
 elements.hrChartBtn?.addEventListener("click",    () => handleChartBtn("hr"));
 elements.cadChartBtn?.addEventListener("click",   () => handleChartBtn("cad"));
+elements.powerChartBtn?.addEventListener("click", () => handleChartBtn("power"));
 
 // X gombok az egyes szekciókhoz
 elements.closeChartElevation?.addEventListener("click", () => hideChartSection("elevation"));
 elements.closeChartSpeed?.addEventListener("click",     () => hideChartSection("speed"));
 elements.closeChartHr?.addEventListener("click",        () => hideChartSection("hr"));
 elements.closeChartCad?.addEventListener("click",       () => hideChartSection("cad"));
+elements.closeChartPower?.addEventListener("click",     () => hideChartSection("power"));
 
 function updateElevationPanelInfo(data) {
   if (!elements.elevationInfo || !data.length) return;
@@ -1200,7 +1257,7 @@ function openElevationPanel() {
 
 // Minden szekció bezárása (pl. új fájl betöltésekor)
 function closeElevationPanel() {
-  ["elevation", "speed", "hr", "cad"].forEach((type) => {
+  ["elevation", "speed", "hr", "cad", "power"].forEach((type) => {
     const cfg = chartConfig(type);
     if (cfg.sectionEl) cfg.sectionEl.hidden = true;
   });
@@ -1229,6 +1286,7 @@ const elevationResizeObserver = new ResizeObserver(() => {
   speedChart?.resize();
   hrChart?.resize();
   cadChart?.resize();
+  powerChart?.resize();
 });
 if (elements.elevationPanel) elevationResizeObserver.observe(elements.elevationPanel);
 
@@ -1654,14 +1712,23 @@ elements.measureClear?.addEventListener("click", () => {
 // Topnav dropdown
 const topnavMenuBtn = document.querySelector("#topnavMenuBtn");
 const topnavDropdown = document.querySelector("#topnavDropdown");
-topnavMenuBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  topnavDropdown.hidden = !topnavDropdown.hidden;
+topnavMenuBtn?.addEventListener("click", () => {
+  if (!topnavDropdown) return;
+  const open = topnavDropdown.hidden;
+  if (open) {
+    const rect = topnavMenuBtn.getBoundingClientRect();
+    topnavDropdown.style.top   = (rect.bottom + 8) + "px";
+    topnavDropdown.style.right = (window.innerWidth - rect.right) + "px";
+    topnavDropdown.style.left  = "auto";
+  }
+  topnavDropdown.hidden = !open;
 });
-document.addEventListener("click", () => {
-  if (topnavDropdown) topnavDropdown.hidden = true;
+document.addEventListener("click", (e) => {
+  if (!topnavDropdown || topnavDropdown.hidden) return;
+  if (!topnavMenuBtn?.contains(e.target) && !topnavDropdown.contains(e.target)) {
+    topnavDropdown.hidden = true;
+  }
 });
-topnavDropdown?.addEventListener("click", (e) => e.stopPropagation());
 
 elements.shortcutButton.addEventListener("click", () => {
   if (topnavDropdown) topnavDropdown.hidden = true;
@@ -1684,6 +1751,57 @@ if (config.login) {
     logout();
     window.location.replace("./login.html");
   });
+}
+
+// Admin link – csak multi módban, admin szerepkörrel
+if (isMultiMode() && isAdmin()) {
+  const adminBtn = document.querySelector("#adminButton");
+  const adminDivider = document.querySelector("#adminDivider");
+  if (adminBtn) adminBtn.hidden = false;
+  if (adminDivider) adminDivider.hidden = false;
+}
+
+// Multi mód: felhasználó neve a dropdown tetején
+if (isMultiMode()) {
+  const user = getUser();
+  const userLabel = document.querySelector("#topnavUserLabel");
+  if (userLabel && user) {
+    userLabel.textContent = user.name || user.email;
+    userLabel.hidden = false;
+  }
+}
+
+// Multi mód: beállítások szinkronizálása a szerverrel
+if (isMultiMode()) {
+  // Betöltéskor szerver → localStorage felülírás
+  routesApi.getSettings().then(serverSettings => {
+    if (serverSettings && Object.keys(serverSettings).length > 0) {
+      if (serverSettings.hrZones)    localStorage.setItem("bringaterv.hrZones",    JSON.stringify(serverSettings.hrZones));
+      if (serverSettings.mapStyle)   localStorage.setItem("route4meMapStyle",      serverSettings.mapStyle);
+      if (serverSettings.unit)       localStorage.setItem("route4meUnit",          serverSettings.unit);
+      if (serverSettings.startView)  localStorage.setItem("bringaterv.startView",  JSON.stringify(serverSettings.startView));
+      if (serverSettings.theme)      localStorage.setItem("route4meTheme",         serverSettings.theme);
+    }
+  }).catch(() => { /* offline – marad a localStorage */ });
+
+  // Mentéskor (saveSetting felülírása) – debounced szerver sync
+  let _settingsSyncTimer = null;
+  function syncSettingsToServer() {
+    clearTimeout(_settingsSyncTimer);
+    _settingsSyncTimer = setTimeout(() => {
+      const payload = {};
+      try { payload.hrZones   = JSON.parse(localStorage.getItem("bringaterv.hrZones") || "{}"); } catch {}
+      payload.mapStyle         = localStorage.getItem("route4meMapStyle")     || undefined;
+      payload.unit             = localStorage.getItem("route4meUnit")         || undefined;
+      try { payload.startView = JSON.parse(localStorage.getItem("bringaterv.startView") || "null"); } catch {}
+      payload.theme            = localStorage.getItem("route4meTheme")        || undefined;
+      routesApi.saveSettings(payload).catch(() => {});
+    }, 1500);
+  }
+  // Figyeljük a localStorage változásokat (saját tab: custom event)
+  window.addEventListener("bringaterv:settingChanged", syncSettingsToServer);
+  // HR zóna változás
+  window.addEventListener("hrZonesChanged", syncSettingsToServer);
 }
 
 // Settings overlay
@@ -2178,10 +2296,12 @@ function clearAllRouteState() {
   importedColoredGeometry = null;
   importedHrGeometry = null;
   importedCadGeometry = null;
+  importedPowerGeometry = null;
   importedGpxText = null;
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
+  mapAdapter.clearPowerRoute();
   mapAdapter.clearGradeRoute();
   mapAdapter.renderRoute([]);
   store.clear();
@@ -2874,11 +2994,13 @@ elements.gpxInput.addEventListener("change", async () => {
   const hasSpeed = imported.geometry.some(p => p.speed != null);
   const hasHr = imported.geometry.some(p => p.hr != null);
   const hasCad = imported.geometry.some(p => p.cad != null);
+  const hasPower = imported.geometry.some(p => p.power != null);
 
   // Geometriák tárolása (togglekhoz)
   importedColoredGeometry = hasSpeed ? imported.geometry : null;
-  importedCadGeometry     = hasCad  ? imported.geometry : null;
-  importedHrGeometry      = hasHr   ? imported.geometry : null;
+  importedCadGeometry     = hasCad   ? imported.geometry : null;
+  importedHrGeometry      = hasHr    ? imported.geometry : null;
+  importedPowerGeometry   = hasPower ? imported.geometry : null;
 
   // activeGeometry beállítása előbb, hogy applyRouteLayer(null) renderelhessen
   updateElevationButton(imported.geometry);
@@ -3015,9 +3137,11 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   importedColoredGeometry = null;
   importedHrGeometry = null;
   importedCadGeometry = null;
+  importedPowerGeometry = null;
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
+  mapAdapter.clearPowerRoute();
   mapAdapter.clearGradeRoute();
   hasImportedFile = false;
   clearFileTab();
@@ -3075,10 +3199,12 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     const hasSpeed = imported.geometry.some(p => p.speed != null);
     const hasHr    = imported.geometry.some(p => p.hr    != null);
     const hasCad   = imported.geometry.some(p => p.cad   != null);
+    const hasPower = imported.geometry.some(p => p.power != null);
 
     importedColoredGeometry = hasSpeed ? imported.geometry : null;
-    importedHrGeometry      = hasHr   ? imported.geometry : null;
-    importedCadGeometry     = hasCad  ? imported.geometry : null;
+    importedHrGeometry      = hasHr    ? imported.geometry : null;
+    importedCadGeometry     = hasCad   ? imported.geometry : null;
+    importedPowerGeometry   = hasPower ? imported.geometry : null;
 
     updateElevationButton(imported.geometry);
     applyRouteLayer(null);

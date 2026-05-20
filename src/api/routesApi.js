@@ -18,6 +18,8 @@
  *   const gpx     = await routesApi.loadSample(id);
  */
 
+import { authHeaders, handle401 } from "../auth.js";
+
 // ── Alap URL ──────────────────────────────────────────────────────────────────
 // Relatív path: mindig ugyanazon a hoszt:porton keresztül, ahol a frontend fut.
 // (nginx proxy-n át jut el a Flask API-hoz)
@@ -35,19 +37,25 @@ const BASE = "/api";
  */
 async function fetchJson(url, options = {}) {
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...(options.headers ?? {}),
+    },
     ...options,
   });
 
+  if (res.status === 401) {
+    handle401();   // token lejárt → kijelentkezés + login.html
+    throw new Error("Lejárt munkamenet");
+  }
+
   if (!res.ok) {
-    // Flask mindig JSON-ban küldi a hibákat
     let message = `HTTP ${res.status}`;
     try {
       const err = await res.json();
       message = err.error ?? message;
-    } catch {
-      /* JSON parse hiba – marad az alapértelmezett üzenet */
-    }
+    } catch { /* marad az alapértelmezett */ }
     throw new Error(message);
   }
 
@@ -61,10 +69,9 @@ async function fetchJson(url, options = {}) {
  * @returns {Promise<string>}
  */
 async function fetchText(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${url}`);
-  }
+  const res = await fetch(url, { headers: authHeaders() });
+  if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
   return res.text();
 }
 
@@ -182,11 +189,49 @@ export const routesApi = {
 
   /**
    * API elérhetőség ellenőrzése.
-   * Visszaadja az API státuszát és az útvonalak számát.
-   *
-   * @returns {Promise<{ status: string, user_routes: number, samples: number }>}
    */
   health() {
     return fetchJson(`${BASE}/health`);
+  },
+
+
+  // ── Személyes beállítások (multi mód) ──────────────────────────────────────
+
+  /**
+   * Felhasználó beállításainak lekérése a szerverről.
+   * Single módban üres objektumot ad vissza.
+   */
+  getSettings() {
+    return fetchJson(`${BASE}/user/settings`);
+  },
+
+  /**
+   * Felhasználó beállításainak mentése a szerverre.
+   * @param {object} settings
+   */
+  saveSettings(settings) {
+    return fetchJson(`${BASE}/user/settings`, {
+      method: "PUT",
+      body:   JSON.stringify(settings),
+    });
+  },
+
+
+  // ── Admin végpontok ─────────────────────────────────────────────────────────
+
+  admin: {
+    listUsers()                       { return fetchJson(`${BASE}/admin/users`); },
+    createUser(data)                  { return fetchJson(`${BASE}/admin/users`, { method: "POST", body: JSON.stringify(data) }); },
+    getUser(id)                       { return fetchJson(`${BASE}/admin/users/${id}`); },
+    updateUser(id, data)              { return fetchJson(`${BASE}/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }); },
+    resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
+    stats()                           { return fetchJson(`${BASE}/admin/stats`); },
+    listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
+    async deleteUserRoute(userId, routeId) {
+      const res = await fetch(`${BASE}/admin/users/${userId}/routes/${routeId}`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`Törlési hiba: HTTP ${res.status}`);
+    },
   },
 };

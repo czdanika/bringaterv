@@ -131,6 +131,10 @@ function nodesToPoints(nodes) {
     const hr = hrNode ? Number(hrNode.textContent) : null;
     const cadNode = node.getElementsByTagNameNS("*", "cad")[0];
     const cad = cadNode ? Number(cadNode.textContent) : null;
+    // Power: Garmin uses <ns3:watts> / <gpxtpx:watts>, other tools use <power>
+    const wattsNode = node.getElementsByTagNameNS("*", "watts")[0]
+                   || node.getElementsByTagNameNS("*", "power")[0];
+    const power = wattsNode ? Number(wattsNode.textContent) : null;
     const segModeNode = node.getElementsByTagNameNS("*", "segmentMode")[0];
     const segmentMode = segModeNode?.textContent?.trim() || null;
     return {
@@ -140,6 +144,7 @@ function nodesToPoints(nodes) {
       time: timeText ? new Date(timeText).getTime() : null,
       hr: hr != null && Number.isFinite(hr) && hr > 0 ? hr : null,
       cad: cad != null && Number.isFinite(cad) && cad >= 0 ? cad : null,
+      power: power != null && Number.isFinite(power) && power >= 0 ? power : null,
       name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
       note: node.querySelector("desc")?.textContent || "",
       segmentMode,

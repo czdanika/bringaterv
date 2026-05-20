@@ -49,21 +49,6 @@
             <button id="topnavMenuBtn" class="topnav-icon-btn" type="button" title="Menü">
               <i data-lucide="menu" aria-hidden="true"></i>
             </button>
-            <div id="topnavDropdown" class="topnav-dropdown" hidden>
-              <button class="dropdown-item" id="shortcutButton" type="button">
-                <i data-lucide="keyboard" aria-hidden="true"></i>
-                <span data-i18n="shortcuts.title">Billentyűparancsok</span>
-              </button>
-              <button class="dropdown-item" id="settingsButton" type="button">
-                <i data-lucide="settings" aria-hidden="true"></i>
-                <span data-i18n="nav.settings">Beállítások</span>
-              </button>
-              <div class="dropdown-divider" id="logoutDivider" hidden></div>
-              <button class="dropdown-item dropdown-item--danger" id="logoutButton" type="button" hidden>
-                <i data-lucide="log-out" aria-hidden="true"></i>
-                <span>Kijelentkezés</span>
-              </button>
-            </div>
           </div>
         </div>
       </header>
@@ -448,6 +433,14 @@
                   <span>Max kadencia</span>
                   <strong id="fileMaxCad">—</strong>
                 </div>
+                <div class="stat-card" id="fileAvgPowerRow" hidden>
+                  <span>⌀ Átlag teljesítmény</span>
+                  <strong id="fileAvgPower">—</strong>
+                </div>
+                <div class="stat-card" id="fileMaxPowerRow" hidden>
+                  <span>Max teljesítmény</span>
+                  <strong id="fileMaxPower">—</strong>
+                </div>
               </div>
 
               <!-- Sebesség térkép kapcsoló -->
@@ -529,6 +522,36 @@
                 <div class="speed-legend-items hr-zone-body">
                   <div id="hrZoneScores" class="hr-zone-scores" hidden></div>
                   <div id="hrZoneRows" class="hr-zone-rows"></div>
+                </div>
+              </div>
+
+              <!-- Teljesítmény (power) térkép kapcsoló -->
+              <div id="powerLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Teljesítmény térkép</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="powerChartBtn" class="grade-chart-btn" type="button" title="Teljesítménydiagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Teljesítménytérkép be/ki">
+                    <input id="powerMapToggle" type="checkbox" checked>
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#9CA3AF"></span>&lt; 50 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#60A5FA"></span>50–100 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#34D399"></span>100–150 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#22C55E"></span>150–200 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#84CC16"></span>200–250 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EAB308"></span>250–300 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#F97316"></span>300–350 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#EF4444"></span>350–400 W</div>
+                  <div class="speed-legend-item"><span class="speed-dot" style="background:#A855F7"></span>400+ W</div>
                 </div>
               </div>
 
@@ -897,6 +920,21 @@
             </div>
           </div>
 
+          <!-- Teljesítmény szekció -->
+          <div id="chartPower" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Teljesítmény</span>
+              <button id="closeChartPower" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="powerCanvas"></canvas>
+            </div>
+          </div>
+
           <!-- Közös hover tooltip -->
           <div id="elevationTooltip" class="elevation-hover-info" hidden>
             <span id="elevationTooltipDist"></span>
@@ -915,462 +953,6 @@
             Mérés törlése
           </button>
         </div>
-
-        <!-- Settings overlay -->
-        <div id="settingsOverlay" class="shortcut-overlay" hidden>
-          <div class="settings-panel">
-            <div class="settings-header">
-              <h3>Beállítások</h3>
-              <button id="settingsClose" class="shortcut-close" type="button" title="Bezárás">
-                <i data-lucide="x" aria-hidden="true"></i>
-              </button>
-            </div>
-
-            <div class="settings-body">
-
-              <!-- Térképstílus -->
-              <section class="settings-section" data-settings-section="mapStyle">
-                <h4 class="settings-section-title">
-                  <i data-lucide="layers" aria-hidden="true"></i>
-                  Térképstílus
-                  <button class="hint-btn" type="button" data-hint="A térkép vizuális megjelenítési módja. Kerékpár nézetben az utak és kerékpárutak kiemelve látszanak, a műholdas nézet valós légifotókat mutat." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-                  <div class="settings-map-styles">
-                    <button class="settings-style-btn" data-map-style="standard" type="button">
-                      <span class="settings-style-preview settings-style-preview--standard"></span>
-                      <span class="settings-style-label">Standard</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="cycling" type="button">
-                      <span class="settings-style-preview settings-style-preview--cycling"></span>
-                      <span class="settings-style-label">Kerékpár</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="topo" type="button">
-                      <span class="settings-style-preview settings-style-preview--topo"></span>
-                      <span class="settings-style-label">Domborzat</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="satellite" type="button">
-                      <span class="settings-style-preview settings-style-preview--satellite"></span>
-                      <span class="settings-style-label">Műhold</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="hybrid" type="button">
-                      <span class="settings-style-preview settings-style-preview--hybrid"></span>
-                      <span class="settings-style-label">Hybrid</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="light" type="button">
-                      <span class="settings-style-preview settings-style-preview--light"></span>
-                      <span class="settings-style-label">Világos</span>
-                    </button>
-                    <button class="settings-style-btn" data-map-style="dark" type="button">
-                      <span class="settings-style-preview settings-style-preview--dark"></span>
-                      <span class="settings-style-label">Sötét</span>
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Mértékegység -->
-              <section class="settings-section" data-settings-section="units">
-                <h4 class="settings-section-title">
-                  <i data-lucide="ruler" aria-hidden="true"></i>
-                  Mértékegység
-                  <button class="hint-btn" type="button" data-hint="A távolságok és magasságok megjelenítési egysége. Metrikus: km és méter. Imperial: mérföld és láb." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-                  <div class="settings-unit-group">
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="units" value="metric" checked>
-                      <span>
-                        <i data-lucide="gauge" aria-hidden="true"></i>
-                        Metrikus
-                        <small>km, m</small>
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="units" value="imperial">
-                      <span>
-                        <i data-lucide="gauge" aria-hidden="true"></i>
-                        Imperial
-                        <small>mi, ft</small>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Tervezési beállítások -->
-              <section class="settings-section" data-settings-section="planningDefaults">
-                <h4 class="settings-section-title">
-                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
-                  Tervezési beállítások
-                  <button class="hint-btn" type="button" data-hint="Útvonaltervezési alapbeállítások: útra illesztés, szakaszinfo, sebességbecslés módja és átlagsebességek módok szerint." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-                  <div class="settings-toggle-row">
-                    <div class="settings-toggle-label">
-                      <span>Útra illesztés</span>
-                      <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal pontjai automatikusan a legközelebbi útra illeszkednek. Kikapcsolva a pontokat légvonalban köti össze." aria-label="Segítség">
-                        <i data-lucide="info" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <label class="toggle-switch">
-                      <input id="settingsSnapToRoads" type="checkbox">
-                      <span class="toggle-track"></span>
-                    </label>
-                  </div>
-
-                  <div class="settings-toggle-row">
-                    <div class="settings-toggle-label">
-                      <span>Szakasz infó</span>
-                      <button class="hint-btn" type="button" data-hint="Az útvonal egyes szakaszainak részletes adatait (távolság, szintkülönbség) jeleníti meg a térkép alatt." aria-label="Segítség">
-                        <i data-lucide="info" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <label class="toggle-switch">
-                      <input id="settingsShowStageInfo" type="checkbox">
-                      <span class="toggle-track"></span>
-                    </label>
-                  </div>
-
-                  <div class="settings-toggle-row">
-                    <div class="settings-toggle-label">
-                      <span>GPX köztes pontok</span>
-                      <button class="hint-btn" type="button" data-hint="GPX fájl betöltésekor az útvonalon lévő összes köztes pontot beolvassa. Kikapcsolva csak a kezdő- és végpontot veszi figyelembe." aria-label="Segítség">
-                        <i data-lucide="info" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <label class="toggle-switch">
-                      <input id="settingsGpxSampleWaypoints" type="checkbox">
-                      <span class="toggle-track"></span>
-                    </label>
-                  </div>
-
-                  <!-- Szintadat az időbecsléshez -->
-                  <div class="settings-toggle-row">
-                    <div class="settings-toggle-label">
-                      <span>Szintadat az időbecsléshez</span>
-                      <button class="hint-btn" type="button" data-hint="Bekapcsolva az emelkedő és süllyedő figyelembevételével számítja a becsült útidőt (Naismith-szabály). Kikapcsolva csak a lapos átlagsebesség alapján számol." aria-label="Segítség">
-                        <i data-lucide="info" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <label class="toggle-switch">
-                      <input id="elevationTimeToggle" type="checkbox" checked>
-                      <span class="toggle-track"></span>
-                    </label>
-                  </div>
-
-                  <!-- Átlagsebesség csúszkák -->
-                  <div class="settings-divider"></div>
-                  <div class="settings-speed-title">
-                    Átlagsebesség módok szerint
-                    <button class="hint-btn" type="button" data-hint="A becsült útidő számításához használt alapsebességek. Ezeket az értékeket súlyozza az emelkedő és süllyedő." aria-label="Segítség">
-                      <i data-lucide="info" aria-hidden="true"></i>
-                    </button>
-                  </div>
-
-                  <div class="speed-slider-row">
-                    <div class="speed-slider-info">
-                      <i data-lucide="bike" aria-hidden="true"></i>
-                      <span>Aszfalt</span>
-                      <span class="speed-val-wrap"><span id="speedAsphaltVal">22</span> km/h</span>
-                    </div>
-                    <input type="range" id="speedAsphalt" class="speed-slider" min="8" max="45" value="22" step="1" data-speed-mode="asphalt">
-                  </div>
-
-                  <div class="speed-slider-row">
-                    <div class="speed-slider-info">
-                      <i data-lucide="gauge" aria-hidden="true"></i>
-                      <span>Gravel</span>
-                      <span class="speed-val-wrap"><span id="speedGravelVal">18</span> km/h</span>
-                    </div>
-                    <input type="range" id="speedGravel" class="speed-slider" min="5" max="40" value="18" step="1" data-speed-mode="gravel">
-                  </div>
-
-                  <div class="speed-slider-row">
-                    <div class="speed-slider-info">
-                      <i data-lucide="mountain" aria-hidden="true"></i>
-                      <span>MTB</span>
-                      <span class="speed-val-wrap"><span id="speedMtbVal">12</span> km/h</span>
-                    </div>
-                    <input type="range" id="speedMtb" class="speed-slider" min="3" max="30" value="12" step="1" data-speed-mode="mtb">
-                  </div>
-
-                  <div class="speed-slider-row">
-                    <div class="speed-slider-info">
-                      <i data-lucide="footprints" aria-hidden="true"></i>
-                      <span>Gyalogos</span>
-                      <span class="speed-val-wrap"><span id="speedHikingVal">5</span> km/h</span>
-                    </div>
-                    <input type="range" id="speedHiking" class="speed-slider" min="1" max="15" value="5" step="1" data-speed-mode="hiking">
-                  </div>
-
-                  <button id="resetSpeedDefaults" class="speed-reset-btn" type="button">
-                    <i data-lucide="rotate-ccw" aria-hidden="true"></i> Visszaállítás
-                  </button>
-
-                </div>
-              </section>
-
-              <!-- Kezdő nézet -->
-              <section class="settings-section" data-settings-section="startView">
-                <h4 class="settings-section-title">
-                  <i data-lucide="map-pin" aria-hidden="true"></i>
-                  Induló nézet
-                  <button class="hint-btn" type="button" data-hint="Az alkalmazás megnyitásakor a térkép automatikusan erre a helyre és zoomszintre ugrik." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-                  <p class="settings-hint">A térkép ezen a helyen és zoomszinten nyílik meg.</p>
-                  <div class="settings-startview-search">
-                    <div class="settings-search-wrap">
-                      <input id="startViewSearch" class="settings-search-input" type="text"
-                        placeholder="Keress helyet…" autocomplete="off">
-                      <div id="startViewResults" class="settings-search-results" hidden></div>
-                    </div>
-                    <button id="startViewCurrentBtn" class="settings-action-btn" type="button" title="A térkép jelenlegi középpontjának mentése induló nézetként">
-                      <i data-lucide="frame" aria-hidden="true"></i>
-                      Térkép nézete
-                    </button>
-                    <button id="startViewGpsBtn" class="settings-action-btn" type="button" title="GPS pozíció lekérése">
-                      <i data-lucide="locate" aria-hidden="true"></i>
-                      GPS
-                    </button>
-                  </div>
-                  <div id="startViewCurrent" class="settings-startview-current" hidden>
-                    <i data-lucide="map-pin-check" aria-hidden="true"></i>
-                    <span id="startViewLabel">—</span>
-                    <button id="startViewClearBtn" class="settings-clear-btn" type="button" title="Törlés">
-                      <i data-lucide="trash-2" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Toolbar sorrend -->
-              <section class="settings-section" data-settings-section="toolbarOrder">
-                <h4 class="settings-section-title">
-                  <i data-lucide="grip-horizontal" aria-hidden="true"></i>
-                  Toolbar sorrend
-                  <button class="hint-btn" type="button" data-hint="A térkép alsó eszköztárán lévő gombok sorrendje és láthatósága. Húzással rendezhető, a szem ikonnal elrejthetők egyes elemek." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-                  <div class="toolbar-order-wrap">
-                    <div class="toolbar-order-header">
-                      <p class="toolbar-order-hint">Húzd át az elemeket a kívánt sorrendbe. A 👁 ikonnal elrejthető egy elem.</p>
-                      <button id="toolbarOrderReset" class="toolbar-order-reset-btn" type="button" title="Visszaállítás alapértelmezettre">
-                        <i data-lucide="rotate-ccw" aria-hidden="true"></i>
-                        Alapértelmezett
-                      </button>
-                    </div>
-                    <ul id="toolbarOrderList" class="toolbar-order-list"></ul>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Elemzési beállítások -->
-              <section class="settings-section" data-settings-section="hrZones">
-                <h4 class="settings-section-title">
-                  <i data-lucide="activity" aria-hidden="true"></i>
-                  Elemzési beállítások
-                  <button class="hint-btn" type="button" data-hint="Pulzusadat-alapú edzéselemzés beállításai: számítási módszer, nyugalmi és max pulzus. Az Elemzés fülön megjelenő zónaeloszlás és TRIMP érték ezeket használja." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
-                </h4>
-                <div class="settings-section-body">
-
-                  <!-- Biológiai nem -->
-                  <p class="settings-label-text">Biológiai nem</p>
-                  <div class="settings-unit-group" style="margin-bottom:16px">
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrSex" value="male" checked>
-                      <span>
-                        <i data-lucide="person-standing" aria-hidden="true"></i>
-                        Férfi
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrSex" value="female">
-                      <span>
-                        <i data-lucide="person-standing" aria-hidden="true"></i>
-                        Nő
-                      </span>
-                    </label>
-                  </div>
-
-                  <!-- Számítási módszer -->
-                  <p class="settings-label-text">Zónaszámítás módszere</p>
-                  <div class="settings-unit-group">
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrMethod" value="karvonen" checked>
-                      <span class="hint-target" data-hint="Karvonen (HRR%) – a pulzustartalékot (max − nyugalmi) veszi alapul. Pontosabb, ha ismered a valódi reggeli nyugalmi pulzusodat. Képlet: zóna = nyugalmi + (max − nyugalmi) × %">
-                        <i data-lucide="heart-pulse" aria-hidden="true"></i>
-                        Karvonen
-                        <small>nyugalmi + tartalék</small>
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrMethod" value="maxhr">
-                      <span class="hint-target" data-hint="Max HR % – a max pulzus fix százalékaként határozza meg a zónákat. Egyszerűbb, nem igényel nyugalmi pulzust. A Strava is hasonló módszert használ. Képlet: zóna = max × %">
-                        <i data-lucide="percent" aria-hidden="true"></i>
-                        Max HR %
-                        <small>Strava-kompatibilis</small>
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrMethod" value="lthr">
-                      <span class="hint-target" data-hint="LTHR – laktátküszöb pulzus alapú számítás. Joe Friel / WKO módszer, amelyet a Magene is alkalmaz. A zónák az LTHR-hez viszonyítanak (82/89/94/100%). A legpontosabb módszer, ha ismered az LTHR értékedet.">
-                        <i data-lucide="activity" aria-hidden="true"></i>
-                        LTHR
-                        <small>laktátküszöb</small>
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrMethod" value="custom">
-                      <span class="hint-target" data-hint="Egyedi zónák – add meg pontosan a BPM határokat. Ha a Strava, Garmin vagy más appban kézzel állítottad be a zónákat, itt ugyanazokat a számokat használhatod.">
-                        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
-                        Egyedi
-                        <small>saját határok</small>
-                      </span>
-                    </label>
-                  </div>
-
-                  <!-- LTHR csúszka (csak LTHR módban) -->
-                  <div id="hrLthrSliderRow" class="karvonen-slider-row" style="margin-top:14px" hidden>
-                    <div class="karvonen-slider-header">
-                      <label class="karvonen-slider-label" for="hrLthrSlider">Laktátküszöb pulzus (LTHR)</label>
-                      <span class="karvonen-slider-value" id="hrLthrOut">160</span>
-                    </div>
-                    <input type="range" min="130" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
-                    <div class="karvonen-slider-bounds"><span>130</span><span>200</span></div>
-                  </div>
-
-                  <!-- Egyedi zónahatárok (csak Egyedi módban) -->
-                  <div id="hrCustomBoundariesRow" style="margin-top:14px" hidden>
-                    <p class="settings-label-text">Zónahatárok (BPM)</p>
-                    <!-- Multi-handle slider -->
-                    <div id="hrMultiSlider" class="hr-multi-slider">
-                      <div class="hr-multi-slider-track"></div>
-                    </div>
-                    <!-- Rejtett inputok (adattárolás) -->
-                    <div hidden>
-                      <input type="number" id="hrCustomB1" value="105">
-                      <input type="number" id="hrCustomB2" value="139">
-                      <input type="number" id="hrCustomB3" value="156">
-                      <input type="number" id="hrCustomB4" value="173">
-                    </div>
-                    <!-- Zónacímkék (JS tölti fel) -->
-                    <div id="hrCustomZoneDisplay" class="hr-custom-zone-display"></div>
-                  </div>
-
-                  <!-- Zónamodell -->
-                  <div id="hrZoneModelRow">
-                  <p class="settings-label-text" style="margin-top:16px">Zónamodell</p>
-                  <p class="settings-hint" style="margin-bottom:8px">
-                    <strong>Friel</strong>: fiziológiailag pontos, aszimmetrikus sávok (65/80/89/97%). Garmin, Strava és TrainingPeaks is ezt alkalmazza. Az aerob zóna szélesebb, az anaerob szűkebb és pontosabb.<br>
-                    <strong>Egyenlő sávok</strong>: egyszerű 10%-os felosztás (50–100%). Matematikailag szimmetrikus, de nem tükrözi a valódi fiziológiai küszöbértékeket.
-                  </p>
-                  <div class="settings-unit-group" style="margin-bottom:16px">
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrZoneModel" value="friel" checked>
-                      <span>
-                        Friel
-                        <small>ajánlott</small>
-                      </span>
-                    </label>
-                    <label class="settings-unit-btn">
-                      <input type="radio" name="hrZoneModel" value="equal">
-                      <span>
-                        Egyenlő sávok
-                        <small>10%-os felosztás</small>
-                      </span>
-                    </label>
-                  </div>
-
-                  </div><!-- /hrZoneModelRow -->
-
-                  <!-- Nyugalmi pulzus (csak Karvonen módban) -->
-                  <div id="hrRestSliderRow" class="karvonen-slider-row" style="margin-top:14px">
-                    <div class="karvonen-slider-header">
-                      <label class="karvonen-slider-label" for="hrRestSlider">Nyugalmi pulzus (HRrest)</label>
-                      <span class="karvonen-slider-value" id="hrRestOut">60</span>
-                    </div>
-                    <input type="range" min="35" max="100" step="1" value="60" id="hrRestSlider" class="karvonen-slider">
-                    <div class="karvonen-slider-bounds"><span>35</span><span>100</span></div>
-                  </div>
-
-                  <!-- Max pulzus becslő -->
-                  <div class="hrmax-estimator">
-                    <div class="hrmax-estimator-header">
-                      <span class="karvonen-slider-label">Max pulzus becslése életkorból</span>
-                      <button class="hint-btn" type="button" data-hint="Ha nem mérted laboratóriumban a max pulzusodat, életkorból is becsülhető. A Tanaka-képlet tudományosan pontosabb, a 220−kor csak durva közelítés." aria-label="Segítség">
-                        <i data-lucide="info" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                    <div class="karvonen-slider-row" style="margin-bottom:10px">
-                      <div class="karvonen-slider-header">
-                        <label class="karvonen-slider-label" for="hrAgeSlider">Életkor</label>
-                        <span class="karvonen-slider-value"><span id="hrAgeOut">30</span> év</span>
-                      </div>
-                      <input type="range" min="15" max="80" step="1" value="30" id="hrAgeSlider" class="karvonen-slider">
-                      <div class="karvonen-slider-bounds"><span>15</span><span>80</span></div>
-                    </div>
-                    <div class="hrmax-formula-group">
-                      <label class="hrmax-formula-btn">
-                        <input type="radio" name="hrFormula" value="tanaka" checked>
-                        <span class="hint-target" id="hrFormulaTanakaSpan" data-hint="Tanaka (2001): 208 − (0.7 × kor). 351 tanulmány meta-analíziséből, pontosabb aktív felnőtteknél. Ajánlott módszer.">
-                          <span class="hrmax-formula-name" id="hrFormulaTanakaName">Tanaka</span>
-                          <span class="hrmax-formula-eq" id="hrFormulaTanakaEq">208 − (0.7 × kor)</span>
-                          <span class="hrmax-formula-result" id="hrMaxTanakaResult">187 bpm</span>
-                        </span>
-                      </label>
-                      <label class="hrmax-formula-btn">
-                        <input type="radio" name="hrFormula" value="classic">
-                        <span class="hint-target" data-hint="220 − kor: egyszerű, de pontatlan becslés. Egyéni eltérés ±10–20 bpm is lehet. Csak ha semmi más adatod nincs.">
-                          <span class="hrmax-formula-name">220 − kor</span>
-                          <span class="hrmax-formula-eq">220 − kor</span>
-                          <span class="hrmax-formula-result" id="hrMaxClassicResult">190 bpm</span>
-                        </span>
-                      </label>
-                    </div>
-                    <button id="hrMaxApplyBtn" class="hrmax-apply-btn" type="button">
-                      <i data-lucide="check" aria-hidden="true"></i>
-                      Beállítás max pulzusként
-                    </button>
-                  </div>
-
-                  <!-- Max pulzus -->
-                  <div class="karvonen-slider-row">
-                    <div class="karvonen-slider-header">
-                      <label class="karvonen-slider-label" for="hrMaxSlider">Max pulzus (HRmax)</label>
-                      <span class="karvonen-slider-value" id="hrMaxOut">190</span>
-                    </div>
-                    <input type="range" min="140" max="220" step="1" value="190" id="hrMaxSlider" class="karvonen-slider">
-                    <div class="karvonen-slider-bounds"><span>140</span><span>220</span></div>
-                  </div>
-
-                  <div id="karvonenZonesList" class="karvonen-zones-list"></div>
-                </div>
-              </section>
-
-            </div>
-          </div>
-        </div>
-
         <!-- Shortcut overlay -->
         <div id="shortcutOverlay" class="shortcut-overlay" hidden>
           <div class="shortcut-card">
@@ -1599,6 +1181,487 @@
     </div>
     <div id="toolbarSearchResults" class="search-results toolbar-search-results"></div>
   </div>
+
+  <!-- Topnav dropdown – body szinten, hogy minden stacking context fölé kerüljön -->
+  <div id="topnavDropdown" class="topnav-dropdown" hidden>
+    <div class="dropdown-user-label" id="topnavUserLabel" hidden></div>
+    <button class="dropdown-item" id="shortcutButton" type="button">
+      <i data-lucide="keyboard" aria-hidden="true"></i>
+      <span data-i18n="shortcuts.title">Billentyűparancsok</span>
+    </button>
+    <button class="dropdown-item" id="settingsButton" type="button">
+      <i data-lucide="settings" aria-hidden="true"></i>
+      <span data-i18n="nav.settings">Beállítások</span>
+    </button>
+    <div class="dropdown-divider" id="adminDivider" hidden></div>
+    <a class="dropdown-item" id="adminButton" href="./admin.html" hidden>
+      <i data-lucide="users" aria-hidden="true"></i>
+      <span>Felhasználók</span>
+    </a>
+    <div class="dropdown-divider" id="logoutDivider" hidden></div>
+    <button class="dropdown-item dropdown-item--danger" id="logoutButton" type="button" hidden>
+      <i data-lucide="log-out" aria-hidden="true"></i>
+      <span>Kijelentkezés</span>
+    </button>
+  </div>
+
+
+  <!-- Settings overlay – body szinten a stacking context miatt -->
+  <!-- Settings overlay -->
+  <div id="settingsOverlay" class="shortcut-overlay" hidden>
+  <div class="settings-panel">
+  <div class="settings-header">
+  <h3>Beállítások</h3>
+  <button id="settingsClose" class="shortcut-close" type="button" title="Bezárás">
+  <i data-lucide="x" aria-hidden="true"></i>
+  </button>
+  </div>
+
+  <div class="settings-body">
+
+  <!-- Térképstílus -->
+  <section class="settings-section" data-settings-section="mapStyle">
+  <h4 class="settings-section-title">
+  <i data-lucide="layers" aria-hidden="true"></i>
+  Térképstílus
+  <button class="hint-btn" type="button" data-hint="A térkép vizuális megjelenítési módja. Kerékpár nézetben az utak és kerékpárutak kiemelve látszanak, a műholdas nézet valós légifotókat mutat." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <div class="settings-map-styles">
+  <button class="settings-style-btn" data-map-style="standard" type="button">
+  <span class="settings-style-preview settings-style-preview--standard"></span>
+  <span class="settings-style-label">Standard</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="cycling" type="button">
+  <span class="settings-style-preview settings-style-preview--cycling"></span>
+  <span class="settings-style-label">Kerékpár</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="topo" type="button">
+  <span class="settings-style-preview settings-style-preview--topo"></span>
+  <span class="settings-style-label">Domborzat</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="satellite" type="button">
+  <span class="settings-style-preview settings-style-preview--satellite"></span>
+  <span class="settings-style-label">Műhold</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="hybrid" type="button">
+  <span class="settings-style-preview settings-style-preview--hybrid"></span>
+  <span class="settings-style-label">Hybrid</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="light" type="button">
+  <span class="settings-style-preview settings-style-preview--light"></span>
+  <span class="settings-style-label">Világos</span>
+  </button>
+  <button class="settings-style-btn" data-map-style="dark" type="button">
+  <span class="settings-style-preview settings-style-preview--dark"></span>
+  <span class="settings-style-label">Sötét</span>
+  </button>
+  </div>
+  </div>
+  </section>
+
+  <!-- Mértékegység -->
+  <section class="settings-section" data-settings-section="units">
+  <h4 class="settings-section-title">
+  <i data-lucide="ruler" aria-hidden="true"></i>
+  Mértékegység
+  <button class="hint-btn" type="button" data-hint="A távolságok és magasságok megjelenítési egysége. Metrikus: km és méter. Imperial: mérföld és láb." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <div class="settings-unit-group">
+  <label class="settings-unit-btn">
+  <input type="radio" name="units" value="metric" checked>
+  <span>
+  <i data-lucide="gauge" aria-hidden="true"></i>
+  Metrikus
+  <small>km, m</small>
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="units" value="imperial">
+  <span>
+  <i data-lucide="gauge" aria-hidden="true"></i>
+  Imperial
+  <small>mi, ft</small>
+  </span>
+  </label>
+  </div>
+  </div>
+  </section>
+
+  <!-- Tervezési beállítások -->
+  <section class="settings-section" data-settings-section="planningDefaults">
+  <h4 class="settings-section-title">
+  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+  Tervezési beállítások
+  <button class="hint-btn" type="button" data-hint="Útvonaltervezési alapbeállítások: útra illesztés, szakaszinfo, sebességbecslés módja és átlagsebességek módok szerint." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <div class="settings-toggle-row">
+  <div class="settings-toggle-label">
+  <span>Útra illesztés</span>
+  <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal pontjai automatikusan a legközelebbi útra illeszkednek. Kikapcsolva a pontokat légvonalban köti össze." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <label class="toggle-switch">
+  <input id="settingsSnapToRoads" type="checkbox">
+  <span class="toggle-track"></span>
+  </label>
+  </div>
+
+  <div class="settings-toggle-row">
+  <div class="settings-toggle-label">
+  <span>Szakasz infó</span>
+  <button class="hint-btn" type="button" data-hint="Az útvonal egyes szakaszainak részletes adatait (távolság, szintkülönbség) jeleníti meg a térkép alatt." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <label class="toggle-switch">
+  <input id="settingsShowStageInfo" type="checkbox">
+  <span class="toggle-track"></span>
+  </label>
+  </div>
+
+  <div class="settings-toggle-row">
+  <div class="settings-toggle-label">
+  <span>GPX köztes pontok</span>
+  <button class="hint-btn" type="button" data-hint="GPX fájl betöltésekor az útvonalon lévő összes köztes pontot beolvassa. Kikapcsolva csak a kezdő- és végpontot veszi figyelembe." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <label class="toggle-switch">
+  <input id="settingsGpxSampleWaypoints" type="checkbox">
+  <span class="toggle-track"></span>
+  </label>
+  </div>
+
+  <!-- Szintadat az időbecsléshez -->
+  <div class="settings-toggle-row">
+  <div class="settings-toggle-label">
+  <span>Szintadat az időbecsléshez</span>
+  <button class="hint-btn" type="button" data-hint="Bekapcsolva az emelkedő és süllyedő figyelembevételével számítja a becsült útidőt (Naismith-szabály). Kikapcsolva csak a lapos átlagsebesség alapján számol." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <label class="toggle-switch">
+  <input id="elevationTimeToggle" type="checkbox" checked>
+  <span class="toggle-track"></span>
+  </label>
+  </div>
+
+  <!-- Átlagsebesség csúszkák -->
+  <div class="settings-divider"></div>
+  <div class="settings-speed-title">
+  Átlagsebesség módok szerint
+  <button class="hint-btn" type="button" data-hint="A becsült útidő számításához használt alapsebességek. Ezeket az értékeket súlyozza az emelkedő és süllyedő." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+
+  <div class="speed-slider-row">
+  <div class="speed-slider-info">
+  <i data-lucide="bike" aria-hidden="true"></i>
+  <span>Aszfalt</span>
+  <span class="speed-val-wrap"><span id="speedAsphaltVal">22</span> km/h</span>
+  </div>
+  <input type="range" id="speedAsphalt" class="speed-slider" min="8" max="45" value="22" step="1" data-speed-mode="asphalt">
+  </div>
+
+  <div class="speed-slider-row">
+  <div class="speed-slider-info">
+  <i data-lucide="gauge" aria-hidden="true"></i>
+  <span>Gravel</span>
+  <span class="speed-val-wrap"><span id="speedGravelVal">18</span> km/h</span>
+  </div>
+  <input type="range" id="speedGravel" class="speed-slider" min="5" max="40" value="18" step="1" data-speed-mode="gravel">
+  </div>
+
+  <div class="speed-slider-row">
+  <div class="speed-slider-info">
+  <i data-lucide="mountain" aria-hidden="true"></i>
+  <span>MTB</span>
+  <span class="speed-val-wrap"><span id="speedMtbVal">12</span> km/h</span>
+  </div>
+  <input type="range" id="speedMtb" class="speed-slider" min="3" max="30" value="12" step="1" data-speed-mode="mtb">
+  </div>
+
+  <div class="speed-slider-row">
+  <div class="speed-slider-info">
+  <i data-lucide="footprints" aria-hidden="true"></i>
+  <span>Gyalogos</span>
+  <span class="speed-val-wrap"><span id="speedHikingVal">5</span> km/h</span>
+  </div>
+  <input type="range" id="speedHiking" class="speed-slider" min="1" max="15" value="5" step="1" data-speed-mode="hiking">
+  </div>
+
+  <button id="resetSpeedDefaults" class="speed-reset-btn" type="button">
+  <i data-lucide="rotate-ccw" aria-hidden="true"></i> Visszaállítás
+  </button>
+
+  </div>
+  </section>
+
+  <!-- Kezdő nézet -->
+  <section class="settings-section" data-settings-section="startView">
+  <h4 class="settings-section-title">
+  <i data-lucide="map-pin" aria-hidden="true"></i>
+  Induló nézet
+  <button class="hint-btn" type="button" data-hint="Az alkalmazás megnyitásakor a térkép automatikusan erre a helyre és zoomszintre ugrik." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <p class="settings-hint">A térkép ezen a helyen és zoomszinten nyílik meg.</p>
+  <div class="settings-startview-search">
+  <div class="settings-search-wrap">
+  <input id="startViewSearch" class="settings-search-input" type="text"
+  placeholder="Keress helyet…" autocomplete="off">
+  <div id="startViewResults" class="settings-search-results" hidden></div>
+  </div>
+  <button id="startViewCurrentBtn" class="settings-action-btn" type="button" title="A térkép jelenlegi középpontjának mentése induló nézetként">
+  <i data-lucide="frame" aria-hidden="true"></i>
+  Térkép nézete
+  </button>
+  <button id="startViewGpsBtn" class="settings-action-btn" type="button" title="GPS pozíció lekérése">
+  <i data-lucide="locate" aria-hidden="true"></i>
+  GPS
+  </button>
+  </div>
+  <div id="startViewCurrent" class="settings-startview-current" hidden>
+  <i data-lucide="map-pin-check" aria-hidden="true"></i>
+  <span id="startViewLabel">—</span>
+  <button id="startViewClearBtn" class="settings-clear-btn" type="button" title="Törlés">
+  <i data-lucide="trash-2" aria-hidden="true"></i>
+  </button>
+  </div>
+  </div>
+  </section>
+
+  <!-- Toolbar sorrend -->
+  <section class="settings-section" data-settings-section="toolbarOrder">
+  <h4 class="settings-section-title">
+  <i data-lucide="grip-horizontal" aria-hidden="true"></i>
+  Toolbar sorrend
+  <button class="hint-btn" type="button" data-hint="A térkép alsó eszköztárán lévő gombok sorrendje és láthatósága. Húzással rendezhető, a szem ikonnal elrejthetők egyes elemek." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <div class="toolbar-order-wrap">
+  <div class="toolbar-order-header">
+  <p class="toolbar-order-hint">Húzd át az elemeket a kívánt sorrendbe. A 👁 ikonnal elrejthető egy elem.</p>
+  <button id="toolbarOrderReset" class="toolbar-order-reset-btn" type="button" title="Visszaállítás alapértelmezettre">
+  <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+  Alapértelmezett
+  </button>
+  </div>
+  <ul id="toolbarOrderList" class="toolbar-order-list"></ul>
+  </div>
+  </div>
+  </section>
+
+  <!-- Elemzési beállítások -->
+  <section class="settings-section" data-settings-section="hrZones">
+  <h4 class="settings-section-title">
+  <i data-lucide="activity" aria-hidden="true"></i>
+  Elemzési beállítások
+  <button class="hint-btn" type="button" data-hint="Pulzusadat-alapú edzéselemzés beállításai: számítási módszer, nyugalmi és max pulzus. Az Elemzés fülön megjelenő zónaeloszlás és TRIMP érték ezeket használja." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+
+  <!-- Biológiai nem -->
+  <p class="settings-label-text">Biológiai nem</p>
+  <div class="settings-unit-group" style="margin-bottom:16px">
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrSex" value="male" checked>
+  <span>
+  <i data-lucide="person-standing" aria-hidden="true"></i>
+  Férfi
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrSex" value="female">
+  <span>
+  <i data-lucide="person-standing" aria-hidden="true"></i>
+  Nő
+  </span>
+  </label>
+  </div>
+
+  <!-- Számítási módszer -->
+  <p class="settings-label-text">Zónaszámítás módszere</p>
+  <div class="settings-unit-group">
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrMethod" value="karvonen" checked>
+  <span class="hint-target" data-hint="Karvonen (HRR%) – a pulzustartalékot (max − nyugalmi) veszi alapul. Pontosabb, ha ismered a valódi reggeli nyugalmi pulzusodat. Képlet: zóna = nyugalmi + (max − nyugalmi) × %">
+  <i data-lucide="heart-pulse" aria-hidden="true"></i>
+  Karvonen
+  <small>nyugalmi + tartalék</small>
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrMethod" value="maxhr">
+  <span class="hint-target" data-hint="Max HR % – a max pulzus fix százalékaként határozza meg a zónákat. Egyszerűbb, nem igényel nyugalmi pulzust. A Strava is hasonló módszert használ. Képlet: zóna = max × %">
+  <i data-lucide="percent" aria-hidden="true"></i>
+  Max HR %
+  <small>Strava-kompatibilis</small>
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrMethod" value="lthr">
+  <span class="hint-target" data-hint="LTHR – laktátküszöb pulzus alapú számítás. Joe Friel / WKO módszer, amelyet a Magene is alkalmaz. A zónák az LTHR-hez viszonyítanak (82/89/94/100%). A legpontosabb módszer, ha ismered az LTHR értékedet.">
+  <i data-lucide="activity" aria-hidden="true"></i>
+  LTHR
+  <small>laktátküszöb</small>
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrMethod" value="custom">
+  <span class="hint-target" data-hint="Egyedi zónák – add meg pontosan a BPM határokat. Ha a Strava, Garmin vagy más appban kézzel állítottad be a zónákat, itt ugyanazokat a számokat használhatod.">
+  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+  Egyedi
+  <small>saját határok</small>
+  </span>
+  </label>
+  </div>
+
+  <!-- LTHR csúszka (csak LTHR módban) -->
+  <div id="hrLthrSliderRow" class="karvonen-slider-row" style="margin-top:14px" hidden>
+  <div class="karvonen-slider-header">
+  <label class="karvonen-slider-label" for="hrLthrSlider">Laktátküszöb pulzus (LTHR)</label>
+  <span class="karvonen-slider-value" id="hrLthrOut">160</span>
+  </div>
+  <input type="range" min="130" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
+  <div class="karvonen-slider-bounds"><span>130</span><span>200</span></div>
+  </div>
+
+  <!-- Egyedi zónahatárok (csak Egyedi módban) -->
+  <div id="hrCustomBoundariesRow" style="margin-top:14px" hidden>
+  <p class="settings-label-text">Zónahatárok (BPM)</p>
+  <!-- Multi-handle slider -->
+  <div id="hrMultiSlider" class="hr-multi-slider">
+  <div class="hr-multi-slider-track"></div>
+  </div>
+  <!-- Rejtett inputok (adattárolás) -->
+  <div hidden>
+  <input type="number" id="hrCustomB1" value="105">
+  <input type="number" id="hrCustomB2" value="139">
+  <input type="number" id="hrCustomB3" value="156">
+  <input type="number" id="hrCustomB4" value="173">
+  </div>
+  <!-- Zónacímkék (JS tölti fel) -->
+  <div id="hrCustomZoneDisplay" class="hr-custom-zone-display"></div>
+  </div>
+
+  <!-- Zónamodell -->
+  <div id="hrZoneModelRow">
+  <p class="settings-label-text" style="margin-top:16px">Zónamodell</p>
+  <p class="settings-hint" style="margin-bottom:8px">
+  <strong>Friel</strong>: fiziológiailag pontos, aszimmetrikus sávok (65/80/89/97%). Garmin, Strava és TrainingPeaks is ezt alkalmazza. Az aerob zóna szélesebb, az anaerob szűkebb és pontosabb.<br>
+  <strong>Egyenlő sávok</strong>: egyszerű 10%-os felosztás (50–100%). Matematikailag szimmetrikus, de nem tükrözi a valódi fiziológiai küszöbértékeket.
+  </p>
+  <div class="settings-unit-group" style="margin-bottom:16px">
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrZoneModel" value="friel" checked>
+  <span>
+  Friel
+  <small>ajánlott</small>
+  </span>
+  </label>
+  <label class="settings-unit-btn">
+  <input type="radio" name="hrZoneModel" value="equal">
+  <span>
+  Egyenlő sávok
+  <small>10%-os felosztás</small>
+  </span>
+  </label>
+  </div>
+
+  </div><!-- /hrZoneModelRow -->
+
+  <!-- Nyugalmi pulzus (csak Karvonen módban) -->
+  <div id="hrRestSliderRow" class="karvonen-slider-row" style="margin-top:14px">
+  <div class="karvonen-slider-header">
+  <label class="karvonen-slider-label" for="hrRestSlider">Nyugalmi pulzus (HRrest)</label>
+  <span class="karvonen-slider-value" id="hrRestOut">60</span>
+  </div>
+  <input type="range" min="35" max="100" step="1" value="60" id="hrRestSlider" class="karvonen-slider">
+  <div class="karvonen-slider-bounds"><span>35</span><span>100</span></div>
+  </div>
+
+  <!-- Max pulzus becslő -->
+  <div class="hrmax-estimator">
+  <div class="hrmax-estimator-header">
+  <span class="karvonen-slider-label">Max pulzus becslése életkorból</span>
+  <button class="hint-btn" type="button" data-hint="Ha nem mérted laboratóriumban a max pulzusodat, életkorból is becsülhető. A Tanaka-képlet tudományosan pontosabb, a 220−kor csak durva közelítés." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <div class="karvonen-slider-row" style="margin-bottom:10px">
+  <div class="karvonen-slider-header">
+  <label class="karvonen-slider-label" for="hrAgeSlider">Életkor</label>
+  <span class="karvonen-slider-value"><span id="hrAgeOut">30</span> év</span>
+  </div>
+  <input type="range" min="15" max="80" step="1" value="30" id="hrAgeSlider" class="karvonen-slider">
+  <div class="karvonen-slider-bounds"><span>15</span><span>80</span></div>
+  </div>
+  <div class="hrmax-formula-group">
+  <label class="hrmax-formula-btn">
+  <input type="radio" name="hrFormula" value="tanaka" checked>
+  <span class="hint-target" id="hrFormulaTanakaSpan" data-hint="Tanaka (2001): 208 − (0.7 × kor). 351 tanulmány meta-analíziséből, pontosabb aktív felnőtteknél. Ajánlott módszer.">
+  <span class="hrmax-formula-name" id="hrFormulaTanakaName">Tanaka</span>
+  <span class="hrmax-formula-eq" id="hrFormulaTanakaEq">208 − (0.7 × kor)</span>
+  <span class="hrmax-formula-result" id="hrMaxTanakaResult">187 bpm</span>
+  </span>
+  </label>
+  <label class="hrmax-formula-btn">
+  <input type="radio" name="hrFormula" value="classic">
+  <span class="hint-target" data-hint="220 − kor: egyszerű, de pontatlan becslés. Egyéni eltérés ±10–20 bpm is lehet. Csak ha semmi más adatod nincs.">
+  <span class="hrmax-formula-name">220 − kor</span>
+  <span class="hrmax-formula-eq">220 − kor</span>
+  <span class="hrmax-formula-result" id="hrMaxClassicResult">190 bpm</span>
+  </span>
+  </label>
+  </div>
+  <button id="hrMaxApplyBtn" class="hrmax-apply-btn" type="button">
+  <i data-lucide="check" aria-hidden="true"></i>
+  Beállítás max pulzusként
+  </button>
+  </div>
+
+  <!-- Max pulzus -->
+  <div class="karvonen-slider-row">
+  <div class="karvonen-slider-header">
+  <label class="karvonen-slider-label" for="hrMaxSlider">Max pulzus (HRmax)</label>
+  <span class="karvonen-slider-value" id="hrMaxOut">190</span>
+  </div>
+  <input type="range" min="140" max="220" step="1" value="190" id="hrMaxSlider" class="karvonen-slider">
+  <div class="karvonen-slider-bounds"><span>140</span><span>220</span></div>
+  </div>
+
+  <div id="karvonenZonesList" class="karvonen-zones-list"></div>
+  </div>
+  </section>
+
+  </div>
+  </div>
+  </div>
+
 
   </body>
 </html>

@@ -174,10 +174,11 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   position: relative;
 }
 .topnav-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
+  top: 64px;
+  right: 16px;
   min-width: 210px;
+  z-index: 9000; /* top/right JS-ből igazítva, z-index minden réteg felett */
   background: var(--panel-bg);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -208,6 +209,16 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   height: 1px;
   background: var(--line);
   margin: 4px 6px;
+}
+.dropdown-user-label {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
 }
 .dropdown-section-label {
   font-size: 10px;
@@ -3418,7 +3429,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
   display: flex;
   flex-direction: column;
-  max-height: 420px;       /* max 3 szekció elfér */
+  max-height: min(560px, 58vh);  /* minden nyitott chart elfér */
   overflow-y: auto;
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -3438,7 +3449,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   flex-direction: column;
   height: 130px;
-  flex-shrink: 0;
+  flex-shrink: 1;      /* több nyitott chart esetén arányosan összenyomódnak */
+  min-height: 88px;    /* fejléc + minimum használható canvas */
   border-bottom: 1px solid var(--line);
 }
 .chart-section:last-of-type { border-bottom: none; }

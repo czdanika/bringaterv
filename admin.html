@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bringaterv – Admin</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="./src/version.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #f4f5f7;
+      --panel:   #ffffff;
+      --border:  #e2e4e9;
+      --text:    #1a1d23;
+      --muted:   #6b7280;
+      --brand:   #fc4c02;
+      --green:   #16a34a;
+      --red:     #dc2626;
+      --blue:    #2563eb;
+      --yellow:  #d97706;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Topnav ─────────────────────────────────────────────────────────── */
+    .topnav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topnav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .topnav-logo { width: 32px; height: 32px; border-radius: 7px; }
+    .topnav-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .topnav-title span { color: var(--brand); }
+    .topnav-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+    }
+    .topnav-end { display: flex; align-items: center; gap: 10px; }
+    .back-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .back-link:hover { background: var(--bg); color: var(--text); }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .page-desc { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    /* ── Stat kártyák ───────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .stat-card-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .stat-card-value { font-size: 26px; font-weight: 700; }
+
+    /* ── Panel ──────────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title { font-size: 15px; font-weight: 700; }
+
+    /* ── Gomb ───────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn-primary  { background: var(--brand); color: #fff; }
+    .btn-primary:not(:disabled):hover  { background: #e04400; }
+    .btn-danger   { background: #fee2e2; color: var(--red); }
+    .btn-danger:not(:disabled):hover   { background: #fecaca; }
+    .btn-ghost    { background: var(--bg); color: var(--text); }
+    .btn-ghost:not(:disabled):hover    { background: var(--border); }
+
+    /* ── Tábla ──────────────────────────────────────────────────────────── */
+    .user-table { width: 100%; border-collapse: collapse; }
+    .user-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .user-table td {
+      padding: 12px 20px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .user-table tr:last-child td { border-bottom: none; }
+    .user-table tr:hover td { background: #fafafa; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-admin  { background: #fef3c7; color: var(--yellow); }
+    .badge-user   { background: #dbeafe; color: var(--blue); }
+    .badge-off    { background: #fee2e2; color: var(--red); }
+    .badge-on     { background: #dcfce7; color: var(--green); }
+
+    .user-name    { font-weight: 600; }
+    .user-email   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .row-actions { display: flex; gap: 6px; }
+
+    /* ── Modal ──────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal {
+      background: var(--panel);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 6px;
+    }
+    .modal-close:hover { background: var(--bg); }
+    .modal-body   { padding: 20px 22px; }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--muted); }
+    .form-input {
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus { border-color: var(--brand); }
+    .form-select { appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center; }
+    .form-error { font-size: 12px; color: var(--red); margin-top: 4px; min-height: 16px; }
+
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .error-state { text-align: center; padding: 40px; color: var(--red); }
+  </style>
+</head>
+<body>
+
+  <!-- Topnav -->
+  <header class="topnav">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="./index.html" class="topnav-brand">
+        <img src="./src/assets/logo.png" alt="logo" class="topnav-logo">
+        <span class="topnav-title">Bringa<span>terv</span></span>
+      </a>
+      <span class="topnav-subtitle">Admin</span>
+    </div>
+    <div class="topnav-end">
+      <a href="./index.html" class="back-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Vissza az apphoz
+      </a>
+    </div>
+  </header>
+
+  <main class="main">
+    <h1 class="page-title">Felhasználók kezelése</h1>
+    <p class="page-desc" id="adminDesc">Töltés…</p>
+
+    <!-- Stat kártyák -->
+    <div class="stats-row" id="statsRow" hidden>
+      <div class="stat-card"><div class="stat-card-label">Összes felhasználó</div><div class="stat-card-value" id="statTotal">—</div></div>
+      <div class="stat-card"><div class="stat-card-label">Aktív</div><div class="stat-card-value" id="statActive">—</div></div>
+      <div class="stat-card"><div class="stat-card-label">Mai belépések</div><div class="stat-card-value" id="statToday">—</div></div>
+    </div>
+
+    <!-- Felhasználók táblázata -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Felhasználók</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost" id="backupBtn" type="button" title="Backup / Restore (hamarosan)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Backup / Restore
+          </button>
+          <button class="btn btn-primary" id="createUserBtn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Új felhasználó
+          </button>
+        </div>
+      </div>
+      <div id="tableWrap">
+        <div class="loading">Betöltés…</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Új felhasználó modal -->
+  <div class="modal-overlay" id="createModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Új felhasználó</span>
+        <button class="modal-close" id="createModalClose" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Felhasználónév / E-mail</label>
+          <input class="form-input" id="newEmail" type="text" placeholder="pl. kovacsj vagy kovacs@email.hu" autocomplete="off">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Vezetéknév</label>
+            <input class="form-input" id="newLastName" type="text" placeholder="Kovács">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Keresztnév</label>
+            <input class="form-input" id="newFirstName" type="text" placeholder="János">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <label class="form-label">Jelszó (min. 6 karakter)</label>
+          <input class="form-input" id="newPassword" type="password" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Szerepkör</label>
+          <select class="form-input form-select" id="newRole">
+            <option value="user">Felhasználó</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <p class="form-error" id="createError"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="createCancelBtn" type="button">Mégse</button>
+        <button class="btn btn-primary" id="createSubmitBtn" type="button">Létrehozás</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Szerkesztés / jelszócsere modal -->
+  <div class="modal-overlay" id="editModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="editModalTitle">Felhasználó szerkesztése</span>
+        <button class="modal-close" id="editModalClose" type="button">×</button>
+      </div>
+      <div class="modal-body" id="editModalBody">
+        <!-- JS tölti fel -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="editCancelBtn" type="button">Mégse</button>
+        <button class="btn btn-primary" id="editSubmitBtn" type="button">Mentés</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fájlok modal -->
+  <div class="modal-overlay" id="filesModal" hidden>
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <span class="modal-title" id="filesModalTitle">Útvonalak</span>
+        <button class="modal-close" id="filesModalClose" type="button">×</button>
+      </div>
+      <div class="modal-body" style="padding:0;max-height:460px;overflow-y:auto" id="filesModalBody">
+        <div class="loading">Betöltés…</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireAdmin, isMultiMode } from "./src/auth.js";
+    import { routesApi } from "./src/api/routesApi.js";
+
+    requireAdmin();
+
+    if (!isMultiMode()) {
+      document.querySelector("#adminDesc").textContent = "Az admin panel csak multi módban érhető el.";
+      document.querySelector("#createUserBtn").disabled = true;
+    }
+
+    // ── Stat kártyák ──────────────────────────────────────────────────────────
+    async function loadStats() {
+      try {
+        const s = await routesApi.admin.stats();
+        document.querySelector("#statTotal").textContent  = s.total_users;
+        document.querySelector("#statActive").textContent = s.active_users;
+        document.querySelector("#statToday").textContent  = s.logins_today;
+        document.querySelector("#statsRow").hidden = false;
+        document.querySelector("#adminDesc").textContent =
+          `Mód: ${s.mode} · Összesen ${s.total_users} felhasználó`;
+      } catch (e) {
+        document.querySelector("#adminDesc").textContent = "Hiba: " + e.message;
+      }
+    }
+
+    // ── Felhasználók táblázata ────────────────────────────────────────────────
+    let _users = [];
+
+    function fmtDate(dt) {
+      if (!dt) return "—";
+      return new Date(dt).toLocaleString("hu-HU", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+    }
+    function fmtMb(mb) { return mb < 1 ? `${Math.round(mb * 1024)} KB` : `${mb.toFixed(1)} MB`; }
+
+    function renderTable(users) {
+      const wrap = document.querySelector("#tableWrap");
+      if (!users.length) {
+        wrap.innerHTML = `<div class="loading">Nincs felhasználó.</div>`;
+        return;
+      }
+      wrap.innerHTML = `
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>Felhasználó</th>
+              <th>Szerepkör</th>
+              <th>Státusz</th>
+              <th>Útvonalak</th>
+              <th>Tárolt adat</th>
+              <th>Utolsó belépés</th>
+              <th>Belépések</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(u => `
+              <tr data-id="${u.id}">
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div>
+                      <div class="user-name">${escHtml(u.name)}</div>
+                      <div class="user-email">${escHtml(u.email)}</div>
+                    </div>
+                    <button class="btn btn-ghost" style="padding:4px 6px;flex-shrink:0" title="Fájlok megtekintése" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    </button>
+                  </div>
+                </td>
+                <td><span class="badge badge-${u.role}">${u.role === "admin" ? "Admin" : "User"}</span></td>
+                <td><span class="badge ${u.active ? "badge-on" : "badge-off"}">${u.active ? "Aktív" : "Tiltott"}</span></td>
+                <td>${u.stats?.routes ?? 0} / ${u.quota_routes}</td>
+                <td>${fmtMb(u.stats?.storage_mb ?? 0)} / ${u.quota_mb} MB</td>
+                <td style="white-space:nowrap">${fmtDate(u.last_login_at)}</td>
+                <td>${u.login_count}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
+                    ${u.role !== "admin" ? `
+                    <button class="btn ${u.active ? "btn-danger" : "btn-ghost"}" style="padding:5px 10px;font-size:12px" data-action="toggle" data-id="${u.id}" data-active="${u.active}">
+                      ${u.active ? "Tiltás" : "Aktivál"}
+                    </button>` : ""}
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`;
+
+      wrap.querySelectorAll("[data-action]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.action;
+          const user = _users.find(u => u.id === id);
+          if (!user) return;
+          if (action === "edit")   openEditModal(user);
+          if (action === "toggle") toggleActive(user);
+          if (action === "files")  openFilesModal(btn.dataset.id, btn.dataset.name);
+        });
+      });
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    async function loadUsers() {
+      try {
+        _users = await routesApi.admin.listUsers();
+        renderTable(_users);
+      } catch (e) {
+        document.querySelector("#tableWrap").innerHTML =
+          `<div class="error-state">Hiba a betöltésnél: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    async function toggleActive(user) {
+      try {
+        await routesApi.admin.updateUser(user.id, { active: user.active ? 0 : 1 });
+        await loadUsers();
+      } catch (e) { alert("Hiba: " + e.message); }
+    }
+
+    // ── Új felhasználó modal ──────────────────────────────────────────────────
+    const createModal = document.querySelector("#createModal");
+    document.querySelector("#createUserBtn").addEventListener("click", () => {
+      document.querySelector("#newEmail").value     = "";
+      document.querySelector("#newFirstName").value = "";
+      document.querySelector("#newLastName").value  = "";
+      document.querySelector("#newPassword").value  = "";
+      document.querySelector("#newRole").value      = "user";
+      document.querySelector("#createError").textContent = "";
+      createModal.hidden = false;
+      document.querySelector("#newEmail").focus();
+    });
+    document.querySelector("#createModalClose").addEventListener("click", () => { createModal.hidden = true; });
+    document.querySelector("#createCancelBtn").addEventListener("click", () => { createModal.hidden = true; });
+
+    document.querySelector("#createSubmitBtn").addEventListener("click", async () => {
+      const email      = document.querySelector("#newEmail").value.trim();
+      const first_name = document.querySelector("#newFirstName").value.trim();
+      const last_name  = document.querySelector("#newLastName").value.trim();
+      const password   = document.querySelector("#newPassword").value;
+      const role       = document.querySelector("#newRole").value;
+      const errEl      = document.querySelector("#createError");
+      errEl.textContent = "";
+      if (!email || !password) { errEl.textContent = "Felhasználónév/email és jelszó kötelező."; return; }
+      if (password.length < 6) { errEl.textContent = "A jelszó legalább 6 karakter legyen."; return; }
+      try {
+        document.querySelector("#createSubmitBtn").disabled = true;
+        await routesApi.admin.createUser({ email, first_name, last_name, password, role });
+        createModal.hidden = true;
+        await loadUsers();
+        await loadStats();
+      } catch (e) {
+        errEl.textContent = e.message;
+      } finally {
+        document.querySelector("#createSubmitBtn").disabled = false;
+      }
+    });
+
+    // ── Szerkesztés modal ─────────────────────────────────────────────────────
+    const editModal = document.querySelector("#editModal");
+    let _editUserId = null;
+
+    function openEditModal(user) {
+      _editUserId = user.id;
+      document.querySelector("#editModalTitle").textContent = `Szerkesztés – ${user.name}`;
+      document.querySelector("#editSubmitBtn").textContent = "Mentés";
+      document.querySelector("#editModalBody").innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label class="form-label">Vezetéknév</label>
+            <input class="form-input" id="editLastName" type="text" value="${escHtml(user.last_name || '')}">
+          </div>
+          <div>
+            <label class="form-label">Keresztnév</label>
+            <input class="form-input" id="editFirstName" type="text" value="${escHtml(user.first_name || '')}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Felhasználónév / E-mail</label>
+          <input class="form-input" id="editEmail" type="text" value="${escHtml(user.email)}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Új jelszó <span style="font-weight:400;color:#9ca3af">(üresen hagyva nem változik)</span></label>
+          <input class="form-input" id="editPassword" type="password" autocomplete="new-password" placeholder="••••••">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Szerepkör</label>
+          <select class="form-input form-select" id="editRole">
+            <option value="user"  ${user.role === "user"  ? "selected" : ""}>Felhasználó</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Útvonal kvóta (db)</label>
+          <input class="form-input" id="editQuotaRoutes" type="number" min="1" value="${user.quota_routes}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tárhely kvóta (MB)</label>
+          <input class="form-input" id="editQuotaMb" type="number" min="1" value="${user.quota_mb}">
+        </div>
+        <p class="form-error" id="editError"></p>
+      `;
+      editModal.hidden = false;
+      document.querySelector("#editFirstName").focus();
+    }
+
+
+document.querySelector("#editModalClose").addEventListener("click", () => { editModal.hidden = true; });
+    document.querySelector("#editCancelBtn").addEventListener("click", () => { editModal.hidden = true; });
+
+    document.querySelector("#editSubmitBtn").addEventListener("click", async () => {
+      const errEl = document.querySelector("#editError");
+      errEl.textContent = "";
+      try {
+        document.querySelector("#editSubmitBtn").disabled = true;
+        const pw = document.querySelector("#editPassword").value;
+        if (pw && pw.length < 6) { errEl.textContent = "A jelszó legalább 6 karakter legyen."; return; }
+        await routesApi.admin.updateUser(_editUserId, {
+          first_name:    document.querySelector("#editFirstName").value.trim(),
+          last_name:     document.querySelector("#editLastName").value.trim(),
+          email:         document.querySelector("#editEmail").value.trim(),
+          ...(pw ? { password: pw } : {}),
+          role:          document.querySelector("#editRole").value,
+          quota_routes:  parseInt(document.querySelector("#editQuotaRoutes").value, 10),
+          quota_mb:      parseInt(document.querySelector("#editQuotaMb").value, 10),
+        });
+        editModal.hidden = true;
+        await loadUsers();
+      } catch (e) {
+        errEl.textContent = e.message;
+      } finally {
+        document.querySelector("#editSubmitBtn").disabled = false;
+      }
+    });
+
+    // ── Fájlok modal ─────────────────────────────────────────────────────────
+    const filesModal = document.querySelector("#filesModal");
+    document.querySelector("#filesModalClose").addEventListener("click", () => { filesModal.hidden = true; });
+
+    async function openFilesModal(userId, userName) {
+      document.querySelector("#filesModalTitle").textContent = `${userName} – útvonalai`;
+      document.querySelector("#filesModalBody").innerHTML = `<div class="loading">Betöltés…</div>`;
+      filesModal.hidden = false;
+      try {
+        const routes = await routesApi.admin.listUserRoutes(userId);
+        renderFilesModal(userId, routes);
+      } catch (e) {
+        document.querySelector("#filesModalBody").innerHTML =
+          `<div class="error-state">Hiba: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderFilesModal(userId, routes) {
+      const body = document.querySelector("#filesModalBody");
+      if (!routes.length) {
+        body.innerHTML = `<div class="loading" style="color:var(--muted)">Nincs feltöltött útvonal.</div>`;
+        return;
+      }
+      body.innerHTML = `
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>Név</th>
+              <th>Típus</th>
+              <th>Dátum</th>
+              <th>Táv</th>
+              <th>Méret</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${routes.map(r => `
+              <tr>
+                <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name)}</td>
+                <td><span class="badge badge-user">${escHtml(r.type || '–')}</span></td>
+                <td style="white-space:nowrap;color:var(--muted)">${r.date || '–'}</td>
+                <td style="white-space:nowrap">${r.distance != null ? r.distance + ' km' : '–'}</td>
+                <td style="white-space:nowrap;color:var(--muted)">${r.size_kb} KB</td>
+                <td>
+                  <button class="btn btn-danger" style="padding:4px 8px;font-size:12px"
+                    data-del-user="${userId}" data-del-route="${r.id}" data-del-name="${escHtml(r.name)}">
+                    Töröl
+                  </button>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`;
+
+      body.querySelectorAll("[data-del-route]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm(`Törlöd: „${btn.dataset.delName}"?`)) return;
+          try {
+            await routesApi.admin.deleteUserRoute(btn.dataset.delUser, btn.dataset.delRoute);
+            const routes = await routesApi.admin.listUserRoutes(btn.dataset.delUser);
+            renderFilesModal(btn.dataset.delUser, routes);
+            await loadUsers();
+          } catch (e) { alert("Hiba: " + e.message); }
+        });
+      });
+    }
+
+    // Backup gomb (placeholder)
+    document.querySelector("#backupBtn").addEventListener("click", () => {
+      alert("Backup / Restore funkció hamarosan elérhető.");
+    });
+
+    // Overlay kattintásra bezárás
+    [createModal, editModal, filesModal].forEach(m => {
+      m.addEventListener("click", e => { if (e.target === m) m.hidden = true; });
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    loadStats();
+    loadUsers();
+  </script>
+</body>
+</html>

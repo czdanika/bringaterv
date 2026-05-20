@@ -140,7 +140,7 @@ def _now_dt() -> str:
 # MULTI MÓD – SQLite
 # ══════════════════════════════════════════════════════════════════════════════
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 5
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -149,6 +149,8 @@ CREATE TABLE IF NOT EXISTS users (
     id              TEXT    PRIMARY KEY,
     email           TEXT    UNIQUE NOT NULL,
     name            TEXT    NOT NULL,
+    first_name      TEXT    NOT NULL DEFAULT '',
+    last_name       TEXT    NOT NULL DEFAULT '',
     password_hash   TEXT    NOT NULL,
     role            TEXT    NOT NULL DEFAULT 'user',
     active          INTEGER NOT NULL DEFAULT 1,
@@ -157,7 +159,8 @@ CREATE TABLE IF NOT EXISTS users (
     login_count     INTEGER NOT NULL DEFAULT 0,
     quota_routes    INTEGER NOT NULL DEFAULT 50,
     quota_workouts  INTEGER NOT NULL DEFAULT 200,
-    quota_mb        INTEGER NOT NULL DEFAULT 100
+    quota_mb        INTEGER NOT NULL DEFAULT 100,
+    settings        TEXT    NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS user_sessions (
@@ -222,17 +225,64 @@ def _db() -> sqlite3.Connection:
 
 
 def _db_init() -> None:
+    import fcntl
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    lock_path = DB_PATH + ".lock"
+    with open(lock_path, "w") as lf:
+        fcntl.flock(lf, fcntl.LOCK_EX)
+        try:
+            _db_init_locked()
+        finally:
+            fcntl.flock(lf, fcntl.LOCK_UN)
+
+
+def _db_init_locked() -> None:
     with _db() as conn:
         ver = conn.execute("PRAGMA user_version").fetchone()[0]
-        if ver < SCHEMA_VERSION:
+        if ver < 1:
             conn.executescript(_SCHEMA_SQL)
-            conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-            log.info("DB séma inicializálva (v%d)", SCHEMA_VERSION)
+            conn.execute("PRAGMA user_version = 1")
+            log.info("DB séma inicializálva (v1)")
+        if ver < 2:
+            # v2: settings oszlop hozzáadása (meglévő DB-khez)
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'")
+            except Exception:
+                pass  # már létezik
+            conn.execute("PRAGMA user_version = 2")
+            log.info("DB migrálva v2-re (settings oszlop)")
         count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         if count == 0:
-            _db_create_user(conn, ADMIN_EMAIL, "Admin", ADMIN_PASSWORD, "admin")
-            log.info("Admin user létrehozva: %s", ADMIN_EMAIL)
+            uid = _db_create_user(conn, ADMIN_EMAIL, "Admin", ADMIN_PASSWORD, "admin")
+            log.info("Admin user létrehozva: %s  (id: %s)", ADMIN_EMAIL, uid)
+        if ver < 3:
+            # v3: single-módos útvonalak átmigrálása az első admin userhez
+            admin_row = conn.execute(
+                "SELECT id FROM users WHERE role = 'admin' ORDER BY created_at LIMIT 1"
+            ).fetchone()
+            if admin_row:
+                _migrate_single_routes_to_user(admin_row["id"])
+            conn.execute("PRAGMA user_version = 3")
+            log.info("DB migrálva v3-ra (single-route migráció)")
+        if ver < 4:
+            # v4: kereszt- és vezetéknév oszlopok
+            for col in ("first_name TEXT NOT NULL DEFAULT ''",
+                        "last_name  TEXT NOT NULL DEFAULT ''"):
+                try:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col}")
+                except Exception:
+                    pass  # már létezik
+            conn.execute("PRAGMA user_version = 4")
+            log.info("DB migrálva v4-re (first_name, last_name oszlopok)")
+        if ver < 5:
+            # v5: meglévő userek name mezőjének javítása: vezetéknév + keresztnév sorrend
+            conn.execute("""
+                UPDATE users
+                SET name = TRIM(last_name || ' ' || first_name)
+                WHERE first_name != '' AND last_name != ''
+            """)
+            conn.execute("PRAGMA user_version = 5")
+            log.info("DB migrálva v5-re (névsorend javítás)")
 
 
 def _user_dir(user_id: str) -> str:
@@ -245,17 +295,47 @@ def _user_routes_dir(user_id: str) -> str:
     return d
 
 
-def _db_create_user(conn, email: str, name: str, password: str, role: str = "user") -> str:
+def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",
+                    first_name: str = "", last_name: str = "") -> str:
     uid = "u_" + uuid.uuid4().hex[:8]
+    first_name = first_name.strip()
+    last_name  = last_name.strip()
+    # Ha van kereszt+vezték, az adja a display nevet; különben a name paramétert használjuk
+    display = f"{last_name} {first_name}".strip() or name.strip() or email.split("@")[0]
     conn.execute(
-        "INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?,?,?,?,?,?)",
-        (uid, email.strip().lower(),
-         name.strip() or email.split("@")[0],
+        "INSERT INTO users (id, email, name, first_name, last_name, password_hash, role, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (uid, email.strip().lower(), display, first_name, last_name,
          _hash_pw(password), role, _now_dt()),
     )
     os.makedirs(_user_routes_dir(uid), exist_ok=True)
     os.makedirs(os.path.join(_user_dir(uid), "workouts"), exist_ok=True)
     return uid
+
+
+def _migrate_single_routes_to_user(user_id: str) -> None:
+    """Single módos útvonalakat átmásolja az admin user mappájába (első multi indításkor)."""
+    import shutil
+    src_index = INDEX_FILE
+    src_dir   = USER_DIR
+    if not os.path.isfile(src_index):
+        log.info("Migráció: nincs single-módos index, kihagyva.")
+        return
+    dst_dir   = _user_routes_dir(user_id)
+    dst_index = os.path.join(dst_dir, "index.json")
+    if os.path.isfile(dst_index):
+        log.info("Migráció: admin user már rendelkezik index.json-nal, kihagyva.")
+        return
+    # index.json másolása
+    shutil.copy2(src_index, dst_index)
+    # GPX fájlok másolása
+    migrated = 0
+    if os.path.isdir(src_dir):
+        for fn in os.listdir(src_dir):
+            if fn.endswith(".gpx"):
+                shutil.copy2(os.path.join(src_dir, fn), os.path.join(dst_dir, fn))
+                migrated += 1
+    log.info("Migráció kész: %d GPX + index.json → user %s", migrated, user_id)
 
 
 def _user_storage_stats(user_id: str) -> dict:
@@ -365,10 +445,11 @@ def auth_login():
     if not IS_MULTI:
         abort(404)
     data     = request.get_json(silent=True) or {}
-    email    = (data.get("email") or "").strip().lower()
+    # "email" vagy "username" mezőt egyaránt elfogadunk
+    email    = (data.get("email") or data.get("username") or "").strip().lower()
     password = data.get("password") or ""
     if not email or not password:
-        abort(400, description="Email és jelszó kötelező")
+        abort(400, description="Felhasználónév/email és jelszó kötelező")
     with _db() as conn:
         user = conn.execute(
             "SELECT * FROM users WHERE email = ? AND active = 1", (email,)
@@ -403,6 +484,41 @@ def auth_me():
                     "name": u["name"], "role": u["role"]})
 
 
+@app.route("/api/user/settings", methods=["GET"])
+@require_auth
+def get_user_settings():
+    """Felhasználó személyes beállításainak lekérése (multi mód)."""
+    if not IS_MULTI:
+        return jsonify({})
+    raw = g.user.get("settings") or "{}"
+    try:
+        return jsonify(json.loads(raw))
+    except (json.JSONDecodeError, TypeError):
+        return jsonify({})
+
+
+@app.route("/api/user/settings", methods=["PUT"])
+@require_auth
+def put_user_settings():
+    """Felhasználó személyes beállításainak mentése (multi mód)."""
+    if not IS_MULTI:
+        return jsonify({"ok": True})
+    data = request.get_json(silent=True)
+    if data is None:
+        abort(400, description="Hiányzó JSON body")
+    # Csak ismert kulcsokat engedünk tárolni
+    allowed = {"hrZones", "mapStyle", "unit", "startView", "theme",
+               "snapToRoads", "showStageInfo", "gpxSampleWaypoints",
+               "toolbarOrder", "toolbarHidden"}
+    filtered = {k: v for k, v in data.items() if k in allowed}
+    with _db() as conn:
+        conn.execute(
+            "UPDATE users SET settings = ? WHERE id = ?",
+            (json.dumps(filtered, ensure_ascii=False), g.user["id"])
+        )
+    return jsonify({"ok": True})
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN VÉGPONTOK
 # ══════════════════════════════════════════════════════════════════════════════
@@ -413,7 +529,8 @@ def auth_me():
 def admin_list_users():
     with _db() as conn:
         rows = conn.execute("""
-            SELECT id, email, name, role, active, created_at,
+            SELECT id, email, name, first_name, last_name,
+                   role, active, created_at,
                    last_login_at, login_count,
                    quota_routes, quota_workouts, quota_mb
             FROM users ORDER BY created_at DESC
@@ -430,23 +547,27 @@ def admin_list_users():
 @require_auth
 @require_admin
 def admin_create_user():
-    data     = request.get_json(silent=True) or {}
-    email    = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
-    name     = (data.get("name") or email.split("@")[0]).strip()
-    role     = data.get("role", "user")
+    data       = request.get_json(silent=True) or {}
+    email      = (data.get("email") or "").strip().lower()
+    password   = data.get("password") or ""
+    first_name = (data.get("first_name") or "").strip()
+    last_name  = (data.get("last_name")  or "").strip()
+    name       = (data.get("name") or "").strip()
+    role       = data.get("role", "user")
     if not email or not password:
         abort(400, description="Email és jelszó kötelező")
     if len(password) < 6:
         abort(400, description="A jelszó legalább 6 karakter legyen")
     if role not in ("admin", "user", "readonly"):
         abort(400, description="Érvénytelen szerepkör: admin | user | readonly")
+    display = f"{first_name} {last_name}".strip() or name or email.split("@")[0]
     with _db() as conn:
         if conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone():
             abort(409, description="Ez az email már regisztrált")
-        uid = _db_create_user(conn, email, name, password, role)
+        uid = _db_create_user(conn, email, display, password, role, first_name, last_name)
     log.info("Új user: %s [%s]  (admin: %s)", email, role, g.user["email"])
-    return jsonify({"id": uid, "email": email, "name": name, "role": role}), 201
+    return jsonify({"id": uid, "email": email, "name": display,
+                    "first_name": first_name, "last_name": last_name, "role": role}), 201
 
 
 @app.route("/api/admin/users/<user_id>", methods=["GET"])
@@ -473,18 +594,49 @@ def admin_get_user(user_id: str):
 @require_admin
 def admin_update_user(user_id: str):
     data    = request.get_json(silent=True) or {}
-    allowed = {"name", "role", "active", "quota_routes", "quota_workouts", "quota_mb"}
+    allowed = {"name", "first_name", "last_name", "role", "active",
+               "quota_routes", "quota_workouts", "quota_mb"}
     updates = {k: v for k, v in data.items() if k in allowed}
-    if not updates:
+    new_email    = (data.get("email") or "").strip().lower() or None
+    new_password = (data.get("password") or "").strip() or None
+
+    if not updates and not new_email and not new_password:
         abort(400, description="Nincs módosítható mező")
     if user_id == g.user["id"] and "active" in updates and not updates["active"]:
         abort(400, description="Saját magad nem tilthatod le")
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    if new_password and len(new_password) < 6:
+        abort(400, description="A jelszó legalább 6 karakter legyen")
+
     with _db() as conn:
+        # Email egyediség ellenőrzés
+        if new_email:
+            clash = conn.execute(
+                "SELECT id FROM users WHERE email = ? AND id != ?", (new_email, user_id)
+            ).fetchone()
+            if clash:
+                abort(409, description="Ez a felhasználónév/email már foglalt")
+            updates["email"] = new_email
+
+        # Jelszó hash
+        if new_password:
+            updates["password_hash"] = _hash_pw(new_password)
+
+        # Ha first_name vagy last_name változott, frissítsük a name-t is
+        if "first_name" in updates or "last_name" in updates:
+            cur = conn.execute(
+                "SELECT first_name, last_name FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+            fn = updates.get("first_name", cur["first_name"] if cur else "").strip()
+            ln = updates.get("last_name",  cur["last_name"]  if cur else "").strip()
+            computed = f"{ln} {fn}".strip()
+            if computed:
+                updates["name"] = computed
+
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
         conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?",
                      [*updates.values(), user_id])
         row = conn.execute(
-            "SELECT id, email, name, role, active, "
+            "SELECT id, email, name, first_name, last_name, role, active, "
             "quota_routes, quota_workouts, quota_mb FROM users WHERE id = ?",
             (user_id,)
         ).fetchone()
@@ -509,6 +661,39 @@ def admin_reset_password(user_id: str):
         abort(404, description="User nem található")
     log.info("Jelszó reset: %s  (admin: %s)", user_id, g.user["email"])
     return jsonify({"ok": True})
+
+
+@app.route("/api/admin/users/<user_id>/routes", methods=["GET"])
+@require_auth
+@require_admin
+def admin_list_user_routes(user_id: str):
+    """Admin: adott user útvonalainak listája."""
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    routes     = _load_index(idx_path)
+    # GPX fájlméret hozzáadása
+    for r in routes:
+        gpx = os.path.join(routes_dir, f"{r['id']}.gpx")
+        r["size_kb"] = round(os.path.getsize(gpx) / 1024, 1) if os.path.isfile(gpx) else 0
+    return jsonify(sorted(routes, key=lambda r: r.get("date", ""), reverse=True))
+
+
+@app.route("/api/admin/users/<user_id>/routes/<route_id>", methods=["DELETE"])
+@require_auth
+@require_admin
+def admin_delete_user_route(user_id: str, route_id: str):
+    """Admin: adott user útvonalának törlése."""
+    route_id   = _safe_id(route_id)
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    gpx_path   = os.path.join(routes_dir, f"{route_id}.gpx")
+    if not os.path.isfile(gpx_path):
+        abort(404, description="Útvonal nem található")
+    os.remove(gpx_path)
+    _save_index([r for r in _load_index(idx_path) if r.get("id") != route_id], idx_path)
+    with _db() as conn:
+        conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?", (route_id, user_id))
+    return "", 204
 
 
 @app.route("/api/admin/stats", methods=["GET"])
