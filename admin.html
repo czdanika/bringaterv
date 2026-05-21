@@ -84,7 +84,7 @@
 
     /* ── Layout ─────────────────────────────────────────────────────────── */
     .main {
-      max-width: 1100px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 28px 20px 60px;
     }
@@ -161,12 +161,14 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 10px 20px;
+      padding: 10px 12px;
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
+    .user-table th:first-child, .user-table td:first-child { padding-left: 20px; }
+    .user-table th:last-child, .user-table td:last-child { padding-right: 20px; }
     .user-table td {
-      padding: 12px 20px;
+      padding: 12px 12px;
       font-size: 13px;
       border-bottom: 1px solid var(--border);
       vertical-align: middle;
