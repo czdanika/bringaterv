@@ -119,6 +119,7 @@
       border-radius: 14px;
       overflow: hidden;
       margin-bottom: 28px;
+      min-width: 0;
     }
     .panel-header {
       display: flex;
@@ -303,7 +304,7 @@
           </button>
         </div>
       </div>
-      <div id="tableWrap">
+      <div id="tableWrap" style="overflow-x:auto">
         <div class="loading">Betöltés…</div>
       </div>
     </div>
@@ -370,7 +371,7 @@
 
   <!-- Fájlok modal -->
   <div class="modal-overlay" id="filesModal" hidden>
-    <div class="modal" style="max-width:min(960px,calc(100vw - 40px));width:100%">
+    <div class="modal" style="max-width:min(1080px,calc(100vw - 40px));width:100%">
       <div class="modal-header">
         <span class="modal-title" id="filesModalTitle">Útvonalak</span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -410,7 +411,7 @@
         </div>
         <div id="uploadStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
-      <div class="modal-body" style="padding:0;max-height:520px;overflow-y:auto" id="filesModalBody">
+      <div class="modal-body" style="padding:0;max-height:520px;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable" id="filesModalBody">
         <div class="loading">Betöltés…</div>
       </div>
     </div>
@@ -740,7 +741,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               <th style="width:88px;padding:8px 6px">Dátum</th>
               <th style="width:52px;padding:8px 6px">Táv</th>
               <th style="width:58px;padding:8px 6px">Méret</th>
-              <th style="width:92px;padding:8px 6px"></th>
+              <th style="width:106px;padding:8px 6px"></th>
             </tr>
           </thead>
           <tbody>
