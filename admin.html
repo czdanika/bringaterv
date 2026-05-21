@@ -734,25 +734,25 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       body.innerHTML = `
         <table class="user-table" id="filesTable" style="table-layout:fixed;width:100%">
           <thead>
-            <tr>
-              <th style="width:auto">Név</th>
-              <th style="width:80px">Típus</th>
-              <th style="width:90px">Dátum</th>
-              <th style="width:60px">Táv</th>
-              <th style="width:65px">Méret</th>
-              <th style="width:100px"></th>
+            <tr style="font-size:11px">
+              <th style="width:auto;padding:8px 10px">Név</th>
+              <th style="width:70px;padding:8px 6px">Típus</th>
+              <th style="width:88px;padding:8px 6px">Dátum</th>
+              <th style="width:52px;padding:8px 6px">Táv</th>
+              <th style="width:58px;padding:8px 6px">Méret</th>
+              <th style="width:92px;padding:8px 6px"></th>
             </tr>
           </thead>
           <tbody>
             ${routes.map(r => `
               <tr data-route-id="${r.id}">
-                <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 10px"
                     title="${escHtml(r.name)}">${escHtml(r.name)}</td>
-                <td><span class="badge badge-user" style="font-size:11px">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
-                <td style="white-space:nowrap;color:var(--muted);font-size:12px">${r.date || '–'}</td>
-                <td style="white-space:nowrap;font-size:12px">${r.distance != null ? r.distance + ' km' : '–'}</td>
-                <td style="white-space:nowrap;color:var(--muted);font-size:12px">${r.size_kb} KB</td>
-                <td>
+                <td style="padding:9px 6px"><span class="badge badge-user" style="font-size:11px">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
+                <td style="white-space:nowrap;color:var(--muted);font-size:12px;padding:9px 6px">${r.date || '–'}</td>
+                <td style="white-space:nowrap;font-size:12px;padding:9px 6px">${r.distance != null ? r.distance + ' km' : '–'}</td>
+                <td style="white-space:nowrap;color:var(--muted);font-size:12px;padding:9px 6px">${r.size_kb} KB</td>
+                <td style="padding:9px 6px">
                   <div style="display:flex;gap:3px;justify-content:flex-end">
                     <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="Letöltés"
                       data-action="dl" data-route="${r.id}">↓</button>
@@ -799,7 +799,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
             const editRow = document.createElement("tr");
             editRow.className = "edit-row";
             editRow.innerHTML = `
-              <td colspan="6" style="padding:10px 14px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
+              <td colspan="6" style="padding:10px 10px;background:var(--bg-secondary);border-bottom:1px solid var(--border)">
                 <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                   <div style="flex:1;min-width:140px">
                     <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Név</label>
