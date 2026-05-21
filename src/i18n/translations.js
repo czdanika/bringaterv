@@ -129,7 +129,7 @@ export const translations = {
       maxSpeed: "Max speed",
     },
     file: {
-      empty: "Import a GPX file to view its details.",
+      empty: "Import a GPX or FIT file to view its details.",
     },
     map: {
       routeFailed: "Road routing failed, so the route is shown as a straight line.",
@@ -269,7 +269,7 @@ export const translations = {
       maxSpeed: "Max sebesség",
     },
     file: {
-      empty: "Importálj egy GPX fájlt a részletek megtekintéséhez.",
+      empty: "Importálj egy GPX vagy FIT fájlt a részletek megtekintéséhez.",
     },
     map: {
       routeFailed: "Az útra illesztés nem sikerült, ezért egyenes vonalként jelenik meg.",

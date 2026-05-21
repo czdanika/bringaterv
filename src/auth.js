@@ -3,6 +3,46 @@ import { config } from "./config.js";
 // ── Tárolási kulcsok ───────────────────────────────────────────────────────────
 const JWT_KEY  = "bringaterv_jwt";
 const USER_KEY = "bringaterv_user";
+const SETTINGS_OWNER_KEY = "bringaterv_settings_owner";
+
+// User-specifikus localStorage kulcsok – ezek a settings.json-ben is szinkronizálódnak,
+// ezért userváltáskor le kell tisztítani őket, különben átkerülnek egyik fiókról a másikra.
+const USER_SPECIFIC_KEYS = [
+  "bringaterv.hrZones",
+  "bringaterv.speedZones",
+  "bringaterv.cadZones",
+  "bringaterv.powerZones",
+  "bringaterv.chartColors",
+  "bringaterv.startView",
+  "bringaterv.settings.collapsed",
+  "route4meMapStyle",
+  "route4meUnit",
+  "route4meTheme",
+];
+
+function clearUserSettings() {
+  USER_SPECIFIC_KEYS.forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem(SETTINGS_OWNER_KEY);
+}
+
+/**
+ * Owner-ellenőrzés: ha a localStorage-ban tárolt settings másik felhasználóhoz
+ * tartozik (vagy nincs tárolva owner), törli őket és új ownert állít be.
+ * Main.js induláskor, az IIFE-k előtt kell meghívni.
+ *
+ * @returns {boolean} true, ha mismatch volt és tisztítás történt
+ */
+export function ensureSettingsOwner() {
+  const user = getUser();
+  if (!user?.id) return false;
+  const stored = localStorage.getItem(SETTINGS_OWNER_KEY);
+  if (stored !== user.id) {
+    USER_SPECIFIC_KEYS.forEach(k => localStorage.removeItem(k));
+    localStorage.setItem(SETTINGS_OWNER_KEY, user.id);
+    return true;
+  }
+  return false;
+}
 
 // ── Token kezelés ─────────────────────────────────────────────────────────────
 
@@ -58,6 +98,7 @@ export async function login(username, password) {
 // ── Kijelentkezés ─────────────────────────────────────────────────────────────
 
 export function logout() {
+  clearUserSettings();
   localStorage.removeItem(JWT_KEY);
   localStorage.removeItem(USER_KEY);
 }

@@ -335,8 +335,8 @@
             <!-- Üres állapot -->
             <button id="fileEmptyState" type="button" class="empty-state file-empty-state file-empty-trigger">
               <i data-lucide="file-input" aria-hidden="true"></i>
-              <span data-i18n="file.empty">Importálj egy GPX fájlt a részletek megtekintéséhez.</span>
-              <span class="file-empty-hint">Kattints a betöltéshez</span>
+              <span data-i18n="file.empty">Importálj egy GPX vagy FIT fájlt a részletek megtekintéséhez.</span>
+              <span class="file-empty-hint">Kattints a betöltéshez, vagy húzd ide a fájlt</span>
             </button>
 
             <!-- Fájl részletek -->
@@ -344,6 +344,7 @@
               <div class="file-header">
                 <i data-lucide="file-check-2" aria-hidden="true"></i>
                 <span id="importedFileName" class="file-name"></span>
+                <span id="importedFitBadge" class="file-fit-badge" hidden title="Eredeti FIT fájl elérhető">FIT</span>
                 <div class="sidebar-style-picker-wrap file-style-wrap">
                   <button id="fileStyleBtn" class="file-style-btn" type="button" title="Térképstílus">
                     <i data-lucide="map" aria-hidden="true"></i>
@@ -744,7 +745,7 @@
           <button id="toolbarSearchBtn" class="toolbar-btn" type="button" title="Helykeresés" data-toolbar-item="search">
             <i data-lucide="search" aria-hidden="true"></i>
           </button>
-          <button id="importButton" class="toolbar-btn" type="button" title="GPX importálása" data-i18n-title="actions.import" data-toolbar-item="import">
+          <button id="importButton" class="toolbar-btn" type="button" title="GPX / FIT importálása" data-i18n-title="actions.import" data-toolbar-item="import">
             <i data-lucide="upload" aria-hidden="true"></i>
           </button>
           <div class="map-mode-picker-wrap" data-toolbar-item="routeMode">
@@ -852,7 +853,7 @@
           </button>
           </div><!-- /toolbarContent -->
         </div>
-        <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml" hidden>
+        <input id="gpxInput" type="file" accept=".gpx,.fit,application/gpx+xml" hidden>
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
         <!-- Elevation Profile Panel -->
@@ -1484,174 +1485,293 @@
   </h4>
   <div class="settings-section-body">
 
-  <!-- Biológiai nem -->
-  <p class="settings-label-text">Biológiai nem</p>
-  <div class="settings-unit-group" style="margin-bottom:16px">
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrSex" value="male" checked>
-  <span>
-  <i data-lucide="person-standing" aria-hidden="true"></i>
-  Férfi
-  </span>
-  </label>
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrSex" value="female">
-  <span>
-  <i data-lucide="person-standing" aria-hidden="true"></i>
-  Nő
-  </span>
-  </label>
+  <!-- Személyes adatok -->
+  <p class="settings-label-text">Személyes adatok</p>
+  <div class="hr-personal-grid">
+    <div class="hr-personal-field">
+      <label>Biológiai nem</label>
+      <div class="hr-sex-toggle">
+        <label class="hr-sex-btn">
+          <input type="radio" name="hrSex" value="male" checked>
+          <span>Férfi</span>
+        </label>
+        <label class="hr-sex-btn">
+          <input type="radio" name="hrSex" value="female">
+          <span>Nő</span>
+        </label>
+      </div>
+    </div>
+    <div class="hr-personal-field">
+      <label for="hrBirthYearInput">Születési év</label>
+      <div class="hr-number-input">
+        <input type="number" id="hrBirthYearInput" min="1920" max="2025" value="1985" inputmode="numeric">
+        <span class="hr-personal-hint" id="hrAgeDisplay">40 éves</span>
+      </div>
+    </div>
   </div>
 
-  <!-- Számítási módszer -->
+  <!-- Pulzus tartomány (dual-handle slider) -->
+  <div class="hr-range-row" style="margin-top:14px">
+    <div class="hr-range-header">
+      <span class="hr-range-tag hr-range-tag--rest">Nyugalmi: <strong id="hrRestDisplay">60</strong> bpm</span>
+      <span class="hr-range-tag hr-range-tag--max">Max: <strong id="hrMaxDisplay">190</strong> bpm <small id="hrMaxSourceHint" class="hr-range-source">Tanaka</small></span>
+    </div>
+    <div class="hr-range-slider" id="hrRangeSlider">
+      <div class="hr-range-track"></div>
+      <div class="hr-range-track-active" id="hrRangeActive"></div>
+      <div class="hr-range-handle hr-range-handle--rest" id="hrRangeRestHandle" tabindex="0" aria-label="Nyugalmi pulzus"></div>
+      <div class="hr-range-handle hr-range-handle--max" id="hrRangeMaxHandle" tabindex="0" aria-label="Max pulzus"></div>
+    </div>
+    <div class="hr-range-bounds"><span>35</span><span>220 bpm</span></div>
+  </div>
+
+  <!-- Pulzusszámítás (max HR meghatározása) -->
+  <p class="settings-label-text" style="margin-top:18px">Pulzusszámítás (max HR)</p>
+  <div class="settings-unit-group" style="margin-bottom:14px">
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMaxMethod" value="tanaka" checked>
+      <span class="hint-target" id="hrMaxMethodTanakaHint" data-hint="Tanaka (2001): 208 − 0.7 × kor. Meta-analízis alapú, pontosabb aktív felnőtteknél. Nőknek a Miller-képletet használjuk (216 − 1.09 × kor).">
+        <i data-lucide="activity" aria-hidden="true"></i>
+        <span id="hrMaxMethodTanakaName">Tanaka</span>
+        <small id="hrMaxMethodTanakaEq">208 − 0.7 × kor</small>
+      </span>
+    </label>
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMaxMethod" value="classic">
+      <span class="hint-target" data-hint="Klasszikus 220 − kor. Egyszerű, de pontatlan; egyéni eltérés ±10–20 bpm is lehet. Csak közelítésnek.">
+        <i data-lucide="calculator" aria-hidden="true"></i>
+        220 − év
+        <small>egyszerű</small>
+      </span>
+    </label>
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMaxMethod" value="custom">
+      <span class="hint-target" data-hint="Egyedi érték – add meg a saját max pulzusodat (pl. labormérés, edzésen kimaxálás alapján).">
+        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+        Egyedi
+        <small>saját érték</small>
+      </span>
+    </label>
+  </div>
+
+  <!-- Zónaszámítás módszere -->
   <p class="settings-label-text">Zónaszámítás módszere</p>
-  <div class="settings-unit-group">
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrMethod" value="karvonen" checked>
-  <span class="hint-target" data-hint="Karvonen (HRR%) – a pulzustartalékot (max − nyugalmi) veszi alapul. Pontosabb, ha ismered a valódi reggeli nyugalmi pulzusodat. Képlet: zóna = nyugalmi + (max − nyugalmi) × %">
-  <i data-lucide="heart-pulse" aria-hidden="true"></i>
-  Karvonen
-  <small>nyugalmi + tartalék</small>
-  </span>
-  </label>
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrMethod" value="maxhr">
-  <span class="hint-target" data-hint="Max HR % – a max pulzus fix százalékaként határozza meg a zónákat. Egyszerűbb, nem igényel nyugalmi pulzust. A Strava is hasonló módszert használ. Képlet: zóna = max × %">
-  <i data-lucide="percent" aria-hidden="true"></i>
-  Max HR %
-  <small>Strava-kompatibilis</small>
-  </span>
-  </label>
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrMethod" value="lthr">
-  <span class="hint-target" data-hint="LTHR – laktátküszöb pulzus alapú számítás. Joe Friel / WKO módszer, amelyet a Magene is alkalmaz. A zónák az LTHR-hez viszonyítanak (82/89/94/100%). A legpontosabb módszer, ha ismered az LTHR értékedet.">
-  <i data-lucide="activity" aria-hidden="true"></i>
-  LTHR
-  <small>laktátküszöb</small>
-  </span>
-  </label>
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrMethod" value="custom">
-  <span class="hint-target" data-hint="Egyedi zónák – add meg pontosan a BPM határokat. Ha a Strava, Garmin vagy más appban kézzel állítottad be a zónákat, itt ugyanazokat a számokat használhatod.">
-  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
-  Egyedi
-  <small>saját határok</small>
-  </span>
-  </label>
+  <div class="settings-unit-group" style="margin-bottom:14px">
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMethod" value="karvonen" checked>
+      <span class="hint-target" data-hint="Karvonen (HRR%) – a pulzustartalékot (max − nyugalmi) veszi alapul. Pontosabb, ha ismered a valódi reggeli nyugalmi pulzusodat. Képlet: zóna = nyugalmi + (max − nyugalmi) × %">
+        <i data-lucide="heart-pulse" aria-hidden="true"></i>
+        Karvonen
+        <small>nyugalmi + tartalék</small>
+      </span>
+    </label>
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMethod" value="maxhr">
+      <span class="hint-target" data-hint="Max HR % – a max pulzus fix százalékaként határozza meg a zónákat. Egyszerűbb, nem igényel nyugalmi pulzust. A Strava is hasonló módszert használ. Képlet: zóna = max × %">
+        <i data-lucide="percent" aria-hidden="true"></i>
+        Max HR %
+        <small>Strava-kompatibilis</small>
+      </span>
+    </label>
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMethod" value="lthr">
+      <span class="hint-target" data-hint="LTHR – laktátküszöb pulzus alapú számítás. Joe Friel / WKO módszer, amelyet a Magene is alkalmaz. A zónák az LTHR-hez viszonyítanak (82/89/94/100%). A legpontosabb módszer, ha ismered az LTHR értékedet.">
+        <i data-lucide="activity" aria-hidden="true"></i>
+        LTHR
+        <small>laktátküszöb</small>
+      </span>
+    </label>
+    <label class="settings-unit-btn">
+      <input type="radio" name="hrMethod" value="custom">
+      <span class="hint-target" data-hint="Egyedi zónák – add meg pontosan a BPM határokat. Ha a Strava, Garmin vagy más appban kézzel állítottad be a zónákat, itt ugyanazokat a számokat használhatod.">
+        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+        Egyedi
+        <small>saját határok</small>
+      </span>
+    </label>
   </div>
 
   <!-- LTHR csúszka (csak LTHR módban) -->
-  <div id="hrLthrSliderRow" class="karvonen-slider-row" style="margin-top:14px" hidden>
-  <div class="karvonen-slider-header">
-  <label class="karvonen-slider-label" for="hrLthrSlider">Laktátküszöb pulzus (LTHR)</label>
-  <span class="karvonen-slider-value" id="hrLthrOut">160</span>
-  </div>
-  <input type="range" min="130" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
-  <div class="karvonen-slider-bounds"><span>130</span><span>200</span></div>
+  <div id="hrLthrSliderRow" class="karvonen-slider-row" style="margin-bottom:14px" hidden>
+    <div class="karvonen-slider-header">
+      <label class="karvonen-slider-label" for="hrLthrSlider">Laktátküszöb pulzus (LTHR)</label>
+      <span class="karvonen-slider-value" id="hrLthrOut">160</span>
+    </div>
+    <input type="range" min="130" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
+    <div class="karvonen-slider-bounds"><span>130</span><span>200</span></div>
   </div>
 
   <!-- Egyedi zónahatárok (csak Egyedi módban) -->
-  <div id="hrCustomBoundariesRow" style="margin-top:14px" hidden>
-  <p class="settings-label-text">Zónahatárok (BPM)</p>
-  <!-- Multi-handle slider -->
-  <div id="hrMultiSlider" class="hr-multi-slider">
-  <div class="hr-multi-slider-track"></div>
-  </div>
-  <!-- Rejtett inputok (adattárolás) -->
-  <div hidden>
-  <input type="number" id="hrCustomB1" value="105">
-  <input type="number" id="hrCustomB2" value="139">
-  <input type="number" id="hrCustomB3" value="156">
-  <input type="number" id="hrCustomB4" value="173">
-  </div>
-  <!-- Zónacímkék (JS tölti fel) -->
-  <div id="hrCustomZoneDisplay" class="hr-custom-zone-display"></div>
+  <div id="hrCustomBoundariesRow" style="margin-bottom:14px" hidden>
+    <p class="settings-label-text">Zónahatárok (BPM)</p>
+    <div id="hrMultiSlider" class="hr-multi-slider">
+      <div class="hr-multi-slider-track"></div>
+    </div>
+    <div hidden>
+      <input type="number" id="hrCustomB1" value="105">
+      <input type="number" id="hrCustomB2" value="139">
+      <input type="number" id="hrCustomB3" value="156">
+      <input type="number" id="hrCustomB4" value="173">
+    </div>
+    <div id="hrCustomZoneDisplay" class="hr-custom-zone-display"></div>
   </div>
 
-  <!-- Zónamodell -->
+  <!-- Zónamodell (csak Karvonen / Max HR% módban értelmes) -->
   <div id="hrZoneModelRow">
-  <p class="settings-label-text" style="margin-top:16px">Zónamodell</p>
-  <div class="settings-unit-group" style="margin-bottom:16px">
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrZoneModel" value="friel" checked>
-  <span class="hint-target" data-hint="Friel – fiziológiailag pontos, aszimmetrikus sávok (65/80/89/97%). Garmin, Strava és TrainingPeaks is ezt alkalmazza. Az aerob zóna szélesebb, az anaerob szűkebb és pontosabb.">
-  Friel
-  <small>ajánlott</small>
-  </span>
-  </label>
-  <label class="settings-unit-btn">
-  <input type="radio" name="hrZoneModel" value="equal">
-  <span class="hint-target" data-hint="Egyenlő sávok – egyszerű 10%-os felosztás (50–100%). Matematikailag szimmetrikus, de nem tükrözi a valódi fiziológiai küszöbértékeket.">
-  Egyenlő sávok
-  <small>10%-os felosztás</small>
-  </span>
-  </label>
+    <p class="settings-label-text">Zónamodell</p>
+    <div class="settings-unit-group" style="margin-bottom:16px">
+      <label class="settings-unit-btn">
+        <input type="radio" name="hrZoneModel" value="friel" checked>
+        <span class="hint-target" data-hint="Friel – fiziológiailag pontos, aszimmetrikus sávok (65/80/89/97%). Garmin, Strava és TrainingPeaks is ezt alkalmazza. Az aerob zóna szélesebb, az anaerob szűkebb és pontosabb.">
+          Friel
+          <small>ajánlott</small>
+        </span>
+      </label>
+      <label class="settings-unit-btn">
+        <input type="radio" name="hrZoneModel" value="equal">
+        <span class="hint-target" data-hint="Egyenlő sávok – egyszerű 10%-os felosztás (50–100%). Matematikailag szimmetrikus, de nem tükrözi a valódi fiziológiai küszöbértékeket.">
+          Egyenlő sávok
+          <small>10%-os felosztás</small>
+        </span>
+      </label>
+    </div>
   </div>
 
-  </div><!-- /hrZoneModelRow -->
-
-  <!-- Nyugalmi pulzus (csak Karvonen módban) -->
-  <div id="hrRestSliderRow" class="karvonen-slider-row" style="margin-top:14px">
-  <div class="karvonen-slider-header">
-  <label class="karvonen-slider-label" for="hrRestSlider">Nyugalmi pulzus (HRrest)</label>
-  <span class="karvonen-slider-value" id="hrRestOut">60</span>
-  </div>
-  <input type="range" min="35" max="100" step="1" value="60" id="hrRestSlider" class="karvonen-slider">
-  <div class="karvonen-slider-bounds"><span>35</span><span>100</span></div>
-  </div>
-
-  <!-- Max pulzus becslő -->
-  <div class="hrmax-estimator">
-  <div class="hrmax-estimator-header">
-  <span class="karvonen-slider-label">Max pulzus becslése életkorból</span>
-  <button class="hint-btn" type="button" data-hint="Ha nem mérted laboratóriumban a max pulzusodat, életkorból is becsülhető. A Tanaka-képlet tudományosan pontosabb, a 220−kor csak durva közelítés." aria-label="Segítség">
-  <i data-lucide="info" aria-hidden="true"></i>
-  </button>
-  </div>
-  <div class="karvonen-slider-row" style="margin-bottom:10px">
-  <div class="karvonen-slider-header">
-  <label class="karvonen-slider-label" for="hrAgeSlider">Életkor</label>
-  <span class="karvonen-slider-value"><span id="hrAgeOut">30</span> év</span>
-  </div>
-  <input type="range" min="15" max="80" step="1" value="30" id="hrAgeSlider" class="karvonen-slider">
-  <div class="karvonen-slider-bounds"><span>15</span><span>80</span></div>
-  </div>
-  <div class="hrmax-formula-group">
-  <label class="hrmax-formula-btn">
-  <input type="radio" name="hrFormula" value="tanaka" checked>
-  <span class="hint-target" id="hrFormulaTanakaSpan" data-hint="Tanaka (2001): 208 − (0.7 × kor). 351 tanulmány meta-analíziséből, pontosabb aktív felnőtteknél. Ajánlott módszer.">
-  <span class="hrmax-formula-name" id="hrFormulaTanakaName">Tanaka</span>
-  <span class="hrmax-formula-eq" id="hrFormulaTanakaEq">208 − (0.7 × kor)</span>
-  <span class="hrmax-formula-result" id="hrMaxTanakaResult">187 bpm</span>
-  </span>
-  </label>
-  <label class="hrmax-formula-btn">
-  <input type="radio" name="hrFormula" value="classic">
-  <span class="hint-target" data-hint="220 − kor: egyszerű, de pontatlan becslés. Egyéni eltérés ±10–20 bpm is lehet. Csak ha semmi más adatod nincs.">
-  <span class="hrmax-formula-name">220 − kor</span>
-  <span class="hrmax-formula-eq">220 − kor</span>
-  <span class="hrmax-formula-result" id="hrMaxClassicResult">190 bpm</span>
-  </span>
-  </label>
-  </div>
-  <button id="hrMaxApplyBtn" class="hrmax-apply-btn" type="button">
-  <i data-lucide="check" aria-hidden="true"></i>
-  Beállítás max pulzusként
-  </button>
-  </div>
-
-  <!-- Max pulzus -->
-  <div class="karvonen-slider-row">
-  <div class="karvonen-slider-header">
-  <label class="karvonen-slider-label" for="hrMaxSlider">Max pulzus (HRmax)</label>
-  <span class="karvonen-slider-value" id="hrMaxOut">190</span>
-  </div>
-  <input type="range" min="140" max="220" step="1" value="190" id="hrMaxSlider" class="karvonen-slider">
-  <div class="karvonen-slider-bounds"><span>140</span><span>220</span></div>
-  </div>
-
+  <!-- Zónalista -->
   <div id="karvonenZonesList" class="karvonen-zones-list"></div>
   </div>
+  </section>
+
+  <!-- Sebesség, kadencia, teljesítmény zónák -->
+  <section class="settings-section" data-settings-section="dataZones">
+    <h4 class="settings-section-title">
+      <i data-lucide="layers" aria-hidden="true"></i>
+      Adatzónák (sebesség / kadencia / teljesítmény)
+      <button class="hint-btn" type="button" data-hint="A térképszínezés (sebességtérkép, kadenciatérkép, teljesítménytérkép) és a hozzá tartozó jelmagyarázatok ezeket a határértékeket használják. Húzd a fogópontokat a saját zónáid beállításához (Strava/Garmin értékekkel kompatibilis)." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+
+      <!-- Sebesség zónák (8 sáv, 7 fogópont) -->
+      <div class="zone-section-header">
+        <p class="settings-label-text" style="margin:0">Sebesség zónák (km/h)</p>
+        <button type="button" class="zone-reset-btn" data-zone-reset="speed" title="Egyenletes felosztás a 0–60 km/h tartományon">↺ Egyenlő felosztás</button>
+      </div>
+      <div id="speedZoneSlider" class="hr-multi-slider" data-zone-min="0" data-zone-max="60">
+        <div class="hr-multi-slider-track"></div>
+      </div>
+      <div hidden>
+        <input type="number" id="speedZoneB1" value="5">
+        <input type="number" id="speedZoneB2" value="12">
+        <input type="number" id="speedZoneB3" value="18">
+        <input type="number" id="speedZoneB4" value="22">
+        <input type="number" id="speedZoneB5" value="26">
+        <input type="number" id="speedZoneB6" value="30">
+        <input type="number" id="speedZoneB7" value="35">
+      </div>
+      <div id="speedZoneDisplay" class="hr-custom-zone-display"></div>
+
+      <!-- Kadencia zónák (8 sáv, 7 fogópont) -->
+      <div class="zone-section-header" style="margin-top:18px">
+        <p class="settings-label-text" style="margin:0">Kadencia zónák (rpm)</p>
+        <button type="button" class="zone-reset-btn" data-zone-reset="cad" title="Egyenletes felosztás a 30–130 rpm tartományon">↺ Egyenlő felosztás</button>
+      </div>
+      <div id="cadZoneSlider" class="hr-multi-slider" data-zone-min="30" data-zone-max="130">
+        <div class="hr-multi-slider-track"></div>
+      </div>
+      <div hidden>
+        <input type="number" id="cadZoneB1" value="55">
+        <input type="number" id="cadZoneB2" value="70">
+        <input type="number" id="cadZoneB3" value="80">
+        <input type="number" id="cadZoneB4" value="88">
+        <input type="number" id="cadZoneB5" value="94">
+        <input type="number" id="cadZoneB6" value="100">
+        <input type="number" id="cadZoneB7" value="108">
+      </div>
+      <div id="cadZoneDisplay" class="hr-custom-zone-display"></div>
+
+      <!-- Teljesítmény zónák (8 sáv, 7 fogópont) -->
+      <div class="zone-section-header" style="margin-top:18px">
+        <p class="settings-label-text" style="margin:0">Teljesítmény zónák (W)</p>
+        <button type="button" class="zone-reset-btn" data-zone-reset="power" title="Egyenletes felosztás a 0–500 W tartományon">↺ Egyenlő felosztás</button>
+      </div>
+      <div id="powerZoneSlider" class="hr-multi-slider" data-zone-min="0" data-zone-max="500">
+        <div class="hr-multi-slider-track"></div>
+      </div>
+      <div hidden>
+        <input type="number" id="powerZoneB1" value="75">
+        <input type="number" id="powerZoneB2" value="130">
+        <input type="number" id="powerZoneB3" value="180">
+        <input type="number" id="powerZoneB4" value="220">
+        <input type="number" id="powerZoneB5" value="260">
+        <input type="number" id="powerZoneB6" value="310">
+        <input type="number" id="powerZoneB7" value="380">
+      </div>
+      <div id="powerZoneDisplay" class="hr-custom-zone-display"></div>
+
+    </div>
+  </section>
+
+  <!-- Diagram színek -->
+  <section class="settings-section" data-settings-section="chartColors">
+    <h4 class="settings-section-title">
+      <i data-lucide="line-chart" aria-hidden="true"></i>
+      Diagram színek
+      <button class="hint-btn" type="button" data-hint="Az Elemzés fülön megjelenő diagramok színezése. Egyszínű módban minden adattípushoz külön színt választhatsz. Zónaszín módban a diagram vonala szegmensenként színeződik az 'Adatzónák' beállításnál megadott zónaszínekkel." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <p class="settings-label-text">Színezés módja</p>
+      <div class="settings-unit-group" style="margin-bottom:14px">
+        <label class="settings-unit-btn">
+          <input type="radio" name="chartColorMode" value="solid" checked>
+          <span class="hint-target" data-hint="Minden diagram egyszínű vonalként rajzolódik. Az alábbi színválasztókkal külön testreszabhatod sebesség, pulzus, kadencia és teljesítmény diagramokat.">
+            <i data-lucide="minus" aria-hidden="true"></i>
+            Egyszínű
+            <small>fix szín</small>
+          </span>
+        </label>
+        <label class="settings-unit-btn">
+          <input type="radio" name="chartColorMode" value="zones">
+          <span class="hint-target" data-hint="A diagram vonalát az adatzónáknál megadott színekkel rajzolja: minden szakasz színe a pillanatnyi érték zónáját mutatja. Strava/Garmin-szerű élmény.">
+            <i data-lucide="palette" aria-hidden="true"></i>
+            Zónaszín
+            <small>határok alapján</small>
+          </span>
+        </label>
+      </div>
+
+      <!-- Egyszínű mód: színválasztók -->
+      <div id="chartColorSolidRow">
+        <p class="settings-label-text">Egyedi színek</p>
+        <div class="chart-color-grid">
+          <div class="chart-color-field">
+            <label for="chartColorEle">Szintprofil</label>
+            <input type="color" id="chartColorEle" value="#fc4c02">
+          </div>
+          <div class="chart-color-field">
+            <label for="chartColorSpeed">Sebesség</label>
+            <input type="color" id="chartColorSpeed" value="#3B82F6">
+          </div>
+          <div class="chart-color-field">
+            <label for="chartColorHr">Pulzus</label>
+            <input type="color" id="chartColorHr" value="#EF4444">
+          </div>
+          <div class="chart-color-field">
+            <label for="chartColorCad">Kadencia</label>
+            <input type="color" id="chartColorCad" value="#A855F7">
+          </div>
+          <div class="chart-color-field">
+            <label for="chartColorPower">Teljesítmény</label>
+            <input type="color" id="chartColorPower" value="#EAB308">
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   </div>

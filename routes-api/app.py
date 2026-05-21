@@ -515,8 +515,10 @@ SETTINGS_ALLOWED_KEYS = {
     "mapStyle", "theme", "unit", "startView",
     "snapToRoads", "showStageInfo", "gpxSampleWaypoints",
     "toolbarOrder", "toolbarHidden",
-    # HR / edzés
-    "hrZones",
+    # HR / edzés zónák
+    "hrZones", "speedZones", "cadZones", "powerZones",
+    # Diagram színek (mode + per-chart színek)
+    "chartColors",
 }
 
 
@@ -701,25 +703,52 @@ def admin_list_user_routes(user_id: str):
     routes_dir = _user_routes_dir(user_id)
     idx_path   = os.path.join(routes_dir, "index.json")
     routes     = _load_index(idx_path)
-    # GPX fájlméret hozzáadása
+    # GPX + opcionális FIT fájlméret hozzáadása
     for r in routes:
         gpx = os.path.join(routes_dir, f"{r['id']}.gpx")
+        fit = os.path.join(routes_dir, f"{r['id']}.fit")
         r["size_kb"] = round(os.path.getsize(gpx) / 1024, 1) if os.path.isfile(gpx) else 0
+        if os.path.isfile(fit):
+            r["has_fit"]     = True
+            r["fit_size_kb"] = round(os.path.getsize(fit) / 1024, 1)
+        else:
+            r["has_fit"]     = False
     return jsonify(sorted(routes, key=lambda r: r.get("date", ""), reverse=True))
+
+
+@app.route("/api/admin/users/<user_id>/routes/<route_id>/fit", methods=["GET"])
+@require_auth
+@require_admin
+def admin_get_user_route_fit(user_id: str, route_id: str):
+    """Admin: eredeti FIT bináris letöltése."""
+    route_id   = _safe_id(route_id)
+    routes_dir = _user_routes_dir(user_id)
+    fit_path   = os.path.join(routes_dir, f"{route_id}.fit")
+    if not os.path.isfile(fit_path):
+        abort(404, description="FIT fájl nem érhető el")
+    with open(fit_path, "rb") as f:
+        content = f.read()
+    return content, 200, {
+        "Content-Type": "application/vnd.ant.fit",
+        "Content-Disposition": f'attachment; filename="{route_id}.fit"',
+    }
 
 
 @app.route("/api/admin/users/<user_id>/routes/<route_id>", methods=["DELETE"])
 @require_auth
 @require_admin
 def admin_delete_user_route(user_id: str, route_id: str):
-    """Admin: adott user útvonalának törlése."""
+    """Admin: adott user útvonalának törlése (GPX + FIT együtt)."""
     route_id   = _safe_id(route_id)
     routes_dir = _user_routes_dir(user_id)
     idx_path   = os.path.join(routes_dir, "index.json")
     gpx_path   = os.path.join(routes_dir, f"{route_id}.gpx")
+    fit_path   = os.path.join(routes_dir, f"{route_id}.fit")
     if not os.path.isfile(gpx_path):
         abort(404, description="Útvonal nem található")
     os.remove(gpx_path)
+    if os.path.isfile(fit_path):
+        os.remove(fit_path)
     _save_index([r for r in _load_index(idx_path) if r.get("id") != route_id], idx_path)
     with _db() as conn:
         conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?", (route_id, user_id))
@@ -789,6 +818,7 @@ def admin_upload_user_route(user_id: str):
     data        = request.get_json(silent=True) or {}
     name        = (data.get("name") or "Névtelen útvonal").strip()
     gpx_content = (data.get("gpxContent") or "").strip()
+    fit_b64     = data.get("fitContent")
     distance    = data.get("distance")
     duration    = data.get("duration")
     elevation   = data.get("elevation")
@@ -802,6 +832,7 @@ def admin_upload_user_route(user_id: str):
     idx_path   = os.path.join(routes_dir, "index.json")
     route_id   = uuid.uuid4().hex[:8]
     gpx_path   = os.path.join(routes_dir, f"{route_id}.gpx")
+    fit_path   = os.path.join(routes_dir, f"{route_id}.fit")
 
     try:
         with open(gpx_path, "w", encoding="utf-8") as f:
@@ -809,6 +840,16 @@ def admin_upload_user_route(user_id: str):
     except OSError as exc:
         log.error("GPX írási hiba: %s", exc)
         abort(500, description="Fájl írási hiba")
+
+    has_fit = False
+    if fit_b64:
+        try:
+            import base64
+            with open(fit_path, "wb") as f:
+                f.write(base64.b64decode(fit_b64, validate=True))
+            has_fit = True
+        except (ValueError, OSError) as exc:
+            log.warning("FIT írási hiba (%s): %s", route_id, exc)
 
     entry = {
         "id":          route_id,
@@ -819,6 +860,7 @@ def admin_upload_user_route(user_id: str):
         "elevation":   int(elevation)     if isinstance(elevation, (int, float)) else None,
         "type":        route_type,
         "description": description,
+        "has_fit":     has_fit,
     }
     index = _load_index(idx_path)
     index.append(entry)
@@ -826,6 +868,7 @@ def admin_upload_user_route(user_id: str):
         _save_index(index, idx_path)
     except OSError:
         os.remove(gpx_path)
+        if has_fit: os.remove(fit_path)
         abort(500, description="Index írási hiba")
 
     with _db() as conn:
@@ -880,6 +923,7 @@ def save_route():
 
     name        = (data.get("name") or "Névtelen útvonal").strip()
     gpx_content = data.get("gpxContent", "").strip()
+    fit_b64     = data.get("fitContent")     # opcionális base64-kódolt FIT binary
     distance    = data.get("distance")
     duration    = data.get("duration")
     elevation   = data.get("elevation")
@@ -895,12 +939,24 @@ def save_route():
 
     route_id = uuid.uuid4().hex[:8]
     gpx_path = os.path.join(user_dir, f"{route_id}.gpx")
+    fit_path = os.path.join(user_dir, f"{route_id}.fit")
     try:
         with open(gpx_path, "w", encoding="utf-8") as f:
             f.write(gpx_content)
     except OSError as exc:
         log.error("GPX írási hiba: %s", exc)
         abort(500, description="Fájl írási hiba")
+
+    has_fit = False
+    if fit_b64:
+        try:
+            import base64
+            fit_bytes = base64.b64decode(fit_b64, validate=True)
+            with open(fit_path, "wb") as f:
+                f.write(fit_bytes)
+            has_fit = True
+        except (ValueError, OSError) as exc:
+            log.warning("FIT írási hiba (%s): %s – GPX megmarad, FIT kihagyva", route_id, exc)
 
     entry = {
         "id":          route_id,
@@ -911,6 +967,7 @@ def save_route():
         "elevation":   int(elevation)     if isinstance(elevation, (int, float)) else None,
         "type":        route_type,
         "description": description,
+        "has_fit":     has_fit,
     }
     index = _load_index(idx)
     index.append(entry)
@@ -918,6 +975,7 @@ def save_route():
         _save_index(index, idx)
     except OSError:
         os.remove(gpx_path)
+        if has_fit: os.remove(fit_path)
         abort(500, description="Index írási hiba")
 
     with _db() as conn:
@@ -981,18 +1039,38 @@ def delete_route(route_id: str):
     route_id      = _safe_id(route_id)
     user_dir, idx = _resolve_dirs()
     gpx_path      = os.path.join(user_dir, f"{route_id}.gpx")
+    fit_path      = os.path.join(user_dir, f"{route_id}.fit")
     if not os.path.isfile(gpx_path):
         abort(404, description=f"Útvonal nem található: {route_id}")
     try:
         os.remove(gpx_path)
+        if os.path.isfile(fit_path):
+            os.remove(fit_path)
     except OSError as exc:
-        log.error("GPX törlési hiba: %s", exc)
+        log.error("Törlési hiba: %s", exc)
         abort(500)
     _save_index([r for r in _load_index(idx) if r.get("id") != route_id], idx)
     with _db() as conn:
         conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?",
                      (route_id, g.user["id"]))
     return "", 204
+
+
+@app.route("/api/routes/<route_id>/fit", methods=["GET"])
+@require_auth
+def get_route_fit(route_id: str):
+    """Eredeti FIT bináris letöltése (csak ha FIT-ből lett mentve)."""
+    route_id     = _safe_id(route_id)
+    user_dir, _  = _resolve_dirs()
+    fit_path     = os.path.join(user_dir, f"{route_id}.fit")
+    if not os.path.isfile(fit_path):
+        abort(404, description="FIT fájl nem érhető el ehhez az útvonalhoz")
+    with open(fit_path, "rb") as f:
+        content = f.read()
+    return content, 200, {
+        "Content-Type": "application/vnd.ant.fit",
+        "Content-Disposition": f'attachment; filename="{route_id}.fit"',
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════

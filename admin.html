@@ -750,15 +750,21 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
             ${routes.map(r => `
               <tr data-route-id="${r.id}">
                 <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 10px"
-                    title="${escHtml(r.name)}">${escHtml(r.name)}</td>
+                    title="${escHtml(r.name)}">
+                  ${escHtml(r.name)}
+                  ${r.has_fit ? `<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.05em;color:#fff;background:var(--brand);border-radius:3px;padding:1px 5px;margin-left:6px;vertical-align:middle" title="Eredeti FIT fájl elérhető (${r.fit_size_kb} KB)">FIT</span>` : ""}
+                </td>
                 <td style="padding:9px 6px"><span class="badge badge-user" style="font-size:11px">${escHtml(TYPE_LABELS[r.type] || r.type || '–')}</span></td>
                 <td style="white-space:nowrap;color:var(--muted);font-size:12px;padding:9px 6px">${r.date || '–'}</td>
                 <td style="white-space:nowrap;font-size:12px;padding:9px 6px">${r.distance != null ? r.distance + ' km' : '–'}</td>
                 <td style="white-space:nowrap;color:var(--muted);font-size:12px;padding:9px 6px">${r.size_kb} KB</td>
                 <td style="padding:9px 6px">
                   <div style="display:flex;gap:3px;justify-content:flex-end">
-                    <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="Letöltés"
-                      data-action="dl" data-route="${r.id}">↓</button>
+                    <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="GPX letöltés"
+                      data-action="dl" data-route="${r.id}">↓ GPX</button>
+                    ${r.has_fit ? `
+                    <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="Eredeti FIT letöltése"
+                      data-action="dlfit" data-route="${r.id}">↓ FIT</button>` : ""}
                     <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px" title="Szerkesztés"
                       data-action="edit" data-route="${r.id}" data-name="${escHtml(r.name)}"
                       data-type="${escHtml(r.type||'asphalt')}" data-desc="${escHtml(r.description||'')}">✏</button>
@@ -777,6 +783,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
           const routeId = btn.dataset.route;
 
           if (action === "dl") {
+            const orig = btn.textContent;
             try {
               btn.textContent = "…";
               const gpx = await routesApi.admin.getUserRouteGpx(userId, routeId);
@@ -786,7 +793,20 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               a.href = url; a.download = `${routeId}.gpx`; a.click();
               URL.revokeObjectURL(url);
             } catch (e) { alert("Letöltési hiba: " + e.message); }
-            finally { btn.textContent = "↓"; }
+            finally { btn.textContent = orig; }
+          }
+
+          if (action === "dlfit") {
+            const orig = btn.textContent;
+            try {
+              btn.textContent = "…";
+              const blob = await routesApi.admin.getUserRouteFit(userId, routeId);
+              const url  = URL.createObjectURL(blob);
+              const a    = document.createElement("a");
+              a.href = url; a.download = `${routeId}.fit`; a.click();
+              URL.revokeObjectURL(url);
+            } catch (e) { alert("FIT letöltési hiba: " + e.message); }
+            finally { btn.textContent = orig; }
           }
 
           if (action === "edit") {

@@ -1,10 +1,16 @@
-import { requireAuth, logout, isAdmin, getUser } from "./auth.js";
+import { requireAuth, logout, isAdmin, getUser, ensureSettingsOwner } from "./auth.js";
+
+// User-váltás detektálás: ha másik felhasználó beállításai vannak a localStorage-ban,
+// töröljük őket, mielőtt bármelyik IIFE elindulna és kiolvasná.
+// Ez fedi a {logout → login másik userrel} és a {direct JWT swap} eseteket.
+ensureSettingsOwner();
 import { config } from "./config.js";
 import { getSettings, saveSetting } from "./appSettings.js";
 import { createI18n } from "./i18n/i18n.js";
 import { createRouteStore } from "./state/routeStore.js";
 import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
+import { fitToGpx } from "./gpx/fit.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode } from "./ui/search.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart } from "./ui/elevationProfile.js";
@@ -90,6 +96,7 @@ let currentTab = "plan";
 let hasImportedFile = false;   // igaz, ha az Elemzés fülön van betöltött fájl
 let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
 let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
+let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti binary
 
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
@@ -356,12 +363,14 @@ function renderHrZoneAnalysis(geometry) {
   }
 }
 
-function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {} }) {
+function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {}, isFit = false }) {
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
   details.hidden = false;
 
   document.querySelector("#importedFileName").textContent = filename;
+  const fitBadge = document.querySelector("#importedFitBadge");
+  if (fitBadge) fitBadge.hidden = !isFit;
 
   // Metaadatok
   const metaBlock = document.querySelector("#fileMetaBlock");
@@ -1015,23 +1024,42 @@ function updateElevationButton(geometry) {
     const gradeActive = elements.gradeMapTogglePlan?.checked || elements.gradeMapToggle?.checked;
     if (gradeActive) mapAdapter.renderGradeRoute(activeGeometry);
   }
+  const cc = getChartColors();
+  const isZones = cc.mode === "zones";
   // Ha bármelyik szekció nyitva van, frissítsd az adatot
   if (visibleSections.has("elevation")) {
     const data = buildElevationData(activeGeometry);
-    elevationChart.setData(data, { color: "#fc4c02", unit: "m" });
+    elevationChart.setData(data, {
+      color: cc.ele, unit: "m",
+      // Zónaszín módban a szintprofil vonala a lejtés (grade) alapján színeződik
+      colorFn: isZones ? ((_v, pt) => gradeColorForGrade(pt?.grade)) : null,
+    });
     updateElevationPanelInfo(data);
   }
   if (visibleSections.has("speed") && speedChart) {
-    speedChart.setData(buildSpeedData(activeGeometry), { color: "#3B82F6", unit: "km/h" });
+    speedChart.setData(buildSpeedData(activeGeometry), {
+      color: cc.speed, unit: "km/h",
+      colorFn: isZones ? (v => getZoneColor("speed", v)) : null,
+    });
   }
   if (visibleSections.has("hr") && hrChart) {
-    hrChart.setData(buildHrData(activeGeometry), { color: "#EF4444", unit: "bpm" });
+    hrChart.setData(buildHrData(activeGeometry), {
+      color: cc.hr, unit: "bpm",
+      // Pulzusnál a zónaszín a HR beállításokból jön (buildHrZoneColorFn)
+      colorFn: isZones ? buildHrZoneColorFn() : null,
+    });
   }
   if (visibleSections.has("cad") && cadChart) {
-    cadChart.setData(buildCadData(activeGeometry), { color: "#A855F7", unit: "rpm" });
+    cadChart.setData(buildCadData(activeGeometry), {
+      color: cc.cad, unit: "rpm",
+      colorFn: isZones ? (v => getZoneColor("cad", v)) : null,
+    });
   }
   if (visibleSections.has("power") && powerChart) {
-    powerChart.setData(buildPowerData(activeGeometry), { color: "#EAB308", unit: "W" });
+    powerChart.setData(buildPowerData(activeGeometry), {
+      color: cc.power, unit: "W",
+      colorFn: isZones ? (v => getZoneColor("power", v)) : null,
+    });
   }
 }
 
@@ -1110,14 +1138,22 @@ elements.powerMapToggle?.addEventListener("change", (e) => {
 
 // ── Multi-chart: minden szekció önállóan nyitható/zárható ─────────────────────
 
-// Segéd: visszaadja az adott típushoz tartozó elemeket és builder-t
+// Segéd: visszaadja az adott típushoz tartozó elemeket és builder-t.
+// Az opts (szín + colorFn) dinamikusan a felhasználói beállításokból (chartColors) jön.
 function chartConfig(type) {
+  const cc = (typeof getChartColors === "function") ? getChartColors() : null;
+  const isZones = cc?.mode === "zones";
+  const buildOpts = (color, unit, colorFn = null) => ({
+    color: cc?.[opts2Key(type)] ?? color,
+    unit,
+    colorFn: isZones ? colorFn : null,
+  });
   if (type === "speed") {
     return {
       sectionEl: elements.chartSpeed,
       chartInst: speedChart,
       build: () => buildSpeedData(activeGeometry),
-      opts: { color: "#3B82F6", unit: "km/h" },
+      opts:  buildOpts("#3B82F6", "km/h", v => getZoneColor("speed", v)),
       btns: [elements.speedChartBtn],
     };
   }
@@ -1126,7 +1162,7 @@ function chartConfig(type) {
       sectionEl: elements.chartHr,
       chartInst: hrChart,
       build: () => buildHrData(activeGeometry),
-      opts: { color: "#EF4444", unit: "bpm" },
+      opts:  buildOpts("#EF4444", "bpm", buildHrZoneColorFn()),
       btns: [elements.hrChartBtn],
     };
   }
@@ -1135,7 +1171,7 @@ function chartConfig(type) {
       sectionEl: elements.chartCad,
       chartInst: cadChart,
       build: () => buildCadData(activeGeometry),
-      opts: { color: "#A855F7", unit: "rpm" },
+      opts:  buildOpts("#A855F7", "rpm", v => getZoneColor("cad", v)),
       btns: [elements.cadChartBtn],
     };
   }
@@ -1144,7 +1180,7 @@ function chartConfig(type) {
       sectionEl: elements.chartPower,
       chartInst: powerChart,
       build: () => buildPowerData(activeGeometry),
-      opts: { color: "#EAB308", unit: "W" },
+      opts:  buildOpts("#EAB308", "W", v => getZoneColor("power", v)),
       btns: [elements.powerChartBtn],
     };
   }
@@ -1153,9 +1189,14 @@ function chartConfig(type) {
     sectionEl: elements.chartElevation,
     chartInst: elevationChart,
     build: () => buildElevationData(activeGeometry),
-    opts: { color: "#fc4c02", unit: "m" },
+    opts:  buildOpts("#fc4c02", "m", (_v, pt) => gradeColorForGrade(pt?.grade)),
     btns: [elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan],
   };
+}
+
+/** chart típus → chartColors mező név */
+function opts2Key(type) {
+  return type === "elevation" ? "ele" : type;
 }
 
 function syncElevationBtnState() {
@@ -1775,12 +1816,21 @@ if (isAdmin()) {
 {
   // Betöltéskor szerver → localStorage felülírás
   routesApi.getSettings().then(serverSettings => {
+    let changed = false;
     if (serverSettings && Object.keys(serverSettings).length > 0) {
-      if (serverSettings.hrZones)    localStorage.setItem("bringaterv.hrZones",    JSON.stringify(serverSettings.hrZones));
-      if (serverSettings.mapStyle)   localStorage.setItem("route4meMapStyle",      serverSettings.mapStyle);
-      if (serverSettings.unit)       localStorage.setItem("route4meUnit",          serverSettings.unit);
-      if (serverSettings.startView)  localStorage.setItem("bringaterv.startView",  JSON.stringify(serverSettings.startView));
-      if (serverSettings.theme)      localStorage.setItem("route4meTheme",         serverSettings.theme);
+      if (serverSettings.hrZones)     { localStorage.setItem("bringaterv.hrZones",     JSON.stringify(serverSettings.hrZones));     changed = true; }
+      if (serverSettings.speedZones)  { localStorage.setItem("bringaterv.speedZones",  JSON.stringify(serverSettings.speedZones));  changed = true; }
+      if (serverSettings.cadZones)    { localStorage.setItem("bringaterv.cadZones",    JSON.stringify(serverSettings.cadZones));    changed = true; }
+      if (serverSettings.powerZones)  { localStorage.setItem("bringaterv.powerZones",  JSON.stringify(serverSettings.powerZones));  changed = true; }
+      if (serverSettings.chartColors) { localStorage.setItem("bringaterv.chartColors", JSON.stringify(serverSettings.chartColors)); changed = true; }
+      if (serverSettings.mapStyle)   { localStorage.setItem("route4meMapStyle",      serverSettings.mapStyle);                  changed = true; }
+      if (serverSettings.unit)       { localStorage.setItem("route4meUnit",          serverSettings.unit);                      changed = true; }
+      if (serverSettings.startView)  { localStorage.setItem("bringaterv.startView",  JSON.stringify(serverSettings.startView)); changed = true; }
+      if (serverSettings.theme)      { localStorage.setItem("route4meTheme",         serverSettings.theme);                     changed = true; }
+    }
+    // A UI elemek értesítése, hogy újraolvassanak a localStorage-ból
+    if (changed) {
+      window.dispatchEvent(new CustomEvent('bringaterv:settingsHydrated'));
     }
   }).catch(() => { /* offline – marad a localStorage */ });
 
@@ -1790,7 +1840,11 @@ if (isAdmin()) {
     clearTimeout(_settingsSyncTimer);
     _settingsSyncTimer = setTimeout(() => {
       const payload = {};
-      try { payload.hrZones   = JSON.parse(localStorage.getItem("bringaterv.hrZones") || "{}"); } catch {}
+      try { payload.hrZones    = JSON.parse(localStorage.getItem("bringaterv.hrZones")    || "{}");   } catch {}
+      try { payload.speedZones = JSON.parse(localStorage.getItem("bringaterv.speedZones") || "null"); } catch {}
+      try { payload.cadZones   = JSON.parse(localStorage.getItem("bringaterv.cadZones")   || "null"); } catch {}
+      try { payload.powerZones  = JSON.parse(localStorage.getItem("bringaterv.powerZones")  || "null"); } catch {}
+      try { payload.chartColors = JSON.parse(localStorage.getItem("bringaterv.chartColors") || "null"); } catch {}
       payload.mapStyle         = localStorage.getItem("route4meMapStyle")     || undefined;
       payload.unit             = localStorage.getItem("route4meUnit")         || undefined;
       try { payload.startView = JSON.parse(localStorage.getItem("bringaterv.startView") || "null"); } catch {}
@@ -1823,10 +1877,42 @@ settingsClose?.addEventListener("click", () => { settingsOverlay.hidden = true; 
 const HR_ZONES_KEY = 'bringaterv.hrZones';
 
 function getHrZoneSettings() {
+  const CURRENT_YEAR = new Date().getFullYear();
   try {
     const s = JSON.parse(localStorage.getItem(HR_ZONES_KEY) || '{}');
-    return { restHR: s.rest ?? 60, maxHR: s.max ?? 190, method: s.method ?? 'karvonen', sex: s.sex ?? 'male', age: s.age ?? 30, zoneModel: s.zoneModel ?? 'friel', lthr: s.lthr ?? 160, customBoundaries: s.customBoundaries ?? [105, 139, 156, 173] };
-  } catch { return { restHR: 60, maxHR: 190, method: 'karvonen', sex: 'male', age: 30, zoneModel: 'friel', lthr: 160, customBoundaries: [105, 139, 156, 173] }; }
+    // Visszafelé kompatibilitás: ha csak `age` van mentve, abból számolunk birthYear-t
+    const birthYear = s.birthYear ?? (s.age ? CURRENT_YEAR - s.age : 1985);
+    const age = Math.max(10, Math.min(100, CURRENT_YEAR - birthYear));
+    return {
+      sex:       s.sex ?? 'male',
+      birthYear,
+      age,
+      restHR:    s.rest ?? 60,
+      maxHR:     s.max  ?? 190,
+      maxMethod: s.maxMethod ?? 'tanaka',                // tanaka | classic | custom (max HR meghatározása)
+      method:    s.method    ?? 'karvonen',              // karvonen | maxhr | lthr | custom (zónaszámítás)
+      zoneModel: s.zoneModel ?? 'friel',                 // friel | equal
+      lthr:      s.lthr      ?? 160,
+      customBoundaries: s.customBoundaries ?? [105, 139, 156, 173],
+    };
+  } catch {
+    return {
+      sex: 'male', birthYear: 1985, age: CURRENT_YEAR - 1985,
+      restHR: 60, maxHR: 190, maxMethod: 'tanaka', zoneModel: 'friel',
+      method: 'karvonen', lthr: 160, customBoundaries: [105, 139, 156, 173],
+    };
+  }
+}
+
+/** Max HR kiszámítása életkor+nem alapján a választott módszer szerint. */
+function computeMaxHr(method, age, sex) {
+  if (method === 'classic') return Math.round(220 - age);
+  if (method === 'tanaka') {
+    return sex === 'female'
+      ? Math.round(216 - 1.09 * age)   // Miller – nőkre pontosabb
+      : Math.round(208 - 0.7  * age);  // Tanaka – ajánlott aktív felnőtteknek
+  }
+  return null; // custom: nem számítunk, a user adja meg
 }
 
 /** Zone-alapú HR szín-függvény a térképhez */
@@ -1867,121 +1953,181 @@ function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel =
 }
 
 (function initHrZoneSettings() {
-  const restSlider        = document.getElementById('hrRestSlider');
-  const maxSlider         = document.getElementById('hrMaxSlider');
-  const lthrSlider        = document.getElementById('hrLthrSlider');
-  const restOut           = document.getElementById('hrRestOut');
-  const maxOut            = document.getElementById('hrMaxOut');
-  const lthrOut           = document.getElementById('hrLthrOut');
-  const restRow           = document.getElementById('hrRestSliderRow');
-  const lthrRow           = document.getElementById('hrLthrSliderRow');
-  const zoneModelRow      = document.getElementById('hrZoneModelRow');
-  const customRow         = document.getElementById('hrCustomBoundariesRow');
-  const customInputs      = [
+  const sexRadios       = document.querySelectorAll('input[name="hrSex"]');
+  const maxMethodRadios = document.querySelectorAll('input[name="hrMaxMethod"]');
+  const methodRadios    = document.querySelectorAll('input[name="hrMethod"]');
+  const zoneModelRadios = document.querySelectorAll('input[name="hrZoneModel"]');
+  const birthYearInput  = document.getElementById('hrBirthYearInput');
+  const ageDisplay      = document.getElementById('hrAgeDisplay');
+  const rangeSlider     = document.getElementById('hrRangeSlider');
+  const restHandle      = document.getElementById('hrRangeRestHandle');
+  const maxHandle       = document.getElementById('hrRangeMaxHandle');
+  const activeTrack     = document.getElementById('hrRangeActive');
+  const restDisplay     = document.getElementById('hrRestDisplay');
+  const maxDisplay      = document.getElementById('hrMaxDisplay');
+  const maxSourceHint   = document.getElementById('hrMaxSourceHint');
+  const tanakaName      = document.getElementById('hrMaxMethodTanakaName');
+  const tanakaEq        = document.getElementById('hrMaxMethodTanakaEq');
+  const tanakaHint      = document.getElementById('hrMaxMethodTanakaHint');
+  const lthrSlider      = document.getElementById('hrLthrSlider');
+  const lthrOut         = document.getElementById('hrLthrOut');
+  const lthrRow         = document.getElementById('hrLthrSliderRow');
+  const zoneModelRow    = document.getElementById('hrZoneModelRow');
+  const customRow       = document.getElementById('hrCustomBoundariesRow');
+  const customInputs    = [
     document.getElementById('hrCustomB1'),
     document.getElementById('hrCustomB2'),
     document.getElementById('hrCustomB3'),
     document.getElementById('hrCustomB4'),
   ];
-  const methodRadios      = document.querySelectorAll('input[name="hrMethod"]');
-  const sexRadios         = document.querySelectorAll('input[name="hrSex"]');
-  const zoneModelRadios   = document.querySelectorAll('input[name="hrZoneModel"]');
-  if (!restSlider || !maxSlider) return;
+  if (!birthYearInput || !rangeSlider) return;
+
+  // Pulzus tartomány állapot (a slider source-of-truth)
+  const RANGE_MIN = 35;
+  const RANGE_MAX = 220;
+  const MIN_GAP   = 30;  // max ≥ rest + 30
+  let restValue = 60;
+  let maxValue  = 190;
 
   const init = getHrZoneSettings();
-  restSlider.value = init.restHR;
-  maxSlider.value  = init.maxHR;
-  if (lthrSlider) lthrSlider.value = init.lthr;
-  restOut.textContent = init.restHR;
-  maxOut.textContent  = init.maxHR;
-  if (lthrOut) lthrOut.textContent = init.lthr;
-  methodRadios.forEach(r => { r.checked = r.value === init.method; });
   sexRadios.forEach(r => { r.checked = r.value === init.sex; });
+  maxMethodRadios.forEach(r => { r.checked = r.value === init.maxMethod; });
+  methodRadios.forEach(r => { r.checked = r.value === init.method; });
   zoneModelRadios.forEach(r => { r.checked = r.value === init.zoneModel; });
+  birthYearInput.value = init.birthYear;
+  restValue = init.restHR;
+  maxValue  = init.maxHR;
+  if (lthrSlider) lthrSlider.value = init.lthr;
+  if (lthrOut)    lthrOut.textContent = init.lthr;
   customInputs.forEach((inp, i) => { if (inp) inp.value = init.customBoundaries[i]; });
-  updateMethodVisibility(init.method);
-  renderKarvonenZonesList(init.restHR, init.maxHR, init.method, init.zoneModel, init.lthr, init.customBoundaries);
 
-  function currentMethod()    { return [...methodRadios].find(r => r.checked)?.value ?? 'karvonen'; }
   function currentSex()       { return [...sexRadios].find(r => r.checked)?.value ?? 'male'; }
+  function currentMaxMethod() { return [...maxMethodRadios].find(r => r.checked)?.value ?? 'tanaka'; }
+  function currentMethod()    { return [...methodRadios].find(r => r.checked)?.value ?? 'karvonen'; }
   function currentZoneModel() { return [...zoneModelRadios].find(r => r.checked)?.value ?? 'friel'; }
   function currentLthr()      { return parseInt(lthrSlider?.value ?? 160, 10); }
   function currentCustomBoundaries() {
     return customInputs.map(inp => parseInt(inp?.value ?? 0, 10));
   }
+  function currentAge() {
+    const year = parseInt(birthYearInput.value, 10);
+    if (!year || isNaN(year)) return 40;
+    return Math.max(10, Math.min(100, new Date().getFullYear() - year));
+  }
 
-  function updateMethodVisibility(method) {
-    if (restRow)      restRow.hidden      = method !== 'karvonen';
+  function updateTanakaLabel() {
+    const female = currentSex() === 'female';
+    if (tanakaName) tanakaName.textContent = female ? 'Miller' : 'Tanaka';
+    if (tanakaEq)   tanakaEq.textContent   = female ? '216 − 1.09 × kor' : '208 − 0.7 × kor';
+    if (tanakaHint) tanakaHint.dataset.hint = female
+      ? 'Miller (1993): 216 − 1.09 × kor. Nőkre optimalizált, pontosabb mint a Tanaka nőknél.'
+      : 'Tanaka (2001): 208 − 0.7 × kor. Meta-analízis alapú, pontosabb aktív felnőtteknél.';
+  }
+
+  function updateAgeDisplay() {
+    if (ageDisplay) ageDisplay.textContent = `${currentAge()} éves`;
+  }
+
+  function rangeValToPct(v) { return (v - RANGE_MIN) / (RANGE_MAX - RANGE_MIN) * 100; }
+  function rangePctToVal(p) { return Math.round(RANGE_MIN + p / 100 * (RANGE_MAX - RANGE_MIN)); }
+
+  function renderRangeSlider() {
+    if (restValue < RANGE_MIN) restValue = RANGE_MIN;
+    if (maxValue  > RANGE_MAX) maxValue  = RANGE_MAX;
+    if (maxValue  < restValue + MIN_GAP) maxValue = restValue + MIN_GAP;
+    const restPct = rangeValToPct(restValue);
+    const maxPct  = rangeValToPct(maxValue);
+    if (restHandle)  restHandle.style.left  = restPct + '%';
+    if (maxHandle)   maxHandle.style.left   = maxPct  + '%';
+    if (activeTrack) { activeTrack.style.left = restPct + '%'; activeTrack.style.width = (maxPct - restPct) + '%'; }
+    if (restDisplay) restDisplay.textContent = restValue;
+    if (maxDisplay)  maxDisplay.textContent  = maxValue;
+  }
+
+  function updateMaxFromMethod() {
+    const method = currentMaxMethod();
+    if (method === 'custom') {
+      maxHandle?.classList.remove('is-disabled');
+      if (maxSourceHint) maxSourceHint.textContent = '(egyedi)';
+      return;
+    }
+    // Auto-számítás: max handle nem mozgatható
+    maxHandle?.classList.add('is-disabled');
+    const val = computeMaxHr(method, currentAge(), currentSex());
+    if (val != null) {
+      maxValue = Math.max(restValue + MIN_GAP, Math.min(RANGE_MAX, val));
+      renderRangeSlider();
+      if (maxSourceHint) maxSourceHint.textContent = method === 'tanaka'
+        ? (currentSex() === 'female' ? 'Miller' : 'Tanaka')
+        : '220 − év';
+    }
+  }
+
+  /** Zónaszámítási módszer alapján mutatjuk/rejtjük a kapcsolódó vezérlőket. */
+  function updateMethodVisibility() {
+    const method = currentMethod();
     if (lthrRow)      lthrRow.hidden      = method !== 'lthr';
-    if (zoneModelRow) zoneModelRow.hidden = method === 'lthr' || method === 'custom';
     if (customRow)    customRow.hidden    = method !== 'custom';
+    if (zoneModelRow) zoneModelRow.hidden = method === 'lthr' || method === 'custom';
   }
 
   function saveAndDispatch() {
-    const rest             = parseInt(restSlider.value, 10);
-    const max              = parseInt(maxSlider.value,  10);
-    const method           = currentMethod();
-    const sex              = currentSex();
-    const zoneModel        = currentZoneModel();
-    const lthr             = currentLthr();
+    const sex       = currentSex();
+    const birthYear = parseInt(birthYearInput.value, 10) || 1985;
+    const age       = currentAge();
+    const maxMethod = currentMaxMethod();
+    const method    = currentMethod();
+    const zoneModel = currentZoneModel();
+    const lthr      = currentLthr();
     const customBoundaries = currentCustomBoundaries();
-    const age              = parseInt(document.getElementById('hrAgeSlider')?.value ?? 30, 10);
-    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest, max, method, sex, age, zoneModel, lthr, customBoundaries }));
-    window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: { rest, max, method, sex, zoneModel, lthr, customBoundaries } }));
+    const payload = {
+      sex, birthYear, age,
+      rest: restValue, max: maxValue, maxMethod,
+      method, zoneModel, lthr, customBoundaries,
+    };
+    localStorage.setItem(HR_ZONES_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: payload }));
+    renderKarvonenZonesList(restValue, maxValue, method, zoneModel, lthr, customBoundaries);
   }
 
-  function onSliderChange() {
-    let rest = parseInt(restSlider.value, 10);
-    let max  = parseInt(maxSlider.value,  10);
-    if (max <= rest + 30) { max = rest + 30; maxSlider.value = max; }
-    restOut.textContent = rest;
-    maxOut.textContent  = max;
-    renderKarvonenZonesList(rest, max, currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
-    saveAndDispatch();
+  // Dual-handle slider drag logika
+  function attachRangeHandle(handle, isMax) {
+    if (!handle) return;
+    handle.addEventListener('pointerdown', e => {
+      // Auto-mód esetén a max handle nem mozgatható
+      if (isMax && currentMaxMethod() !== 'custom') return;
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      function onMove(ev) {
+        const rect = rangeSlider.getBoundingClientRect();
+        let pct = (ev.clientX - rect.left) / rect.width * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        let val = rangePctToVal(pct);
+        if (isMax) {
+          val = Math.max(restValue + MIN_GAP, Math.min(RANGE_MAX, val));
+          maxValue = val;
+        } else {
+          val = Math.max(RANGE_MIN, Math.min(maxValue - MIN_GAP, val));
+          restValue = val;
+          // Ha auto-mód aktív, a max-ot újraszámoljuk (rest nem befolyásolja, csak a clamp miatt frissítjük)
+        }
+        renderRangeSlider();
+        // Live update: zónalista is azonnal mutatja
+        renderKarvonenZonesList(restValue, maxValue, currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
+      }
+      function onUp() {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        saveAndDispatch();
+      }
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+    });
   }
+  attachRangeHandle(restHandle, false);
+  attachRangeHandle(maxHandle,  true);
 
-  function onLthrSliderChange() {
-    const lthr = currentLthr();
-    if (lthrOut) lthrOut.textContent = lthr;
-    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), lthr, currentCustomBoundaries());
-    saveAndDispatch();
-  }
-
-  function onMethodChange() {
-    const method = currentMethod();
-    updateMethodVisibility(method);
-    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), method, currentZoneModel(), currentLthr(), currentCustomBoundaries());
-    saveAndDispatch();
-  }
-
-  function onZoneModelChange() {
-    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
-    saveAndDispatch();
-  }
-
-  function onCustomBoundaryChange() {
-    updateMultiSlider();
-    updateZoneDisplay();
-    renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
-    saveAndDispatch();
-  }
-
-  function updateZoneDisplay() {
-    const el = document.getElementById('hrCustomZoneDisplay');
-    if (!el) return;
-    const colors = ['#888780', '#1D9E75', '#378ADD', '#EF9F27', '#E24B4A'];
-    const cb = currentCustomBoundaries();
-    const ranges = [`0–${cb[0]}`, `${cb[0]}–${cb[1]}`, `${cb[1]}–${cb[2]}`, `${cb[2]}–${cb[3]}`, `${cb[3]}+`];
-    el.innerHTML = colors.map((c, i) =>
-      `<span class="hr-czd-item">
-        <span class="hr-czd-dot" style="background:${c}"></span>
-        <span class="hr-czd-name" style="color:${c}">Z${i + 1}</span>
-        <span class="hr-czd-val">${ranges[i]}</span>
-      </span>`
-    ).join('');
-  }
-
-  // ── Multi-handle csúszka ────────────────────────────────────────────────
+  // ── Multi-slider az egyedi zónahatárokhoz ────────────────────────────────
   const SLIDER_MIN = 40, SLIDER_MAX = 220;
   const ZONE_COLORS = ['#888780', '#1D9E75', '#378ADD', '#EF9F27', '#E24B4A'];
   const sliderEl = document.getElementById('hrMultiSlider');
@@ -2004,9 +2150,22 @@ function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel =
     });
   }
 
+  function updateZoneDisplay() {
+    const el = document.getElementById('hrCustomZoneDisplay');
+    if (!el) return;
+    const cb = currentCustomBoundaries();
+    const ranges = [`0–${cb[0]}`, `${cb[0]}–${cb[1]}`, `${cb[1]}–${cb[2]}`, `${cb[2]}–${cb[3]}`, `${cb[3]}+`];
+    el.innerHTML = ZONE_COLORS.map((c, i) =>
+      `<span class="hr-czd-item">
+        <span class="hr-czd-dot" style="background:${c}"></span>
+        <span class="hr-czd-name" style="color:${c}">Z${i + 1}</span>
+        <span class="hr-czd-val">${ranges[i]}</span>
+      </span>`
+    ).join('');
+  }
+
   if (sliderEl) {
     const track = sliderEl.querySelector('.hr-multi-slider-track');
-    // Szegmensek
     for (let i = 0; i < 5; i++) {
       const seg = document.createElement('div');
       seg.className = 'hr-multi-slider-segment';
@@ -2014,18 +2173,15 @@ function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel =
       track.appendChild(seg);
       sliderSegments.push(seg);
     }
-    // Fogópontok
     for (let i = 0; i < 4; i++) {
       const h = document.createElement('div');
       h.className = 'hr-multi-slider-handle';
       h.style.borderColor = ZONE_COLORS[i + 1];
       sliderEl.appendChild(h);
       sliderHandles.push(h);
-
       h.addEventListener('pointerdown', e => {
         e.preventDefault();
         h.setPointerCapture(e.pointerId);
-
         function onMove(ev) {
           const rect = sliderEl.getBoundingClientRect();
           let pct = (ev.clientX - rect.left) / rect.width * 100;
@@ -2038,15 +2194,12 @@ function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel =
           if (customInputs[i]) customInputs[i].value = val;
           updateMultiSlider();
           updateZoneDisplay();
-          renderKarvonenZonesList(parseInt(restSlider.value, 10), parseInt(maxSlider.value, 10), currentMethod(), currentZoneModel(), currentLthr(), currentCustomBoundaries());
         }
-
         function onUp() {
           h.removeEventListener('pointermove', onMove);
           h.removeEventListener('pointerup', onUp);
           saveAndDispatch();
         }
-
         h.addEventListener('pointermove', onMove);
         h.addEventListener('pointerup', onUp);
       });
@@ -2055,97 +2208,374 @@ function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel =
     updateZoneDisplay();
   }
 
-  restSlider.addEventListener('input', onSliderChange);
-  maxSlider.addEventListener('input', onSliderChange);
-  lthrSlider?.addEventListener('input', onLthrSliderChange);
-  methodRadios.forEach(r => r.addEventListener('change', onMethodChange));
-  sexRadios.forEach(r => r.addEventListener('change', saveAndDispatch));
-  zoneModelRadios.forEach(r => r.addEventListener('change', onZoneModelChange));
-  customInputs.forEach(inp => inp?.addEventListener('change', onCustomBoundaryChange));
-})();
-
-// Max pulzus becslő (életkor alapján)
-(function initHrMaxEstimator() {
-  const ageSlider     = document.getElementById('hrAgeSlider');
-  const ageOut        = document.getElementById('hrAgeOut');
-  const tanakaResult  = document.getElementById('hrMaxTanakaResult');
-  const classicResult = document.getElementById('hrMaxClassicResult');
-  const applyBtn      = document.getElementById('hrMaxApplyBtn');
-  const formulaRadios = document.querySelectorAll('input[name="hrFormula"]');
-  if (!ageSlider || !applyBtn) return;
-
-  const tanakaName  = document.getElementById('hrFormulaTanakaName');
-  const tanakaEq    = document.getElementById('hrFormulaTanakaEq');
-  const tanakaSpan  = document.getElementById('hrFormulaTanakaSpan');
-  const sexRadiosEst = document.querySelectorAll('input[name="hrSex"]');
-
-  function calcTanaka(age)  { return Math.round(208 - 0.7 * age); }
-  function calcMiller(age)  { return Math.round(216 - 1.09 * age); }
-  function calcClassic(age) { return Math.round(220 - age); }
-  function currentSexEst()  { return [...sexRadiosEst].find(r => r.checked)?.value ?? 'male'; }
-
-  function updateFormulaMeta() {
-    const female = currentSexEst() === 'female';
-    if (tanakaName) tanakaName.textContent = female ? 'Miller' : 'Tanaka';
-    if (tanakaEq)   tanakaEq.textContent   = female ? '216 − (1.09 × kor)' : '208 − (0.7 × kor)';
-    if (tanakaSpan) tanakaSpan.dataset.hint = female
-      ? 'Miller (1993): 216 − (1.09 × kor). Nőkre optimalizált képlet, pontosabb mint a Tanaka nőknél. Ajánlott módszer nők számára.'
-      : 'Tanaka (2001): 208 − (0.7 × kor). 351 tanulmány meta-analíziséből, pontosabb aktív felnőtteknél. Ajánlott módszer.';
+  /**
+   * Form újratöltése a localStorage aktuális tartalmából.
+   * Akkor hívódik, amikor a szerver sync friss adatokkal felülírja a localStorage-t
+   * (pl. új user bejelentkezés után, miután az IIFE már lefutott a defaults-szal).
+   */
+  function applySettingsFromStorage() {
+    const fresh = getHrZoneSettings();
+    sexRadios.forEach(r => { r.checked = r.value === fresh.sex; });
+    maxMethodRadios.forEach(r => { r.checked = r.value === fresh.maxMethod; });
+    methodRadios.forEach(r => { r.checked = r.value === fresh.method; });
+    zoneModelRadios.forEach(r => { r.checked = r.value === fresh.zoneModel; });
+    birthYearInput.value = fresh.birthYear;
+    restValue = fresh.restHR;
+    maxValue  = fresh.maxHR;
+    if (lthrSlider) lthrSlider.value = fresh.lthr;
+    if (lthrOut)    lthrOut.textContent = fresh.lthr;
+    customInputs.forEach((inp, i) => { if (inp) inp.value = fresh.customBoundaries[i]; });
+    updateTanakaLabel();
+    updateAgeDisplay();
+    updateMaxFromMethod();
+    renderRangeSlider();
+    updateMethodVisibility();
+    if (sliderEl) { updateMultiSlider(); updateZoneDisplay(); }
+    renderKarvonenZonesList(restValue, maxValue, fresh.method, fresh.zoneModel, fresh.lthr, fresh.customBoundaries);
   }
+  window.addEventListener('bringaterv:settingsHydrated', applySettingsFromStorage);
 
-  function calcBestFormula(age) {
-    return currentSexEst() === 'female' ? calcMiller(age) : calcTanaka(age);
-  }
+  // Kezdeti renderelés
+  updateTanakaLabel();
+  updateAgeDisplay();
+  updateMaxFromMethod();   // ez állítja be a max handle-t és visibility-t
+  renderRangeSlider();
+  updateMethodVisibility();
+  renderKarvonenZonesList(restValue, maxValue, init.method, init.zoneModel, init.lthr, init.customBoundaries);
 
-  function updateResults() {
-    const age = parseInt(ageSlider.value, 10);
-    if (ageOut) ageOut.textContent = age;
-    if (tanakaResult)  tanakaResult.textContent  = calcBestFormula(age) + ' bpm';
-    if (classicResult) classicResult.textContent = calcClassic(age) + ' bpm';
-  }
-
-  function selectedFormula() {
-    return [...formulaRadios].find(r => r.checked)?.value ?? 'tanaka';
-  }
-
-  // Életkor betöltése
-  const savedAge = getHrZoneSettings().age;
-  ageSlider.value = savedAge;
-
-  function saveAge() {
-    const s = getHrZoneSettings();
-    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest: s.restHR, max: s.maxHR, method: s.method, sex: s.sex, age: parseInt(ageSlider.value, 10), zoneModel: s.zoneModel, lthr: s.lthr, customBoundaries: s.customBoundaries }));
-  }
-
-  ageSlider.addEventListener('input', () => { updateResults(); saveAge(); });
-  formulaRadios.forEach(r => r.addEventListener('change', updateResults));
-  sexRadiosEst.forEach(r => r.addEventListener('change', () => { updateFormulaMeta(); updateResults(); }));
-  updateFormulaMeta();
-  updateResults();
-
-  applyBtn.addEventListener('click', () => {
-    const age = parseInt(ageSlider.value, 10);
-    const val = selectedFormula() === 'tanaka' ? calcBestFormula(age) : calcClassic(age);
-    const maxSlider = document.getElementById('hrMaxSlider');
-    const maxOut    = document.getElementById('hrMaxOut');
-    if (maxSlider) { maxSlider.value = val; }
-    if (maxOut)    maxOut.textContent = val;
-    // Mentés + értesítés
-    const { restHR, method, sex, zoneModel, lthr, customBoundaries } = getHrZoneSettings();
-    localStorage.setItem(HR_ZONES_KEY, JSON.stringify({ rest: restHR, max: val, method, sex, age, zoneModel, lthr, customBoundaries }));
-    window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: { rest: restHR, max: val, method, sex, age, zoneModel, lthr, customBoundaries } }));
-    // Vizuális visszajelzés
-    applyBtn.textContent = '✓ Beállítva';
-    applyBtn.style.background = 'var(--success, #1D9E75)';
-    setTimeout(() => {
-      applyBtn.innerHTML = '<i data-lucide="check" aria-hidden="true"></i> Beállítás max pulzusként';
-      applyBtn.style.background = '';
-      window.lucide?.createIcons();
-    }, 1500);
+  // Eseménykötések
+  sexRadios.forEach(r => r.addEventListener('change', () => {
+    updateTanakaLabel();
+    updateMaxFromMethod();
+    saveAndDispatch();
+  }));
+  birthYearInput.addEventListener('input', () => {
+    updateAgeDisplay();
+    updateMaxFromMethod();
+    saveAndDispatch();
   });
+  maxMethodRadios.forEach(r => r.addEventListener('change', () => {
+    updateMaxFromMethod();
+    saveAndDispatch();
+  }));
+  methodRadios.forEach(r => r.addEventListener('change', () => {
+    updateMethodVisibility();
+    saveAndDispatch();
+  }));
+  zoneModelRadios.forEach(r => r.addEventListener('change', saveAndDispatch));
+  lthrSlider?.addEventListener('input', () => {
+    if (lthrOut) lthrOut.textContent = currentLthr();
+    saveAndDispatch();
+  });
+  customInputs.forEach(inp => inp?.addEventListener('change', () => {
+    updateMultiSlider();
+    updateZoneDisplay();
+    saveAndDispatch();
+  }));
 })();
 
 // Panel csúszkák eltávolítva – beállítás csak a Beállítások menüben lehetséges
+
+// ── Sebesség / Kadencia / Teljesítmény zónák (multi-slider beállítások) ──────
+// 8 sáv, 7 fogópont. Színátmenet: szürke → kék → cián → zöld → lime → sárga → narancs → piros
+const ZONE_COLORS = ['#9CA3AF', '#3B82F6', '#06B6D4', '#22C55E', '#84CC16', '#EAB308', '#F97316', '#EF4444'];
+const ZONE_HANDLE_COUNT = 7;   // = ZONE_COLORS.length - 1
+
+const ZONE_CONFIGS = {
+  speed: {
+    storageKey: 'bringaterv.speedZones',
+    defaults: [5, 12, 18, 22, 26, 30, 35],
+    unit: 'km/h',
+    sliderId: 'speedZoneSlider',
+    displayId: 'speedZoneDisplay',
+    inputIds: ['speedZoneB1', 'speedZoneB2', 'speedZoneB3', 'speedZoneB4', 'speedZoneB5', 'speedZoneB6', 'speedZoneB7'],
+    legendId: 'speedLegend',
+  },
+  cad: {
+    storageKey: 'bringaterv.cadZones',
+    defaults: [55, 70, 80, 88, 94, 100, 108],
+    unit: 'rpm',
+    sliderId: 'cadZoneSlider',
+    displayId: 'cadZoneDisplay',
+    inputIds: ['cadZoneB1', 'cadZoneB2', 'cadZoneB3', 'cadZoneB4', 'cadZoneB5', 'cadZoneB6', 'cadZoneB7'],
+    legendId: 'cadLegend',
+  },
+  power: {
+    storageKey: 'bringaterv.powerZones',
+    defaults: [75, 130, 180, 220, 260, 310, 380],
+    unit: 'W',
+    sliderId: 'powerZoneSlider',
+    displayId: 'powerZoneDisplay',
+    inputIds: ['powerZoneB1', 'powerZoneB2', 'powerZoneB3', 'powerZoneB4', 'powerZoneB5', 'powerZoneB6', 'powerZoneB7'],
+    legendId: 'powerLegend',
+  },
+};
+
+/** localStorage-ból olvassa a zónahatárokat, defaultokra esik vissza ha hibás/üres. */
+function getZoneBoundaries(kind) {
+  const cfg = ZONE_CONFIGS[kind];
+  if (!cfg) return [];
+  try {
+    const s = JSON.parse(localStorage.getItem(cfg.storageKey) || 'null');
+    if (s?.boundaries?.length === ZONE_HANDLE_COUNT && s.boundaries.every(n => Number.isFinite(n))) {
+      return s.boundaries;
+    }
+  } catch {}
+  return [...cfg.defaults];
+}
+
+/** Egy érték (sebesség / kadencia / power) színe a felhasználói zónahatárok alapján. */
+function getZoneColor(kind, value) {
+  if (value == null) return null;
+  const b = getZoneBoundaries(kind);
+  for (let i = 0; i < b.length; i++) {
+    if (value < b[i]) return ZONE_COLORS[i];
+  }
+  return ZONE_COLORS[b.length];
+}
+
+/** Jelmagyarázat (térkép alatti színes legend) újrarajzolása az aktuális határok alapján. */
+function rebuildZoneLegend(kind) {
+  const cfg = ZONE_CONFIGS[kind];
+  if (!cfg) return;
+  const legend = document.querySelector(`#${cfg.legendId} .speed-legend-items`);
+  if (!legend) return;
+  const b = getZoneBoundaries(kind);
+  const ranges = [];
+  for (let i = 0; i <= ZONE_HANDLE_COUNT; i++) {
+    if (i === 0)                          ranges.push(`&lt; ${b[0]} ${cfg.unit}`);
+    else if (i === ZONE_HANDLE_COUNT)     ranges.push(`${b[i - 1]}+ ${cfg.unit}`);
+    else                                  ranges.push(`${b[i - 1]}–${b[i]} ${cfg.unit}`);
+  }
+  legend.innerHTML = ZONE_COLORS.map((c, i) =>
+    `<div class="speed-legend-item"><span class="speed-dot" style="background:${c}"></span>${ranges[i]}</div>`
+  ).join('');
+}
+
+/** Generikus multi-slider init: 7 fogópont + 8 színes szegmens + zónacímkék. */
+function initZoneMultiSlider(kind) {
+  const cfg = ZONE_CONFIGS[kind];
+  const sliderEl = document.getElementById(cfg.sliderId);
+  const displayEl = document.getElementById(cfg.displayId);
+  const inputs = cfg.inputIds.map(id => document.getElementById(id));
+  if (!sliderEl || inputs.some(i => !i)) return;
+
+  const SLIDER_MIN = parseInt(sliderEl.dataset.zoneMin, 10);
+  const SLIDER_MAX = parseInt(sliderEl.dataset.zoneMax, 10);
+  const N = ZONE_HANDLE_COUNT; // 7 fogópont, 8 szegmens
+
+  // Kezdeti értékek betöltése localStorage-ból
+  const initial = getZoneBoundaries(kind);
+  inputs.forEach((inp, i) => { inp.value = initial[i]; });
+
+  function currentBoundaries() {
+    return inputs.map(inp => parseInt(inp.value, 10));
+  }
+  function valToPct(v) { return (v - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN) * 100; }
+  function pctToVal(p) { return Math.round(SLIDER_MIN + p / 100 * (SLIDER_MAX - SLIDER_MIN)); }
+
+  const handles = [];
+  const segments = [];
+  const track = sliderEl.querySelector('.hr-multi-slider-track');
+  for (let i = 0; i <= N; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'hr-multi-slider-segment';
+    seg.style.background = ZONE_COLORS[i];
+    track.appendChild(seg);
+    segments.push(seg);
+  }
+  for (let i = 0; i < N; i++) {
+    const h = document.createElement('div');
+    h.className = 'hr-multi-slider-handle';
+    h.style.borderColor = ZONE_COLORS[i + 1];
+    sliderEl.appendChild(h);
+    handles.push(h);
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      h.setPointerCapture(e.pointerId);
+      function onMove(ev) {
+        const rect = sliderEl.getBoundingClientRect();
+        let pct = (ev.clientX - rect.left) / rect.width * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        let val = pctToVal(pct);
+        const cb = currentBoundaries();
+        const minV = i > 0      ? cb[i - 1] + 1 : SLIDER_MIN;
+        const maxV = i < N - 1  ? cb[i + 1] - 1 : SLIDER_MAX;
+        val = Math.max(minV, Math.min(maxV, val));
+        inputs[i].value = val;
+        renderSlider();
+        renderZoneDisplay();
+        rebuildZoneLegend(kind);
+        // Élő újraszínezés a térképen (ha be van töltve a megfelelő geometry)
+        if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
+        if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
+        if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+      }
+      function onUp() {
+        h.removeEventListener('pointermove', onMove);
+        h.removeEventListener('pointerup', onUp);
+        saveZones();
+      }
+      h.addEventListener('pointermove', onMove);
+      h.addEventListener('pointerup', onUp);
+    });
+  }
+
+  function renderSlider() {
+    const cb = currentBoundaries();
+    const pcts = [0, ...cb.map(valToPct), 100];
+    segments.forEach((seg, i) => {
+      seg.style.left = pcts[i] + '%';
+      seg.style.width = (pcts[i + 1] - pcts[i]) + '%';
+    });
+    handles.forEach((h, i) => { h.style.left = valToPct(cb[i]) + '%'; });
+  }
+
+  function renderZoneDisplay() {
+    if (!displayEl) return;
+    const cb = currentBoundaries();
+    const ranges = [];
+    for (let i = 0; i <= N; i++) {
+      if (i === 0)      ranges.push(`< ${cb[0]}`);
+      else if (i === N) ranges.push(`${cb[i - 1]}+`);
+      else              ranges.push(`${cb[i - 1]}–${cb[i]}`);
+    }
+    // Egység már a szekció címben szerepel (pl. "Sebesség zónák (km/h)") –
+    // nem ismételjük zónánként, hogy elférjen 2 oszlopos rácsban
+    displayEl.innerHTML = ZONE_COLORS.map((c, i) =>
+      `<span class="hr-czd-item">
+        <span class="hr-czd-dot" style="background:${c}"></span>
+        <span class="hr-czd-name" style="color:${c}">Z${i + 1}</span>
+        <span class="hr-czd-val">${ranges[i]}</span>
+      </span>`
+    ).join('');
+  }
+
+  function saveZones() {
+    const boundaries = currentBoundaries();
+    localStorage.setItem(cfg.storageKey, JSON.stringify({ boundaries }));
+    window.dispatchEvent(new CustomEvent('bringaterv:settingChanged', { detail: { kind } }));
+  }
+
+  renderSlider();
+  renderZoneDisplay();
+  rebuildZoneLegend(kind);
+
+  // Egyenlő felosztás gomb: a teljes [SLIDER_MIN, SLIDER_MAX] tartományt
+  // 8 egyenlő szegmensre osztja, és a 7 határértéket beállítja
+  const resetBtn = document.querySelector(`[data-zone-reset="${kind}"]`);
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      const span = SLIDER_MAX - SLIDER_MIN;
+      const step = span / (N + 1);
+      for (let i = 0; i < N; i++) {
+        inputs[i].value = Math.round(SLIDER_MIN + step * (i + 1));
+      }
+      renderSlider();
+      renderZoneDisplay();
+      rebuildZoneLegend(kind);
+      saveZones();
+      // Élő újraszínezés a térképen
+      if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
+      if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
+      if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+    });
+  }
+
+  // Hydration after server sync
+  window.addEventListener('bringaterv:settingsHydrated', () => {
+    const fresh = getZoneBoundaries(kind);
+    inputs.forEach((inp, i) => { inp.value = fresh[i]; });
+    renderSlider();
+    renderZoneDisplay();
+    rebuildZoneLegend(kind);
+    if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
+    if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
+    if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+  });
+}
+
+// 3 zóna slider init
+initZoneMultiSlider('speed');
+initZoneMultiSlider('cad');
+initZoneMultiSlider('power');
+
+// ── Diagram színek (solid / zónaszín mód + 4 színválasztó) ───────────────────
+const CHART_COLOR_DEFAULTS = {
+  mode:  'solid',
+  ele:   '#fc4c02',
+  speed: '#3B82F6',
+  hr:    '#EF4444',
+  cad:   '#A855F7',
+  power: '#EAB308',
+};
+
+/** Lejtés (%) alapú szín – a térképes grade legend színeivel egyezik. */
+function gradeColorForGrade(grade) {
+  if (grade == null)  return '#9CA3AF';
+  if (grade > 8)      return '#7F1D1D';
+  if (grade > 4)      return '#DC2626';
+  if (grade > 2)      return '#EF4444';
+  if (grade > 0.5)    return '#FCA5A5';
+  if (grade > -0.5)   return '#9CA3AF';
+  if (grade > -2)     return '#86EFAC';
+  if (grade > -4)     return '#22C55E';
+  if (grade > -8)     return '#15803D';
+  return '#14532D';
+}
+
+function getChartColors() {
+  try {
+    const s = JSON.parse(localStorage.getItem('bringaterv.chartColors') || 'null');
+    if (s && typeof s === 'object') return { ...CHART_COLOR_DEFAULTS, ...s };
+  } catch {}
+  return { ...CHART_COLOR_DEFAULTS };
+}
+
+(function initChartColorSettings() {
+  const modeRadios = document.querySelectorAll('input[name="chartColorMode"]');
+  const solidRow   = document.getElementById('chartColorSolidRow');
+  const inputs = {
+    ele:   document.getElementById('chartColorEle'),
+    speed: document.getElementById('chartColorSpeed'),
+    hr:    document.getElementById('chartColorHr'),
+    cad:   document.getElementById('chartColorCad'),
+    power: document.getElementById('chartColorPower'),
+  };
+  if (!modeRadios.length) return;
+
+  function applyToUI() {
+    const cc = getChartColors();
+    modeRadios.forEach(r => { r.checked = r.value === cc.mode; });
+    for (const k in inputs) if (inputs[k]) inputs[k].value = cc[k];
+    if (solidRow) solidRow.style.display = (cc.mode === 'zones') ? 'none' : '';
+  }
+
+  function save() {
+    const mode = [...modeRadios].find(r => r.checked)?.value ?? 'solid';
+    const payload = { mode };
+    for (const k in inputs) if (inputs[k]) payload[k] = inputs[k].value;
+    localStorage.setItem('bringaterv.chartColors', JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('bringaterv:settingChanged', { detail: { kind: 'chartColors' } }));
+    if (solidRow) solidRow.style.display = (mode === 'zones') ? 'none' : '';
+    // Diagramok újrarajzolása az aktuális geometriából
+    if (typeof activeGeometry !== 'undefined' && activeGeometry?.length) {
+      updateElevationButton(activeGeometry);
+    }
+  }
+
+  applyToUI();
+  modeRadios.forEach(r => r.addEventListener('change', save));
+  for (const k in inputs) inputs[k]?.addEventListener('input', save);
+
+  // Hydration after server sync
+  window.addEventListener('bringaterv:settingsHydrated', () => {
+    applyToUI();
+    if (typeof activeGeometry !== 'undefined' && activeGeometry?.length) {
+      updateElevationButton(activeGeometry);
+    }
+  });
+})();
 
 // Ha a zónák változnak és van betöltött edzés → újraszámoljuk az elemzést + térképszínt
 window.addEventListener('hrZonesChanged', () => {
@@ -2970,18 +3400,48 @@ elements.importButton.addEventListener("click", () => {
   }
 });
 document.querySelector("#fileEmptyState")?.addEventListener("click", () => elements.gpxInput.click());
-elements.gpxInput.addEventListener("change", async () => {
-  const [file] = elements.gpxInput.files;
+
+/**
+ * Egy importálandó fájl (GPX vagy FIT) feldolgozása.
+ * FIT-et bemenettől konvertál GPX-szé memóriában; az eredeti FIT buffer-t
+ * tárolja a `importedFitBuffer` változóban (későbbi `.fit` mellé-mentéshez).
+ */
+async function processImportedFile(file) {
   if (!file) return;
+  const isFit = /\.fit$/i.test(file.name);
+  let gpxText;
+  let fitBuffer = null;
+
+  if (isFit) {
+    try {
+      fitBuffer = await file.arrayBuffer();
+      gpxText   = fitToGpx(fitBuffer, file.name);
+    } catch (err) {
+      showToast("Nem sikerült feldolgozni a FIT fájlt.");
+      console.error("FIT parse error:", err);
+      return;
+    }
+  } else {
+    gpxText = await file.text();
+  }
+
+  // Az `importGpx()` egy File-szerű objektumot vár (`.text()` metódussal).
+  // FIT esetén szintetikus Blob-ot adunk, GPX esetén az eredeti File-t.
+  const gpxFile = isFit
+    ? new File([gpxText], file.name.replace(/\.fit$/i, ".gpx"), { type: "application/gpx+xml" })
+    : file;
+
   let imported;
   try {
-    imported = await importGpx(file, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
+    imported = await importGpx(gpxFile, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
   } catch (err) {
-    showToast("Nem sikerült betölteni a fájlt. Ellenőrizd, hogy érvényes GPX fájl-e.");
-    elements.gpxInput.value = "";
-    console.error("GPX import error:", err);
+    showToast(isFit
+      ? "Nem sikerült betölteni a FIT fájlt."
+      : "Nem sikerült betölteni a fájlt. Ellenőrizd, hogy érvényes GPX fájl-e.");
+    console.error("Import error:", err);
     return;
   }
+
   store.replaceWaypoints(imported.waypoints, {
     geometry: imported.geometry,
     importedRoute: true,
@@ -2992,36 +3452,39 @@ elements.gpxInput.addEventListener("change", async () => {
   store.setState({ distanceMeters, ascentMeters, descentMeters });
 
   const hasSpeed = imported.geometry.some(p => p.speed != null);
-  const hasHr = imported.geometry.some(p => p.hr != null);
-  const hasCad = imported.geometry.some(p => p.cad != null);
+  const hasHr    = imported.geometry.some(p => p.hr    != null);
+  const hasCad   = imported.geometry.some(p => p.cad   != null);
   const hasPower = imported.geometry.some(p => p.power != null);
 
-  // Geometriák tárolása (togglekhoz)
   importedColoredGeometry = hasSpeed ? imported.geometry : null;
   importedCadGeometry     = hasCad   ? imported.geometry : null;
   importedHrGeometry      = hasHr    ? imported.geometry : null;
   importedPowerGeometry   = hasPower ? imported.geometry : null;
 
-  // activeGeometry beállítása előbb, hogy applyRouteLayer(null) renderelhessen
   updateElevationButton(imported.geometry);
-  // Alapértelmezett megjelenítés: sima útvonal, togglek kikapcsolva
   applyRouteLayer(null);
-  // Biztosítjuk hogy a plain route mindig látszik
   mapAdapter.renderRoute(imported.geometry, store.getState().mode);
 
-  hasImportedFile = true;
-  importedFileName = file.name.replace(/\.gpx$/i, ""); // fájlnév kiterjesztés nélkül
-  importedGpxText  = await file.text();                // eredeti GPX megőrzése mentéshez
-  populateFileTab({ filename: file.name, geometry: imported.geometry, distanceMeters, ascentMeters, descentMeters, speedColored: hasSpeed, meta: imported.meta ?? {} });
+  hasImportedFile   = true;
+  importedFileName  = file.name.replace(/\.(gpx|fit)$/i, "");
+  importedGpxText   = gpxText;
+  importedFitBuffer = fitBuffer; // null ha GPX-ből jött
+  populateFileTab({
+    filename: file.name,
+    geometry: imported.geometry,
+    distanceMeters, ascentMeters, descentMeters,
+    speedColored: hasSpeed,
+    meta: imported.meta ?? {},
+    isFit,
+  });
   switchTab("file");
 
   if (imported.sourcePointCount > imported.geometry.length) {
-    showToast(`GPX betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);
+    showToast(`${isFit ? "FIT" : "GPX"} betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);
   } else {
     showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
   }
   setTimeout(() => mapAdapter.fitRoute(), 50);
-  elements.gpxInput.value = "";
 
   // Reverse geocode imported waypoints in the background
   for (const wp of store.getState().waypoints) {
@@ -3030,7 +3493,54 @@ elements.gpxInput.addEventListener("change", async () => {
       store.updateWaypoint(wp.id, { name });
     }
   }
+}
+
+elements.gpxInput.addEventListener("change", async () => {
+  const [file] = elements.gpxInput.files;
+  if (!file) return;
+  await processImportedFile(file);
+  elements.gpxInput.value = "";
 });
+
+// ── Drag & drop az Elemzés fülön ─────────────────────────────────────────────
+{
+  let dragCounter = 0;
+  const fileTabEl = document.querySelector("#fileTabSection") || document.body;
+
+  function isFileDrag(e) {
+    return e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+  }
+
+  window.addEventListener("dragenter", (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragCounter++;
+    document.body.classList.add("is-drag-over");
+  });
+  window.addEventListener("dragover", (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  window.addEventListener("dragleave", (e) => {
+    if (!isFileDrag(e)) return;
+    dragCounter = Math.max(0, dragCounter - 1);
+    if (dragCounter === 0) document.body.classList.remove("is-drag-over");
+  });
+  window.addEventListener("drop", async (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragCounter = 0;
+    document.body.classList.remove("is-drag-over");
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!/\.(gpx|fit)$/i.test(file.name)) {
+      showToast("Csak .gpx és .fit fájl tölthető be.");
+      return;
+    }
+    await processImportedFile(file);
+  });
+}
 
 // File tab export button — same modal
 elements.fileExportButton?.addEventListener("click", () => openExportModal());
@@ -3060,22 +3570,40 @@ elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
     ? calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
     : null;
 
+  // FIT mellécsatolás: ha az importnál FIT volt az eredeti, base64-be kódoljuk
+  let fitContent = null;
+  if (importedFitBuffer) {
+    fitContent = arrayBufferToBase64(importedFitBuffer);
+  }
+
   try {
     await routesApi.saveRoute({
       name,
-      gpxContent: content,
-      distance:   distanceKm,
-      duration:   durationMin,
-      elevation:  ascentMeters,
-      type:       "workout",
+      gpxContent:  content,
+      fitContent,                 // null vagy base64 string
+      distance:    distanceKm,
+      duration:    durationMin,
+      elevation:   ascentMeters,
+      type:        "workout",
       description: "",
     });
-    showToast(`„${name}" mentve az Edzések közé`);
+    showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
   } catch (err) {
     console.error("Edzés mentési hiba:", err);
     showToast("Nem sikerült menteni. Az API elérhető?");
   }
 });
+
+/** ArrayBuffer → base64 string (chunkban, hogy nagy FIT fájloknál se akadjon meg). */
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  let binary  = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
 
 // Legend accordion (expand/collapse color items on header click)
 document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
@@ -3618,7 +4146,10 @@ function createLibraryCard(route, category, isSample) {
         <i data-lucide="${typeIcon}" aria-hidden="true"></i>
       </div>
       <div class="library-card-info">
-        <div class="library-card-name" title="${route.name}">${route.name}</div>
+        <div class="library-card-name" title="${route.name}">
+          ${route.name}
+          ${route.has_fit ? `<span class="library-card-fit-badge" title="Eredeti FIT fájl elérhető">FIT</span>` : ''}
+        </div>
         ${!isSample && route.date
           ? `<div class="library-card-date">${route.date}</div>`
           : `<div class="library-card-date">${typeLabel}</div>`}
@@ -3634,6 +4165,10 @@ function createLibraryCard(route, category, isSample) {
       <button class="library-card-btn library-download-btn" type="button" title="GPX letöltés">
         <i data-lucide="download" aria-hidden="true"></i>
       </button>
+      ${!isSample && route.has_fit ? `
+      <button class="library-card-btn library-download-fit-btn" type="button" title="Eredeti FIT letöltés">
+        <i data-lucide="download" aria-hidden="true"></i><span style="font-size:10px;font-weight:700;margin-left:2px">FIT</span>
+      </button>` : ''}
       ${!isSample ? `
       <button class="library-card-btn library-edit-btn" type="button" title="Szerkesztés">
         <i data-lucide="pencil" aria-hidden="true"></i>
@@ -3657,6 +4192,17 @@ function createLibraryCard(route, category, isSample) {
         : await routesApi.loadRoute(route.id);
       downloadGpx(`${route.name}.gpx`, gpxText);
     } catch { showToast('Nem sikerült letölteni a GPX fájlt.'); }
+  });
+
+  // FIT letöltés (csak ha létezik)
+  card.querySelector('.library-download-fit-btn')?.addEventListener('click', async () => {
+    try {
+      const blob = await routesApi.loadRouteFit(route.id);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `${route.name}.fit`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { showToast('Nem sikerült letölteni a FIT fájlt.'); }
   });
 
   if (!isSample) {

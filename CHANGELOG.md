@@ -1,5 +1,68 @@
 # Changelog
 
+## v0.82 – 2026-05-21 – FIT import, testreszabható zónák, diagram színek
+
+### FIT fájl importálás
+
+- Az Elemzés fülön mostantól nemcsak GPX, hanem FIT fájlok is betölthetők (Garmin, Wahoo, Bryton, Hammerhead órák és komputerek alapformátuma).
+- Saját, böngészőben futó FIT decoder (`src/gpx/fit.js`): a FIT bináris fájlt GPX 1.1 szöveggé konvertálja Garmin TrackPointExtension (pulzus, kadencia, hőmérséklet) és PowerExtension (W) mezőkkel. A meglévő GPX elemzés változatlanul működik a konvertált adatokon.
+- Drag and drop: GPX vagy FIT fájl húzható a böngészőablakba bárhonnan, narancssárga overlay jelzi a fogadási területet.
+- Importálás után a fájlnév mellett FIT címke jelenik meg, ha az eredeti fájl FIT volt.
+- Edzés mentésekor a könyvtárba az eredeti FIT bináris is megőrződik a konvertált GPX mellett (`<route_id>.fit` a `<route_id>.gpx` mellé). A könyvtár- és admin kártyán FIT címke + külön letöltés gomb jelzi.
+- Új végpontok: `GET /api/routes/<id>/fit`, `GET /api/admin/users/<uid>/routes/<rid>/fit`, valamint a meglévő `POST /api/routes` és `POST /api/admin/users/<uid>/routes` opcionális `fitContent` (base64) mezőt fogad.
+
+### Testreszabható zónák (sebesség, kadencia, teljesítmény)
+
+- Új beállítási szekció: "Adatzónák (sebesség / kadencia / teljesítmény)".
+- Mindhárom adattípushoz 8 zónás (7 fogópontos) multi-slider, amelyen húzva állíthatók a határértékek.
+- Színskála progresszív gradiens: szürke, kék, cián, zöld, lime, sárga, narancs, piros (Strava / Garmin színskálához hasonló).
+- Élő frissítés: drag közben a térképi sebesség- / kadencia- / teljesítmény-réteg azonnal újraszíneződik, a jelmagyarázatok automatikusan a választott BPM / km/h / W tartományokat mutatják.
+- "Egyenlő felosztás" gomb mindhárom sliderhez: a tartományt 8 egyenlő részre osztja egy kattintással (reset funkció).
+- 2 oszlopos, 4 soros rácsban listázott zónacímkék (Z1 ... Z8) a határértékek alatti megjelenítéshez.
+
+### HR beállítások átdolgozás
+
+- A "Személyes adatok" blokk most kompaktabb: nem, születési év (életkor automatikusan számolva), majd duál-fogópontos pulzustartomány slider 35-220 bpm között.
+- A nyugalmi pulzus a bal, a max pulzus a jobb fogópont; a két fogópont között színátmenetes sáv (zöld - narancs - piros).
+- Új blokk: "Pulzusszámítás (max HR)" három opcióval: Tanaka (208 - 0.7 * kor; nőknél automatikusan Miller, 216 - 1.09 * kor), klasszikus 220 - kor, valamint Egyedi (kézi értékmegadás). Az automatikus módokban a max fogópont rögzített és szürkén látszik, Egyedi módban szabadon mozgatható.
+- A "Zónaszámítás módszere" radio (Karvonen, Max HR %, LTHR, Egyedi zónák) hint tooltipekkel: minden gomb fölé húzva megjelenik a Strava / Garmin / TrainingPeaks kompatibilitási információ. LTHR módban külön csúszka, Egyedi módban multi-slider 4 fogóponttal a BPM határokhoz.
+- Zónamodell választó (Friel, Egyenlő sávok) hoverre megjelenő magyarázattal a fix szöveg helyett.
+
+### Diagram színek
+
+- Új beállítási szekció: "Diagram színek".
+- Két mód: Egyszínű (minden adattípushoz külön szín választható HTML5 színpickerrel) és Zónaszín (a diagram vonala szegmensenként a zónaszínekkel rajzolódik).
+- 5 diagram konfigurálható: Szintprofil, Sebesség, Pulzus, Kadencia, Teljesítmény.
+- Zónaszín módban a szintprofil vonala a lejtés (grade %) alapján színeződik (vörös az emelkedő, zöld a süllyedés); a sebesség/kadencia/teljesítmény az Adatzónákban beállított határokkal; a pulzus a HR zónákkal egyezően.
+
+### Admin panel fájlkezelő
+
+- A felhasználói táblában új "Útvonalak" gomb jelenik meg minden sornál (a Szerkeszt / Tiltás gombok mellett), nem a korábbi alig látható mappa ikon.
+- Az Útvonalak modalban: GPX letöltés, FIT letöltés (ha elérhető), inline szerkesztés (név, típus, leírás), törlés.
+- Új felhasználói GPX vagy FIT feltöltés admin részéről a modal "Feltöltés" gombjával.
+- Modal szélessége: 1080px (vagy a viewport 95%-a), oszlopok pontosan illeszkednek, vízszintes scrollozás megszüntetve.
+
+### Per-user beállítások (settings.json)
+
+- A felhasználói beállítások (HR zónák, adatzónák, diagram színek, térképstílus, mértékegység, induló nézet, téma) mostantól per-user JSON fájlban tárolódnak a szerveren: `/data/users/<uid>/settings.json`.
+- A korábbi SQLite `users.settings` oszlop tartalma automatikusan átköltöztetődik (v6 séma migráció).
+- Új beállítás hozzáadása nem igényel DB séma változást, csak a `SETTINGS_ALLOWED_KEYS` lista bővítését.
+
+### Felhasználói izoláció
+
+- Logout-kor minden user-specifikus localStorage kulcs törlődik (`bringaterv.hrZones`, `bringaterv.speedZones`, `bringaterv.cadZones`, `bringaterv.powerZones`, `bringaterv.chartColors`, `bringaterv.startView`, `route4meMapStyle`, `route4meUnit`, `route4meTheme`, `bringaterv.settings.collapsed`).
+- Új `bringaterv_settings_owner` localStorage kulcs azonosítja, kihez tartoznak a tárolt beállítások. Main.js induláskor, az IIFE-k előtt ellenőrzés: ha a tárolt owner ID nem egyezik az aktuális user-rel, a settings törlődik és új owner kerül beállításra. Ezzel a "user A beállításai látszanak user B-nél" bug megoldva.
+- A szerver sync utáni hidratáció: új `bringaterv:settingsHydrated` event, a HR settings UI és az adatzóna sliderek erre újraolvasnak a localStorage-ból, így a frissen szerverről érkezett beállítások azonnal érvényesülnek a UI-ban (page reload nélkül).
+
+### Egyéb UI és bugfixek
+
+- Felhasználói táblában az oszlopok `width: 1%` és `white-space: nowrap` trükkel a tartalomhoz zsugorodnak, az akciós gombok jobbra igazítva (Útvonalak / Szerkeszt / Tiltás többé nem csúszik le a viewportból).
+- `.main` szélesebb (1100 -> 1400px), cellapaddingek 20px -> 12px (oldalsó cellákon 20px maradt).
+- Fájlmodal `scrollbar-gutter: stable` (a függőleges scrollbar nem ugratja meg a tábla szélességét).
+- Zónamodell és zónaszámítás módszerei mostantól hint tooltipként jelennek meg a fix szöveg helyett (mint a többi opciónál).
+
+---
+
 ## v0.8 – 2026-05-20 – Multi-user rendszer, admin panel
 
 ### Összefoglalás

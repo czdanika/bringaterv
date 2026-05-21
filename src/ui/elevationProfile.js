@@ -23,14 +23,23 @@ function buildDistances(geometry) {
   });
 }
 
-/** Magassági adat: { dist, value: ele, lat, lng } */
+/** Magassági adat: { dist, value: ele, grade %, lat, lng } */
 export function buildElevationData(geometry) {
   if (!geometry || geometry.length < 2) return [];
   if (!geometry.some((p) => p.ele != null)) return [];
   const dists = buildDistances(geometry);
-  return geometry.map((pt, i) => ({
-    dist: dists[i], value: pt.ele ?? null, lat: pt.lat, lng: pt.lng,
-  }));
+  return geometry.map((pt, i) => {
+    let grade = null;
+    if (pt.ele != null && i > 0 && geometry[i - 1].ele != null) {
+      const dEle = pt.ele - geometry[i - 1].ele;
+      const dDist = dists[i] - dists[i - 1];
+      if (dDist > 0) grade = (dEle / dDist) * 100;
+    }
+    return {
+      dist: dists[i], value: pt.ele ?? null, grade,
+      lat: pt.lat, lng: pt.lng,
+    };
+  });
 }
 
 /** Sebesség adat: { dist, value: speed km/h, lat, lng } */
@@ -189,18 +198,37 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Vonal
-    ctx.beginPath();
-    firstValid = true;
-    _data.forEach((pt) => {
-      if (pt.value == null) return;
-      const x = xOf(pt.dist), y = yOf(pt.value);
-      firstValid ? (ctx.moveTo(x, y), firstValid = false) : ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = color;
+    // Vonal – ha van colorFn, szegmensenként rajzol különböző színekkel
     ctx.lineWidth = 2;
     ctx.lineJoin = "round";
-    ctx.stroke();
+    const colorFn = _opts.colorFn;
+    if (typeof colorFn === "function") {
+      // Szegmensenkénti rajzolás: minden szakasz színe a kezdőpont értéke alapján.
+      // A colorFn két argumentumot kap: (value, point) – elevationhez a point.grade is használható.
+      let prev = null;
+      _data.forEach((pt) => {
+        if (pt.value == null) { prev = null; return; }
+        const x = xOf(pt.dist), y = yOf(pt.value);
+        if (prev) {
+          ctx.beginPath();
+          ctx.moveTo(prev.x, prev.y);
+          ctx.lineTo(x, y);
+          ctx.strokeStyle = colorFn(prev.v, prev.pt) ?? color;
+          ctx.stroke();
+        }
+        prev = { x, y, v: pt.value, pt };
+      });
+    } else {
+      ctx.beginPath();
+      firstValid = true;
+      _data.forEach((pt) => {
+        if (pt.value == null) return;
+        const x = xOf(pt.dist), y = yOf(pt.value);
+        firstValid ? (ctx.moveTo(x, y), firstValid = false) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
 
     // Hover
     if (_hoverIdx >= 0 && _hoverIdx < _data.length) {
