@@ -127,7 +127,7 @@ def _now_dt() -> str:
 # MULTI MÓD – SQLite
 # ══════════════════════════════════════════════════════════════════════════════
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -270,6 +270,22 @@ def _db_init_locked() -> None:
             """)
             conn.execute("PRAGMA user_version = 5")
             log.info("DB migrálva v5-re (névsorend javítás)")
+        if ver < 6:
+            # v6: meglévő users.settings JSON oszlopot átköltöztetjük per-user settings.json fájlokba
+            rows = conn.execute(
+                "SELECT id, settings FROM users WHERE settings IS NOT NULL AND settings != '' AND settings != '{}'"
+            ).fetchall()
+            migrated = 0
+            for r in rows:
+                try:
+                    parsed = json.loads(r["settings"])
+                    if isinstance(parsed, dict) and parsed:
+                        _save_user_settings_file(r["id"], parsed)
+                        migrated += 1
+                except (json.JSONDecodeError, OSError):
+                    pass
+            conn.execute("PRAGMA user_version = 6")
+            log.info("DB migrálva v6-ra (settings → per-user JSON fájlok, %d user)", migrated)
 
 
 def _user_dir(user_id: str) -> str:
@@ -280,6 +296,37 @@ def _user_routes_dir(user_id: str) -> str:
     d = os.path.join(_user_dir(user_id), "routes")
     os.makedirs(d, exist_ok=True)
     return d
+
+
+# ── Per-user settings.json ────────────────────────────────────────────────────
+
+def _user_settings_path(user_id: str) -> str:
+    """Útvonal: /data/users/<uid>/settings.json"""
+    return os.path.join(_user_dir(user_id), "settings.json")
+
+
+def _load_user_settings_file(user_id: str) -> dict:
+    """Betölti a user settings.json fájlját. Hiányzó/hibás fájl esetén üres dict."""
+    path = _user_settings_path(user_id)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError) as exc:
+        log.warning("Settings olvasási hiba (%s): %s", path, exc)
+        return {}
+
+
+def _save_user_settings_file(user_id: str, settings: dict) -> None:
+    """Atomikus write: tmp + rename. Létrehozza a user mappát is ha kell."""
+    os.makedirs(_user_dir(user_id), exist_ok=True)
+    path = _user_settings_path(user_id)
+    tmp  = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(settings, f, ensure_ascii=False, indent=2, sort_keys=True)
+    os.replace(tmp, path)
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",
@@ -462,34 +509,43 @@ def auth_me():
                     "name": u["name"], "role": u["role"]})
 
 
+# Engedélyezett settings kulcsok – új kulcs hozzáadásához itt kell bővíteni
+SETTINGS_ALLOWED_KEYS = {
+    # Térkép és UI
+    "mapStyle", "theme", "unit", "startView",
+    "snapToRoads", "showStageInfo", "gpxSampleWaypoints",
+    "toolbarOrder", "toolbarHidden",
+    # HR / edzés
+    "hrZones",
+}
+
+
 @app.route("/api/user/settings", methods=["GET"])
 @require_auth
 def get_user_settings():
-    """Felhasználó személyes beállításainak lekérése."""
-    raw = g.user.get("settings") or "{}"
-    try:
-        return jsonify(json.loads(raw))
-    except (json.JSONDecodeError, TypeError):
-        return jsonify({})
+    """Felhasználó személyes beállításainak lekérése (per-user settings.json)."""
+    return jsonify(_load_user_settings_file(g.user["id"]))
 
 
 @app.route("/api/user/settings", methods=["PUT"])
 @require_auth
 def put_user_settings():
-    """Felhasználó személyes beállításainak mentése."""
+    """Felhasználó személyes beállításainak mentése (per-user settings.json).
+
+    Merge stratégia: a meglévő beállításokhoz hozzáadja / felülírja a kapott
+    kulcsokat – nem törli a régieket. Így a kliens küldhet részleges payload-ot.
+    """
     data = request.get_json(silent=True)
     if data is None:
         abort(400, description="Hiányzó JSON body")
-    # Csak ismert kulcsokat engedünk tárolni
-    allowed = {"hrZones", "mapStyle", "unit", "startView", "theme",
-               "snapToRoads", "showStageInfo", "gpxSampleWaypoints",
-               "toolbarOrder", "toolbarHidden"}
-    filtered = {k: v for k, v in data.items() if k in allowed}
-    with _db() as conn:
-        conn.execute(
-            "UPDATE users SET settings = ? WHERE id = ?",
-            (json.dumps(filtered, ensure_ascii=False), g.user["id"])
-        )
+    incoming = {k: v for k, v in data.items() if k in SETTINGS_ALLOWED_KEYS}
+    current  = _load_user_settings_file(g.user["id"])
+    current.update(incoming)
+    try:
+        _save_user_settings_file(g.user["id"], current)
+    except OSError as exc:
+        log.error("Settings írási hiba (%s): %s", g.user["id"], exc)
+        abort(500, description="Beállítások mentése sikertelen")
     return jsonify({"ok": True})
 
 
