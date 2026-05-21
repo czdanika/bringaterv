@@ -458,13 +458,13 @@
           <thead>
             <tr>
               <th>Felhasználó</th>
-              <th>Szerepkör</th>
-              <th>Státusz</th>
-              <th>Útvonalak</th>
-              <th>Tárolt adat</th>
-              <th>Utolsó belépés</th>
-              <th>Belépések</th>
-              <th></th>
+              <th style="width:1%;white-space:nowrap">Szerepkör</th>
+              <th style="width:1%;white-space:nowrap">Státusz</th>
+              <th style="width:1%;white-space:nowrap">Útvonalak</th>
+              <th style="width:1%;white-space:nowrap">Tárolt adat</th>
+              <th style="width:1%;white-space:nowrap">Utolsó belépés</th>
+              <th style="width:1%;white-space:nowrap">Belépések</th>
+              <th style="width:1%;white-space:nowrap;text-align:right"></th>
             </tr>
           </thead>
           <tbody>
@@ -478,12 +478,12 @@
                 </td>
                 <td><span class="badge badge-${u.role}">${u.role === "admin" ? "Admin" : "User"}</span></td>
                 <td><span class="badge ${u.active ? "badge-on" : "badge-off"}">${u.active ? "Aktív" : "Tiltott"}</span></td>
-                <td>${u.stats?.routes ?? 0} / ${u.quota_routes}</td>
-                <td>${fmtMb(u.stats?.storage_mb ?? 0)} / ${u.quota_mb} MB</td>
+                <td style="white-space:nowrap">${u.stats?.routes ?? 0} / ${u.quota_routes}</td>
+                <td style="white-space:nowrap">${fmtMb(u.stats?.storage_mb ?? 0)} / ${u.quota_mb} MB</td>
                 <td style="white-space:nowrap">${fmtDate(u.last_login_at)}</td>
-                <td>${u.login_count}</td>
-                <td>
-                  <div class="row-actions">
+                <td style="white-space:nowrap;text-align:center">${u.login_count}</td>
+                <td style="white-space:nowrap">
+                  <div class="row-actions" style="justify-content:flex-end">
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">Útvonalak</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
                     ${u.role !== "admin" ? `
