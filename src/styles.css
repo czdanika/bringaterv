@@ -998,6 +998,35 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.file-fit-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Drag & drop overlay ────────────────────────────────────────────── */
+body.is-drag-over::after {
+  content: "Engedd el – GPX vagy FIT importálása";
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(252, 76, 2, 0.78);
+  z-index: 9999;
+  pointer-events: none;
+  border: 6px dashed #fff;
+}
 .file-meta-block {
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
@@ -2120,6 +2149,18 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.library-card-fit-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .library-card-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .library-card-desc {
   font-size: 12px;
@@ -2748,6 +2789,237 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   margin-top: 2px;
 }
 
+/* ── Diagram színek beállítás ─────────────────────────────────── */
+.chart-color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+.chart-color-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.chart-color-field label {
+  font-size: 13px;
+  color: var(--fg);
+  font-weight: 500;
+}
+.chart-color-field input[type="color"] {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+}
+.chart-color-field input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.chart-color-field input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+/* ── Adatzónák szekció (sebesség / kadencia / teljesítmény) ───── */
+.zone-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.zone-reset-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: var(--bg, #f4f4f4);
+  color: var(--muted, #6b7280);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 6px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.zone-reset-btn:hover {
+  background: var(--brand, #fc4c02);
+  color: #fff;
+  border-color: var(--brand, #fc4c02);
+}
+.zone-reset-btn:active { transform: scale(0.97); }
+
+/* ── HR pulzus tartomány slider (dual-handle) ──────────────────── */
+.hr-range-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.hr-range-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hr-range-tag {
+  color: var(--fg);
+  font-weight: 500;
+}
+.hr-range-tag strong { font-weight: 700; font-size: 14px; }
+.hr-range-tag--rest strong { color: #1D9E75; }
+.hr-range-tag--max  strong { color: #E24B4A; }
+.hr-range-source {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 4px;
+  font-weight: 400;
+}
+.hr-range-slider {
+  position: relative;
+  height: 36px;
+  padding: 14px 0;
+  user-select: none;
+  touch-action: none;
+}
+.hr-range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: var(--bg, #ececec);
+  border-radius: 3px;
+}
+.hr-range-track-active {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: linear-gradient(to right, #1D9E75, #EF9F27, #E24B4A);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.hr-range-handle {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--brand, #fc4c02);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transform: translateY(-50%);
+  cursor: grab;
+  z-index: 2;
+  transition: box-shadow 0.15s, transform 0.1s;
+}
+.hr-range-handle--rest { border-color: #1D9E75; }
+.hr-range-handle--max  { border-color: #E24B4A; }
+.hr-range-handle:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.25); }
+.hr-range-handle:active { cursor: grabbing; transform: translateY(-50%) scale(1.1); }
+.hr-range-handle.is-disabled {
+  cursor: not-allowed;
+  background: var(--bg, #ececec);
+  border-color: var(--muted, #999);
+  opacity: 0.7;
+}
+.hr-range-handle.is-disabled:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+.hr-range-bounds {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 2px;
+}
+
+/* ── HR személyes adatok grid ──────────────────────────────────── */
+.hr-personal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin-bottom: 6px;
+}
+.hr-personal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hr-personal-field > label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.hr-number-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hr-number-input input {
+  width: 80px;
+  padding: 7px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  color: var(--fg);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.hr-number-input input:focus {
+  border-color: var(--brand);
+}
+.hr-number-input input.hr-max-readonly {
+  background: var(--bg, #f8f8f8);
+  color: var(--muted);
+  cursor: default;
+}
+.hr-personal-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Kompakt nem-toggle */
+.hr-sex-toggle {
+  display: flex;
+  gap: 6px;
+}
+.hr-sex-btn {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+  min-width: 0;
+}
+.hr-sex-btn input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.hr-sex-btn > span {
+  display: block;
+  text-align: center;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--fg);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.hr-sex-btn input:checked + span {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+.hr-sex-btn:hover > span { border-color: var(--muted); }
+
 .karvonen-zones-list {
   display: flex;
   flex-direction: column;
@@ -3054,23 +3326,22 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 
 .hr-custom-zone-display {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 14px;
+  margin-top: 10px;
 }
 
 .hr-czd-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex: 1;
-  min-width: 56px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .hr-czd-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -3078,6 +3349,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 .hr-czd-name {
   font-size: 11px;
   font-weight: 700;
+  flex-shrink: 0;
+  min-width: 18px;
 }
 
 .hr-czd-val {
@@ -3085,6 +3358,8 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── GPX betöltés előnézet modal ─────────────────────────────────────────── */

@@ -437,21 +437,37 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     return el;
   }
 
+  // ── 8-zónás színes vizualizáció (felhasználói beállítások) ───────────────
+  // 7 határérték + 8 szín. A határértékeket a felhasználó a beállítások menüben
+  // állíthatja, és localStorage-ban tárolódik (per-user szinkronizálva is).
+  const ZONE_PALETTE = ['#9CA3AF', '#3B82F6', '#06B6D4', '#22C55E', '#84CC16', '#EAB308', '#F97316', '#EF4444'];
+  const ZONE_DEFAULTS = {
+    speed: [5, 12, 18, 22, 26, 30, 35],
+    cad:   [55, 70, 80, 88, 94, 100, 108],
+    power: [75, 130, 180, 220, 260, 310, 380],
+  };
+  function readZoneBoundaries(kind) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(`bringaterv.${kind}Zones`) || 'null');
+      if (raw?.boundaries?.length === 7 && raw.boundaries.every(n => Number.isFinite(n))) {
+        return raw.boundaries;
+      }
+    } catch {}
+    return ZONE_DEFAULTS[kind];
+  }
+  function zoneColor(kind, value) {
+    if (value == null) return null;
+    const b = readZoneBoundaries(kind);
+    for (let i = 0; i < b.length; i++) {
+      if (value < b[i]) return ZONE_PALETTE[i];
+    }
+    return ZONE_PALETTE[b.length]; // utolsó (legmagasabb) sáv
+  }
+
   // Speed-colored route
   const coloredRouteGroup = L.layerGroup();
 
-  function speedColor(speed) {
-    if (speed == null) return null;
-    if (speed <  5) return "#9CA3AF";  // szürke    – megállás / tolás
-    if (speed < 10) return "#1E3A8A";  // sötétkék  – nagyon lassú
-    if (speed < 15) return "#3B82F6";  // kék       – lassú
-    if (speed < 20) return "#06B6D4";  // cián      – közepes-lassú
-    if (speed < 25) return "#22C55E";  // zöld      – közepes
-    if (speed < 30) return "#EAB308";  // sárga     – gyors
-    if (speed < 35) return "#F97316";  // narancs   – nagyon gyors
-    if (speed < 40) return "#EF4444";  // piros     – sprint
-    return "#A855F7";                  // lila      – 40+
-  }
+  function speedColor(speed) { return zoneColor('speed', speed); }
 
   function renderColoredRoute(geometry) {
     renderSegments(coloredRouteGroup, geometry, p => speedColor(p.speed), "#3B82F6");
@@ -486,16 +502,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   // Grade-colored route
   const gradeRouteGroup = L.layerGroup();
 
-  function cadColor(cad) {
-    if (cad == null) return null;
-    if (cad <  60) return "#9CA3AF";  // szürke  – nagyon lassú
-    if (cad <  70) return "#3B82F6";  // kék     – lassú
-    if (cad <  80) return "#22C55E";  // zöld    – közepes
-    if (cad <  90) return "#84CC16";  // lime    – optimális
-    if (cad < 100) return "#EAB308";  // sárga   – gyors
-    if (cad < 110) return "#F97316";  // narancs – nagyon gyors
-    return "#EF4444";                 // piros   – sprint
-  }
+  function cadColor(cad) { return zoneColor('cad', cad); }
 
   function renderCadRoute(geometry) {
     renderSegments(cadRouteGroup, geometry, p => cadColor(p.cad), "#22C55E");
@@ -508,18 +515,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (map.hasLayer(cadRouteGroup)) map.removeLayer(cadRouteGroup);
   }
 
-  function powerColor(watts) {
-    if (watts == null) return null;
-    if (watts <  50)  return "#9CA3AF";  // szürke  – gurulás
-    if (watts < 100)  return "#60A5FA";  // kék     – nagyon könnyű
-    if (watts < 150)  return "#34D399";  // zöldeskék – könnyű
-    if (watts < 200)  return "#22C55E";  // zöld    – aerob alap
-    if (watts < 250)  return "#84CC16";  // lime    – tempo
-    if (watts < 300)  return "#EAB308";  // sárga   – küszöb
-    if (watts < 350)  return "#F97316";  // narancs – VO2 max
-    if (watts < 400)  return "#EF4444";  // piros   – anaerob
-    return "#A855F7";                    // lila    – sprint
-  }
+  function powerColor(watts) { return zoneColor('power', watts); }
 
   function renderPowerRoute(geometry) {
     renderSegments(powerRouteGroup, geometry, p => powerColor(p.power), "#EAB308");

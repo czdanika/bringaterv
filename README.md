@@ -15,8 +15,9 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 
 ### Térképes tervezés
 - Kattintással pontokat helyezhetsz el a térképen
-- Kerékpáros és gyalogos tervezési mód
+- 4 tervezési mód: Aszfalt, Gravel, MTB, Túra (gyalogos)
 - Útra illesztés BRouter segítségével – ha nem elérhető, egyenes vonalként jelenik meg
+- Vegyes mód: szakaszonként eltérő tervezési mód egy útvonalon belül
 - 7 térképstílus: Standard, Kerékpáros, Műholdas, Hybrid, Domborzat, Világos, Sötét
 - Sötét és világos téma, automatikus rendszerfelismeréssel
 - Waypoint közbeszúrás útvonalra kattintással
@@ -24,29 +25,45 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 
 ### Útvonalpontok kezelése
 - Automatikus helynévadás Nominatim reverse geocoding alapján
-- Drag & drop átrendezés
+- Drag and drop átrendezés
 - Popup szerkesztő: pont neve, megjegyzés, törlés
 - Az utolsó pont mindig célállomásként jelenik meg (sakk-tábla zászló)
 - Marker húzás a térképen – cím automatikusan frissül
 
-### GPX elemzés
-- Importált GPX-ből automatikusan kiszámított emelkedő (↑) és ereszkedő (↓)
-- Sebesség, pulzus és kadencia alapú útvonalszínezés
-- Szintprofil, sebességdiagram, pulzusdiagram
-- Lejtőtérkép (piros = emelkedő, zöld = süllyedő)
+### GPX és FIT elemzés
+- GPX és FIT (Garmin / Wahoo / Bryton / Hammerhead) fájlok importálása
+- Drag and drop bárhonnan a böngészőablakba
+- Importált GPX-ből automatikusan kiszámított emelkedő és ereszkedő
+- Sebesség, pulzus, kadencia és teljesítmény alapú útvonalszínezés
+- Szintprofil, sebesség, pulzus, kadencia és teljesítmény diagramok
+- Lejtőtérkép (vörös az emelkedő, zöld a süllyedés)
 - Hover tooltip: pillanatnyi sebesség és magasság
 
-### Útvonalkönyvtár
-- **Mentett útvonalak** – tervezett útvonalak elmenthetők a szerverre, szerkeszthetők és visszatölthetők
-- **Edzések** – elemzett GPX fájlok (eredeti adatokkal) menthetők és visszatölthetők az Elemzés fülre
-- **Minták** – beépített minta útvonalak (Balatoni kör 204 km, Tisza-tó kör 90 km)
-- Kártyákon statisztikák: távolság, időtartam, emelkedő
-- GPX letöltés könyvtárból
+### Testreszabható zónák
+- Sebesség, kadencia, teljesítmény zónák multi-sliderrel állíthatók (7 fogópont, 8 zóna)
+- Pulzuszónák négy módszerrel: Karvonen, Max HR százalék, LTHR, vagy Egyedi BPM határok
+- Max HR automatikus számítása Tanaka / Miller / klasszikus 220-kor képlettel, vagy egyedi érték
+- Zónamodell: Friel (aszimmetrikus, Garmin / Strava / TrainingPeaks kompatibilis) vagy egyenlő sávok
+- Egyenlő felosztás gomb minden zónaslideren a gyors reseteléshez
+- Élő frissítés: drag közben a térkép és a jelmagyarázat azonnal újraszíneződik
 
-### Beállítások
-- Bejelentkezés (opcionális, `LOGIN_ENABLED=false`-zal kikapcsolható)
-- Perzisztens beállítások: térképstílus, mértékegység, induló nézet, HR zónák
-- Hint tooltipek minden beállítás elemhez
+### Diagram színek
+- Két mód: egyszínű (minden diagramhoz külön szín választható) vagy zónaszín (a vonal szegmensenként a határértékek színeivel rajzolódik)
+- 5 diagram konfigurálható: szintprofil, sebesség, pulzus, kadencia, teljesítmény
+
+### Útvonalkönyvtár
+- Mentett útvonalak – tervezett útvonalak elmenthetők a szerverre, szerkeszthetők és visszatölthetők
+- Edzések – elemzett GPX fájlok eredeti adatokkal menthetők, és FIT eredetű importálásnál az eredeti FIT bináris is megőrződik a könyvtárban
+- Minták – beépített minta útvonalak (Balatoni kör 204 km, Tisza-tó kör 90 km)
+- Kártyákon statisztikák: távolság, időtartam, emelkedő, FIT címke ha elérhető
+- GPX és (ha van) FIT letöltés könyvtárból
+
+### Multi-user és admin panel
+- JWT autentikáció, per-user adatok és beállítások
+- Admin panel felhasználókezelése: létrehozás, szerkesztés, jelszó-reset, kvóták, aktiválás / tiltás
+- Útvonalak adminisztrálása: GPX vagy FIT letöltés, metaadatok inline szerkesztése, törlés, feltöltés admin részéről
+- Per-user beállítások JSON fájlban: `/data/users/<uid>/settings.json` (HR zónák, adatzónák, diagram színek, térképstílus, téma)
+- Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false` szerveren belüli LAN használatra)
 
 ---
 

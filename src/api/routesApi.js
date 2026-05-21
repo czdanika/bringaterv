@@ -110,10 +110,10 @@ export const routesApi = {
    * }} params
    * @returns {Promise<{ id: string }>}
    */
-  saveRoute({ name, gpxContent, distance, duration, elevation, type = "cycling", description = "" }) {
+  saveRoute({ name, gpxContent, fitContent = null, distance, duration, elevation, type = "cycling", description = "" }) {
     return fetchJson(`${BASE}/routes`, {
       method: "POST",
-      body: JSON.stringify({ name, gpxContent, distance, duration, elevation, type, description }),
+      body: JSON.stringify({ name, gpxContent, fitContent, distance, duration, elevation, type, description }),
     });
   },
 
@@ -125,6 +125,21 @@ export const routesApi = {
    */
   loadRoute(id) {
     return fetchText(`${BASE}/routes/${encodeURIComponent(id)}`);
+  },
+
+  /**
+   * Eredeti FIT bináris letöltése (Blob-ként). Csak FIT-ből mentett edzéseknél.
+   *
+   * @param {string} id
+   * @returns {Promise<Blob>}
+   */
+  async loadRouteFit(id) {
+    const res = await fetch(`${BASE}/routes/${encodeURIComponent(id)}/fit`, {
+      headers: authHeaders(),
+    });
+    if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
   },
 
   /**
@@ -228,6 +243,14 @@ export const routesApi = {
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
     getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },
+    async getUserRouteFit(userId, routeId) {
+      const res = await fetch(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/fit`, {
+        headers: authHeaders(),
+      });
+      if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.blob();
+    },
     updateUserRoute(userId, routeId, fields) {
       return fetchJson(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}`, {
         method: "PATCH",
