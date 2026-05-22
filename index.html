@@ -1774,6 +1774,52 @@
     </div>
   </section>
 
+  <section class="settings-section" data-settings-section="backup">
+    <h4 class="settings-section-title">
+      <i data-lucide="archive" aria-hidden="true"></i>
+      Backup és visszaállítás
+      <button class="hint-btn" type="button" data-hint="A teljes profil (beállítások, mentett útvonalak, edzések) ZIP archívumba mentése és visszaállítása. Visszatöltéskor a 'Hozzáadás' új ID-kkel beilleszti a backupot a meglévő tartalom mellé. A 'Teljes felülírás' először kitörli a jelenlegi adatokat, majd a backupot eredeti ID-kkel állítja vissza." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <p class="settings-label-text">Backup letöltése</p>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">Egy ZIP fájlt tölt le, amely tartalmazza a beállításaidat, mentett útvonalaidat és edzéseidet.</p>
+      <button id="settingsBackupDownloadBtn" class="load-preview-analyze-btn" type="button" style="margin-bottom:16px">
+        <i data-lucide="download" aria-hidden="true"></i>
+        Backup letöltése (.zip)
+      </button>
+
+      <p class="settings-label-text">Visszaállítás backupból</p>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 8px">Válassz ZIP backup fájlt, majd döntsd el milyen módon töltődjön vissza:</p>
+      <input id="settingsRestoreFile" type="file" accept=".zip" style="font-size:13px;margin-bottom:10px">
+      <div class="settings-unit-group" style="margin-bottom:10px">
+        <label class="settings-unit-btn">
+          <input type="radio" name="settingsRestoreMode" value="merge" checked>
+          <span class="hint-target" data-hint="A backupban szereplő útvonalak új ID-kkel hozzáadódnak a meglévők mellé. A beállításaid változatlanok maradnak. Biztonságos választás.">
+            <i data-lucide="git-merge" aria-hidden="true"></i>
+            Hozzáadás
+            <small>új ID-k</small>
+          </span>
+        </label>
+        <label class="settings-unit-btn">
+          <input type="radio" name="settingsRestoreMode" value="replace">
+          <span class="hint-target" data-hint="Először kitörli a jelenlegi beállításaidat, útvonalaidat és edzéseidet, majd a backupot az eredeti ID-kkel állítja vissza. Visszafordíthatatlan!">
+            <i data-lucide="replace" aria-hidden="true"></i>
+            Teljes felülírás
+            <small>óvatosan</small>
+          </span>
+        </label>
+      </div>
+      <button id="settingsRestoreBtn" class="load-preview-analyze-btn" type="button" disabled>
+        <i data-lucide="upload" aria-hidden="true"></i>
+        Visszaállítás
+      </button>
+      <div id="settingsRestoreStatus" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:16px"></div>
+    </div>
+  </section>
+
   </div>
   </div>
   </div>

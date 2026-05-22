@@ -13,17 +13,44 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:      #f4f5f7;
-      --panel:   #ffffff;
-      --border:  #e2e4e9;
-      --text:    #1a1d23;
-      --muted:   #6b7280;
-      --brand:   #fc4c02;
-      --green:   #16a34a;
-      --red:     #dc2626;
-      --blue:    #2563eb;
-      --yellow:  #d97706;
+      --bg:           #f4f5f7;
+      --panel:        #ffffff;
+      --border:       #e2e4e9;
+      --text:         #1a1d23;
+      --muted:        #6b7280;
+      --brand:        #fc4c02;
+      --green:        #16a34a;
+      --red:          #dc2626;
+      --blue:         #2563eb;
+      --yellow:       #d97706;
+      --panel-strong: #f0f0f0;
+      --line:         #e2e4e9;
+      --accent:       #fc4c02;
     }
+
+    /* ── Load-preview panel ─────────────────────────────────────────────── */
+    .load-preview-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .load-preview-stat { display:flex; flex-direction:column; gap:2px; background:var(--panel-strong); border-radius:8px; padding:10px 12px; }
+    .load-preview-stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
+    .load-preview-stat-value { font-size:16px; font-weight:700; color:var(--text); }
+    .load-preview-analyze-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px 16px; border:1.5px solid var(--accent); border-radius:9px; background:transparent; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; transition:background 0.15s; }
+    .load-preview-analyze-btn:hover { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+    .load-preview-analyze-btn:disabled { opacity:0.45; cursor:not-allowed; }
+    .load-preview-analyze-hint { font-size:12px; color:var(--muted); margin:0; line-height:1.5; }
+    .load-preview-bar { display:flex; height:10px; border-radius:6px; overflow:hidden; gap:1px; background:var(--line); margin-bottom:4px; }
+    .load-preview-bar-seg { height:100%; min-width:2px; }
+    .load-preview-analysis-result { border-radius:9px; border:1px solid var(--line); overflow:hidden; }
+    .load-preview-analysis-header { font-size:12px; font-weight:600; color:var(--muted); padding:8px 12px 6px; border-bottom:1px solid var(--line); text-transform:uppercase; letter-spacing:0.04em; }
+    .load-preview-analysis-rows { display:flex; flex-direction:column; }
+    .load-preview-analysis-row { display:flex; align-items:center; gap:10px; padding:7px 12px; font-size:13px; border-bottom:1px solid var(--line); }
+    .load-preview-analysis-row:last-child { border-bottom:none; }
+    .load-preview-analysis-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .load-preview-analysis-mode { flex:1; font-weight:600; }
+    .load-preview-analysis-dist { color:var(--muted); font-size:12px; }
+    .load-preview-analysis-pct { font-size:12px; font-weight:600; color:var(--text); min-width:34px; text-align:right; }
+    .load-preview-spinner { display:flex; align-items:center; justify-content:center; gap:10px; padding:14px; font-size:13px; color:var(--muted); }
+    .spinner-inline { display:inline-block; width:16px; height:16px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:lp-spin 0.7s linear infinite; flex-shrink:0; }
+    @keyframes lp-spin { to { transform:rotate(360deg); } }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -310,7 +337,128 @@
         <div class="loading">Betöltés…</div>
       </div>
     </div>
+
+    <!-- Minták panel -->
+    <div class="panel" style="margin-top:24px">
+      <div class="panel-header">
+        <span class="panel-title">Minta útvonalak</span>
+        <button class="btn btn-primary" id="addSampleBtn" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Új minta
+        </button>
+      </div>
+      <div id="samplesWrap" style="overflow-x:auto">
+        <div class="loading">Betöltés…</div>
+      </div>
+    </div>
   </main>
+
+  <!-- Backup modal -->
+  <div class="modal-overlay" id="backupModal" hidden>
+    <div class="modal" style="max-width:520px;width:100%">
+      <div class="modal-header">
+        <span class="modal-title" id="backupModalTitle">Backup és visszaállítás</span>
+        <button class="modal-close" id="backupModalClose" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="form-label">Backup letöltése</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">A felhasználó teljes profilját (beállítások, útvonalak, edzések) ZIP archívumba menti.</p>
+        <button id="backupDownloadBtn" class="btn btn-primary" type="button" style="margin-bottom:18px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Backup letöltése (.zip)
+        </button>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:0 0 18px">
+
+        <p class="form-label">Visszaállítás backupból</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">ZIP fájl feltöltése a kiválasztott felhasználó profiljába.</p>
+        <input id="backupRestoreFile" type="file" accept=".zip" class="form-input" style="margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+            <input type="radio" name="backupRestoreMode" value="merge" checked>
+            <div>
+              <div style="font-weight:600">Hozzáadás</div>
+              <div style="font-size:11px;color:var(--muted)">Új ID-k, biztonságos</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+            <input type="radio" name="backupRestoreMode" value="replace">
+            <div>
+              <div style="font-weight:600">Teljes felülírás</div>
+              <div style="font-size:11px;color:var(--muted)">Óvatosan!</div>
+            </div>
+          </label>
+        </div>
+        <button id="backupRestoreBtn" class="btn btn-primary" type="button" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Visszaállítás
+        </button>
+        <div id="backupRestoreStatus" style="margin-top:10px;font-size:12px;color:var(--muted);min-height:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minta feltöltés modal -->
+  <div class="modal-overlay" id="sampleModal" hidden>
+    <div class="modal" style="max-width:540px;width:100%">
+      <div class="modal-header">
+        <span class="modal-title" id="sampleModalTitle">Új minta feltöltése</span>
+        <button class="modal-close" id="sampleModalClose" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" id="sampleGpxGroup">
+          <label class="form-label">GPX fájl</label>
+          <input class="form-input" id="sampleGpxFile" type="file" accept=".gpx">
+        </div>
+        <!-- load-preview panel (azonos az index.html-éval) -->
+        <div id="sampleLoadPreview" hidden style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">
+          <div class="load-preview-stats" id="sampleLpStats"></div>
+          <div id="sampleLpAnalysisResult" class="load-preview-analysis-result" hidden></div>
+          <button id="sampleLpAnalyzeBtn" class="load-preview-analyze-btn" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+            Szegmensvizsgálat futtatása
+          </button>
+          <p id="sampleLpAnalyzeHint" class="load-preview-analyze-hint">Az útvonal mentén lekérdezi az OSM útburkolat adatokat és megmutatja a felületi összetételt.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Név</label>
+          <input class="form-input" id="sampleName" type="text" placeholder="pl. Balatoni kör">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Típus</label>
+          <select class="form-input form-select" id="sampleType">
+            <option value="asphalt">Aszfalt</option>
+            <option value="gravel">Gravel</option>
+            <option value="mtb">MTB</option>
+            <option value="hiking">Túra</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label class="form-label">Távolság (km)</label>
+            <input class="form-input" id="sampleDistance" type="number" min="0" step="0.1" placeholder="204">
+          </div>
+          <div>
+            <label class="form-label">Időtartam (perc)</label>
+            <input class="form-input" id="sampleDuration" type="number" min="0" placeholder="660">
+          </div>
+          <div>
+            <label class="form-label">Emelkedő (m)</label>
+            <input class="form-input" id="sampleElevation" type="number" min="0" placeholder="980">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Leírás</label>
+          <textarea class="form-input" id="sampleDescription" rows="3" style="resize:vertical"></textarea>
+        </div>
+        <div id="sampleModalError" style="color:#ef4444;font-size:13px;margin-top:6px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="sampleModalCancel" type="button">Mégsem</button>
+        <button class="btn btn-primary" id="sampleModalSubmit" type="button">Mentés</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Új felhasználó modal -->
   <div class="modal-overlay" id="createModal" hidden>
@@ -422,6 +570,10 @@
   <script type="module">
     import { requireAdmin } from "./src/auth.js";
     import { routesApi } from "./src/api/routesApi.js";
+    import { importGpx, calcElevationFromGeometry } from "./src/gpx/gpx.js";
+    import { analyzeSurface, MODE_LABELS } from "./src/map/surfaceAnalysis.js";
+
+    const SEGMENT_COLORS = { asphalt: "#1976d2", gravel: "#F97316", mtb: "#22C55E", hiking: "#A855F7" };
 
     requireAdmin();
 
@@ -487,6 +639,7 @@
                 <td style="white-space:nowrap">
                   <div class="row-actions" style="justify-content:flex-end">
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">Útvonalak</button>
+                    <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="backup" data-id="${u.id}" data-email="${escHtml(u.email)}" title="Profil ZIP letöltése">Backup</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
                     ${u.role !== "admin" ? `
                     <button class="btn ${u.active ? "btn-danger" : "btn-ghost"}" style="padding:5px 10px;font-size:12px" data-action="toggle" data-id="${u.id}" data-active="${u.active}">
@@ -508,6 +661,7 @@
           if (action === "edit")   openEditModal(user);
           if (action === "toggle") toggleActive(user);
           if (action === "files")  openFilesModal(btn.dataset.id, btn.dataset.name);
+          if (action === "backup") openBackupModal(btn.dataset.id, btn.dataset.email);
         });
       });
     }
@@ -900,19 +1054,352 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       });
     }
 
-    // Backup gomb (placeholder)
-    document.querySelector("#backupBtn").addEventListener("click", () => {
-      alert("Backup / Restore funkció hamarosan elérhető.");
+    // ── Backup / Restore modal ─────────────────────────────────────────────────
+    const backupModal = document.querySelector("#backupModal");
+    let _backupUserId    = null;
+    let _backupUserEmail = null;
+
+    function openBackupModal(userId, userEmail) {
+      _backupUserId    = userId;
+      _backupUserEmail = userEmail;
+      document.querySelector("#backupModalTitle").textContent = `Backup – ${userEmail}`;
+      document.querySelector("#backupRestoreFile").value = "";
+      document.querySelector("#backupRestoreStatus").textContent = "";
+      document.querySelector("#backupRestoreBtn").disabled = true;
+      document.querySelector("#backupDownloadBtn").disabled = false;
+      document.querySelector('input[name="backupRestoreMode"][value="merge"]').checked = true;
+      backupModal.hidden = false;
+    }
+
+    document.querySelector("#backupModalClose").addEventListener("click", () => { backupModal.hidden = true; });
+
+    document.querySelector("#backupDownloadBtn").addEventListener("click", async () => {
+      const btn = document.querySelector("#backupDownloadBtn");
+      btn.disabled = true;
+      const oldHtml = btn.innerHTML;
+      btn.innerHTML = `Backup készítése…`;
+      try {
+        const { blob, filename } = await routesApi.admin.downloadUserBackup(_backupUserId);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Backup hiba: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
+    });
+
+    document.querySelector("#backupRestoreFile").addEventListener("change", () => {
+      document.querySelector("#backupRestoreBtn").disabled = !document.querySelector("#backupRestoreFile").files[0];
+      document.querySelector("#backupRestoreStatus").textContent = "";
+    });
+
+    document.querySelector("#backupRestoreBtn").addEventListener("click", async () => {
+      const file = document.querySelector("#backupRestoreFile").files[0];
+      if (!file) return;
+      const mode = document.querySelector('input[name="backupRestoreMode"]:checked').value;
+      const confirmMsg = mode === "replace"
+        ? `Biztosan teljesen felülírod a(z) ${_backupUserEmail} profilját?\n\nA jelenlegi beállításai, útvonalai és edzései TÖRLŐDNEK.\n\nVisszafordíthatatlan!`
+        : `Backup hozzáadása a meglévő tartalom mellé (új ID-kkel)?`;
+      if (!confirm(confirmMsg)) return;
+
+      const btn = document.querySelector("#backupRestoreBtn");
+      const statusEl = document.querySelector("#backupRestoreStatus");
+      btn.disabled = true;
+      statusEl.textContent = "Visszaállítás folyamatban…";
+      try {
+        const result = await routesApi.admin.restoreUserBackup(_backupUserId, file, mode);
+        statusEl.textContent = `Kész: ${result.routes_added} útvonal, ${result.workouts_added} edzés${result.settings_restored ? ", beállítások visszaállítva" : ""}.`;
+        await loadUsers();
+      } catch (err) {
+        statusEl.textContent = "Hiba: " + err.message;
+        btn.disabled = false;
+      }
     });
 
     // Overlay kattintásra bezárás
-    [createModal, editModal, filesModal].forEach(m => {
+    [createModal, editModal, filesModal, backupModal].forEach(m => {
       m.addEventListener("click", e => { if (e.target === m) m.hidden = true; });
+    });
+
+    // A panel-fejléc Backup gombja: jelenleg placeholder (későbbi: rendszer-szintű backup)
+    document.querySelector("#backupBtn").addEventListener("click", () => {
+      alert("Rendszer-szintű backup hamarosan. Per-user backup elérhető a felhasználói sorokban.");
+    });
+
+    // ── Minták szekció ────────────────────────────────────────────────────────
+    const SAMPLE_TYPE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra", cycling: "Kerékpár" };
+
+    async function loadSamples() {
+      const wrap = document.querySelector("#samplesWrap");
+      try {
+        const samples = await routesApi.admin.listSamples();
+        if (!samples.length) {
+          wrap.innerHTML = `<div class="loading">Nincs minta útvonal.</div>`;
+          return;
+        }
+        wrap.innerHTML = `
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Név</th>
+                <th style="width:1%;white-space:nowrap">Típus</th>
+                <th style="width:1%;white-space:nowrap">Távolság</th>
+                <th style="width:1%;white-space:nowrap">Emelkedő</th>
+                <th style="width:1%;white-space:nowrap">Forrás</th>
+                <th style="width:1%;white-space:nowrap;text-align:right"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${samples.map(s => `
+                <tr data-sid="${escHtml(s.id)}">
+                  <td>
+                    <div style="font-weight:500">${escHtml(s.name)}</div>
+                    ${s.description ? `<div style="font-size:11px;color:var(--muted)">${escHtml(s.description)}</div>` : ""}
+                  </td>
+                  <td><span class="badge badge-on">${escHtml(SAMPLE_TYPE_LABELS[s.type] || s.type)}</span></td>
+                  <td style="white-space:nowrap">${s.distance != null ? s.distance + " km" : "—"}</td>
+                  <td style="white-space:nowrap">${s.elevation != null ? s.elevation + " m" : "—"}</td>
+                  <td><span class="badge ${s.custom ? "badge-off" : ""}" style="${s.custom ? "" : "background:var(--bg);color:var(--muted)"}">${s.custom ? "Egyedi" : "Beépített"}</span></td>
+                  <td style="white-space:nowrap">
+                    <div class="row-actions" style="justify-content:flex-end">
+                      <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="edit" data-sid="${escHtml(s.id)}">Szerkeszt</button>
+                      ${s.custom ? `<button class="btn btn-danger" style="padding:5px 10px;font-size:12px" data-saction="del" data-sid="${escHtml(s.id)}" data-sname="${escHtml(s.name)}">Törlés</button>` : ""}
+                    </div>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>`;
+
+        wrap.querySelectorAll("[data-saction]").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const sid   = btn.dataset.sid;
+            const sname = btn.dataset.sname || sid;
+            if (btn.dataset.saction === "edit") {
+              const s = samples.find(x => x.id === sid);
+              openSampleModal(s);
+            }
+            if (btn.dataset.saction === "del") {
+              if (!confirm(`Törlöd: „${sname}"?`)) return;
+              try {
+                await routesApi.admin.deleteSample(sid);
+                await loadSamples();
+              } catch (e) { alert("Hiba: " + e.message); }
+            }
+          });
+        });
+      } catch (e) {
+        wrap.innerHTML = `<div class="loading">Hiba: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    // ── Minta modal ───────────────────────────────────────────────────────────
+    const sampleModal  = document.querySelector("#sampleModal");
+    let _editSampleId  = null;
+
+    function openSampleModal(sample) {
+      _editSampleId = sample ? sample.id : null;
+      document.querySelector("#sampleModalTitle").textContent = sample ? `Szerkesztés – ${sample.name}` : "Új minta feltöltése";
+      document.querySelector("#sampleGpxFile").value      = "";
+      document.querySelector("#sampleGpxGroup").hidden = !!sample;
+      document.querySelector("#sampleLoadPreview").hidden = true;
+      document.querySelector("#sampleLpAnalysisResult").hidden = true;
+      document.querySelector("#sampleLpAnalysisResult").innerHTML = "";
+      _sampleImported = null;
+      document.querySelector("#sampleName").value         = sample?.name        || "";
+      document.querySelector("#sampleType").value         = sample?.type        || "asphalt";
+      document.querySelector("#sampleDistance").value     = sample?.distance    ?? "";
+      document.querySelector("#sampleDuration").value     = sample?.duration    ?? "";
+      document.querySelector("#sampleElevation").value    = sample?.elevation   ?? "";
+      document.querySelector("#sampleDescription").value  = sample?.description || "";
+      document.querySelector("#sampleModalError").textContent = "";
+      document.querySelector("#sampleModalSubmit").disabled = false;
+      sampleModal.hidden = false;
+    }
+
+    function haversineTotalMeters(geometry) {
+      let total = 0;
+      for (let i = 1; i < geometry.length; i++) {
+        const a = geometry[i - 1], b = geometry[i];
+        const dLat = (b.lat - a.lat) * Math.PI / 180;
+        const dLng = (b.lng - a.lng) * Math.PI / 180;
+        const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+        total += 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+      }
+      return total;
+    }
+
+    let _sampleImported = null;
+
+    document.querySelector("#sampleGpxFile").addEventListener("change", async (e) => {
+      console.log("[sample] file change event fired", e.target.files);
+      const file       = e.target.files[0];
+      const previewEl  = document.querySelector("#sampleLoadPreview");
+      const statsEl    = document.querySelector("#sampleLpStats");
+      const analysisEl = document.querySelector("#sampleLpAnalysisResult");
+      const analyzeBtn = document.querySelector("#sampleLpAnalyzeBtn");
+      const hintEl     = document.querySelector("#sampleLpAnalyzeHint");
+
+      _sampleImported = null;
+      if (!file) { previewEl.hidden = true; return; }
+
+      // azonnali feedback: panel megjelenik loading állapottal
+      statsEl.innerHTML = `<div class="load-preview-spinner" style="grid-column:1/-1"><span class="spinner-inline"></span> GPX elemzése…</div>`;
+      analysisEl.hidden = true;
+      analyzeBtn.disabled = true;
+      hintEl.hidden = false;
+      previewEl.hidden = false;
+      previewEl.style.display = "flex";
+
+      try {
+        console.log("[sample] importGpx start");
+        const imported = await importGpx(file);
+        console.log("[sample] importGpx ok, geometry pts:", imported.geometry.length);
+        _sampleImported = imported;
+        const geom = imported.geometry;
+
+        const distM  = haversineTotalMeters(geom);
+        const distKm = Math.round(distM / 100) / 10;
+        const { ascentMeters } = calcElevationFromGeometry(geom);
+        const movingMs = imported.meta?.movingDuration ?? imported.meta?.totalDuration ?? null;
+        const durMin   = movingMs ? Math.round(movingMs / 60000) : null;
+
+        // Mezők automatikus kitöltése
+        if (!document.querySelector("#sampleName").value.trim() && imported.meta?.name)
+          document.querySelector("#sampleName").value = imported.meta.name;
+        document.querySelector("#sampleDistance").value  = distKm;
+        if (ascentMeters > 0)
+          document.querySelector("#sampleElevation").value = ascentMeters;
+        if (durMin && durMin > 0)
+          document.querySelector("#sampleDuration").value = durMin;
+
+        // Stats panel – ugyanaz mint az index.html load-preview
+        statsEl.innerHTML = `
+          <div class="load-preview-stat">
+            <span class="load-preview-stat-label">Távolság</span>
+            <span class="load-preview-stat-value">${distKm} km</span>
+          </div>
+          <div class="load-preview-stat">
+            <span class="load-preview-stat-label">Trackpont</span>
+            <span class="load-preview-stat-value">${geom.length}</span>
+          </div>
+          <div class="load-preview-stat">
+            <span class="load-preview-stat-label">Emelkedő</span>
+            <span class="load-preview-stat-value">${ascentMeters > 0 ? ascentMeters + " m" : "—"}</span>
+          </div>
+          <div class="load-preview-stat">
+            <span class="load-preview-stat-label">Időtartam</span>
+            <span class="load-preview-stat-value">${durMin ? durMin + " perc" : "—"}</span>
+          </div>`;
+
+        analysisEl.hidden = true;
+        analysisEl.innerHTML = "";
+        analyzeBtn.disabled = false;
+        hintEl.hidden = false;
+        previewEl.hidden = false;
+      } catch (err) {
+        console.error("[sample] importGpx error", err);
+        document.querySelector("#sampleLpStats").innerHTML = `<div style="grid-column:1/-1;padding:10px;color:#dc2626;font-size:13px">GPX hiba: ${err.message}</div>`;
+        document.querySelector("#sampleModalError").textContent = "GPX hiba: " + err.message;
+      }
+    });
+
+    document.querySelector("#sampleLpAnalyzeBtn").addEventListener("click", async () => {
+      if (!_sampleImported) return;
+      const analysisEl = document.querySelector("#sampleLpAnalysisResult");
+      const analyzeBtn = document.querySelector("#sampleLpAnalyzeBtn");
+      const hintEl     = document.querySelector("#sampleLpAnalyzeHint");
+
+      analyzeBtn.disabled = true;
+      hintEl.hidden = true;
+      analysisEl.hidden = false;
+      analysisEl.innerHTML = `<div class="load-preview-spinner"><span class="spinner-inline"></span> OSM adatok lekérdezése…</div>`;
+
+      try {
+        const { segments, totalDistKm } = await analyzeSurface(_sampleImported.geometry);
+
+        const barSegs = segments.map(seg => {
+          const pct   = (seg.distanceKm / totalDistKm * 100).toFixed(1);
+          const color = SEGMENT_COLORS[seg.mode] ?? "#888";
+          return `<div class="load-preview-bar-seg" style="width:${pct}%;background:${color}"
+            title="${MODE_LABELS[seg.mode] ?? seg.mode}: ${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km"></div>`;
+        }).join("");
+
+        const rows = segments.map(seg => `
+          <div class="load-preview-analysis-row">
+            <div class="load-preview-analysis-dot" style="background:${SEGMENT_COLORS[seg.mode] ?? "#888"}"></div>
+            <span class="load-preview-analysis-mode">${MODE_LABELS[seg.mode] ?? seg.mode}</span>
+            <span class="load-preview-analysis-dist">${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km</span>
+            <span class="load-preview-analysis-pct">${seg.distanceKm.toFixed(1)} km</span>
+          </div>`).join("");
+
+        analysisEl.innerHTML = `
+          <div class="load-preview-bar">${barSegs}</div>
+          <div class="load-preview-analysis-header">Szegmensek (${segments.length} db)</div>
+          <div class="load-preview-analysis-rows">${rows}</div>`;
+      } catch (err) {
+        analysisEl.innerHTML = `<div style="padding:12px;font-size:12px;color:var(--muted)">Felületelemzés nem sikerült: ${err.message}</div>`;
+        analyzeBtn.disabled = false;
+        hintEl.hidden = false;
+      }
+    });
+
+    document.querySelector("#addSampleBtn").addEventListener("click", () => openSampleModal(null));
+    document.querySelector("#sampleModalClose").addEventListener("click",  () => { sampleModal.hidden = true; });
+    document.querySelector("#sampleModalCancel").addEventListener("click", () => { sampleModal.hidden = true; });
+    sampleModal.addEventListener("click", e => { if (e.target === sampleModal) sampleModal.hidden = true; });
+
+    document.querySelector("#sampleModalSubmit").addEventListener("click", async () => {
+      const errEl  = document.querySelector("#sampleModalError");
+      const submitBtn = document.querySelector("#sampleModalSubmit");
+      errEl.textContent = "";
+      const name = document.querySelector("#sampleName").value.trim();
+      if (!name) { errEl.textContent = "A név kötelező."; return; }
+
+      submitBtn.disabled = true;
+      try {
+        if (_editSampleId) {
+          await routesApi.admin.updateSample(_editSampleId, {
+            name,
+            type:        document.querySelector("#sampleType").value,
+            description: document.querySelector("#sampleDescription").value.trim(),
+            distance:    document.querySelector("#sampleDistance").value  || null,
+            duration:    document.querySelector("#sampleDuration").value  || null,
+            elevation:   document.querySelector("#sampleElevation").value || null,
+          });
+        } else {
+          const gpxFile = document.querySelector("#sampleGpxFile").files[0];
+          if (!gpxFile) { errEl.textContent = "GPX fájl kötelező."; submitBtn.disabled = false; return; }
+          const fd = new FormData();
+          fd.append("gpx",         gpxFile);
+          fd.append("name",        name);
+          fd.append("type",        document.querySelector("#sampleType").value);
+          fd.append("description", document.querySelector("#sampleDescription").value.trim());
+          const dist = document.querySelector("#sampleDistance").value;
+          const dur  = document.querySelector("#sampleDuration").value;
+          const ele  = document.querySelector("#sampleElevation").value;
+          if (dist) fd.append("distance",  dist);
+          if (dur)  fd.append("duration",  dur);
+          if (ele)  fd.append("elevation", ele);
+          await routesApi.admin.createSample(fd);
+        }
+        sampleModal.hidden = true;
+        await loadSamples();
+      } catch (e) {
+        errEl.textContent = e.message;
+        submitBtn.disabled = false;
+      }
     });
 
     // ── Init ──────────────────────────────────────────────────────────────────
     loadStats();
     loadUsers();
+    loadSamples();
   </script>
 </body>
 </html>

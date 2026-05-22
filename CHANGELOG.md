@@ -1,5 +1,84 @@
 # Changelog
 
+## v0.83 – 2026-05-22 – Admin minta-kezelő, GPX előelemzés, profil backup/restore
+
+### Profil backup és visszaállítás
+
+- A teljes felhasználói profil (beállítások + mentett útvonalak + edzések) ZIP archívumba menthető és visszaállítható.
+- A backup ZIP tartalma: `meta.json` (verzió, készítés dátuma), `settings.json` (HR zónák, adatzónák, diagram színek, térképstílus stb.), `routes/index.json` + `routes/<id>.gpx` + opcionális `routes/<id>.fit`, valamint ugyanez `workouts/` mappában.
+- Fájlnév formátum: `<email-vagy-uid>-<dátum>.zip` (pl. `bringa-2026-05-22.zip`).
+- Visszatöltéskor két mód közül választható:
+  - **Hozzáadás (merge)** – minden visszatöltött útvonal új ID-t kap és a meglévők mellé kerül, a `settings.json` változatlan marad. Biztonságos default.
+  - **Teljes felülírás (replace)** – a jelenlegi `settings.json`, `routes/`, `workouts/` mappa törlődik, majd a backup eredeti ID-kkel visszaíródik.
+- Atomikus index-írás (`tmp + rename`) restore közben is, így nem sérülhet az `index.json`.
+
+### Backend bővítés (`routes-api`)
+
+- Új végpontok:
+  - `GET  /api/user/backup` – saját ZIP letöltés (Bearer token alapján)
+  - `POST /api/user/restore` – saját visszaállítás multipart `backup` mezővel, `mode=merge|replace`
+  - `GET  /api/admin/users/<uid>/backup` – admin által bármely felhasználó backup-ja
+  - `POST /api/admin/users/<uid>/restore` – admin által bármely felhasználó visszaállítása
+- A ZIP a memóriában készül a Python `zipfile` modullal (`io.BytesIO`), és `send_file` adja vissza streamként.
+- A merge mód a backup `index.json`-jából minden bejegyzéshez új `r_` prefixű UUID-t generál, és az érintett `<id>.gpx` (+ opc. `.fit`) fájlokat átnevezve másolja a célmappába.
+
+### Frontend API helper (`src/api/routesApi.js`)
+
+- `routesApi.downloadBackup()` – ZIP letöltés `{ blob, filename }` formában (a `Content-Disposition` header alapján parse-olja a fájlnevet).
+- `routesApi.restoreBackup(file, mode)` – ZIP feltöltés, JSON statisztika visszaadása (`routes_added`, `workouts_added`, `settings_restored`).
+- `routesApi.admin.downloadUserBackup(userId)` / `restoreUserBackup(userId, file, mode)` – admin verziók.
+
+### UI – Beállítások panel (`index.html`)
+
+- Új "Backup és visszaállítás" szekció a beállítások panel alján.
+- "Backup letöltése (.zip)" gomb – kattintásra letöltődik a felhasználó saját ZIP-je.
+- Visszaállítás: fájlválasztó + radio gomb (Hozzáadás / Teljes felülírás) + Visszaállítás gomb.
+- Megerősítő `confirm()` dialógus a `replace` módra ("Visszafordíthatatlan!"), és discreet figyelmeztetés a `merge` módra.
+- Replace után 1.5 másodperc múlva `location.reload()` hogy a frissített `settings.json` betöltődjön a UI-ra.
+
+### UI – Admin panel (`admin.html`)
+
+- Új "Backup" gomb minden felhasználói sorban (Útvonalak / Backup / Szerkeszt / Tiltás).
+- Külön Backup modal a kattintásra: backup letöltése + visszaállítás (fájl + mode + gomb), kompakt 520px szélességben.
+- A korábbi placeholder rendszer-szintű "Backup / Restore" gomb a panel fejlécben megmaradt, kattintásra most már informatív üzenet jelzi, hogy per-user backup elérhető a sorokban.
+
+### Minta útvonalak admin kezelése
+
+- Új "Minta útvonalak" szekció az admin panelen (`admin.html`): a globális, mindenki által látható minta útvonalak (Balatoni kör, Tisza-tó kör stb.) most webes felületről kezelhetők – nem kell Docker image-be égetni vagy kézzel fájlt másolni a szerverre.
+- Új minták feltöltése: GPX fájl + név, típus (Aszfalt / Gravel / MTB / Túra), leírás, távolság, időtartam, emelkedő.
+- Meglévő minták szerkesztése: a beépített minták metaadatai is felülírhatók (a felülírás külön JSON fájlba kerül a `/data/samples` volume-ba, az eredeti Docker image-ben lévő minta változatlan marad).
+- Egyedi (admin által feltöltött) minták törölhetők. A beépített minták nem törölhetők, csak felülírhatók metaadatszinten.
+- Forrás jelzés a táblázatban: `Beépített` (image-be égetve) vagy `Egyedi` (admin által feltöltve).
+
+### GPX előelemzés minta feltöltéskor
+
+- Új minta feltöltésekor a GPX kiválasztása után automatikus elemzés indul (az `index.html` Elemzés fülén használt `showLoadPreview` panel logikája alapján):
+  - Távolság (haversine), emelkedő, trackpontok száma és időtartam (ha van GPS idő a fájlban) kiszámolva és a stats kártyákon megjelenítve.
+  - Mezők automatikusan kitöltődnek (Távolság, Emelkedő, Időtartam, Név – utóbbi csak ha üres és van a GPX-ben `<name>`).
+  - "Szegmensvizsgálat futtatása" gombbal Overpass OSM lekérdezés indítható: az útvonal mentén lekérdezi az útburkolatot, és megjeleníti a szegmenseket (pl. Aszfalt 12.3 km, Gravel 5.8 km, MTB 2.1 km) színes sávon és lista formában – ugyanolyan vizuál, mint a főoldali GPX import.
+
+### Backend bővítés – minta-kezelés (`routes-api`)
+
+- Új környezeti változó: `CUSTOM_SAMPLES_DIR` (alapért.: `/data/samples`) – a perzisztens, admin által feltöltött minták helye. A meglévő `SAMPLES_DIR` (image-be égetett minták) változatlanul `read-only`.
+- `GET /api/samples` mostantól a két könyvtárat egyesíti: a custom felülírja a beépítettet azonos ID esetén. Az új `custom: bool` mező jelzi a forrást.
+- Új admin végpontok (mind `@require_auth + @require_admin` védve):
+  - `GET    /api/admin/samples` – beépített és custom minták listája, forrás jelzéssel
+  - `POST   /api/admin/samples` – új minta feltöltése multipart/form-data-ként (`gpx` fájl + `name`, `type`, `description`, `distance`, `duration`, `elevation` mezők)
+  - `PATCH  /api/admin/samples/<id>` – meta felülírás (beépített mintára is alkalmazható, ekkor a felülírás custom JSON-ba kerül)
+  - `DELETE /api/admin/samples/<id>` – csak custom minták törölhetők (HTTP 404 ha beépített)
+
+### Frontend API helper – minta-kezelés (`src/api/routesApi.js`)
+
+- Új admin metódusok: `routesApi.admin.listSamples()`, `createSample(formData)`, `updateSample(id, data)`, `deleteSample(id)`.
+
+### Egyéb
+
+- `admin.html` `<style>` szekciója bővítve a load-preview panel CSS osztályaival (`.load-preview-stats`, `.load-preview-stat`, `.load-preview-bar`, `.load-preview-analysis-row` stb.) – így ugyanaz a vizuál, mint a főoldali import panel.
+- A docker-compose nem változott: a `/data/samples` mappa és a backup mappastruktúra a meglévő `routes-data` volume-on belül jön létre automatikusan.
+- Verziószám: `v0.82` → `v0.83`.
+
+---
+
 ## v0.82 – 2026-05-21 – FIT import, testreszabható zónák, diagram színek
 
 ### FIT fájl importálás
