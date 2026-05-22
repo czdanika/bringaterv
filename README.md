@@ -63,7 +63,13 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 - Admin panel felhasználókezelése: létrehozás, szerkesztés, jelszó-reset, kvóták, aktiválás / tiltás
 - Útvonalak adminisztrálása: GPX vagy FIT letöltés, metaadatok inline szerkesztése, törlés, feltöltés admin részéről
 - Per-user beállítások JSON fájlban: `/data/users/<uid>/settings.json` (HR zónák, adatzónák, diagram színek, térképstílus, téma)
+- Minta útvonalak webes admin kezelése: feltöltés, szerkesztés, törlés a "Minta útvonalak" panelből; GPX előelemzés (távolság, emelkedő, Overpass útburkolat-szegmensek) feltöltéskor
 - Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false` szerveren belüli LAN használatra)
+
+### Backup és visszaállítás
+- Teljes profil (beállítások + útvonalak + edzések) ZIP archívumba menthető a Beállítások panelből
+- Visszaállítás két módban: **Hozzáadás** (új ID-kkel a meglévők mellé) vagy **Teljes felülírás** (eredeti ID-kkel, törli az aktuális adatokat)
+- Admin felületről bármely felhasználó profilja menthető és visszaállítható
 
 ---
 

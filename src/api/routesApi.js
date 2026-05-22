@@ -232,6 +232,39 @@ export const routesApi = {
   },
 
 
+  // ── Backup / Restore ────────────────────────────────────────────────────────
+
+  /**
+   * Saját profil ZIP backup letöltése (settings.json + routes/ + workouts/).
+   * @returns {Promise<{blob: Blob, filename: string}>}
+   */
+  async downloadBackup() {
+    const res = await fetch(`${BASE}/user/backup`, { headers: authHeaders() });
+    if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+    if (!res.ok) throw new Error(`Backup hiba: HTTP ${res.status}`);
+    const cd = res.headers.get("Content-Disposition") || "";
+    const match = cd.match(/filename="([^"]+)"/);
+    return { blob: await res.blob(), filename: match ? match[1] : "backup.zip" };
+  },
+
+  /**
+   * Saját profil visszatöltése ZIP-ből.
+   * @param {File}   file – ZIP fájl
+   * @param {string} mode – "merge" (új ID-k) | "replace" (teljes felülírás)
+   */
+  async restoreBackup(file, mode = "merge") {
+    const fd = new FormData();
+    fd.append("backup", file);
+    fd.append("mode", mode);
+    const res = await fetch(`${BASE}/user/restore`, {
+      method: "POST", headers: authHeaders(), body: fd,
+    });
+    if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
+    return res.json();
+  },
+
+
   // ── Admin végpontok ─────────────────────────────────────────────────────────
 
   admin: {
@@ -268,6 +301,48 @@ export const routesApi = {
         method: "DELETE", headers: authHeaders(),
       });
       if (!res.ok && res.status !== 204) throw new Error(`Törlési hiba: HTTP ${res.status}`);
+    },
+
+    listSamples() { return fetchJson(`${BASE}/admin/samples`); },
+    async createSample(formData) {
+      const res = await fetch(`${BASE}/admin/samples`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
+      return res.json();
+    },
+    updateSample(id, data) {
+      return fetchJson(`${BASE}/admin/samples/${encodeURIComponent(id)}`, {
+        method: "PATCH", body: JSON.stringify(data),
+      });
+    },
+    async deleteSample(id) {
+      const res = await fetch(`${BASE}/admin/samples/${encodeURIComponent(id)}`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`Törlési hiba: HTTP ${res.status}`);
+    },
+
+    async downloadUserBackup(userId) {
+      const res = await fetch(`${BASE}/admin/users/${userId}/backup`, { headers: authHeaders() });
+      if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+      if (!res.ok) throw new Error(`Backup hiba: HTTP ${res.status}`);
+      const cd = res.headers.get("Content-Disposition") || "";
+      const match = cd.match(/filename="([^"]+)"/);
+      return { blob: await res.blob(), filename: match ? match[1] : "backup.zip" };
+    },
+    async restoreUserBackup(userId, file, mode = "merge") {
+      const fd = new FormData();
+      fd.append("backup", file);
+      fd.append("mode", mode);
+      const res = await fetch(`${BASE}/admin/users/${userId}/restore`, {
+        method: "POST", headers: authHeaders(), body: fd,
+      });
+      if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
+      return res.json();
     },
   },
 };

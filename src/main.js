@@ -2589,6 +2589,64 @@ settingsOverlay?.addEventListener("click", (e) => {
   if (e.target === settingsOverlay) settingsOverlay.hidden = true;
 });
 
+// ── Backup / Restore ──────────────────────────────────────────────────────────
+(function initBackupRestore() {
+  const downloadBtn = document.querySelector("#settingsBackupDownloadBtn");
+  const fileInput   = document.querySelector("#settingsRestoreFile");
+  const restoreBtn  = document.querySelector("#settingsRestoreBtn");
+  const statusEl    = document.querySelector("#settingsRestoreStatus");
+  if (!downloadBtn || !fileInput || !restoreBtn) return;
+
+  downloadBtn.addEventListener("click", async () => {
+    downloadBtn.disabled = true;
+    const oldHtml = downloadBtn.innerHTML;
+    downloadBtn.innerHTML = `<span class="spinner-inline"></span> Backup készítése…`;
+    try {
+      const { blob, filename } = await routesApi.downloadBackup();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Backup hiba: " + err.message);
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.innerHTML = oldHtml;
+    }
+  });
+
+  fileInput.addEventListener("change", () => {
+    restoreBtn.disabled = !fileInput.files[0];
+    statusEl.textContent = "";
+  });
+
+  restoreBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const mode = document.querySelector('input[name="settingsRestoreMode"]:checked')?.value || "merge";
+    const confirmMsg = mode === "replace"
+      ? "Biztosan teljesen felülírod a jelenlegi profilodat?\n\nA jelenlegi beállításaid, útvonalaid és edzéseid TÖRLŐDNEK, és a backupbeli adatok kerülnek a helyükre.\n\nEz a művelet visszafordíthatatlan!"
+      : "Backup hozzáadása a meglévő tartalom mellé?\n\nAz útvonalak új ID-kkel kerülnek be, a beállításaid változatlanok maradnak.";
+    if (!confirm(confirmMsg)) return;
+
+    restoreBtn.disabled = true;
+    statusEl.textContent = "Visszaállítás folyamatban…";
+    try {
+      const result = await routesApi.restoreBackup(file, mode);
+      statusEl.textContent = `Kész: ${result.routes_added} útvonal, ${result.workouts_added} edzés${result.settings_restored ? ", beállítások visszaállítva" : ""}.`;
+      fileInput.value = "";
+      // Settings reload mert a szerver oldali változások a localStorage-ot is érintik
+      if (mode === "replace") {
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (err) {
+      statusEl.textContent = "Hiba: " + err.message;
+      restoreBtn.disabled = false;
+    }
+  });
+})();
+
 // ── Kezdő nézet ────────────────────────────────────────────
 function syncStartViewDisplay() {
   const sv = getSettings().startView;
