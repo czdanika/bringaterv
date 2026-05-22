@@ -4334,3 +4334,357 @@ body.is-drag-over::after {
   width: 12px;
   height: 12px;
 }
+
+/* ── Szél (Wind) szekció ──────────────────────────────────────────────────── */
+.wind-header-info {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.wind-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.wind-stat {
+  background: var(--panel-strong);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wind-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wind-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.wind-stat-value small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.wind-stat--tail  { border-left: 3px solid #22C55E; padding-left: 8px; }
+.wind-stat--cross { border-left: 3px solid #EAB308; padding-left: 8px; }
+.wind-stat--head  { border-left: 3px solid #EF4444; padding-left: 8px; }
+
+.wind-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--line);
+}
+.wind-bar-seg {
+  height: 100%;
+  min-width: 2px;
+}
+
+.wind-segments {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin-bottom: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.wind-segment-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.wind-segment-row:last-child { border-bottom: none; }
+.wind-segment-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.wind-segment-arrow {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  display: inline-block;
+}
+.wind-segment-dist { color: var(--muted); font-variant-numeric: tabular-nums; }
+.wind-segment-speed {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 56px;
+  text-align: right;
+}
+.wind-segment-time {
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 42px;
+  text-align: right;
+}
+
+.wind-settings {
+  background: var(--panel-strong);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+}
+.wind-settings > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 4px 0;
+  user-select: none;
+}
+.wind-settings[open] > summary {
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+.wind-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0 4px;
+}
+.wind-settings-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wind-settings-grid input {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.wind-settings-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.wind-settings-quick-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.wind-quick-btn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+}
+.wind-quick-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wind-run-btn {
+  width: 100%;
+  padding: 9px 14px;
+  background: var(--accent);
+  color: var(--panel);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.wind-run-btn:hover { filter: brightness(1.08); }
+.wind-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.wind-status {
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 16px;
+  padding: 2px 2px 0;
+}
+
+.wind-quick-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.wind-quick-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wind-quick-stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.wind-quick-stat-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wind-plan-controls {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wind-plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.wind-plan-field input {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.wind-plan-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.wind-plan-toggle-label {
+  color: var(--text);
+}
+
+/* Wind plan controls és quick-stats csak akkor láthatóak ha a legend expanded */
+.speed-legend:not(.is-expanded) #windQuickStats,
+.speed-legend:not(.is-expanded) .wind-plan-controls {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+  display: flex !important;
+}
+.speed-legend.is-expanded #windQuickStats,
+.speed-legend.is-expanded .wind-plan-controls {
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+
+/* Wind chart-section: magasabb mint a default chart-ek, hogy a stats + sáv + szegmenslista olvasható legyen */
+#chartWind {
+  height: auto;
+  min-height: 480px;
+  flex: 0 0 auto;
+}
+#chartWind .elevation-panel-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px;
+  flex: 1 1 auto;
+}
+/* Ha a wind chart nyitva van, magasabb panel is megengedett */
+.elevation-panel:has(#chartWind:not([hidden])) {
+  max-height: min(720px, 78vh);
+}
+
+/* Kerékpáros profil beállítások szekció */
+.cyclist-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.cyclist-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cyclist-profile-field input,
+.cyclist-profile-field select {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.cyclist-profile-grid label:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+/* Szakaszhossz waypontok között */
+.waypoint-segment-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 2px 20px;
+  font-size: 11px;
+  color: var(--muted);
+  list-style: none;
+  margin: 0;
+  line-height: 1.1;
+}
+.waypoint-segment-arrow {
+  display: inline-block;
+  width: 14px;
+  text-align: center;
+  opacity: 0.5;
+}
+.waypoint-segment-dist {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* 5 km-es térképi jelölők */
+.km-marker-outer {
+  background: transparent;
+  border: none;
+}
+.km-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5px solid var(--accent);
+  border-radius: 9px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  pointer-events: none;
+}

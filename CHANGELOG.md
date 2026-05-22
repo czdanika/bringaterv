@@ -1,5 +1,58 @@
 # Changelog
 
+## v0.84 – 2026-05-22 – Szélelemzés, kerékpáros profil, szakaszhossz, km-jelölők
+
+### Szélelemzés (Open-Meteo)
+
+- Új modul: `src/wind/windService.js`. Az Open-Meteo nyilvános API-ból (kulcs nélkül, 7 napos óránkénti előrejelzés) lekérdezzük a szél irányát és sebességét, hőmérsékletet, csapadék-valószínűséget és felhőzetet az útvonal mentén.
+- Mintavételezés: rövid útvonalon legalább 4 szegmens, hosszabb útvonalon ~10 km-enként, max. 30 párhuzamos API hívás.
+- Szegmensenkénti dekompozíció: a szelet a haladási irányhoz képest hátszél / oldalszél / szembeszél komponensre bontjuk a útszakasz iránya és a szél iránya közti szög alapján (0–60° = hátszél, 60–120° = oldalszél, 120–180° = szembeszél).
+- Az érkezési időt is figyelembe veszi: a megadott indulási idő + a tervezett átlagsebességből számolt szakasz-érkezési időpontra kérjük le a szelet (nem a startidő szelét vesszük az egész útra).
+- Független implementáció: a wind-ahead (AGPL) projekttel azonos célt szolgál, de saját algoritmussal és kóddal készült, az Open-Meteo nyilvános dokumentációja alapján.
+
+### Szélelemzés UI
+
+- Új toggle a térkép toolbaron („Szél" ikon), automatikusan aktiválódik amint a route 2 vagy több pontot tartalmaz.
+- Bal oldali sidebar új „Szélelemzés" szekciója: 3 színes legenda (hátszél / oldalszél / szembeszél), gyors statisztika sor (hátszél %, oldalszél %, szembeszél %, átlag szélerősség), datetime picker (max +7 nap), átlagsebesség mező és térképszínezés-kapcsoló a fejlécben.
+- Részletes panel a térkép alatt nyitható a chart-gombbal: stats kártyák (7 mező: hátszél/oldalszél/szembeszél %-ban és km-ben, átlag szélerősség, hőmérséklet, max csapadék-valószínűség, felhőzet), színes sávdiagram a route teljes hosszán, szegmens-táblázat (km-tartomány, szélirány-nyíl, szélerősség, érkezési idő).
+- Térképszínezés szélirány szerint, kapcsolható a sidebar fejlécében (zöld = hátszél, sárga = oldalszél, piros = szembeszél). Kölcsönösen kizáró a szintprofil térképszínezéssel.
+- Automatikus újraszámolás minden útvonal-, indulási idő- vagy átlagsebesség-változásra (400-800 ms debounce).
+
+### Kerékpáros profil (fizikai paraméterek)
+
+- Új beállítási szekció a Beállítások panelben: „Kerékpáros profil".
+- Kerékpáros tömege (kg), kerékpár tömege (kg), vezetési pozíció (Felső kormány / Bricsesz / Országúti / Aero → CdA 0.32–0.65).
+- Gördülési ellenállás (Crr) automatikusan a tervezési módból: aszfalt 0.005, gravel 0.010, MTB 0.018.
+- A profil per-user `settings.json`-ben mentődik (frontend localStorage + backend `SETTINGS_ALLOWED_KEYS` whitelist + szinkronizáció), tehát userváltáskor más profil töltődik be.
+
+### Szélhatás az időbecsléshez
+
+- Új toggle a tervezés sidebar-ban (a „Szintadat az időbecsléshez" alatt): „Szélhatás az időbecsléshez". Csak akkor jelenik meg, ha a szélelemzés lefutott.
+- Pontos fizikai modell: a kerékpáros profilból (tömeg, CdA, Crr) visszafejtjük a tervezett sebességhez tartozó referencia-teljesítményt, majd minden szegmensben Newton-iterációval megoldjuk a `P = (Crr·m·g + 0.5·ρ·CdA·(v + v_szembeszél)²) × v` egyenletet a tényleges szélkomponenssel. A szegmensek időit összeadva kapunk egy szélhatás-szorzót, amit az időbecslésre alkalmazunk.
+- Ezzel a szembeszélnél a becsült idő hosszabb lesz, hátszélnél rövidebb – a valós sebesség- és teljesítmény-összefüggésnek megfelelően.
+
+### Szakaszhossz waypontok között
+
+- A tervezési sidebar waypoint listáján minden szomszédos pont között megjelenik egy halvány „↓ 5.2 km" stb. címke a két pont közti tényleges szakaszhosszal.
+- A számítás a BRouter által visszaadott geometriából történik: minden waypointhoz a legközelebbi geometria-pontot keressük (monoton kereséssel), majd a köztük lévő kumulatív haversine-távolságot adjuk vissza. Mixed-mode routing esetén a `routeSegments` tömb adatait használjuk közvetlenül.
+
+### 5 km-es jelölők a térképen
+
+- A route mentén minden 5 kilométernél megjelenik egy kis fehér ovális marker a kilométer-számmal (5, 10, 15, …).
+- A marker pozíció interpolációval pontosan a vonalon van, a két szomszédos geometria-pont között.
+- Automatikusan frissül minden geometria-változásra.
+
+### Egyéb
+
+- Sidebar átrendezve: a GPX importálás és a Mentés gomb a tervezési szekció aljára került (a stat-kártyák, szintprofil legenda és szélelemzés alá).
+- Új modul: `src/calories.js` – MET-alapú kalóriabecslés Compendium 2011 értékekkel. Jelenleg nincs UI-on rendszerezve (4 ride összevetés Strava-val 5-145%-os szórással), de a függvény elérhető későbbi újra-aktiváláshoz.
+
+### Verzió
+
+- v0.83 → v0.84
+
+---
+
 ## v0.83 – 2026-05-22 – Admin minta-kezelő, GPX előelemzés, profil backup/restore
 
 ### Profil backup és visszaállítás
