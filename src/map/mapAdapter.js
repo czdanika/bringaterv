@@ -502,6 +502,75 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   // Grade-colored route
   const gradeRouteGroup = L.layerGroup();
 
+  // 5 km-es jelölők
+  const kmMarkerGroup = L.layerGroup().addTo(map);
+
+  function renderKmMarkers(geometry, intervalKm = 5) {
+    kmMarkerGroup.clearLayers();
+    if (!geometry || geometry.length < 2) return;
+    const intervalM = intervalKm * 1000;
+    let cumM = 0;
+    let nextMarker = intervalM;
+    for (let i = 1; i < geometry.length; i++) {
+      const a = geometry[i - 1], b = geometry[i];
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const segD = 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+      const prevCum = cumM;
+      cumM += segD;
+      while (cumM >= nextMarker) {
+        // Interpoláljuk a pontot a szegmensen belül
+        const t = (nextMarker - prevCum) / segD;
+        const lat = a.lat + t * (b.lat - a.lat);
+        const lng = a.lng + t * (b.lng - a.lng);
+        const km = nextMarker / 1000;
+        L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: "km-marker-outer",
+            html: `<div class="km-marker">${km}</div>`,
+            iconSize: [28, 18],
+            iconAnchor: [14, 9],
+          }),
+          interactive: false,
+          keyboard: false,
+        }).addTo(kmMarkerGroup);
+        nextMarker += intervalM;
+      }
+    }
+  }
+
+  function clearKmMarkers() {
+    kmMarkerGroup.clearLayers();
+  }
+
+  // Wind-colored route
+  const windRouteGroup = L.layerGroup();
+
+  function renderWindRoute(geometry, segments) {
+    windRouteGroup.clearLayers();
+    if (!geometry?.length || !segments?.length) {
+      if (map.hasLayer(windRouteGroup)) map.removeLayer(windRouteGroup);
+      return;
+    }
+    const WIND_COLORS_LOCAL = { tail: "#22C55E", cross: "#EAB308", head: "#EF4444" };
+    for (const seg of segments) {
+      const color = WIND_COLORS_LOCAL[seg.wind?.mode] ?? "#888";
+      const pts = geometry.slice(seg.fromIdx, seg.toIdx + 1).map(p => [p.lat, p.lng]);
+      if (pts.length >= 2) {
+        L.polyline(pts, {
+          color, weight: 6, opacity: 0.95, lineCap: "round", lineJoin: "round",
+        }).addTo(windRouteGroup);
+      }
+    }
+    if (!map.hasLayer(windRouteGroup)) windRouteGroup.addTo(map);
+  }
+
+  function clearWindRoute() {
+    windRouteGroup.clearLayers();
+    if (map.hasLayer(windRouteGroup)) map.removeLayer(windRouteGroup);
+  }
+
   function cadColor(cad) { return zoneColor('cad', cad); }
 
   function renderCadRoute(geometry) {
@@ -948,6 +1017,10 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       }
     },
     clearPowerRoute,
+    renderWindRoute,
+    clearWindRoute,
+    renderKmMarkers,
+    clearKmMarkers,
     renderWaypoints,
     setRouteInteractive: (enabled) => {
       // Ha false: a crosshair kurzor és a route click le van tiltva

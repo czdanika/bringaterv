@@ -13,6 +13,7 @@ const USER_SPECIFIC_KEYS = [
   "bringaterv.cadZones",
   "bringaterv.powerZones",
   "bringaterv.chartColors",
+  "bringaterv.cyclistProfile",
   "bringaterv.startView",
   "bringaterv.settings.collapsed",
   "route4meMapStyle",

@@ -523,6 +523,8 @@ SETTINGS_ALLOWED_KEYS = {
     "hrZones", "speedZones", "cadZones", "powerZones",
     # Diagram színek (mode + per-chart színek)
     "chartColors",
+    # Kerékpáros profil (szélhatás, kalória)
+    "cyclistProfile",
 }
 
 

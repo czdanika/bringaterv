@@ -254,10 +254,6 @@
               <p id="emptyState" class="empty-state" data-i18n="route.empty">
                 Kattints a térképre az első pont hozzáadásához.
               </p>
-              <button id="planImportBtn" class="plan-import-btn" type="button">
-                <i data-lucide="upload" aria-hidden="true"></i>
-                <span>GPX importálása tervezéshez</span>
-              </button>
               <input id="planGpxInput" type="file" accept=".gpx" hidden>
 
               <!-- Statisztikák -->
@@ -288,12 +284,15 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+              <!-- Szélhatás alapú időbecslés kapcsoló -->
+              <div class="plan-elev-toggle-row" id="planWindTimeRow" hidden>
+                <span class="plan-elev-toggle-label">Szélhatás az időbecsléshez</span>
+                <label class="toggle-switch" title="A szembeszél / hátszél figyelembevétele a becsült időnél (Open-Meteo szélelemzés alapján).">
+                  <input id="planWindTimeToggle" type="checkbox">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
 
-              <!-- Sidebar mentés gomb — csak ha van pont -->
-              <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
-                <i data-lucide="save" aria-hidden="true"></i>
-                <span>Mentés</span>
-              </button>
               <!-- Szintprofil / Lejtő térkép — tervezésnél -->
               <div id="gradeLegendPlan" class="speed-legend" hidden>
                 <div class="speed-legend-header">
@@ -324,6 +323,58 @@
                   <div class="speed-legend-item"><span class="speed-dot" style="background:#14532D"></span>↓ &gt;8%</div>
                 </div>
               </div>
+
+              <!-- Szélelemzés – tervezésnél -->
+              <div id="windLegendPlan" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false"
+                    title="Szélelemzés: a tervezett indulási időre és sebességre számítja ki az Open-Meteo adatai alapján, hogy az útvonal mely szakaszain milyen szél fog fújni.">
+                    <span class="speed-legend-title">Szélelemzés</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button id="windChartBtnPlan" class="grade-chart-btn" type="button" title="Részletes szélelemzés panel megnyitása – statisztika, szegmenslista, időjárás">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <path d="M9.59 4.59A2 2 0 1 1 11 8H2"/>
+                      <path d="M17.73 2.27A2.5 2.5 0 1 1 19.5 6.5H2"/>
+                      <path d="M14.31 16.41A2.5 2.5 0 1 0 16 20.5H2"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Térképszínezés szélirány szerint be/ki (zöld=hátszél, sárga=oldalszél, piros=szembeszél)">
+                    <input id="windMapTogglePlan" type="checkbox" disabled>
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items">
+                  <div class="speed-legend-item" title="0–60° eltérés a haladási iránytól – segít a haladásban"><span class="speed-dot" style="background:#22C55E"></span>Hátszél</div>
+                  <div class="speed-legend-item" title="60–120° eltérés – oldalirányból fúj, nem segít és nem hátráltat lényegesen"><span class="speed-dot" style="background:#EAB308"></span>Oldalszél</div>
+                  <div class="speed-legend-item" title="120–180° eltérés – szemben fúj, lassít"><span class="speed-dot" style="background:#EF4444"></span>Szembeszél</div>
+                </div>
+                <!-- Gyors stats (csak ha van eredmény) -->
+                <div id="windQuickStats" class="wind-quick-stats" hidden></div>
+
+                <!-- Lenyíló beállítások: datetime + sebesség -->
+                <div class="wind-plan-controls">
+                  <label class="wind-plan-field" title="Mikor indulsz? Az Open-Meteo a következő 7 napra ad órás bontású előrejelzést, ezen belül választhatsz.">
+                    <span>Indulási idő</span>
+                    <input id="windDeparturePlan" type="datetime-local">
+                  </label>
+                  <label class="wind-plan-field" title="Becsült haladási átlag km/h-ban. Ez határozza meg, hogy az útvonal egyes szakaszaira mikor érsz oda – és így a szél előrejelzést erre az órára kérjük le. Hosszabb útra érdemes a megállásokat is beleszámolni.">
+                    <span>Átlagsebesség (km/h)</span>
+                    <input id="windAvgSpeedPlan" type="number" min="3" max="60" step="0.5">
+                  </label>
+                  <div id="windStatusPlan" class="wind-status"></div>
+                </div>
+              </div>
+
+              <!-- Akciók: GPX import + Mentés (a szekció aljára kerül átláthatóság miatt) -->
+              <button id="planImportBtn" class="plan-import-btn" type="button">
+                <i data-lucide="upload" aria-hidden="true"></i>
+                <span>GPX importálása tervezéshez</span>
+              </button>
+              <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
+                <i data-lucide="save" aria-hidden="true"></i>
+                <span>Mentés</span>
+              </button>
 
             </section>
 
@@ -848,6 +899,13 @@
               <line x1="3" y1="20" x2="21" y2="20"/>
             </svg>
           </button>
+          <button id="windBtn" class="toolbar-btn" type="button" title="Szélelemzés" disabled data-toolbar-item="wind">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9.59 4.59A2 2 0 1 1 11 8H2"/>
+              <path d="M17.73 2.27A2.5 2.5 0 1 1 19.5 6.5H2"/>
+              <path d="M14.31 16.41A2.5 2.5 0 1 0 16 20.5H2"/>
+            </svg>
+          </button>
           <button id="exportButton" class="toolbar-btn" type="button" title="Mentés" data-toolbar-item="export">
             <i data-lucide="save" aria-hidden="true"></i>
           </button>
@@ -933,6 +991,28 @@
             </div>
             <div class="elevation-panel-body">
               <canvas id="powerCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Szél szekció -->
+          <div id="chartWind" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Szél</span>
+              <div class="wind-header-info" id="windHeaderInfo"></div>
+              <button id="closeChartWind" class="elevation-panel-close" type="button" title="Bezárás">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="elevation-panel-body" id="windBody">
+              <!-- Stats panel -->
+              <div id="windStats" class="wind-stats" hidden></div>
+              <!-- Vizuális szegmens sáv -->
+              <div id="windBar" class="wind-bar" hidden></div>
+              <!-- Részletes szegmens lista -->
+              <div id="windSegments" class="wind-segments" hidden></div>
+              <div id="windStatus" class="wind-status"></div>
             </div>
           </div>
 
@@ -1771,6 +1851,42 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="cyclistProfile">
+    <h4 class="settings-section-title">
+      <i data-lucide="bike" aria-hidden="true"></i>
+      Kerékpáros profil
+      <button class="hint-btn" type="button" data-hint="A szélhatás és (későbbiekben) kalóriaszámítás fizikai alapja: a kerékpáros és a kerékpár tömegéből, valamint a vezetési pozícióból (légellenállás) számoljuk a teljesítményigényt. Mivel ezekből visszafejtjük a tervezett sebességhez tartozó wattot, és így a szél hatását." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div class="cyclist-profile-grid">
+        <label class="cyclist-profile-field" title="Kerékpáros tömege (öltözékkel) kilogrammban. Beleszámolódik a gördülő és emelkedéses ellenállásba.">
+          <span>Kerékpáros tömege (kg)</span>
+          <input id="profileRiderKg" type="number" min="35" max="160" step="0.5" value="75">
+        </label>
+        <label class="cyclist-profile-field" title="Kerékpár + felszerelés (kulacsok, táska) tömege kilogrammban.">
+          <span>Kerékpár tömege (kg)</span>
+          <input id="profileBikeKg" type="number" min="5" max="30" step="0.5" value="10">
+        </label>
+        <label class="cyclist-profile-field" title="Vezetési pozíció határozza meg a légellenállási tényezőt (CdA): aero pozícióban kisebb légellenállás, felálló helyzetben nagyobb.">
+          <span>Vezetési pozíció</span>
+          <select id="profilePosition">
+            <option value="upright">Felső kormány / városi (CdA ≈ 0.65)</option>
+            <option value="touring">Bricsesz / túra (CdA ≈ 0.50)</option>
+            <option value="road" selected>Országúti (CdA ≈ 0.40)</option>
+            <option value="aero">Aero / verseny (CdA ≈ 0.32)</option>
+          </select>
+        </label>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.45">
+        A gördülési ellenállás (Crr) automatikusan a tervezési módból jön:
+        aszfalt 0.005, gravel 0.010, MTB 0.018.
+      </p>
     </div>
   </section>
 

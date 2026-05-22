@@ -66,6 +66,21 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 - Minta útvonalak webes admin kezelése: feltöltés, szerkesztés, törlés a "Minta útvonalak" panelből; GPX előelemzés (távolság, emelkedő, Overpass útburkolat-szegmensek) feltöltéskor
 - Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false` szerveren belüli LAN használatra)
 
+### Szélelemzés
+- Open-Meteo alapú szél- és időjárás-elemzés a tervezett útvonalra (7 napos órás bontású előrejelzés, kulcs nélküli ingyenes API)
+- Szegmensenkénti hátszél / oldalszél / szembeszél dekompozíció + statisztika (százalék, km, átlagok)
+- Térképszínezés szélirány szerint, kölcsönösen kizáró a szintprofil-térképszínezéssel
+- Indulási idő picker (max +7 nap), átlagsebesség alapján szegmens-érkezési időre kéri le a szelet
+- Szélhatás az időbecsléshez: kerékpáros profilból (tömeg, CdA, Crr) számolt teljesítmény + Newton-iteráció szegmensenként
+
+### Kerékpáros profil
+- Beállítások: kerékpáros és kerékpár tömege, vezetési pozíció (CdA 0.32–0.65)
+- Per-user mentés, használja a szélhatás-számítás
+
+### Waypoint szakaszhosszok és km-jelölők
+- Tervezésnél a sidebar waypoint listán megjelennek a szakaszonkénti távolságok
+- Térképen minden 5 kilométernél kis jelölő a km-számmal
+
 ### Backup és visszaállítás
 - Teljes profil (beállítások + útvonalak + edzések) ZIP archívumba menthető a Beállítások panelből
 - Visszaállítás két módban: **Hozzáadás** (új ID-kkel a meglévők mellé) vagy **Teljes felülírás** (eredeti ID-kkel, törli az aktuális adatokat)
