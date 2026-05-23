@@ -80,6 +80,7 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 ### Waypoint szakaszhosszok és km-jelölők
 - Tervezésnél a sidebar waypoint listán megjelennek a szakaszonkénti távolságok
 - Térképen minden 5 kilométernél kis jelölő a km-számmal
+- Beállításokból kapcsolható útirány-nyilak (▲) a route mentén ~1.5 km-enként – hurkos pályánál segít látni a haladási irányt
 
 ### Backup és visszaállítás
 - Teljes profil (beállítások + útvonalak + edzések) ZIP archívumba menthető a Beállítások panelből

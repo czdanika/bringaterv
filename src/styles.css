@@ -4688,3 +4688,22 @@ body.is-drag-over::after {
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   pointer-events: none;
 }
+
+/* Útirány-nyilak */
+.direction-arrow-outer {
+  background: transparent;
+  border: none;
+}
+.direction-arrow {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(34, 34, 34, 0.7);
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9), 0 0 5px rgba(255, 255, 255, 0.7);
+  line-height: 1;
+  pointer-events: none;
+}

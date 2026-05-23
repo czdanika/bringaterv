@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.85 – 2026-05-23 – Útirány-nyilak, szélelemzés finomítások
+
+### Útirány-nyilak a térképen
+
+- Új vizuális segédlet: kis háromszög nyilak (▲) a route mentén ~1.5 km-enként, pontosan a haladási irányba forgatva (helyi bearing alapján).
+- Hurkos vagy oda-vissza pályán segít azonnal eldönteni, hogy melyik irányba megyünk.
+- Tervezésnél (BRouter route) és Elemzésnél (importált GPX/FIT) is működik, mert mindkét kontextusban az `activeGeometry`-re fut.
+- Beállítások panel új szekciója: „Útirány a térképen" – toggle „Útirány-nyilak megjelenítése". A toggle állapota `localStorage`-ben mentődik (`bringaterv.directionArrows`).
+- Halvány szín (rgba 70% szürke) + fehér text-shadow, hogy bármilyen háttéren olvasható maradjon.
+
+### Szélelemzés finomítások
+
+- A szélelemzés többé **nem fut automatikusan** tervezéskor – csak akkor, ha kifejezetten aktiválod (a térkép toolbaron lévő szél-ikonnal, a sidebar wind szekciójának chart-gombjával, vagy a „térképszínezés" kapcsolóval).
+- A wind térképszínezés kapcsoló (`#windMapTogglePlan`) mostantól **kattintásra el is indítja az elemzést**, nem csak az utólagos vizualizációt vezérli. Egy lépésben aktiválható az egész feature.
+- Az auto re-run (útvonal / indulási idő / sebesség változásra) megmaradt, de **csak akkor fut**, ha a wind már egyszer manuálisan aktiválódott.
+- **Importált fájl bug fix**: korábban a GPX/FIT betöltése után a route szélirány-szerint színeződött (mert a store waypointjai bekerültek a "tervezési" kontextusba). Most a `state.importedRoute` flag alapján szűrjük: importált útvonalra a wind nem aktivál sem a sidebar legendát, sem a toolbar gombot, sem a térképszínezést.
+
+### Verzió
+
+- v0.84 → v0.85
+
+---
+
 ## v0.84 – 2026-05-22 – Szélelemzés, kerékpáros profil, szakaszhossz, km-jelölők
 
 ### Szélelemzés (Open-Meteo)
