@@ -339,8 +339,8 @@
                       <path d="M14.31 16.41A2.5 2.5 0 1 0 16 20.5H2"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Térképszínezés szélirány szerint be/ki (zöld=hátszél, sárga=oldalszél, piros=szembeszél)">
-                    <input id="windMapTogglePlan" type="checkbox" disabled>
+                  <label class="toggle-switch" title="Szélelemzés be/ki. Bekapcsoláskor lekérdezi az Open-Meteo adatait és színezi a térképet (zöld=hátszél, sárga=oldalszél, piros=szembeszél).">
+                    <input id="windMapTogglePlan" type="checkbox">
                     <span class="toggle-track"></span>
                   </label>
                 </div>
@@ -1850,6 +1850,26 @@
             <input type="color" id="chartColorPower" value="#EAB308">
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="mapDirection">
+    <h4 class="settings-section-title">
+      <i data-lucide="navigation" aria-hidden="true"></i>
+      Útirány a térképen
+      <button class="hint-btn" type="button" data-hint="Kis háromszög nyilak jelennek meg a route mentén ~1.5 km-enként, mutatva a haladás irányát. Hurkos pályánál segít eldönteni, hogy melyik irányba megyünk." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div class="plan-elev-toggle-row" style="margin:0">
+        <span class="plan-elev-toggle-label">Útirány-nyilak megjelenítése</span>
+        <label class="toggle-switch" title="Útirány-nyilak be/ki – a tervezett és betöltött útvonalakon is működik.">
+          <input id="directionArrowsToggle" type="checkbox">
+          <span class="toggle-track"></span>
+        </label>
       </div>
     </div>
   </section>

@@ -502,6 +502,52 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   // Grade-colored route
   const gradeRouteGroup = L.layerGroup();
 
+  // Útirány-nyilak
+  const directionArrowGroup = L.layerGroup().addTo(map);
+
+  function renderDirectionArrows(geometry, intervalKm = 1.5) {
+    directionArrowGroup.clearLayers();
+    if (!geometry || geometry.length < 2) return;
+    const intervalM = intervalKm * 1000;
+    let cumM = 0;
+    let nextMarker = intervalM * 0.5; // első nyíl félintervallumnál, ne a starton
+    for (let i = 1; i < geometry.length; i++) {
+      const a = geometry[i - 1], b = geometry[i];
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const segD = 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+      const prevCum = cumM;
+      cumM += segD;
+      while (cumM >= nextMarker) {
+        const t = (nextMarker - prevCum) / segD;
+        const lat = a.lat + t * (b.lat - a.lat);
+        const lng = a.lng + t * (b.lng - a.lng);
+        // Bearing a-ról b-re (haladási irány)
+        const lat1 = a.lat * Math.PI / 180, lat2 = b.lat * Math.PI / 180;
+        const dLngB = (b.lng - a.lng) * Math.PI / 180;
+        const y = Math.sin(dLngB) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLngB);
+        const bearing = ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+        L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: "direction-arrow-outer",
+            html: `<div class="direction-arrow" style="transform:rotate(${bearing}deg)">▲</div>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+          }),
+          interactive: false,
+          keyboard: false,
+        }).addTo(directionArrowGroup);
+        nextMarker += intervalM;
+      }
+    }
+  }
+
+  function clearDirectionArrows() {
+    directionArrowGroup.clearLayers();
+  }
+
   // 5 km-es jelölők
   const kmMarkerGroup = L.layerGroup().addTo(map);
 
@@ -1021,6 +1067,8 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     clearWindRoute,
     renderKmMarkers,
     clearKmMarkers,
+    renderDirectionArrows,
+    clearDirectionArrows,
     renderWaypoints,
     setRouteInteractive: (enabled) => {
       // Ha false: a crosshair kurzor és a route click le van tiltva
