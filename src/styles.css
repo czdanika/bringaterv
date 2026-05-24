@@ -4707,3 +4707,843 @@ body.is-drag-over::after {
   line-height: 1;
   pointer-events: none;
 }
+
+/* ── Library main header (stat + view toggle) ───────────────────────────── */
+.library-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+.library-main-stats {
+  font-size: 13px;
+  color: var(--text);
+}
+.library-main-stats-text {
+  font-variant-numeric: tabular-nums;
+}
+.library-main-stats-text strong {
+  font-weight: 700;
+}
+.library-main-stats-text .lib-stat-sep {
+  color: var(--muted);
+  margin: 0 8px;
+}
+.library-main-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.library-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.library-view-btn {
+  background: var(--panel);
+  border: none;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+.library-view-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.library-view-btn:hover {
+  color: var(--text);
+  background: var(--panel-strong);
+}
+.library-view-btn.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* ── Library list view (compact table) ──────────────────────────────────── */
+.library-list {
+  background: var(--panel);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.library-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.library-list-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-strong);
+  z-index: 1;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.library-list-table tbody tr {
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.library-list-table tbody tr:hover {
+  background: var(--panel-strong);
+}
+.library-list-table tbody tr.is-expanded {
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.library-list-table td {
+  padding: 8px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.library-list-table td.lib-col-name {
+  white-space: normal;
+  font-weight: 500;
+  color: var(--text);
+}
+.library-list-table td.lib-col-sport {
+  width: 32px;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1;
+}
+.library-list-table td.lib-col-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  width: 90px;
+}
+.library-list-table td.lib-col-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 70px;
+}
+.library-list-table td.lib-col-chev {
+  width: 28px;
+  text-align: center;
+  color: var(--muted);
+}
+.library-list-table td.lib-col-chev svg {
+  transition: transform 0.18s;
+}
+.library-list-table tr.is-expanded td.lib-col-chev svg {
+  transform: rotate(180deg);
+}
+
+.lib-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--panel-strong);
+  color: var(--muted);
+}
+.lib-source-badge--strava { background: #FC4C02; color: #fff; }
+.lib-source-badge--fit    { background: #2563eb; color: #fff; }
+.lib-source-badge--manual { background: var(--panel-strong); color: var(--muted); }
+.lib-source-badge--sample { background: #7c3aed; color: #fff; }
+
+/* Expand-row content */
+.library-list-expand-row td {
+  padding: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.library-list-expand-inner {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 18px;
+  padding: 14px 18px 16px;
+}
+.library-expand-preview {
+  width: 180px;
+  height: 180px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.library-expand-preview svg {
+  width: 160px;
+  height: 160px;
+  display: block;
+}
+.library-expand-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 13px;
+  align-content: start;
+}
+.library-expand-stats dt {
+  color: var(--muted);
+  font-weight: 500;
+}
+.library-expand-stats dd {
+  color: var(--text);
+  font-weight: 600;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.library-expand-desc {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.library-expand-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.library-expand-actions .library-card-btn {
+  font-size: 12px;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .library-list-table td.lib-col-time,
+  .library-list-table td.lib-col-elev,
+  .library-list-table th.lib-col-time,
+  .library-list-table th.lib-col-elev {
+    display: none;
+  }
+  .library-list-expand-inner {
+    grid-template-columns: 1fr;
+  }
+  .library-expand-preview {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    max-width: 240px;
+    margin: 0 auto;
+  }
+}
+
+/* Mobil finomítások a library-listáé */
+@media (max-width: 720px) {
+  .library-main-header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .library-main-stats {
+    font-size: 11px;
+    width: 100%;
+  }
+  .library-main-stats-text .lib-stat-sep {
+    margin: 0 5px;
+  }
+  .library-list-table {
+    font-size: 12px;
+  }
+  .library-list-table td,
+  .library-list-table thead th {
+    padding: 7px 8px;
+  }
+  .library-list-table td.lib-col-date {
+    width: 70px;
+    font-size: 11px;
+  }
+  .library-list-table td.lib-col-num {
+    width: 60px;
+  }
+  /* Akció-gombok touch-barát mérete */
+  .library-expand-actions .library-card-btn {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  /* Forrás-badge mobilra rövidebbre */
+  .lib-source-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+  }
+}
+
+/* Még kisebb képernyő (telefonra állva) */
+@media (max-width: 480px) {
+  .library-list-table th:not(.lib-col-date):not(.lib-col-name):not(.lib-col-chev),
+  .library-list-table td:not(.lib-col-date):not(.lib-col-name):not(.lib-col-chev) {
+    display: none;
+  }
+  .library-list-table td.lib-col-name {
+    font-size: 13px;
+  }
+  /* Név sorba a táv is */
+  .library-list-table td.lib-col-name::after {
+    content: attr(data-meta);
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: normal;
+    margin-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Library import dropdown */
+.library-import-wrap {
+  position: relative;
+  isolation: isolate;
+}
+.library-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.library-import-btn:hover {
+  background: var(--panel-strong);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.library-import-btn svg:first-child {
+  color: var(--accent);
+}
+.library-import-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: var(--panel, #ffffff);
+  background-color: var(--panel, #ffffff);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
+  padding: 6px;
+  z-index: 1000;
+}
+.library-import-menu[hidden] { display: none !important; }
+.library-import-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+.library-import-item:hover:not(:disabled) {
+  background: var(--panel-strong);
+  color: var(--accent);
+}
+.library-import-item svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.library-import-item:hover:not(:disabled) svg {
+  color: var(--accent);
+}
+.library-import-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Strava kapcsolat szekció a Beállítások panelben */
+.strava-conn-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.strava-conn-loading {
+  font-size: 12px;
+  color: var(--muted);
+}
+.strava-conn-error {
+  font-size: 12px;
+  color: #dc2626;
+  padding: 8px 10px;
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+  border-radius: 6px;
+}
+.strava-conn-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.strava-conn-meta strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.strava-conn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FC4C02;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s;
+  align-self: flex-start;
+}
+.strava-conn-btn:hover { filter: brightness(1.1); }
+.strava-conn-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.strava-conn-btn--ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.strava-conn-btn--ghost:hover {
+  background: var(--panel-strong);
+  border-color: #dc2626;
+  color: #dc2626;
+  filter: none;
+}
+.strava-conn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Strava import modal */
+#stravaImportOverlay {
+  /* Felülírjuk a .shortcut-overlay absolute pozícióját: fixed-del a teljes
+     viewport-ot lefedi, hogy a háttér ne süthessen át a modal mellett */
+  position: fixed !important;
+  inset: 0;
+  background: rgba(0,0,0,0.55) !important;
+  backdrop-filter: blur(4px);
+  z-index: 1500;
+}
+.strava-import-panel {
+  background: var(--panel, #ffffff);
+  background-color: var(--panel, #ffffff);
+  border-radius: 12px;
+  width: 700px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  isolation: isolate;
+}
+.strava-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.strava-import-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.strava-import-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 20px;
+}
+.strava-import-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin-bottom: 14px;
+}
+.strava-import-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.strava-import-control select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.strava-import-status {
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 16px;
+  margin-bottom: 8px;
+}
+.strava-import-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.strava-import-row {
+  display: grid;
+  grid-template-columns: 22px 80px 1fr 70px 80px 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  background: var(--panel, #ffffff);
+}
+.strava-import-row:last-child { border-bottom: none; }
+.strava-import-row:hover { background: var(--panel-strong); }
+.strava-import-row input[type="checkbox"] { cursor: pointer; }
+.strava-import-row.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.strava-import-row.is-disabled:hover { background: transparent; }
+.strava-import-date { color: var(--muted); font-variant-numeric: tabular-nums; }
+.strava-import-name { font-weight: 500; color: var(--text); }
+.strava-import-num  { text-align: right; font-variant-numeric: tabular-nums; }
+.strava-import-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-align: center;
+}
+.strava-import-badge--new      { background: #16a34a; color: #fff; }
+.strava-import-badge--imported { background: var(--panel-strong); color: var(--muted); }
+.strava-import-badge--likely   { background: #eab308; color: #fff; }
+.strava-import-badge--deleted  { background: #6b7280; color: #fff; }
+
+.strava-import-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .strava-import-row {
+    grid-template-columns: 22px 60px 1fr 95px;
+  }
+  .strava-import-row .strava-import-time,
+  .strava-import-row .strava-import-dist { display: none; }
+}
+
+/* Strava import action gomb (listázás, import) */
+.strava-list-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.strava-list-btn:hover:not(:disabled) {
+  background: var(--panel-strong);
+  border-color: #FC4C02;
+  color: #FC4C02;
+}
+.strava-list-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.strava-list-btn--primary {
+  background: #FC4C02;
+  color: #fff;
+  border-color: #FC4C02;
+}
+.strava-list-btn--primary:hover:not(:disabled) {
+  background: #e34000;
+  color: #fff;
+  filter: brightness(1.05);
+}
+
+/* Strava import progress bar */
+.strava-import-progress {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.strava-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.strava-progress-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #FC4C02;
+}
+.strava-progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.strava-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FC4C02 0%, #ff6b2a 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.strava-progress-current {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 14px;
+  font-style: italic;
+}
+.strava-progress-current.is-error { color: #dc2626; font-style: normal; font-weight: 500; }
+.strava-progress-current.is-success { color: #16a34a; font-style: normal; font-weight: 500; }
+
+/* Vizuális visszajelzés: épp importált sor */
+.strava-import-row.is-importing {
+  background: color-mix(in srgb, #FC4C02 8%, var(--panel));
+}
+.strava-import-row.is-importing .strava-import-badge {
+  background: #FC4C02 !important;
+  color: #fff !important;
+}
+.strava-import-row.is-importing::after {
+  content: "↻";
+  display: inline-block;
+  margin-left: 4px;
+  animation: strava-spin 1s linear infinite;
+}
+@keyframes strava-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Library card jobb felső sarok: Strava badge + mini route preview */
+.library-card { position: relative; }
+.library-card-corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.library-card-strava-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #FC4C02;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.library-card-preview {
+  width: 56px;
+  height: 56px;
+  background: var(--panel-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.library-card-preview:empty {
+  background: transparent;
+  border: none;
+}
+.library-card-name {
+  padding-right: 70px; /* helyet hagy a preview/badge-nek */
+}
+
+/* Import dropdown – z-index fix: a sticky table header ne takarja */
+.library-import-wrap {
+  /* Felülírjuk a korábbi isolation-t (elnyomta a dropdown z-index-et a table header alatt) */
+  isolation: auto !important;
+  z-index: 100;
+}
+.library-main-header {
+  position: relative;
+  z-index: 50;
+}
+.library-import-menu {
+  z-index: 2000 !important;
+}
+
+/* Library list view – Kcal oszlop és suffer score badge */
+.library-list-table td.lib-col-kcal {
+  width: 60px;
+  color: var(--text);
+  font-weight: 500;
+}
+.lib-suffer-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, #FC4C02 15%, transparent);
+  color: #FC4C02;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+/* Mobil: kcal oszlop is rejtve <720px */
+@media (max-width: 720px) {
+  .library-list-table td.lib-col-kcal,
+  .library-list-table th.lib-col-kcal {
+    display: none;
+  }
+}
+
+/* List view: kategória bal-sáv jelzés (terv vs edzés vs sablon)
+   FIGYELEM: position:relative-et NEM tehetünk a TR-re, mert
+   sticky thead-del kombinálva szétcsúsztatja az oszlopokat.
+   Helyette box-shadow az első TD-n. */
+.library-list-row[data-category="workout"] > td:first-child { box-shadow: inset 3px 0 0 #22C55E; }
+.library-list-row[data-category="route"]   > td:first-child { box-shadow: inset 3px 0 0 #3B82F6; }
+.library-list-row[data-category="sample"]  > td:first-child { box-shadow: inset 3px 0 0 #A855F7; }
+
+/* Sortable headerek */
+.library-list-table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s;
+}
+.library-list-table thead th.sortable:hover { color: var(--text); }
+.library-list-table thead th .sort-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 9px;
+  color: var(--accent);
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.library-list-table thead th.is-sorted .sort-indicator { opacity: 1; }
+.library-list-table thead th.is-sorted { color: var(--accent); }
+
+/* Effort column */
+.library-list-table td.lib-col-effort {
+  width: 70px;
+  font-variant-numeric: tabular-nums;
+}
+.lib-effort-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  background: color-mix(in srgb, #FC4C02 15%, transparent);
+  color: #FC4C02;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .library-list-table td.lib-col-effort,
+  .library-list-table th.lib-col-effort {
+    display: none;
+  }
+}
+
+/* Kategória-pill a stat-sorban (list-view legenda) */
+.lib-cat-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+  border-left: 3px solid;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.lib-cat-pill--workout { color: #22C55E; border-left-color: #22C55E; }
+.lib-cat-pill--route   { color: #3B82F6; border-left-color: #3B82F6; }
+.lib-cat-pill--sample  { color: #A855F7; border-left-color: #A855F7; }
+
+/* List view fejléc-igazítás: numerikus oszlopok th-i jobbra */
+.library-list-table thead th.lib-col-time,
+.library-list-table thead th.lib-col-num,
+.library-list-table thead th.lib-col-elev,
+.library-list-table thead th.lib-col-kcal,
+.library-list-table thead th.lib-col-effort {
+  text-align: right;
+}
+
+/* Name oszlop ne tudjon végtelenül szétnyúlni */
+.library-list-table td.lib-col-name {
+  max-width: 360px;
+}
+
+/* "Saját" forrás-badge színezése kategória szerint (egyezzen a bal-sávval) */
+.library-list-row[data-category="workout"] .lib-source-badge--manual {
+  background: color-mix(in srgb, #22C55E 18%, transparent);
+  color: #16a34a;
+}
+.library-list-row[data-category="route"] .lib-source-badge--manual {
+  background: color-mix(in srgb, #3B82F6 18%, transparent);
+  color: #2563eb;
+}
+.library-list-row[data-category="sample"] .lib-source-badge--manual,
+.library-list-row[data-category="sample"] .lib-source-badge--sample {
+  background: color-mix(in srgb, #A855F7 18%, transparent);
+  color: #9333ea;
+}

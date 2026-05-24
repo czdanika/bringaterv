@@ -344,5 +344,54 @@ export const routesApi = {
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
       return res.json();
     },
+
+    // Strava app credentials kezelése
+    getStravaConfig() {
+      return fetchJson(`${BASE}/admin/strava/config`);
+    },
+    saveStravaConfig(clientId, clientSecret) {
+      return fetchJson(`${BASE}/admin/strava/config`, {
+        method: "PUT",
+        body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
+      });
+    },
+    async deleteStravaConfig() {
+      const res = await fetch(`${BASE}/admin/strava/config`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`Törlési hiba: HTTP ${res.status}`);
+    },
+  },
+
+  // Strava (user-szintű)
+  strava: {
+    status()      { return fetchJson(`${BASE}/strava/status`); },
+    connect()     { return fetchJson(`${BASE}/strava/connect`); },
+    async disconnect() {
+      const res = await fetch(`${BASE}/strava/disconnect`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      return true;
+    },
+    activities({ per_page = 30, page = 1, after = null, before = null } = {}) {
+      const params = new URLSearchParams({ per_page, page });
+      if (after)  params.set("after", after);
+      if (before) params.set("before", before);
+      return fetchJson(`${BASE}/strava/activities?${params}`);
+    },
+    importActivity(id) {
+      return fetchJson(`${BASE}/strava/import/${id}`, { method: "POST" });
+    },
+    refreshActivity(routeId) {
+      return fetchJson(`${BASE}/strava/refresh/${encodeURIComponent(routeId)}`, { method: "POST" });
+    },
+    async removeFromDenyList(id) {
+      const res = await fetch(`${BASE}/strava/deny-list/${id}`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
   },
 };
