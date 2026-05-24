@@ -698,6 +698,15 @@
                 </div>
               </div>
               <div class="library-filter-group">
+                <span class="library-filter-label">Forrás</span>
+                <div class="library-type-chips">
+                  <button class="lib-type-chip is-active" data-lib-source="all" type="button">Mind</button>
+                  <button class="lib-type-chip" data-lib-source="manual" type="button">Saját</button>
+                  <button class="lib-type-chip" data-lib-source="strava" type="button" title="Strava-ról szinkronizált">Strava</button>
+                  <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
+                </div>
+              </div>
+              <div class="library-filter-group">
                 <div class="library-filter-label-row">
                   <span class="library-filter-label">Távolság</span>
                   <span id="libraryDistLabel" class="library-range-label">Bármely</span>
@@ -775,9 +784,46 @@
 
       </aside>
 
-      <!-- LIBRARY MAIN (card grid, replaces map in library mode) -->
+      <!-- LIBRARY MAIN (card grid / list view, replaces map in library mode) -->
       <div id="libraryMain" class="library-main" hidden>
+        <!-- Header: stat összegzés + nézet-váltó -->
+        <div id="libraryMainHeader" class="library-main-header" hidden>
+          <div class="library-main-stats" id="libraryMainStats">
+            <span class="library-main-stats-text"></span>
+          </div>
+          <div class="library-main-actions">
+            <div class="library-import-wrap">
+              <button id="libraryImportBtn" class="library-import-btn" type="button" title="Új útvonal vagy edzés importálása">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Import
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="libraryImportMenu" class="library-import-menu" hidden>
+                <button class="library-import-item" data-import-src="file" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span>GPX / FIT fájlból</span>
+                </button>
+                <button class="library-import-item" id="libraryImportStravaItem" data-import-src="strava" type="button" disabled title="Strava kapcsolat szükséges – Beállítások panelben kapcsolódhatsz Stravához">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#FC4C02;color:#fff;border-radius:2px;font-size:9px;font-weight:800">S</span>
+                  <span>Strava-ból</span>
+                  <span class="lib-import-strava-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
+                </button>
+              </div>
+            </div>
+            <div class="library-view-toggle" role="group" aria-label="Nézet váltó">
+              <button class="library-view-btn" data-view="cards" type="button" title="Kártyás nézet" aria-label="Kártyás nézet">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="library-view-btn" data-view="list" type="button" title="Lista nézet" aria-label="Lista nézet">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <input id="libraryImportFileInput" type="file" accept=".gpx,.fit,application/gpx+xml" hidden>
+        </div>
+
         <div id="libraryGrid" class="library-grid"></div>
+        <div id="libraryList" class="library-list" hidden></div>
         <div id="libraryGridEmpty" class="library-grid-empty" hidden>
           <i data-lucide="inbox" aria-hidden="true"></i>
           <p>Nincs találat a szűrési feltételeknek megfelelően.</p>
@@ -1252,6 +1298,70 @@
         </div>
       </div>
     </div>
+
+  <!-- Strava import modal -->
+  <div id="stravaImportOverlay" class="shortcut-overlay" hidden>
+    <div class="strava-import-panel">
+      <div class="strava-import-header">
+        <h3>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#FC4C02;color:#fff;border-radius:3px;font-size:12px;font-weight:800">S</span>
+          Strava import
+        </h3>
+        <button id="stravaImportClose" class="shortcut-close" type="button" aria-label="Bezárás">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="strava-import-body">
+        <div class="strava-import-controls">
+          <label class="strava-import-control">
+            <span>Időszak</span>
+            <select id="stravaImportRange">
+              <option value="30">Utolsó 30 nap</option>
+              <option value="90">Utolsó 90 nap</option>
+              <option value="365">Utolsó 1 év</option>
+              <option value="0">Minden activity</option>
+            </select>
+          </label>
+          <label class="strava-import-control">
+            <span>Max activity</span>
+            <select id="stravaImportLimit">
+              <option value="30" selected>30</option>
+              <option value="60">60</option>
+              <option value="100">100</option>
+              <option value="200">200 (lassú)</option>
+            </select>
+          </label>
+          <button id="stravaImportListBtn" class="strava-list-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Listázás
+          </button>
+        </div>
+        <div id="stravaImportStatus" class="strava-import-status"></div>
+        <!-- Progress bar import közben -->
+        <div id="stravaImportProgress" class="strava-import-progress" hidden>
+          <div class="strava-progress-header">
+            <span id="stravaProgressLabel">Importálás folyamatban…</span>
+            <span id="stravaProgressCount" class="strava-progress-count">0 / 0</span>
+          </div>
+          <div class="strava-progress-track">
+            <div id="stravaProgressBar" class="strava-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="stravaProgressCurrent" class="strava-progress-current"></div>
+        </div>
+        <div id="stravaImportList" class="strava-import-list"></div>
+      </div>
+      <div class="strava-import-footer" id="stravaImportFooter" hidden>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="stravaImportSelectAll"> Mindent ami új
+        </label>
+        <span id="stravaImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
+        <button id="stravaImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import kiválasztottakat
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toolbar kereső popup -->
   <div id="toolbarSearchPopup" class="toolbar-search-popup" hidden>
@@ -1907,6 +2017,22 @@
         A gördülési ellenállás (Crr) automatikusan a tervezési módból jön:
         aszfalt 0.005, gravel 0.010, MTB 0.018.
       </p>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="strava">
+    <h4 class="settings-section-title">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#FC4C02;color:#fff;border-radius:3px;font-size:11px;font-weight:800">S</span>
+      Strava kapcsolat
+      <button class="hint-btn" type="button" data-hint="Kapcsolódj a Strava-fiókoddal, hogy importálhasd az edzéseidet a könyvtárba. A bringaterv csak olvasási engedélyt kér (activity:read_all), nem ír semmit a Strava-ra." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div id="stravaConnectionState" class="strava-conn-state">
+        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
     </div>
   </section>
 

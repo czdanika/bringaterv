@@ -36,12 +36,17 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import sqlite3
+import time
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from urllib.parse import urlencode
+
+import requests
 
 from flask import Flask, abort, g, jsonify, request, send_file
 from flask_cors import CORS
@@ -53,6 +58,8 @@ SAMPLES_DIR         = os.environ.get("SAMPLES_DIR",         "/samples")
 CUSTOM_SAMPLES_DIR  = os.environ.get("CUSTOM_SAMPLES_DIR",  "/data/samples")
 DB_PATH             = os.environ.get("DB_PATH",             "/data/bringaterv.db")
 MULTI_DATA_DIR      = os.environ.get("MULTI_DATA_DIR",      "/data/users")
+STRAVA_APP_CONFIG   = os.environ.get("STRAVA_APP_CONFIG",   "/data/strava_app_config.json")
+STRAVA_REDIRECT_URI = os.environ.get("STRAVA_REDIRECT_URI", "")  # ha üres, request-ből derivelődik
 
 ADMIN_EMAIL     = os.environ.get("ADMIN_EMAIL",    "admin@bringaterv.local")
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "password123")
@@ -1048,6 +1055,12 @@ def delete_route(route_id: str):
     fit_path      = os.path.join(user_dir, f"{route_id}.fit")
     if not os.path.isfile(gpx_path):
         abort(404, description=f"Útvonal nem található: {route_id}")
+    # Strava-os importnál → deny-listbe (hogy ne kerüljön re-importra a következő sync-en)
+    existing = _load_index(idx)
+    deleted_entry = next((r for r in existing if r.get("id") == route_id), None)
+    if deleted_entry and deleted_entry.get("strava_id"):
+        try: _add_strava_deny(g.user["id"], deleted_entry["strava_id"])
+        except Exception as exc: log.warning("Strava deny-list update hiba: %s", exc)
     try:
         os.remove(gpx_path)
         if os.path.isfile(fit_path):
@@ -1055,7 +1068,7 @@ def delete_route(route_id: str):
     except OSError as exc:
         log.error("Törlési hiba: %s", exc)
         abort(500)
-    _save_index([r for r in _load_index(idx) if r.get("id") != route_id], idx)
+    _save_index([r for r in existing if r.get("id") != route_id], idx)
     with _db() as conn:
         conn.execute("DELETE FROM routes WHERE id = ? AND user_id = ?",
                      (route_id, g.user["id"]))
@@ -1419,6 +1432,725 @@ def admin_user_restore(user_id: str):
     data = request.files["backup"].read()
     stats = _restore_user_from_zip(user_id, data, mode)
     return jsonify({"ok": True, "mode": mode, **stats})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STRAVA INTEGRATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+STRAVA_OAUTH_URL    = "https://www.strava.com/oauth/authorize"
+STRAVA_TOKEN_URL    = "https://www.strava.com/oauth/token"
+STRAVA_DEAUTH_URL   = "https://www.strava.com/oauth/deauthorize"
+STRAVA_API_BASE     = "https://www.strava.com/api/v3"
+STRAVA_DEFAULT_SCOPE = "read,activity:read_all"
+
+
+# ── App credentials kezelés (env felülbírálja az admin UI-fájlt) ─────────────
+
+def _load_strava_app_config() -> dict:
+    """Visszaadja az aktuális Strava app credentialokat. Forrás-jelzéssel."""
+    cid = os.environ.get("STRAVA_CLIENT_ID")
+    sec = os.environ.get("STRAVA_CLIENT_SECRET")
+    if cid and sec:
+        return {"client_id": cid, "client_secret": sec, "source": "env"}
+    # Admin UI-ből mentve?
+    if os.path.isfile(STRAVA_APP_CONFIG):
+        try:
+            with open(STRAVA_APP_CONFIG, encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("client_id") and data.get("client_secret"):
+                return {**data, "source": "admin_ui"}
+        except (OSError, json.JSONDecodeError) as exc:
+            log.warning("Strava app config olvasási hiba: %s", exc)
+    return {"client_id": None, "client_secret": None, "source": "none"}
+
+
+def _save_strava_app_config(client_id: str, client_secret: str) -> None:
+    """Admin UI-ből beállított credentials mentése (0600 perm)."""
+    os.makedirs(os.path.dirname(STRAVA_APP_CONFIG), exist_ok=True)
+    tmp = STRAVA_APP_CONFIG + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"client_id": client_id, "client_secret": client_secret}, f)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, STRAVA_APP_CONFIG)
+
+
+def _delete_strava_app_config() -> None:
+    if os.path.isfile(STRAVA_APP_CONFIG):
+        os.remove(STRAVA_APP_CONFIG)
+
+
+def _resolve_redirect_uri() -> str:
+    """Visszaadja a callback URL-t. Sorrend: env, vagy request-alapú."""
+    if STRAVA_REDIRECT_URI:
+        return STRAVA_REDIRECT_URI
+    # Request-alapú: scheme + host
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+    host  = request.headers.get("X-Forwarded-Host", request.host)
+    return f"{proto}://{host}/api/strava/callback"
+
+
+# ── Per-user token kezelés (/data/users/<uid>/strava.json) ────────────────────
+
+def _user_strava_path(user_id: str) -> str:
+    return os.path.join(_user_dir(user_id), "strava.json")
+
+
+def _load_user_strava(user_id: str) -> dict:
+    path = _user_strava_path(user_id)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_user_strava(user_id: str, data: dict) -> None:
+    os.makedirs(_user_dir(user_id), exist_ok=True)
+    path = _user_strava_path(user_id)
+    tmp  = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+
+
+def _delete_user_strava(user_id: str) -> None:
+    path = _user_strava_path(user_id)
+    if os.path.isfile(path):
+        os.remove(path)
+
+
+# ── OAuth state (CSRF védelem) ────────────────────────────────────────────────
+# Egyszerű in-memory state-tár: state → (user_id, expiry_ts)
+_strava_states = {}
+_STRAVA_STATE_TTL = 10 * 60  # 10 perc
+
+
+def _new_strava_state(user_id: str) -> str:
+    state = secrets.token_urlsafe(24)
+    _strava_states[state] = (user_id, time.time() + _STRAVA_STATE_TTL)
+    # Tisztítás
+    _cleanup_strava_states()
+    return state
+
+
+def _consume_strava_state(state: str) -> str | None:
+    rec = _strava_states.pop(state, None)
+    if not rec:
+        return None
+    user_id, exp = rec
+    if time.time() > exp:
+        return None
+    return user_id
+
+
+def _cleanup_strava_states():
+    now = time.time()
+    expired = [k for k, (_, e) in _strava_states.items() if e < now]
+    for k in expired:
+        _strava_states.pop(k, None)
+
+
+# ── Token refresh ─────────────────────────────────────────────────────────────
+
+def _ensure_strava_token(user_id: str) -> str | None:
+    """Garantáltan érvényes access_token-t ad vissza, refresh-eli ha lejárt.
+    None ha nincs csatlakoztatva vagy refresh sikertelen."""
+    data = _load_user_strava(user_id)
+    if not data.get("access_token") or not data.get("refresh_token"):
+        return None
+    # 60 sec buffer
+    if data.get("expires_at", 0) > time.time() + 60:
+        return data["access_token"]
+    # Refresh
+    cfg = _load_strava_app_config()
+    if not cfg["client_id"]:
+        log.warning("Strava app credentials hiányoznak token refresh-hez")
+        return None
+    try:
+        resp = requests.post(STRAVA_TOKEN_URL, data={
+            "client_id":     cfg["client_id"],
+            "client_secret": cfg["client_secret"],
+            "grant_type":    "refresh_token",
+            "refresh_token": data["refresh_token"],
+        }, timeout=15)
+        if resp.status_code != 200:
+            log.warning("Strava token refresh hiba (%s): %s", resp.status_code, resp.text[:200])
+            return None
+        td = resp.json()
+        data.update({
+            "access_token":  td["access_token"],
+            "refresh_token": td["refresh_token"],
+            "expires_at":    td["expires_at"],
+        })
+        _save_user_strava(user_id, data)
+        return data["access_token"]
+    except requests.RequestException as exc:
+        log.warning("Strava token refresh exception: %s", exc)
+        return None
+
+
+# ── User-facing endpoint-ok ───────────────────────────────────────────────────
+
+@app.route("/api/strava/status", methods=["GET"])
+@require_auth
+def strava_status():
+    """Csatlakozott-e a user, ha igen mikor és athleta-név is."""
+    data = _load_user_strava(g.user["id"])
+    cfg  = _load_strava_app_config()
+    return jsonify({
+        "connected":     bool(data.get("access_token")),
+        "athlete_id":    data.get("athlete_id"),
+        "athlete_name":  data.get("athlete_name"),
+        "connected_at":  data.get("connected_at"),
+        "scope":         data.get("scope"),
+        "app_configured": cfg["client_id"] is not None,
+    })
+
+
+@app.route("/api/strava/connect", methods=["GET"])
+@require_auth
+def strava_connect():
+    """Visszaadja a Strava OAuth URL-t, ahova a usert irányítjuk."""
+    cfg = _load_strava_app_config()
+    if not cfg["client_id"]:
+        abort(503, description="Strava integráció nincs konfigurálva. Az admin a Beállítások panelben tudja beállítani.")
+    state = _new_strava_state(g.user["id"])
+    params = {
+        "client_id":     cfg["client_id"],
+        "redirect_uri":  _resolve_redirect_uri(),
+        "response_type": "code",
+        "scope":         STRAVA_DEFAULT_SCOPE,
+        "state":         state,
+        "approval_prompt": "auto",
+    }
+    return jsonify({"auth_url": f"{STRAVA_OAUTH_URL}?{urlencode(params)}"})
+
+
+@app.route("/api/strava/callback", methods=["GET"])
+def strava_callback():
+    """Stravas redirect: code → access_token csere, mentés user mappájába.
+    NEM @require_auth – maga a redirect publikus, a state azonosít.
+    HTML választ ad vissza, ami az ablakot bezárja és értesíti a parent-et."""
+    code  = request.args.get("code")
+    state = request.args.get("state")
+    err   = request.args.get("error")
+    if err:
+        return _strava_oauth_close_window(error=f"Strava elutasította: {err}")
+    if not code or not state:
+        return _strava_oauth_close_window(error="Hiányos visszahívás (code/state).")
+    user_id = _consume_strava_state(state)
+    if not user_id:
+        return _strava_oauth_close_window(error="Érvénytelen vagy lejárt state.")
+    cfg = _load_strava_app_config()
+    if not cfg["client_id"]:
+        return _strava_oauth_close_window(error="Strava app nincs konfigurálva.")
+    # Token csere
+    try:
+        resp = requests.post(STRAVA_TOKEN_URL, data={
+            "client_id":     cfg["client_id"],
+            "client_secret": cfg["client_secret"],
+            "code":          code,
+            "grant_type":    "authorization_code",
+        }, timeout=15)
+        if resp.status_code != 200:
+            return _strava_oauth_close_window(error=f"Token csere hiba ({resp.status_code}).")
+        td = resp.json()
+    except requests.RequestException as exc:
+        return _strava_oauth_close_window(error=f"Hálózati hiba: {exc}")
+    # Athleta adatok
+    athlete = td.get("athlete", {}) or {}
+    athlete_name = (athlete.get("firstname", "") + " " + athlete.get("lastname", "")).strip() \
+                or athlete.get("username") or f"#{athlete.get('id')}"
+    _save_user_strava(user_id, {
+        "athlete_id":    athlete.get("id"),
+        "athlete_name":  athlete_name,
+        "access_token":  td["access_token"],
+        "refresh_token": td["refresh_token"],
+        "expires_at":    td["expires_at"],
+        "scope":         td.get("scope") or STRAVA_DEFAULT_SCOPE,
+        "connected_at":  _now_dt(),
+    })
+    return _strava_oauth_close_window(success=True, athlete_name=athlete_name)
+
+
+def _strava_oauth_close_window(success: bool = False, athlete_name: str = "", error: str = "") -> str:
+    """HTML választ ad vissza, ami az popup ablakot bezárja és a parent ablakot
+    értesíti a window.postMessage-en keresztül."""
+    payload = {"type": "strava-oauth", "success": success, "athlete_name": athlete_name, "error": error}
+    msg = "Sikeres kapcsolódás!" if success else f"Hiba: {error}"
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>Strava kapcsolódás</title>
+<style>
+body {{ font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f5f5;color:#222 }}
+.box {{ background:#fff;padding:24px 32px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);text-align:center;max-width:400px }}
+.ok {{ color:#16a34a }} .err {{ color:#dc2626 }}
+</style></head><body>
+<div class="box">
+  <h2 class="{'ok' if success else 'err'}">{msg}</h2>
+  <p>Ez az ablak automatikusan bezáródik…</p>
+</div>
+<script>
+try {{
+  if (window.opener && !window.opener.closed) {{
+    window.opener.postMessage({json.dumps(payload)}, "*");
+  }}
+}} catch(e) {{}}
+setTimeout(() => window.close(), 1500);
+</script>
+</body></html>"""
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/api/strava/activities", methods=["GET"])
+@require_auth
+def strava_activities():
+    """Visszaadja a user Strava activity-it (utolsó X). Duplicate-check is fut."""
+    token = _ensure_strava_token(g.user["id"])
+    if not token:
+        abort(401, description="Nincs csatlakozva Stravához vagy a token érvénytelen.")
+    per_page = max(1, min(100, int(request.args.get("per_page", 30))))
+    page     = max(1, int(request.args.get("page", 1)))
+    after    = request.args.get("after")   # UNIX timestamp – activities AFTER this date
+    before   = request.args.get("before")  # UNIX timestamp – activities BEFORE this date
+    params = {"per_page": per_page, "page": page}
+    if after:  params["after"]  = after
+    if before: params["before"] = before
+    try:
+        resp = requests.get(f"{STRAVA_API_BASE}/athlete/activities",
+                            params=params,
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=20)
+        if resp.status_code == 401:
+            # Token revoke-olódott vagy az app credentials hibásak. Töröljük a tokent
+            # hogy a frontend újra-csatlakozást ajánljon.
+            _delete_user_strava(g.user["id"])
+            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
+        if resp.status_code == 429:
+            abort(429, description="Strava rate limit elérve. Próbáld 15 perc múlva.")
+        if resp.status_code != 200:
+            abort(502, description=f"Strava API hiba ({resp.status_code}).")
+        data = resp.json()
+    except requests.RequestException as exc:
+        abort(502, description=f"Strava lekérdezés sikertelen: {exc}")
+
+    # Lokális library + deny-list a duplicate-checkhez
+    routes_dir = _user_routes_dir(g.user["id"])
+    idx        = _load_index(os.path.join(routes_dir, "index.json"))
+    by_strava  = {r.get("strava_id"): r for r in idx if r.get("strava_id")}
+    deny_list  = _load_strava_deny_list(g.user["id"])
+
+    items = []
+    for a in data:
+        sid = a.get("id")
+        dup_local   = by_strava.get(sid)
+        dup_deleted = sid in deny_list
+        # Esetleges manuális-import egyezés (start_time + distance heurisztika)
+        manual_match = None
+        if not dup_local and not dup_deleted:
+            manual_match = _find_manual_match(idx, a)
+        items.append({
+            "id":           sid,
+            "name":         a.get("name") or "",
+            "type":         a.get("sport_type") or a.get("type"),
+            "start_date":   a.get("start_date"),
+            "distance_m":   a.get("distance"),
+            "moving_time_s": a.get("moving_time"),
+            "elapsed_time_s": a.get("elapsed_time"),
+            "total_elevation_gain": a.get("total_elevation_gain"),
+            "trainer":      a.get("trainer"),
+            "has_heartrate": a.get("has_heartrate"),
+            "duplicate_status":
+                "already_imported" if dup_local else
+                ("previously_deleted" if dup_deleted else
+                 ("likely_duplicate" if manual_match else "new")),
+            "duplicate_local_id": dup_local["id"] if dup_local else (manual_match["id"] if manual_match else None),
+        })
+    return jsonify({"activities": items, "page": page, "per_page": per_page})
+
+
+def _find_manual_match(idx: list, strava_activity: dict) -> dict | None:
+    """Heurisztika: kb. ugyanaz a manuális import létezik-e?
+    start_time ±60 sec ÉS distance ±2%."""
+    s_start = strava_activity.get("start_date")
+    s_dist  = strava_activity.get("distance")
+    if not s_start or not s_dist:
+        return None
+    try:
+        s_ts = datetime.fromisoformat(s_start.replace("Z", "+00:00")).timestamp()
+    except (ValueError, AttributeError):
+        return None
+    for r in idx:
+        # Csak nem-Strava-os elemekkel hasonlítunk
+        if r.get("strava_id"):
+            continue
+        r_start = r.get("start_time") or r.get("date")
+        if not r_start:
+            continue
+        try:
+            r_ts = datetime.fromisoformat(r_start.replace("Z", "+00:00")).timestamp() if "T" in r_start \
+                   else datetime.fromisoformat(r_start).timestamp()
+        except (ValueError, AttributeError):
+            continue
+        if abs(r_ts - s_ts) > 60:
+            continue
+        r_dist_km = r.get("distance")
+        if r_dist_km is None:
+            continue
+        r_dist_m = r_dist_km * 1000
+        if abs(r_dist_m - s_dist) / s_dist > 0.02:
+            continue
+        return r
+    return None
+
+
+@app.route("/api/strava/import/<int:activity_id>", methods=["POST"])
+@require_auth
+def strava_import(activity_id: int):
+    """Egy Strava activity-t letölt + GPX-szé konvertál + ment a könyvtárba."""
+    token = _ensure_strava_token(g.user["id"])
+    if not token:
+        abort(401, description="Nincs csatlakozva Stravához.")
+    user_id    = g.user["id"]
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    idx        = _load_index(idx_path)
+
+    # Duplikálás check – ha már megvan, skip
+    if any(r.get("strava_id") == activity_id for r in idx):
+        return jsonify({"ok": True, "skipped": True, "reason": "already_imported"})
+
+    # Activity meta
+    try:
+        ar = requests.get(f"{STRAVA_API_BASE}/activities/{activity_id}",
+                          headers={"Authorization": f"Bearer {token}"},
+                          params={"include_all_efforts": "false"},
+                          timeout=20)
+        if ar.status_code == 401:
+            _delete_user_strava(user_id)
+            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
+        if ar.status_code != 200:
+            abort(502, description=f"Strava activity hiba ({ar.status_code}).")
+        activity = ar.json()
+    except requests.RequestException as exc:
+        abort(502, description=f"Strava activity lekérdezés sikertelen: {exc}")
+
+    # Streams (latlng, altitude, time, heartrate, cadence, watts)
+    try:
+        sr = requests.get(f"{STRAVA_API_BASE}/activities/{activity_id}/streams",
+                          headers={"Authorization": f"Bearer {token}"},
+                          params={"keys": "latlng,altitude,time,heartrate,cadence,watts", "key_by_type": "true"},
+                          timeout=30)
+        if sr.status_code == 401:
+            _delete_user_strava(user_id)
+            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra.")
+        if sr.status_code != 200:
+            abort(502, description=f"Strava streams hiba ({sr.status_code}). Lehet, hogy nincs GPS adat?")
+        streams = sr.json()
+    except requests.RequestException as exc:
+        abort(502, description=f"Strava streams lekérdezés sikertelen: {exc}")
+
+    latlng = streams.get("latlng", {}).get("data", [])
+    if not latlng:
+        return jsonify({"ok": False, "error": "Nincs GPS adat ehhez az activity-hez (talán beltéri vagy trainer)."}), 422
+
+    altitude = streams.get("altitude", {}).get("data", []) or [None] * len(latlng)
+    times    = streams.get("time", {}).get("data", []) or [None] * len(latlng)
+    hr       = streams.get("heartrate", {}).get("data", []) or [None] * len(latlng)
+    cad      = streams.get("cadence", {}).get("data", []) or [None] * len(latlng)
+    pow_     = streams.get("watts", {}).get("data", []) or [None] * len(latlng)
+
+    # Start timestamp ISO 8601
+    try:
+        start_dt = datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00"))
+    except (KeyError, ValueError, AttributeError):
+        start_dt = datetime.now(timezone.utc)
+
+    # GPX szöveg építés
+    gpx = _build_gpx_from_streams(
+        name=activity.get("name") or f"Strava {activity_id}",
+        sport_type=activity.get("sport_type") or activity.get("type") or "cycling",
+        start_dt=start_dt,
+        latlng=latlng, altitude=altitude, times=times, hr=hr, cad=cad, power=pow_,
+    )
+
+    # Mentés
+    new_id = uuid.uuid4().hex[:8]
+    gpx_path = os.path.join(routes_dir, f"{new_id}.gpx")
+    with open(gpx_path, "w", encoding="utf-8") as f:
+        f.write(gpx)
+
+    # Index bejegyzés
+    dist_m  = activity.get("distance") or 0
+    ele_m   = activity.get("total_elevation_gain") or 0
+    mov_s   = activity.get("moving_time") or 0
+    sport_t = (activity.get("sport_type") or activity.get("type") or "").lower()
+    sport_subtype = "cycling" if "ride" in sport_t or "cycl" in sport_t else \
+                    "running" if "run" in sport_t else \
+                    "walking" if "walk" in sport_t else \
+                    "hiking"  if "hik" in sport_t else "cycling"
+
+    new_entry = {
+        "id":           new_id,
+        "name":         activity.get("name") or f"Strava {activity_id}",
+        "type":         "workout",         # KATEGÓRIA: edzés (nem útvonal) – default Elemzés tab
+        "sport_type":   sport_subtype,     # SPORT: cycling/running/walking/hiking
+        "distance":     round(dist_m / 1000, 2),
+        "duration":     round(mov_s / 60),
+        "elevation":    round(ele_m),
+        "date":         start_dt.strftime("%Y-%m-%d"),
+        "start_time":   start_dt.isoformat(),
+        "strava_id":    activity_id,
+        "source":       "strava",
+        "imported_at":  _now_dt(),
+        "description":  activity.get("description") or "",
+        # Strava-specifikus enrichment mezők (mind opcionális, None ha nincs)
+        "calories":              activity.get("calories"),
+        "suffer_score":          activity.get("suffer_score"),
+        "weighted_avg_watts":    activity.get("weighted_average_watts"),
+        "device_watts":          activity.get("device_watts"),
+        "avg_watts":             activity.get("average_watts"),
+        "max_watts":             activity.get("max_watts"),
+        "kilojoules":            activity.get("kilojoules"),
+        "avg_heartrate":         activity.get("average_heartrate"),
+        "max_heartrate":         activity.get("max_heartrate"),
+        "avg_cadence":           activity.get("average_cadence"),
+        "avg_speed_kmh":         round(activity["average_speed"] * 3.6, 2) if activity.get("average_speed") else None,
+        "max_speed_kmh":         round(activity["max_speed"] * 3.6, 2) if activity.get("max_speed") else None,
+        "location_city":         activity.get("location_city"),
+        "location_country":      activity.get("location_country"),
+        "gear_id":               activity.get("gear_id"),
+        "achievement_count":     activity.get("achievement_count"),
+        "pr_count":              activity.get("pr_count"),
+    }
+    idx.append(new_entry)
+    _save_index(idx, idx_path)
+
+    return jsonify({"ok": True, "skipped": False, "entry": new_entry})
+
+
+def _build_gpx_from_streams(name, sport_type, start_dt, latlng, altitude, times, hr, cad, power) -> str:
+    """GPX XML építése Strava streams-ből."""
+    import xml.sax.saxutils as sx
+    out = []
+    out.append('<?xml version="1.0" encoding="UTF-8"?>')
+    out.append('<gpx version="1.1" creator="Bringaterv (Strava import)"')
+    out.append('  xmlns="http://www.topografix.com/GPX/1/1"')
+    out.append('  xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"')
+    out.append('  xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">')
+    out.append(f'  <metadata><name>{sx.escape(name)}</name><time>{start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}</time></metadata>')
+    out.append(f'  <trk><name>{sx.escape(name)}</name><type>{sx.escape(sport_type)}</type><trkseg>')
+    for i, (lat, lng) in enumerate(latlng):
+        ele = altitude[i] if i < len(altitude) and altitude[i] is not None else None
+        t_off = times[i] if i < len(times) and times[i] is not None else None
+        out.append(f'    <trkpt lat="{lat}" lon="{lng}">')
+        if ele is not None:
+            out.append(f'      <ele>{ele}</ele>')
+        if t_off is not None:
+            t = start_dt + timedelta(seconds=t_off)
+            out.append(f'      <time>{t.strftime("%Y-%m-%dT%H:%M:%SZ")}</time>')
+        h = hr[i]  if i < len(hr)  else None
+        c = cad[i] if i < len(cad) else None
+        p = power[i] if i < len(power) else None
+        if h is not None or c is not None or p is not None:
+            out.append('      <extensions>')
+            if h is not None or c is not None:
+                out.append('        <gpxtpx:TrackPointExtension>')
+                if h is not None: out.append(f'          <gpxtpx:hr>{h}</gpxtpx:hr>')
+                if c is not None: out.append(f'          <gpxtpx:cad>{c}</gpxtpx:cad>')
+                out.append('        </gpxtpx:TrackPointExtension>')
+            if p is not None:
+                out.append(f'        <power>{p}</power>')
+            out.append('      </extensions>')
+        out.append('    </trkpt>')
+    out.append('  </trkseg></trk>')
+    out.append('</gpx>')
+    return "\n".join(out)
+
+
+# ── Strava deny-list (törölt activity-k) ──────────────────────────────────────
+
+def _user_strava_deny_path(user_id: str) -> str:
+    return os.path.join(_user_dir(user_id), "strava_deleted.json")
+
+
+def _load_strava_deny_list(user_id: str) -> set:
+    path = _user_strava_deny_path(user_id)
+    if not os.path.isfile(path):
+        return set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f) or {}
+        return set(int(k) for k in (data.get("deleted_at") or {}).keys())
+    except (OSError, json.JSONDecodeError, ValueError):
+        return set()
+
+
+def _add_strava_deny(user_id: str, strava_id: int) -> None:
+    path = _user_strava_deny_path(user_id)
+    data = {"deleted_at": {}}
+    if os.path.isfile(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f) or {"deleted_at": {}}
+        except (OSError, json.JSONDecodeError):
+            pass
+    data.setdefault("deleted_at", {})[str(strava_id)] = _now_dt()
+    os.makedirs(_user_dir(user_id), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(path + ".tmp", path)
+
+
+@app.route("/api/strava/refresh/<route_id>", methods=["POST"])
+@require_auth
+def strava_refresh(route_id: str):
+    """Egy meglévő Strava-importált workout meta-adatait frissíti Stravából
+    (a GPX fájl változatlan marad – csak a JSON mezők frissülnek)."""
+    route_id   = _safe_id(route_id)
+    user_id    = g.user["id"]
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    idx        = _load_index(idx_path)
+    entry      = next((r for r in idx if r.get("id") == route_id), None)
+    if not entry:
+        abort(404, description="Útvonal nem található.")
+    sid = entry.get("strava_id")
+    if not sid:
+        abort(400, description="Ez nem Stravás bejegyzés.")
+
+    token = _ensure_strava_token(user_id)
+    if not token:
+        abort(401, description="Nincs Strava kapcsolat. Csatlakozz újra a Beállítások panelben.")
+
+    try:
+        ar = requests.get(f"{STRAVA_API_BASE}/activities/{sid}",
+                          headers={"Authorization": f"Bearer {token}"},
+                          params={"include_all_efforts": "false"},
+                          timeout=20)
+        if ar.status_code == 401:
+            _delete_user_strava(user_id)
+            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra.")
+        if ar.status_code == 404:
+            abort(404, description="Ez az activity nincs meg a Stravádon (törölted onnan?).")
+        if ar.status_code != 200:
+            abort(502, description=f"Strava activity hiba ({ar.status_code}).")
+        activity = ar.json()
+    except requests.RequestException as exc:
+        abort(502, description=f"Strava lekérdezés sikertelen: {exc}")
+
+    # Frissítjük az entry-t a meglévő mezők megőrzésével (id, gpx fájl változatlan)
+    sport_t = (activity.get("sport_type") or activity.get("type") or "").lower()
+    sport_subtype = "cycling" if "ride" in sport_t or "cycl" in sport_t else \
+                    "running" if "run" in sport_t else \
+                    "walking" if "walk" in sport_t else \
+                    "hiking"  if "hik" in sport_t else "cycling"
+    dist_m  = activity.get("distance") or 0
+    ele_m   = activity.get("total_elevation_gain") or 0
+    mov_s   = activity.get("moving_time") or 0
+
+    entry.update({
+        "name":         activity.get("name") or entry.get("name"),
+        "type":         "workout",
+        "sport_type":   sport_subtype,
+        "distance":     round(dist_m / 1000, 2),
+        "duration":     round(mov_s / 60),
+        "elevation":    round(ele_m),
+        "description":  activity.get("description") or entry.get("description", ""),
+        "calories":              activity.get("calories"),
+        "suffer_score":          activity.get("suffer_score"),
+        "weighted_avg_watts":    activity.get("weighted_average_watts"),
+        "device_watts":          activity.get("device_watts"),
+        "avg_watts":             activity.get("average_watts"),
+        "max_watts":             activity.get("max_watts"),
+        "kilojoules":            activity.get("kilojoules"),
+        "avg_heartrate":         activity.get("average_heartrate"),
+        "max_heartrate":         activity.get("max_heartrate"),
+        "avg_cadence":           activity.get("average_cadence"),
+        "avg_speed_kmh":         round(activity["average_speed"] * 3.6, 2) if activity.get("average_speed") else None,
+        "max_speed_kmh":         round(activity["max_speed"] * 3.6, 2) if activity.get("max_speed") else None,
+        "location_city":         activity.get("location_city"),
+        "location_country":      activity.get("location_country"),
+        "gear_id":               activity.get("gear_id"),
+        "achievement_count":     activity.get("achievement_count"),
+        "pr_count":              activity.get("pr_count"),
+        "refreshed_at":          _now_dt(),
+    })
+    _save_index(idx, idx_path)
+    return jsonify({"ok": True, "entry": entry})
+
+
+@app.route("/api/strava/deny-list/<int:strava_id>", methods=["DELETE"])
+@require_auth
+def strava_deny_remove(strava_id: int):
+    """Eltávolít egy strava_id-t a deny-listből (re-import újra lehetségessé válik)."""
+    path = _user_strava_deny_path(g.user["id"])
+    if not os.path.isfile(path):
+        return jsonify({"ok": True, "removed": False})
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except (OSError, json.JSONDecodeError):
+        return jsonify({"ok": True, "removed": False})
+    removed = data.get("deleted_at", {}).pop(str(strava_id), None) is not None
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(path + ".tmp", path)
+    return jsonify({"ok": True, "removed": removed})
+
+
+@app.route("/api/strava/disconnect", methods=["DELETE"])
+@require_auth
+def strava_disconnect():
+    """Lecsatlakozás: token deauth + lokális adat törlés."""
+    data = _load_user_strava(g.user["id"])
+    if data.get("access_token"):
+        try:
+            requests.post(STRAVA_DEAUTH_URL, data={"access_token": data["access_token"]}, timeout=10)
+        except requests.RequestException as exc:
+            log.warning("Strava deauth exception: %s", exc)
+    _delete_user_strava(g.user["id"])
+    return jsonify({"ok": True})
+
+
+# ── Admin endpoint-ok (app credentials) ───────────────────────────────────────
+
+@app.route("/api/admin/strava/config", methods=["GET"])
+@require_auth
+@require_admin
+def admin_strava_config_get():
+    cfg = _load_strava_app_config()
+    return jsonify({
+        "source":         cfg["source"],      # "env" | "admin_ui" | "none"
+        "client_id":      cfg["client_id"],   # publikus – mehet a frontendre
+        "secret_set":     bool(cfg["client_secret"]),
+        "redirect_uri":   _resolve_redirect_uri(),
+    })
+
+
+@app.route("/api/admin/strava/config", methods=["PUT"])
+@require_auth
+@require_admin
+def admin_strava_config_set():
+    data = request.get_json(silent=True) or {}
+    cid  = (data.get("client_id") or "").strip()
+    sec  = (data.get("client_secret") or "").strip()
+    if not cid or not sec:
+        abort(400, description="Client ID és Client Secret kötelező.")
+    _save_strava_app_config(cid, sec)
+    return jsonify({"ok": True, "source": "admin_ui"})
+
+
+@app.route("/api/admin/strava/config", methods=["DELETE"])
+@require_auth
+@require_admin
+def admin_strava_config_delete():
+    """Csak az admin UI-s konfig törlésére – env-változó változatlan."""
+    _delete_strava_app_config()
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════════════════════════════════════════════════════════

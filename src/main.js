@@ -103,7 +103,7 @@ let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti bina
 
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
-let _libraryFilter = { type: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
+let _libraryFilter = { type: 'all', source: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
 const DIST_MAX = 500;  // km
 const DUR_MAX  = 600;  // perc (10 óra)
 
@@ -3075,6 +3075,341 @@ settingsOverlay?.addEventListener("click", (e) => {
   });
 })();
 
+// ── Strava kapcsolat (Settings panel + Library Import dropdown sync) ─────────
+let _stravaStatus = null;
+
+async function refreshStravaStatus() {
+  const stateEl = document.querySelector("#stravaConnectionState");
+  const stravaImportItem = document.querySelector("#libraryImportStravaItem");
+  const stravaImportStatus = stravaImportItem?.querySelector(".lib-import-strava-status");
+  try {
+    _stravaStatus = await routesApi.strava.status();
+  } catch (err) {
+    _stravaStatus = null;
+    if (stateEl) stateEl.innerHTML = `<div class="strava-conn-error">Hiba a státusz lekérésekor: ${err.message}</div>`;
+    return;
+  }
+  renderStravaState(stateEl, _stravaStatus);
+  // Library import dropdown frissítés
+  if (stravaImportItem) {
+    const ok = _stravaStatus.connected;
+    stravaImportItem.disabled = !ok;
+    stravaImportItem.title = ok
+      ? "Strava activity-k importálása a könyvtárba"
+      : (_stravaStatus.app_configured
+          ? "Csatlakozz először Stravához (Beállítások → Strava kapcsolat)"
+          : "A bringaterv admin még nem konfigurálta a Strava integrációt");
+    if (stravaImportStatus) {
+      stravaImportStatus.textContent = ok ? "" : (_stravaStatus.app_configured ? "nincs csatlakoztatva" : "nincs konfigurálva");
+    }
+  }
+}
+
+function renderStravaState(el, status) {
+  if (!el) return;
+  if (!status) {
+    el.innerHTML = `<div class="strava-conn-loading">Állapot lekérdezése…</div>`;
+    return;
+  }
+  if (!status.app_configured) {
+    el.innerHTML = `<div class="strava-conn-error">A bringaterv admin még nem állította be a Strava integrációt. Szólj az adminnak.</div>`;
+    return;
+  }
+  if (status.connected) {
+    const dt = status.connected_at ? new Date(status.connected_at).toLocaleString("hu-HU") : "—";
+    el.innerHTML = `
+      <div class="strava-conn-meta">
+        Csatlakozva mint: <strong>${escapeHtmlStr(status.athlete_name || "ismeretlen")}</strong>
+        <br>Athlete ID: ${status.athlete_id || "—"}
+        <br>Csatlakozás dátuma: ${dt}
+        ${status.scope ? `<br>Engedélyek: ${escapeHtmlStr(status.scope)}` : ""}
+      </div>
+      <div class="strava-conn-row">
+        <button class="strava-conn-btn strava-conn-btn--ghost" id="stravaDisconnectBtn" type="button">Lecsatlakoztatás</button>
+      </div>`;
+    el.querySelector("#stravaDisconnectBtn")?.addEventListener("click", stravaDisconnect);
+  } else {
+    el.innerHTML = `
+      <div class="strava-conn-meta">Még nincs csatlakoztatva. Kattints a gombra a Strava-engedélyezéshez.</div>
+      <div class="strava-conn-row">
+        <button class="strava-conn-btn" id="stravaConnectBtn" type="button">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fff;color:#FC4C02;border-radius:2px;font-size:9px;font-weight:800">S</span>
+          Kapcsolódás Strava-hoz
+        </button>
+      </div>`;
+    el.querySelector("#stravaConnectBtn")?.addEventListener("click", stravaConnect);
+  }
+}
+
+async function stravaConnect() {
+  try {
+    const { auth_url } = await routesApi.strava.connect();
+    // OAuth popup ablak
+    const w = 600, h = 800;
+    const left = window.screenX + (window.innerWidth - w) / 2;
+    const top  = window.screenY + (window.innerHeight - h) / 2;
+    const popup = window.open(auth_url, "strava-oauth", `width=${w},height=${h},left=${left},top=${top}`);
+    if (!popup) {
+      alert("A popup-ablakot a böngésző blokkolta. Engedélyezd a popup-okat erre az oldalra.");
+      return;
+    }
+  } catch (err) {
+    alert("Strava connect hiba: " + err.message);
+  }
+}
+
+async function stravaDisconnect() {
+  if (!confirm("Biztosan lecsatlakozol a Strava-tól? A bringaterv elveszíti a hozzáférést a Strava-fiókodhoz (de a már importált edzések megmaradnak).")) return;
+  try {
+    await routesApi.strava.disconnect();
+    await refreshStravaStatus();
+  } catch (err) {
+    alert("Lecsatlakozás hiba: " + err.message);
+  }
+}
+
+function escapeHtmlStr(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// OAuth popup → parent ablak értesítés a callback HTML-ből
+window.addEventListener("message", (e) => {
+  if (!e.data || e.data.type !== "strava-oauth") return;
+  if (e.data.success) {
+    refreshStravaStatus();
+    showToast?.(`Strava csatlakoztatva: ${e.data.athlete_name || ""}`);
+  } else {
+    alert("Strava kapcsolódás sikertelen: " + (e.data.error || "ismeretlen hiba"));
+  }
+});
+
+// Inicializáció (és újrafutás amikor a user belép)
+refreshStravaStatus();
+
+// ── Strava import modal ─────────────────────────────────────────────────────
+let _stravaActivities = [];
+
+function openStravaImportModal() {
+  const overlay = document.querySelector("#stravaImportOverlay");
+  if (!overlay) return;
+  overlay.hidden = false;
+  // Resetelés – induló állapot: nincs lista, footer rejtve, progress bar rejtve
+  document.querySelector("#stravaImportList").innerHTML = "";
+  document.querySelector("#stravaImportStatus").textContent = "Kattints a Listázás gombra a Strava-edzéseid betöltéséhez.";
+  document.querySelector("#stravaImportRunBtn").disabled = true;
+  document.querySelector("#stravaImportSummary").textContent = "";
+  document.querySelector("#stravaImportFooter").hidden = true;
+  document.querySelector("#stravaImportProgress").hidden = true;
+  document.querySelector("#stravaProgressBar").style.width = "0%";
+  const selectAll = document.querySelector("#stravaImportSelectAll");
+  if (selectAll) selectAll.checked = false;
+  _stravaActivities = [];
+}
+
+function closeStravaImportModal() {
+  const overlay = document.querySelector("#stravaImportOverlay");
+  if (overlay) overlay.hidden = true;
+}
+
+async function fetchAndRenderStravaActivities() {
+  const listEl   = document.querySelector("#stravaImportList");
+  const statusEl = document.querySelector("#stravaImportStatus");
+  const runBtn   = document.querySelector("#stravaImportRunBtn");
+  const summary  = document.querySelector("#stravaImportSummary");
+  const range    = parseInt(document.querySelector("#stravaImportRange").value);
+  const limit    = parseInt(document.querySelector("#stravaImportLimit").value);
+
+  listEl.innerHTML = "";
+  summary.textContent = "";
+  runBtn.disabled = true;
+  statusEl.textContent = "Lekérdezés folyamatban…";
+
+  const params = { per_page: limit };
+  if (range > 0) {
+    params.after = Math.floor((Date.now() - range * 86400000) / 1000);
+  }
+  let res;
+  try {
+    res = await routesApi.strava.activities(params);
+  } catch (err) {
+    if (err.message?.includes("401") || err.message?.toLowerCase().includes("érvénytelen")) {
+      statusEl.innerHTML = `<span style="color:#dc2626">A Strava kapcsolat érvénytelenné vált. <strong>Csatlakozz újra a Beállítások → Strava kapcsolat panelben.</strong></span>`;
+      document.querySelector("#stravaImportFooter").hidden = true;
+      await refreshStravaStatus();
+      return;
+    }
+    statusEl.innerHTML = `<span style="color:#dc2626">Hiba: ${escapeHtmlStr(err.message)}</span>`;
+    document.querySelector("#stravaImportFooter").hidden = true;
+    return;
+  }
+  try {
+    let activities = res.activities || [];
+    // Időrendben visszafelé: legutolsó edzés legelől
+    activities.sort((a, b) => {
+      const ta = a.start_date ? new Date(a.start_date).getTime() : 0;
+      const tb = b.start_date ? new Date(b.start_date).getTime() : 0;
+      return tb - ta;
+    });
+    _stravaActivities = activities;
+    if (_stravaActivities.length === 0) {
+      statusEl.textContent = "Nincs activity ebben az időszakban.";
+      document.querySelector("#stravaImportFooter").hidden = true;
+      return;
+    }
+    statusEl.textContent = `${_stravaActivities.length} activity betöltve.`;
+    document.querySelector("#stravaImportFooter").hidden = false;
+    renderStravaActivityList();
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:#dc2626">Hiba: ${escapeHtmlStr(err.message)}</span>`;
+    document.querySelector("#stravaImportFooter").hidden = true;
+  }
+}
+
+function renderStravaActivityList() {
+  const listEl = document.querySelector("#stravaImportList");
+  const runBtn = document.querySelector("#stravaImportRunBtn");
+  const summary = document.querySelector("#stravaImportSummary");
+  listEl.innerHTML = "";
+  for (const a of _stravaActivities) {
+    const date = a.start_date ? new Date(a.start_date).toLocaleDateString("hu-HU", { month:"2-digit", day:"2-digit" }) : "—";
+    const distKm = a.distance_m ? (a.distance_m / 1000).toFixed(1) : "—";
+    const movMin = a.moving_time_s ? Math.round(a.moving_time_s / 60) : "—";
+    const isNew    = a.duplicate_status === "new";
+    const isLikely = a.duplicate_status === "likely_duplicate";
+    const isImported = a.duplicate_status === "already_imported";
+    const isDeleted  = a.duplicate_status === "previously_deleted";
+    const badgeCls = isNew ? "new" : isImported ? "imported" : isLikely ? "likely" : "deleted";
+    const badgeText = isNew ? "Új" : isImported ? "Már megvan" : isLikely ? "Hasonló van" : "Korábban törölted";
+    const disabled = isImported;
+    const checked  = isNew;
+    const row = document.createElement("div");
+    row.className = "strava-import-row" + (disabled ? " is-disabled" : "");
+    row.dataset.id = a.id;
+    row.innerHTML = `
+      <input type="checkbox" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>
+      <span class="strava-import-date">${date}</span>
+      <span class="strava-import-name">${escapeHtmlStr(a.name || "—")}</span>
+      <span class="strava-import-num strava-import-time">${movMin} p</span>
+      <span class="strava-import-num strava-import-dist">${distKm} km</span>
+      <span class="strava-import-badge strava-import-badge--${badgeCls}">${badgeText}</span>
+    `;
+    // Klikk a sorra → checkbox toggle
+    row.addEventListener("click", (e) => {
+      if (disabled) return;
+      if (e.target.tagName === "INPUT") { updateStravaImportSummary(); return; }
+      const cb = row.querySelector('input[type="checkbox"]');
+      cb.checked = !cb.checked;
+      updateStravaImportSummary();
+    });
+    listEl.append(row);
+  }
+  updateStravaImportSummary();
+}
+
+function updateStravaImportSummary() {
+  const runBtn = document.querySelector("#stravaImportRunBtn");
+  const summary = document.querySelector("#stravaImportSummary");
+  const checked = document.querySelectorAll("#stravaImportList input[type='checkbox']:checked").length;
+  const newCount = _stravaActivities.filter(a => a.duplicate_status === "new").length;
+  summary.textContent = `${checked} kiválasztva · ${newCount} új a listán`;
+  runBtn.disabled = (checked === 0);
+}
+
+async function runStravaImport() {
+  const runBtn      = document.querySelector("#stravaImportRunBtn");
+  const listBtn     = document.querySelector("#stravaImportListBtn");
+  const statusEl    = document.querySelector("#stravaImportStatus");
+  const progressEl  = document.querySelector("#stravaImportProgress");
+  const progressBar = document.querySelector("#stravaProgressBar");
+  const progressCnt = document.querySelector("#stravaProgressCount");
+  const progressCur = document.querySelector("#stravaProgressCurrent");
+  const closeBtn    = document.querySelector("#stravaImportClose");
+  const checkedRows = [...document.querySelectorAll("#stravaImportList .strava-import-row")]
+    .filter(r => r.querySelector('input[type="checkbox"]')?.checked);
+  if (checkedRows.length === 0) return;
+
+  // Progress bar megjelenítés, gombok tiltása
+  progressEl.hidden = false;
+  progressBar.style.width = "0%";
+  progressCnt.textContent = `0 / ${checkedRows.length}`;
+  progressCur.textContent = "";
+  progressCur.className = "strava-progress-current";
+  statusEl.textContent = "";
+  runBtn.disabled  = true;
+  listBtn.disabled = true;
+
+  let done = 0, fail = 0;
+  for (let i = 0; i < checkedRows.length; i++) {
+    const row = checkedRows[i];
+    const id = parseInt(row.dataset.id);
+    const name = row.querySelector(".strava-import-name")?.textContent || `Activity ${id}`;
+
+    // Aktuális sor kiemelése
+    row.classList.add("is-importing");
+    progressCur.textContent = `Most: ${name}`;
+    progressCur.className   = "strava-progress-current";
+
+    try {
+      await routesApi.strava.importActivity(id);
+      done++;
+      row.classList.remove("is-importing");
+      row.style.opacity = "0.55";
+      const badge = row.querySelector(".strava-import-badge");
+      if (badge) {
+        badge.textContent = "Importálva";
+        badge.className = "strava-import-badge strava-import-badge--imported";
+      }
+      const cb = row.querySelector('input[type="checkbox"]');
+      if (cb) { cb.checked = false; cb.disabled = true; }
+    } catch (err) {
+      fail++;
+      row.classList.remove("is-importing");
+      console.error("Strava import hiba:", id, err);
+      progressCur.textContent = `Hiba: ${name} – ${err.message}`;
+      progressCur.className   = "strava-progress-current is-error";
+    }
+
+    // Progress frissítés
+    const pct = Math.round(((i + 1) / checkedRows.length) * 100);
+    progressBar.style.width = pct + "%";
+    progressCnt.textContent = `${i + 1} / ${checkedRows.length}`;
+
+    // Kis pihenő a rate-limit miatt
+    if (i < checkedRows.length - 1) {
+      await new Promise(r => setTimeout(r, 800));
+    }
+  }
+
+  // Befejezés
+  progressCur.textContent = `Kész: ${done} importálva${fail > 0 ? `, ${fail} hiba` : ""}`;
+  progressCur.className   = "strava-progress-current " + (fail > 0 ? "is-error" : "is-success");
+  // Frissítsük a könyvtár listát (új edzések megjelennek)
+  if (done > 0 && typeof loadRouteLibrary === "function") {
+    loadRouteLibrary();
+  }
+  runBtn.disabled  = false;
+  listBtn.disabled = false;
+  // A progress bar marad látható befejezés után is, hogy lássák az eredményt
+}
+
+// Event listeners – modal
+document.querySelector("#stravaImportClose")?.addEventListener("click", closeStravaImportModal);
+document.querySelector("#stravaImportOverlay")?.addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeStravaImportModal();
+});
+document.querySelector("#stravaImportListBtn")?.addEventListener("click", fetchAndRenderStravaActivities);
+document.querySelector("#stravaImportRunBtn")?.addEventListener("click", runStravaImport);
+document.querySelector("#stravaImportSelectAll")?.addEventListener("change", (e) => {
+  const onlyNew = e.target.checked;
+  document.querySelectorAll("#stravaImportList .strava-import-row").forEach(row => {
+    const cb = row.querySelector('input[type="checkbox"]');
+    if (cb.disabled) return;
+    const isNew = row.querySelector(".strava-import-badge--new") !== null;
+    cb.checked = onlyNew ? isNew : false;
+  });
+  updateStravaImportSummary();
+});
+
 // ── Kezdő nézet ────────────────────────────────────────────
 function syncStartViewDisplay() {
   const sv = getSettings().startView;
@@ -4511,8 +4846,11 @@ async function loadRouteLibrary() {
       routesApi.listRoutes(),
       routesApi.listSamples(),
     ]);
-    _libraryData.routes   = userRoutes.filter(r => r.type !== "workout");
-    _libraryData.workouts = userRoutes.filter(r => r.type === "workout");
+    // Workout = type==workout VAGY van strava_id (régebbi importok kompatibilitása)
+    //           VAGY van start_time (rögzített edzés)
+    const isWorkoutEntry = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
+    _libraryData.routes   = userRoutes.filter(r => !isWorkoutEntry(r));
+    _libraryData.workouts = userRoutes.filter(isWorkoutEntry);
     _libraryData.samples  = samples;
     if (elFilter) elFilter.hidden = false;
     renderLibraryGrid();
@@ -4525,14 +4863,106 @@ async function loadRouteLibrary() {
   }
 }
 
+// Library view-mode state (localStorage perzisztens)
+let _libraryViewMode = localStorage.getItem("bringaterv.libraryView") || "cards";
+let _libraryExpandedId = null;     // melyik sor van kinyitva a list view-ban
+const _libraryGeomCache = new Map(); // route_id → simplified geometry (5 perc TTL)
+
+// List-view oszlop-szerinti rendezés (felülírja a sidebar `_libraryFilter.sort`-ot
+// amikor list-view aktív és a user a header-re kattint)
+let _libraryListSort = JSON.parse(localStorage.getItem("bringaterv.libraryListSort") || "null")
+  || { key: "date", dir: "desc" };
+
+function setLibraryListSort(key) {
+  if (_libraryListSort.key === key) {
+    _libraryListSort.dir = _libraryListSort.dir === "desc" ? "asc" : "desc";
+  } else {
+    _libraryListSort = { key, dir: "desc" };
+  }
+  localStorage.setItem("bringaterv.libraryListSort", JSON.stringify(_libraryListSort));
+  renderLibraryGrid();
+}
+
+function applyLibraryListSort(items) {
+  const k = _libraryListSort.key;
+  const dir = _libraryListSort.dir === "asc" ? 1 : -1;
+  const accessor = {
+    date:      x => x.route.date || "",
+    name:      x => (x.route.name || "").toLowerCase(),
+    duration:  x => x.route.duration ?? 0,
+    distance:  x => x.route.distance ?? 0,
+    elevation: x => x.route.elevation ?? 0,
+    calories:  x => x.route.calories ?? 0,
+    effort:    x => x.route.suffer_score ?? 0,
+  }[k] || (x => x.route.date || "");
+  return [...items].sort((a, b) => {
+    const va = accessor(a), vb = accessor(b);
+    if (va < vb) return -1 * dir;
+    if (va > vb) return  1 * dir;
+    return 0;
+  });
+}
+
+function setLibraryViewMode(mode) {
+  _libraryViewMode = mode === "list" ? "list" : "cards";
+  localStorage.setItem("bringaterv.libraryView", _libraryViewMode);
+  document.querySelectorAll(".library-view-btn").forEach(btn => {
+    btn.classList.toggle("is-active", btn.dataset.view === _libraryViewMode);
+  });
+  renderLibraryGrid();
+}
+
+// Smart dátum formátum: "Ma", "Tegnap", "N napja", "ÉÉÉÉ-HH-NN"
+function smartDateFormat(isoDate) {
+  if (!isoDate) return "—";
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  const now = new Date();
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const d0     = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff   = Math.round((today0 - d0) / 86400000);
+  if (diff === 0) return "Ma";
+  if (diff === 1) return "Tegnap";
+  if (diff > 1 && diff < 7) return `${diff} napja`;
+  if (diff < 0) return d.toLocaleDateString("hu-HU");
+  return d.toLocaleDateString("hu-HU", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function libraryRouteSource(route, category) {
+  if (category === "sample") return "sample";
+  if (route.source) return route.source;       // ha a backend megadja
+  if (route.has_fit) return "fit";
+  return "manual";
+}
+
+function libraryRouteSport(route) {
+  // Először sport_type (új mező Strava-importnál), aztán type (legacy/route mode)
+  const t = (route.sport_type || route.type || "").toLowerCase();
+  if (t.includes("cycl") || t === "asphalt" || t === "gravel" || t === "mtb" || t === "bike") return "🚴";
+  if (t.includes("walk")) return "🚶";
+  if (t.includes("run"))  return "🏃";
+  if (t.includes("hik"))  return "🏞️";
+  return "🚴";
+}
+
+function libraryFormatDuration(min) {
+  if (min == null) return "—";
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}ó ${m}p` : `${m}p`;
+}
+
 /**
- * Szűri, rendezi és újrarendereli a könyvtár kártyarácsát.
+ * Szűri, rendezi és újrarendereli a könyvtárat (kártya vagy lista nézet).
  */
 function renderLibraryGrid() {
   const grid    = document.querySelector("#libraryGrid");
+  const list    = document.querySelector("#libraryList");
   const emptyEl = document.querySelector("#libraryGridEmpty");
   const countEl = document.querySelector("#libraryResultCount");
-  if (!grid) return;
+  const headerEl = document.querySelector("#libraryMainHeader");
+  const statsEl  = document.querySelector("#libraryMainStats .library-main-stats-text");
+  if (!grid || !list) return;
 
   // Összes elem összegyűjtése
   const all = [
@@ -4545,6 +4975,14 @@ function renderLibraryGrid() {
   let filtered = _libraryFilter.type === 'all'
     ? all
     : all.filter(({ category }) => category === _libraryFilter.type);
+
+  // Szűrés forrás szerint (manual / strava / fit) – sample-re nem alkalmazódik
+  if (_libraryFilter.source !== 'all') {
+    filtered = filtered.filter(({ route, category }) => {
+      if (category === 'sample') return false; // explicit source-szűrésnél a minta kiesik
+      return libraryRouteSource(route, category) === _libraryFilter.source;
+    });
+  }
 
   // Szűrés keresési kifejezés szerint
   const q = _libraryFilter.query.toLowerCase().trim();
@@ -4584,20 +5022,492 @@ function renderLibraryGrid() {
     }
   });
 
-  // Eredményszámláló
+  // Eredményszámláló (sidebar-on)
   if (countEl) countEl.textContent = `${filtered.length} találat`;
 
-  // Megjelenítés
+  // Stat-sor + header megjelenítése a libraryMain tetején
+  if (headerEl && statsEl) {
+    headerEl.hidden = filtered.length === 0;
+    const totalKm    = filtered.reduce((s, x) => s + (x.route.distance || 0), 0);
+    const totalDurMin = filtered.reduce((s, x) => s + (x.route.duration || 0), 0);
+    const totalElev  = filtered.reduce((s, x) => s + (x.route.elevation || 0), 0);
+    const h = Math.floor(totalDurMin / 60);
+    const m = totalDurMin % 60;
+    // Kategória-bontás (csak list-view-ban hasznos a bal-sáv legendához)
+    const byCat = { workout: 0, route: 0, sample: 0 };
+    for (const x of filtered) byCat[x.category] = (byCat[x.category] || 0) + 1;
+    const catLegend = _libraryViewMode === "list" ? (
+      `<span class="lib-stat-sep">·</span>` +
+      (byCat.workout ? `<span class="lib-cat-pill lib-cat-pill--workout" title="Edzések">${byCat.workout} edzés</span>` : '') +
+      (byCat.route   ? `<span class="lib-cat-pill lib-cat-pill--route" title="Tervezett útvonalak">${byCat.route} terv</span>` : '') +
+      (byCat.sample  ? `<span class="lib-cat-pill lib-cat-pill--sample" title="Sablon minták">${byCat.sample} sablon</span>` : '')
+    ) : '';
+    statsEl.innerHTML =
+      `<strong>${filtered.length}</strong> ${filtered.length === 1 ? 'elem' : 'elem'}` +
+      `<span class="lib-stat-sep">·</span><strong>${totalKm.toFixed(0)}</strong> km` +
+      `<span class="lib-stat-sep">·</span><strong>${h}ó ${m}p</strong>` +
+      `<span class="lib-stat-sep">·</span><strong>${totalElev}</strong> m em.` +
+      catLegend;
+  }
+
+  // View-toggle aktiv állapot szinkron
+  document.querySelectorAll(".library-view-btn").forEach(btn => {
+    btn.classList.toggle("is-active", btn.dataset.view === _libraryViewMode);
+  });
+
+  // Megjelenítés - vagy cards vagy list nézet
   grid.innerHTML = '';
+  list.innerHTML = '';
+  const useList = _libraryViewMode === "list";
+  grid.hidden = useList;
+  list.hidden = !useList;
+
   if (filtered.length === 0) {
     if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+
+  if (useList) {
+    renderLibraryListView(filtered, list);
   } else {
-    if (emptyEl) emptyEl.hidden = true;
     filtered.forEach(({ route, category, isSample }) => {
       grid.append(createLibraryCard(route, category, isSample));
     });
     window.lucide?.createIcons({ nodes: [grid] });
   }
+}
+
+/**
+ * List (táblázatos) nézet renderelése
+ */
+function renderLibraryListView(items, container) {
+  // Rendezés alkalmazása
+  const sortedItems = applyLibraryListSort(items);
+  const ind = (key) => {
+    if (_libraryListSort.key !== key) return '<span class="sort-indicator">↕</span>';
+    return `<span class="sort-indicator">${_libraryListSort.dir === "desc" ? "▼" : "▲"}</span>`;
+  };
+  const cls = (key, extra = "") => {
+    const sorted = _libraryListSort.key === key ? " is-sorted" : "";
+    return `class="sortable${sorted}${extra ? ' ' + extra : ''}" data-sort="${key}"`;
+  };
+
+  const table = document.createElement("table");
+  table.className = "library-list-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="lib-col-sport"></th>
+        <th ${cls("date", "lib-col-date")}>Dátum ${ind("date")}</th>
+        <th ${cls("name", "lib-col-name")}>Név ${ind("name")}</th>
+        <th ${cls("duration", "lib-col-time lib-col-num")}>Idő ${ind("duration")}</th>
+        <th ${cls("distance", "lib-col-num")}>Táv ${ind("distance")}</th>
+        <th ${cls("elevation", "lib-col-elev lib-col-num")}>Em. ${ind("elevation")}</th>
+        <th ${cls("calories", "lib-col-kcal lib-col-num")}>Kcal ${ind("calories")}</th>
+        <th ${cls("effort", "lib-col-effort lib-col-num")}>Effort ${ind("effort")}</th>
+        <th class="lib-col-source">Forrás</th>
+        <th class="lib-col-chev"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  // Sort header click handlerek
+  table.querySelectorAll("th.sortable").forEach(th => {
+    th.addEventListener("click", () => setLibraryListSort(th.dataset.sort));
+  });
+
+  const tbody = table.querySelector("tbody");
+  for (const item of sortedItems) {
+    tbody.append(...buildLibraryListRow(item));
+  }
+  container.append(table);
+}
+
+function buildLibraryListRow({ route, category, isSample }) {
+  const source     = libraryRouteSource(route, category);
+  const sport      = libraryRouteSport(route);
+  const isExpanded = _libraryExpandedId === route.id;
+
+  const tr = document.createElement("tr");
+  tr.className = "library-list-row" + (isExpanded ? " is-expanded" : "");
+  tr.dataset.id = route.id;
+  tr.dataset.category = category;   // bal-sáv színhez
+  // Mobile fallback meta-szöveg a Név alá
+  const distStr = route.distance != null ? route.distance.toFixed(1) + ' km' : '';
+  const durStr  = libraryFormatDuration(route.duration);
+  const metaBits = [distStr, durStr !== '—' ? durStr : null, sourceLabel(source)].filter(Boolean);
+
+  const kcalStr   = route.calories != null ? Math.round(route.calories) : '—';
+  const effortStr = route.suffer_score != null
+    ? `<span class="lib-effort-pill" title="Strava Relative Effort">${Math.round(route.suffer_score)}</span>`
+    : '—';
+
+  tr.innerHTML = `
+    <td class="lib-col-sport">${sport}</td>
+    <td class="lib-col-date">${smartDateFormat(route.date)}</td>
+    <td class="lib-col-name" data-meta="${metaBits.join(' · ')}">${escapeHtml(route.name || '—')}</td>
+    <td class="lib-col-time lib-col-num">${libraryFormatDuration(route.duration)}</td>
+    <td class="lib-col-num">${distStr || '—'}</td>
+    <td class="lib-col-elev lib-col-num">${route.elevation != null ? route.elevation + ' m' : '—'}</td>
+    <td class="lib-col-kcal lib-col-num">${kcalStr}</td>
+    <td class="lib-col-effort lib-col-num">${effortStr}</td>
+    <td class="lib-col-source"><span class="lib-source-badge lib-source-badge--${source}">${sourceLabel(source)}</span></td>
+    <td class="lib-col-chev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+    </td>
+  `;
+
+  // Klikk a sorra: expand/collapse toggle
+  tr.addEventListener("click", (e) => {
+    // Ne triggerelje, ha akció-gombra/badge-re kattintott
+    if (e.target.closest(".lib-source-badge")) {
+      // Forrás-shortcut filter (jövőbeli – egyelőre csak no-op)
+      return;
+    }
+    toggleLibraryRowExpand(route.id);
+  });
+
+  const rows = [tr];
+  if (isExpanded) {
+    rows.push(buildLibraryExpandRow(route, category, isSample));
+  }
+  return rows;
+}
+
+function sourceLabel(source) {
+  const m = { strava: "Strava", fit: "FIT", manual: "Saját", sample: "Sablon" };
+  return m[source] || source;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function toggleLibraryRowExpand(routeId) {
+  _libraryExpandedId = (_libraryExpandedId === routeId) ? null : routeId;
+  renderLibraryGrid();
+  // Ha most expandeljük, próbáljuk lazy-betölteni a route shape-et
+  if (_libraryExpandedId === routeId) {
+    loadAndRenderExpandPreview(routeId);
+  }
+}
+
+/**
+ * Expand-row tartalma: mini preview + bővített stat + akciók
+ */
+function buildLibraryExpandRow(route, category, isSample) {
+  const tr = document.createElement("tr");
+  tr.className = "library-list-expand-row";
+  const td = document.createElement("td");
+  td.colSpan = 10; /* sport, date, name, time, dist, elev, kcal, effort, source, chev */
+  const previewSlot = `<div class="library-expand-preview" id="libExpPreview_${route.id}">…</div>`;
+  const stats = [];
+  if (route.distance != null)  stats.push(`<dt>Távolság:</dt><dd>${route.distance.toFixed(1)} km</dd>`);
+  if (route.duration != null)  stats.push(`<dt>Idő:</dt><dd>${libraryFormatDuration(route.duration)}</dd>`);
+  if (route.elevation != null) stats.push(`<dt>Emelkedő:</dt><dd>${route.elevation} m</dd>`);
+  if (route.date)              stats.push(`<dt>Dátum:</dt><dd>${route.date}</dd>`);
+  if (route.type)              stats.push(`<dt>Típus:</dt><dd>${escapeHtml(route.type)}</dd>`);
+  // Strava-ról importált bővített meta
+  if (route.calories != null)            stats.push(`<dt>Kalória (Strava):</dt><dd>${Math.round(route.calories)} kcal</dd>`);
+  if (route.suffer_score != null)        stats.push(`<dt>Relative Effort:</dt><dd>🔥 ${Math.round(route.suffer_score)}</dd>`);
+  if (route.weighted_avg_watts != null)  stats.push(`<dt>Weighted Avg W (NP):</dt><dd>${Math.round(route.weighted_avg_watts)} W${route.device_watts ? ' ⚡' : ''}</dd>`);
+  else if (route.avg_watts != null)      stats.push(`<dt>Átlag teljesítmény:</dt><dd>${Math.round(route.avg_watts)} W${route.device_watts ? ' ⚡' : ''}</dd>`);
+  if (route.kilojoules != null)          stats.push(`<dt>Mechanikai munka:</dt><dd>${Math.round(route.kilojoules)} kJ</dd>`);
+  if (route.location_city)               stats.push(`<dt>Hely:</dt><dd>${escapeHtml(route.location_city)}${route.location_country ? ', ' + escapeHtml(route.location_country) : ''}</dd>`);
+  if (route.pr_count > 0)                stats.push(`<dt>PR:</dt><dd>🏆 ${route.pr_count}</dd>`);
+
+  const isWorkout = category === "workout";
+  td.innerHTML = `
+    <div class="library-list-expand-inner">
+      ${previewSlot}
+      <div>
+        <dl class="library-expand-stats" id="libExpStats_${route.id}">
+          ${stats.join("")}
+        </dl>
+        ${route.description ? `<div class="library-expand-desc">${escapeHtml(route.description)}</div>` : ""}
+        <div class="library-expand-actions">
+          <button class="library-card-btn library-card-btn--primary" data-action="load-${isWorkout ? "file" : "plan"}">
+            ${isWorkout ? "Betöltés Elemzéshez" : "Betöltés Tervezésre"}
+          </button>
+          ${!isWorkout ? '' : '<button class="library-card-btn" data-action="load-plan">Betöltés Tervezésre is</button>'}
+          <button class="library-card-btn" data-action="download-gpx">GPX</button>
+          ${route.has_fit ? '<button class="library-card-btn" data-action="download-fit">FIT</button>' : ''}
+          ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh" title="Strava adatok frissítése (kalória, suffer score stb. újra lekérése)">🔄 Frissít Stravából</button>' : ''}
+          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener" title="Megnyitás a Stravan">↗ Stravan</a>` : ''}
+          ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
+          ${!isSample ? '<button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  // Akció-gomb handler-ek (a meglévő card handler-eivel egyező logika)
+  td.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const act = btn.dataset.action;
+      try {
+        if (act === "load-file" || act === "load-plan") {
+          await loadRouteFromLibrary(route.id, isSample, route.name, act === "load-plan" ? "plan" : "file");
+        }
+        else if (act === "download-gpx") {
+          const gpxText = isSample ? await routesApi.loadSample(route.id) : await routesApi.loadRoute(route.id);
+          downloadGpx(`${route.name}.gpx`, gpxText);
+        }
+        else if (act === "download-fit") {
+          const blob = await routesApi.loadRouteFit(route.id);
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement("a");
+          a.href = url; a.download = `${route.name}.fit`; a.click();
+          URL.revokeObjectURL(url);
+        }
+        else if (act === "edit") {
+          openLibraryEditModal(route);
+        }
+        else if (act === "strava-refresh") {
+          showToast("Frissítés Stravából…");
+          try {
+            const res = await routesApi.strava.refreshActivity(route.id);
+            // Frissítsük a lokális adatot
+            const updated = res.entry;
+            const collections = [_libraryData.routes, _libraryData.workouts];
+            for (const coll of collections) {
+              const i = coll.findIndex(r => r.id === route.id);
+              if (i >= 0) coll[i] = { ...coll[i], ...updated };
+            }
+            renderLibraryGrid();
+            showToast("Frissítve ✓");
+          } catch (err) {
+            if (err.message?.includes("401")) {
+              showToast("Strava kapcsolat lejárt – csatlakozz újra (Beállítások)");
+              await refreshStravaStatus();
+            } else {
+              showToast("Frissítés sikertelen: " + err.message);
+            }
+          }
+        }
+        else if (act === "delete") {
+          if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
+          await routesApi.deleteRoute(route.id);
+          _libraryData.routes   = _libraryData.routes.filter(r => r.id !== route.id);
+          _libraryData.workouts = _libraryData.workouts.filter(r => r.id !== route.id);
+          _libraryExpandedId = null;
+          renderLibraryGrid();
+          showToast(`„${route.name}" törölve`);
+        }
+      } catch (err) {
+        console.error("Library action error:", err);
+        showToast("Művelet sikertelen.");
+      }
+    });
+  });
+  tr.append(td);
+  return tr;
+}
+
+/**
+ * Lazy preview betöltés – a tárolt GPX-ből kis SVG körvonal + bővített statok
+ */
+async function loadAndRenderExpandPreview(routeId) {
+  const slot     = document.getElementById(`libExpPreview_${routeId}`);
+  const statsEl  = document.getElementById(`libExpStats_${routeId}`);
+  if (!slot) return;
+
+  const appendExtra = (extraHtml) => {
+    if (!statsEl || !extraHtml) return;
+    // Csak akkor toldjunk hozzá, ha még nincs benne (idempotens)
+    if (!statsEl.dataset.extraDone) {
+      statsEl.insertAdjacentHTML("beforeend", extraHtml);
+      statsEl.dataset.extraDone = "1";
+    }
+  };
+
+  // Cache check
+  const cached = _libraryGeomCache.get(routeId);
+  if (cached) {
+    slot.innerHTML = renderRouteSvg(cached.points);
+    appendExtra(renderExtendedStats(cached.stats));
+    return;
+  }
+  slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Töltés…</span>';
+  try {
+    const gpxText = await routesApi.loadRoute(routeId).catch(() => null)
+                 ?? await routesApi.loadSample(routeId).catch(() => null);
+    if (!gpxText) { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Nem elérhető</span>'; return; }
+
+    const xml = new DOMParser().parseFromString(gpxText, "application/xml");
+    const nodes = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")];
+    const fullPts = nodes.map(n => {
+      const hr   = n.getElementsByTagNameNS("*", "hr")[0];
+      const cad  = n.getElementsByTagNameNS("*", "cad")[0];
+      const wat  = n.getElementsByTagNameNS("*", "watts")[0] || n.getElementsByTagNameNS("*", "power")[0];
+      const tm   = n.querySelector("time")?.textContent;
+      return {
+        lat: parseFloat(n.getAttribute("lat")),
+        lng: parseFloat(n.getAttribute("lon")),
+        hr:  hr ? Number(hr.textContent) : null,
+        cad: cad ? Number(cad.textContent) : null,
+        power: wat ? Number(wat.textContent) : null,
+        time: tm ? new Date(tm).getTime() : null,
+      };
+    }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    if (fullPts.length < 2) { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">—</span>'; return; }
+
+    // Stat-aggregátumok
+    const stats = aggregateGpxStats(fullPts);
+
+    // Simplify SVG-hez (max 200 pont)
+    const step = Math.max(1, Math.floor(fullPts.length / 200));
+    const simplified = [];
+    for (let i = 0; i < fullPts.length; i += step) simplified.push(fullPts[i]);
+    if (simplified[simplified.length-1] !== fullPts[fullPts.length-1]) simplified.push(fullPts[fullPts.length-1]);
+
+    _libraryGeomCache.set(routeId, { points: simplified, stats });
+    setTimeout(() => _libraryGeomCache.delete(routeId), 5 * 60 * 1000);
+
+    slot.innerHTML = renderRouteSvg(simplified);
+    appendExtra(renderExtendedStats(stats));
+  } catch (err) {
+    slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Hiba</span>';
+  }
+}
+
+/**
+ * GPX trackpontokból kinyeri az aggregált statisztikákat.
+ */
+function aggregateGpxStats(points) {
+  const hrs   = points.map(p => p.hr).filter(v => v != null && v > 30 && v < 230);
+  const cads  = points.map(p => p.cad).filter(v => v != null && v > 0 && v < 200);
+  const pows  = points.map(p => p.power).filter(v => v != null && v >= 0 && v < 2000);
+  const times = points.map(p => p.time).filter(v => v != null);
+
+  // Sebesség a GPS-időkből (km/h)
+  const speeds = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    if (!a.time || !b.time) continue;
+    const dt = (b.time - a.time) / 1000;
+    if (dt < 1 || dt > 300) continue;
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLng = (b.lng - a.lng) * Math.PI / 180;
+    const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    const d = 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+    const v = (d / dt) * 3.6;
+    if (v > 0 && v < 100) speeds.push(v);
+  }
+
+  const avg = (arr) => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  const max = (arr) => arr.length ? Math.max(...arr) : null;
+
+  return {
+    startTime: times.length ? new Date(times[0]) : null,
+    avgHr:    avg(hrs)  != null ? Math.round(avg(hrs))   : null,
+    maxHr:    max(hrs)  != null ? Math.round(max(hrs))   : null,
+    avgCad:   avg(cads) != null ? Math.round(avg(cads))  : null,
+    avgPower: avg(pows) != null ? Math.round(avg(pows))  : null,
+    maxPower: max(pows) != null ? Math.round(max(pows))  : null,
+    avgSpeed: avg(speeds) != null ? Number(avg(speeds).toFixed(1)) : null,
+    maxSpeed: max(speeds) != null ? Number(max(speeds).toFixed(1)) : null,
+  };
+}
+
+/**
+ * Bővített statisztika sorok HTML-je
+ */
+function renderExtendedStats(s) {
+  if (!s) return "";
+  const rows = [];
+  if (s.startTime) {
+    const t = s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+    rows.push(`<dt>Indulás:</dt><dd>${t}</dd>`);
+  }
+  if (s.avgSpeed != null) rows.push(`<dt>Sebesség (átl/max):</dt><dd>${s.avgSpeed} / ${s.maxSpeed} km/h</dd>`);
+  if (s.avgHr != null)    rows.push(`<dt>Pulzus (átl/max):</dt><dd>${s.avgHr} / ${s.maxHr} bpm</dd>`);
+  if (s.avgCad != null)   rows.push(`<dt>Kadencia (átl):</dt><dd>${s.avgCad} rpm</dd>`);
+  if (s.avgPower != null) rows.push(`<dt>Teljesítmény (átl/max):</dt><dd>${s.avgPower} / ${s.maxPower} W</dd>`);
+  return rows.join("");
+}
+
+/**
+ * Lazy preview betöltés a kártyához – kicsi 60×60 SVG mini-térképszerű körvonal
+ */
+async function loadCardPreview(routeId, isSample) {
+  const slot = document.getElementById(`libCardPreview_${routeId}`);
+  if (!slot) return;
+  // Cache check
+  const cached = _libraryGeomCache.get(routeId);
+  if (cached) {
+    slot.innerHTML = renderRouteSvgMini(cached.points || cached);
+    return;
+  }
+  try {
+    const gpxText = isSample
+      ? await routesApi.loadSample(routeId).catch(() => null)
+      : await routesApi.loadRoute(routeId).catch(() => null);
+    if (!gpxText) return;
+    const xml = new DOMParser().parseFromString(gpxText, "application/xml");
+    const pts = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")]
+      .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")) }))
+      .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    if (pts.length < 2) return;
+    // Simplify ~100 pontig elég a mini preview-nek
+    const step = Math.max(1, Math.floor(pts.length / 100));
+    const simplified = [];
+    for (let i = 0; i < pts.length; i += step) simplified.push(pts[i]);
+    if (simplified[simplified.length - 1] !== pts[pts.length - 1]) simplified.push(pts[pts.length - 1]);
+    _libraryGeomCache.set(routeId, { points: simplified, stats: null });
+    setTimeout(() => _libraryGeomCache.delete(routeId), 5 * 60 * 1000);
+    if (slot.isConnected) slot.innerHTML = renderRouteSvgMini(simplified);
+  } catch {}
+}
+
+/**
+ * Geometry → kicsi 56×56 SVG (kártya jobb felső sarkába)
+ */
+function renderRouteSvgMini(points) {
+  if (!points || points.length < 2) return '';
+  const SIZE = 56, PAD = 3;
+  const lats = points.map(p => p.lat), lngs = points.map(p => p.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const midLat = (minLat + maxLat) / 2;
+  const lngScale = Math.cos(midLat * Math.PI / 180);
+  const dLat = maxLat - minLat || 1e-9;
+  const dLng = (maxLng - minLng) * lngScale || 1e-9;
+  const scale = (SIZE - 2 * PAD) / Math.max(dLat, dLng);
+  const offsetX = (SIZE - dLng * scale) / 2;
+  const offsetY = (SIZE - dLat * scale) / 2;
+  const toX = (lng) => offsetX + (lng - minLng) * lngScale * scale;
+  const toY = (lat) => SIZE - offsetY - (lat - minLat) * scale;
+  const d = points.map((p, i) => (i === 0 ? 'M' : 'L') + toX(p.lng).toFixed(1) + ',' + toY(p.lat).toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
+    <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  </svg>`;
+}
+
+/**
+ * Geometry → SVG path (auto-fit + center, 160×160 px viewBox)
+ */
+function renderRouteSvg(points) {
+  if (!points || points.length < 2) return '';
+  const SIZE = 160, PAD = 8;
+  const lats = points.map(p => p.lat), lngs = points.map(p => p.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  // Mercator-szerű egyszerűsítés: a longitude-ot a latitude cos-ával kompenzáljuk
+  const midLat = (minLat + maxLat) / 2;
+  const lngScale = Math.cos(midLat * Math.PI / 180);
+  const dLat = maxLat - minLat || 1e-9;
+  const dLng = (maxLng - minLng) * lngScale || 1e-9;
+  const scale = (SIZE - 2 * PAD) / Math.max(dLat, dLng);
+  const offsetX = (SIZE - dLng * scale) / 2;
+  const offsetY = (SIZE - dLat * scale) / 2;
+  const toX = (lng) => offsetX + (lng - minLng) * lngScale * scale;
+  const toY = (lat) => SIZE - offsetY - (lat - minLat) * scale; // SVG y inverted
+  const d = points.map((p, i) => (i === 0 ? 'M' : 'L') + toX(p.lng).toFixed(1) + ',' + toY(p.lat).toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
 }
 
 /**
@@ -4625,11 +5535,21 @@ function createLibraryCard(route, category, isSample) {
     chips.push(`<span class="lib-chip"><i data-lucide="clock" aria-hidden="true"></i>${formatRouteDuration(route.duration)}</span>`);
   if (route.elevation != null)
     chips.push(`<span class="lib-chip"><i data-lucide="triangle" aria-hidden="true"></i>${route.elevation} m</span>`);
+  if (route.calories != null)
+    chips.push(`<span class="lib-chip"><i data-lucide="flame" aria-hidden="true"></i>${Math.round(route.calories)} kcal</span>`);
+
+  // Forrás-jelzés (Strava/FIT badge) + mini SVG-slot a jobb felső sarokba
+  const source = libraryRouteSource(route, category);
+  const showStravaIcon = source === "strava";
 
   const card = document.createElement('div');
   card.className = 'library-card';
   card.dataset.id = route.id;
   card.innerHTML = `
+    <div class="library-card-corner" id="libCardCorner_${route.id}">
+      ${showStravaIcon ? '<span class="library-card-strava-badge" title="Strava-ról importálva">S</span>' : ''}
+      <div class="library-card-preview" id="libCardPreview_${route.id}"></div>
+    </div>
     <div class="library-card-header">
       <div class="library-card-badge library-card-badge--${badgeType}">
         <i data-lucide="${typeIcon}" aria-hidden="true"></i>
@@ -4667,6 +5587,12 @@ function createLibraryCard(route, category, isSample) {
       </button>` : ''}
     </div>
   `;
+
+  // Lazy mini route preview a kártya jobb felső sarkába (1 másodperc múlva,
+  // hogy ne torladjon az API a kezdeti rendereléskor – csak első ~12 kártyához)
+  if (route.id) {
+    setTimeout(() => loadCardPreview(route.id, isSample), 100);
+  }
 
   // Betöltés gomb
   card.querySelector('.library-load-btn').addEventListener('click', async () => {
@@ -4723,6 +5649,60 @@ function createLibraryCard(route, category, isSample) {
 document.querySelector("#libraryRefreshBtn")?.addEventListener("click", loadRouteLibrary);
 document.querySelector("#libraryRetryBtn")?.addEventListener("click", loadRouteLibrary);
 
+// ── View-toggle (Cards / List) ───────────────────────────────────────────────
+document.querySelectorAll(".library-view-btn").forEach(btn => {
+  btn.addEventListener("click", () => setLibraryViewMode(btn.dataset.view));
+});
+
+// ── Import dropdown ──────────────────────────────────────────────────────────
+(function initLibraryImportDropdown() {
+  const btn   = document.querySelector("#libraryImportBtn");
+  const menu  = document.querySelector("#libraryImportMenu");
+  const fileInput = document.querySelector("#libraryImportFileInput");
+  if (!btn || !menu) return;
+
+  // Toggle
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  // Click outside → bezár
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) menu.hidden = true;
+  });
+  // ESC → bezár
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") menu.hidden = true;
+  });
+
+  // Menu item handlers
+  menu.querySelectorAll(".library-import-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const src = item.dataset.importSrc;
+      menu.hidden = true;
+      if (src === "file") {
+        fileInput?.click();
+      } else if (src === "strava") {
+        if (_stravaStatus?.connected) {
+          openStravaImportModal();
+        } else if (_stravaStatus?.app_configured) {
+          showToast("Először csatlakozz Stravához: Beállítások → Strava kapcsolat");
+        } else {
+          showToast("Strava integráció nincs konfigurálva (admin teendő).");
+        }
+      }
+    });
+  });
+
+  // File picker → reuse the existing processImportedFile flow (Elemzés tabra tölt)
+  fileInput?.addEventListener("change", async () => {
+    const [file] = fileInput.files;
+    if (!file) return;
+    await processImportedFile(file);
+    fileInput.value = "";
+  });
+})();
+
 // ── Könyvtár szűrő események ─────────────────────────────────────────────────
 document.querySelector('#librarySearchInput')?.addEventListener('input', (e) => {
   _libraryFilter.query = e.target.value;
@@ -4733,6 +5713,14 @@ document.querySelectorAll('[data-lib-type]').forEach(chip => {
     document.querySelectorAll('[data-lib-type]').forEach(c => c.classList.remove('is-active'));
     chip.classList.add('is-active');
     _libraryFilter.type = chip.dataset.libType;
+    renderLibraryGrid();
+  });
+});
+document.querySelectorAll('[data-lib-source]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-lib-source]').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    _libraryFilter.source = chip.dataset.libSource;
     renderLibraryGrid();
   });
 });
