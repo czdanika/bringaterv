@@ -4823,7 +4823,13 @@ body.is-drag-over::after {
 .library-list-table td.lib-col-date {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  width: 90px;
+  width: 110px;
+}
+.lib-date-time {
+  display: inline-block;
+  margin-left: 4px;
+  opacity: 0.6;
+  font-size: 11px;
 }
 .library-list-table td.lib-col-num {
   font-variant-numeric: tabular-nums;
