@@ -3114,7 +3114,7 @@ function renderStravaState(el, status) {
     return;
   }
   if (!status.app_configured) {
-    el.innerHTML = `<div class="strava-conn-error" style="font-size:12px">Először add meg a saját Strava app Client ID-t és Secret-jét fent ↑, utána tudsz csatlakozni.</div>`;
+    el.innerHTML = `<div class="strava-conn-meta" style="font-size:12px;color:var(--muted)">Először állítsd be a Strava API adatokat fent (API beállítás gomb), utána tudsz csatlakozni.</div>`;
     return;
   }
   if (status.connected) {
@@ -3145,32 +3145,50 @@ function renderStravaState(el, status) {
 
 // ── User saját Strava app credentials (Settings) ──────────────────────────────
 async function refreshStravaUserAppConfig() {
-  const cidEl     = document.querySelector("#stravaUserClientId");
-  const secEl     = document.querySelector("#stravaUserClientSecret");
-  const cbEl      = document.querySelector("#stravaUserCallbackInput");
-  const cbDomEl   = document.querySelector("#stravaUserCallbackDomain");
-  const clearBtn  = document.querySelector("#stravaUserAppClearBtn");
-  if (!cidEl) return;
+  const badge    = document.querySelector("#stravaAppStatusBadge");
+  const cidEl    = document.querySelector("#stravaUserClientId");
+  const secEl    = document.querySelector("#stravaUserClientSecret");
+  const cbEl     = document.querySelector("#stravaUserCallbackInput");
+  const cbDomEl  = document.querySelector("#stravaUserCallbackDomain");
+  const clearBtn = document.querySelector("#stravaUserAppClearBtn");
   try {
     const cfg = await routesApi.strava.appConfig.get();
-    cidEl.value = cfg.client_id || "";
-    secEl.value = "";
-    secEl.placeholder = cfg.secret_set ? "•••••• (mentve – csak felülíráshoz írj újat)" : "Másold ide a Strava-tól";
-    // Callback URL: override szerkeszthető. Ha nincs override, mutatjuk az auto-detected-et placeholder-ként
-    cbEl.value       = cfg.callback_url || "";
-    cbEl.placeholder = `auto: ${cfg.redirect_uri || "—"}`;
-    // A Strava-nál a DOMAIN-t kell beírni (csak host)
-    const effective = cfg.callback_url || cfg.redirect_uri;
-    if (effective && cbDomEl) {
-      try {
-        const u = new URL(effective);
-        cbDomEl.textContent = `Authorization Callback Domain a Strava-nál: ${u.host}`;
-      } catch { cbDomEl.textContent = ""; }
+    // Status badge a Beállítások panelen
+    if (badge) {
+      if (cfg.client_id && cfg.secret_set) {
+        badge.innerHTML = `<span style="color:#16a34a">✓ Beállítva</span> · Client ID: ${cfg.client_id}`;
+      } else {
+        badge.innerHTML = `<span style="color:#dc2626">Nincs beállítva</span>`;
+      }
     }
-    clearBtn.style.display = (cfg.client_id || cfg.secret_set) ? "" : "none";
+    // Modal mezők (csak ha létezik)
+    if (cidEl) {
+      cidEl.value = cfg.client_id || "";
+      secEl.value = "";
+      secEl.placeholder = cfg.secret_set ? "•••••• (mentve – csak felülíráshoz írj újat)" : "Másold ide a Strava-tól";
+      cbEl.value       = cfg.callback_url || "";
+      cbEl.placeholder = `auto: ${cfg.redirect_uri || "—"}`;
+      const effective = cfg.callback_url || cfg.redirect_uri;
+      if (effective && cbDomEl) {
+        try {
+          const u = new URL(effective);
+          cbDomEl.textContent = `Authorization Callback Domain a Strava-nál: ${u.host}`;
+        } catch { cbDomEl.textContent = ""; }
+      }
+      clearBtn.style.display = (cfg.client_id || cfg.secret_set) ? "" : "none";
+    }
   } catch (err) {
     console.warn("Strava app config lekérési hiba:", err);
   }
+}
+
+function openStravaAppConfigModal() {
+  const o = document.querySelector("#stravaAppConfigOverlay");
+  if (o) { o.hidden = false; refreshStravaUserAppConfig(); }
+}
+function closeStravaAppConfigModal() {
+  const o = document.querySelector("#stravaAppConfigOverlay");
+  if (o) o.hidden = true;
 }
 
 async function saveStravaUserAppConfig() {
@@ -3185,8 +3203,11 @@ async function saveStravaUserAppConfig() {
   try {
     await routesApi.strava.appConfig.save(cid, sec, cb);
     if (msg) { msg.textContent = "Mentve ✓"; msg.style.color = "#16a34a"; }
-    setTimeout(() => { if (msg) msg.textContent = ""; }, 2500);
     await refreshStravaStatus();
+    setTimeout(() => {
+      if (msg) msg.textContent = "";
+      closeStravaAppConfigModal();
+    }, 600);
   } catch (err) {
     if (msg) { msg.textContent = "Hiba: " + err.message; msg.style.color = "#dc2626"; }
   }
@@ -3248,6 +3269,12 @@ window.addEventListener("message", (e) => {
 refreshStravaStatus();
 document.querySelector("#stravaUserAppSaveBtn")?.addEventListener("click", saveStravaUserAppConfig);
 document.querySelector("#stravaUserAppClearBtn")?.addEventListener("click", clearStravaUserAppConfig);
+document.querySelector("#stravaUserAppOpenBtn")?.addEventListener("click", openStravaAppConfigModal);
+document.querySelector("#stravaAppConfigCloseBtn")?.addEventListener("click", closeStravaAppConfigModal);
+// Overlay-en kívülre kattintásra is záródjon
+document.querySelector("#stravaAppConfigOverlay")?.addEventListener("click", (e) => {
+  if (e.target.id === "stravaAppConfigOverlay") closeStravaAppConfigModal();
+});
 
 // ── Strava import modal ─────────────────────────────────────────────────────
 let _stravaActivities = [];

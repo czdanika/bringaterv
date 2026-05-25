@@ -1542,34 +1542,67 @@ def _delete_user_strava(user_id: str) -> None:
 
 
 # ── OAuth state (CSRF védelem) ────────────────────────────────────────────────
-# Egyszerű in-memory state-tár: state → (user_id, expiry_ts)
-_strava_states = {}
+# Fájl-alapú state-tár (több gunicorn worker is látja).
+# /data/strava_states/<state>.json {user_id, expiry_ts}
+_STRAVA_STATES_DIR = os.environ.get("STRAVA_STATES_DIR", "/data/strava_states")
 _STRAVA_STATE_TTL = 10 * 60  # 10 perc
+
+
+def _strava_state_path(state: str) -> str:
+    # Csak alfanumerikus state token engedélyezett a path-ban
+    safe = "".join(c for c in state if c.isalnum() or c in "-_")
+    return os.path.join(_STRAVA_STATES_DIR, f"{safe}.json")
 
 
 def _new_strava_state(user_id: str) -> str:
     state = secrets.token_urlsafe(24)
-    _strava_states[state] = (user_id, time.time() + _STRAVA_STATE_TTL)
-    # Tisztítás
+    os.makedirs(_STRAVA_STATES_DIR, exist_ok=True)
+    path = _strava_state_path(state)
+    tmp  = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"user_id": user_id, "expiry_ts": time.time() + _STRAVA_STATE_TTL}, f)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
     _cleanup_strava_states()
     return state
 
 
 def _consume_strava_state(state: str) -> str | None:
-    rec = _strava_states.pop(state, None)
-    if not rec:
+    path = _strava_state_path(state)
+    if not os.path.isfile(path):
         return None
-    user_id, exp = rec
-    if time.time() > exp:
+    try:
+        with open(path, encoding="utf-8") as f:
+            rec = json.load(f)
+    except (OSError, json.JSONDecodeError):
         return None
-    return user_id
+    finally:
+        try: os.remove(path)
+        except OSError: pass
+    if not rec or time.time() > rec.get("expiry_ts", 0):
+        return None
+    return rec.get("user_id")
 
 
 def _cleanup_strava_states():
+    """Lejárt state fájlok törlése (best-effort, futás-időben)."""
+    if not os.path.isdir(_STRAVA_STATES_DIR):
+        return
     now = time.time()
-    expired = [k for k, (_, e) in _strava_states.items() if e < now]
-    for k in expired:
-        _strava_states.pop(k, None)
+    try:
+        for name in os.listdir(_STRAVA_STATES_DIR):
+            if not name.endswith(".json"): continue
+            p = os.path.join(_STRAVA_STATES_DIR, name)
+            try:
+                with open(p, encoding="utf-8") as f:
+                    rec = json.load(f)
+                if now > rec.get("expiry_ts", 0):
+                    os.remove(p)
+            except (OSError, json.JSONDecodeError):
+                try: os.remove(p)
+                except OSError: pass
+    except OSError:
+        pass
 
 
 # ── Token refresh ─────────────────────────────────────────────────────────────
@@ -1722,10 +1755,15 @@ def _strava_oauth_close_window(success: bool = False, athlete_name: str = "", er
 body {{ font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f5f5;color:#222 }}
 .box {{ background:#fff;padding:24px 32px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);text-align:center;max-width:400px }}
 .ok {{ color:#16a34a }} .err {{ color:#dc2626 }}
+button {{ margin-top:14px;padding:8px 20px;font-size:14px;background:#FC4C02;color:#fff;border:none;border-radius:6px;cursor:pointer }}
+button:hover {{ filter:brightness(1.1) }}
+.hint {{ margin-top:10px;font-size:12px;color:#666 }}
 </style></head><body>
 <div class="box">
   <h2 class="{'ok' if success else 'err'}">{msg}</h2>
-  <p>Ez az ablak automatikusan bezáródik…</p>
+  <p>A bringaterv ablakban már látszik az új állapot. Ezt a fület most már bezárhatod.</p>
+  <button onclick="tryClose()">Ablak bezárása</button>
+  <div class="hint" id="hint" style="display:none">Safari nem engedi auto-bezárni — zárd be kézzel (Cmd+W).</div>
 </div>
 <script>
 try {{
@@ -1733,7 +1771,13 @@ try {{
     window.opener.postMessage({json.dumps(payload)}, "*");
   }}
 }} catch(e) {{}}
-setTimeout(() => window.close(), 1500);
+function tryClose() {{
+  try {{ window.close(); }} catch(e) {{}}
+  // Ha 200ms után még itt vagyunk, mutatjuk a hint-et
+  setTimeout(() => {{
+    if (!window.closed) document.getElementById("hint").style.display = "block";
+  }}, 200);
+}}
 </script>
 </body></html>"""
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
