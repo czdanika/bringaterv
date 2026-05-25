@@ -1447,13 +1447,23 @@ STRAVA_DEFAULT_SCOPE = "read,activity:read_all"
 
 # ── App credentials kezelés (env felülbírálja az admin UI-fájlt) ─────────────
 
-def _load_strava_app_config() -> dict:
-    """Visszaadja az aktuális Strava app credentialokat. Forrás-jelzéssel."""
+def _load_strava_app_config(user_id: str = None) -> dict:
+    """Visszaadja a Strava app credentialokat. Forrás-prioritás:
+       1. User saját client_id/secret (strava.json-ban) — per-user app modell
+       2. Env STRAVA_CLIENT_ID/SECRET — legacy fallback (régi tokenek refresh-éhez)
+       3. Admin UI globális (legacy, deprecated)
+    """
+    # 1. User saját
+    if user_id:
+        ud = _load_user_strava(user_id)
+        if ud.get("client_id") and ud.get("client_secret"):
+            return {"client_id": ud["client_id"], "client_secret": ud["client_secret"], "source": "user"}
+    # 2. Env (legacy)
     cid = os.environ.get("STRAVA_CLIENT_ID")
     sec = os.environ.get("STRAVA_CLIENT_SECRET")
     if cid and sec:
         return {"client_id": cid, "client_secret": sec, "source": "env"}
-    # Admin UI-ből mentve?
+    # 3. Admin UI globális (legacy)
     if os.path.isfile(STRAVA_APP_CONFIG):
         try:
             with open(STRAVA_APP_CONFIG, encoding="utf-8") as f:
@@ -1480,8 +1490,16 @@ def _delete_strava_app_config() -> None:
         os.remove(STRAVA_APP_CONFIG)
 
 
-def _resolve_redirect_uri() -> str:
-    """Visszaadja a callback URL-t. Sorrend: env, vagy request-alapú."""
+def _resolve_redirect_uri(user_id: str = None) -> str:
+    """Visszaadja a callback URL-t. Prioritás:
+       1. User saját override (strava.json callback_url)
+       2. Env STRAVA_REDIRECT_URI
+       3. Request-alapú auto-detect (scheme + host)
+    """
+    if user_id:
+        ud = _load_user_strava(user_id)
+        if ud.get("callback_url"):
+            return ud["callback_url"]
     if STRAVA_REDIRECT_URI:
         return STRAVA_REDIRECT_URI
     # Request-alapú: scheme + host
@@ -1565,10 +1583,10 @@ def _ensure_strava_token(user_id: str) -> str | None:
     # 60 sec buffer
     if data.get("expires_at", 0) > time.time() + 60:
         return data["access_token"]
-    # Refresh
-    cfg = _load_strava_app_config()
+    # Refresh — a user saját app credentials-jével (vagy env fallback)
+    cfg = _load_strava_app_config(user_id)
     if not cfg["client_id"]:
-        log.warning("Strava app credentials hiányoznak token refresh-hez")
+        log.warning("Strava app credentials hiányoznak token refresh-hez (user=%s)", user_id)
         return None
     try:
         resp = requests.post(STRAVA_TOKEN_URL, data={
@@ -1599,8 +1617,9 @@ def _ensure_strava_token(user_id: str) -> str | None:
 @require_auth
 def strava_status():
     """Csatlakozott-e a user, ha igen mikor és athleta-név is."""
-    data = _load_user_strava(g.user["id"])
-    cfg  = _load_strava_app_config()
+    user_id = g.user["id"]
+    data = _load_user_strava(user_id)
+    cfg  = _load_strava_app_config(user_id)
     return jsonify({
         "connected":     bool(data.get("access_token")),
         "athlete_id":    data.get("athlete_id"),
@@ -1608,6 +1627,8 @@ def strava_status():
         "connected_at":  data.get("connected_at"),
         "scope":         data.get("scope"),
         "app_configured": cfg["client_id"] is not None,
+        "app_source":    cfg["source"],   # "user" / "env" / "admin_ui" / "none"
+        "has_user_creds": bool(data.get("client_id") and data.get("client_secret")),
     })
 
 
@@ -1615,13 +1636,14 @@ def strava_status():
 @require_auth
 def strava_connect():
     """Visszaadja a Strava OAuth URL-t, ahova a usert irányítjuk."""
-    cfg = _load_strava_app_config()
+    user_id = g.user["id"]
+    cfg = _load_strava_app_config(user_id)
     if not cfg["client_id"]:
-        abort(503, description="Strava integráció nincs konfigurálva. Az admin a Beállítások panelben tudja beállítani.")
-    state = _new_strava_state(g.user["id"])
+        abort(503, description="Strava app credentials nincs megadva. A Beállítások → Strava szekcióban add meg a saját Strava app Client ID-t és Secret-jét.")
+    state = _new_strava_state(user_id)
     params = {
         "client_id":     cfg["client_id"],
-        "redirect_uri":  _resolve_redirect_uri(),
+        "redirect_uri":  _resolve_redirect_uri(user_id),
         "response_type": "code",
         "scope":         STRAVA_DEFAULT_SCOPE,
         "state":         state,
@@ -1645,9 +1667,9 @@ def strava_callback():
     user_id = _consume_strava_state(state)
     if not user_id:
         return _strava_oauth_close_window(error="Érvénytelen vagy lejárt state.")
-    cfg = _load_strava_app_config()
+    cfg = _load_strava_app_config(user_id)
     if not cfg["client_id"]:
-        return _strava_oauth_close_window(error="Strava app nincs konfigurálva.")
+        return _strava_oauth_close_window(error="Strava app credentials nincs megadva.")
     # Token csere
     try:
         resp = requests.post(STRAVA_TOKEN_URL, data={
@@ -1657,6 +1679,15 @@ def strava_callback():
             "grant_type":    "authorization_code",
         }, timeout=15)
         if resp.status_code != 200:
+            # 403 = a Strava app elérte a felhasználói (athlete) limitet.
+            # Alapból 1 athlete/app a Strava-nál, ezt a developer dashboardon
+            # ("Authorized athletes count") kell növeltetni.
+            if resp.status_code == 403:
+                return _strava_oauth_close_window(error=(
+                    "A Strava app elérte a felhasználói limitet (alapból 1 athlete). "
+                    "Ha más Strava-fiókod is van, hozz létre saját Strava app-ot a "
+                    "strava.com/settings/api oldalon és add meg itt a credentials-jét."
+                ))
             return _strava_oauth_close_window(error=f"Token csere hiba ({resp.status_code}).")
         td = resp.json()
     except requests.RequestException as exc:
@@ -1665,7 +1696,9 @@ def strava_callback():
     athlete = td.get("athlete", {}) or {}
     athlete_name = (athlete.get("firstname", "") + " " + athlete.get("lastname", "")).strip() \
                 or athlete.get("username") or f"#{athlete.get('id')}"
-    _save_user_strava(user_id, {
+    # Mergelünk a meglévő adatokkal — a user által mentett client_id/secret megmarad
+    existing = _load_user_strava(user_id)
+    existing.update({
         "athlete_id":    athlete.get("id"),
         "athlete_name":  athlete_name,
         "access_token":  td["access_token"],
@@ -1674,6 +1707,7 @@ def strava_callback():
         "scope":         td.get("scope") or STRAVA_DEFAULT_SCOPE,
         "connected_at":  _now_dt(),
     })
+    _save_user_strava(user_id, existing)
     return _strava_oauth_close_window(success=True, athlete_name=athlete_name)
 
 
@@ -2105,14 +2139,84 @@ def strava_deny_remove(strava_id: int):
 @app.route("/api/strava/disconnect", methods=["DELETE"])
 @require_auth
 def strava_disconnect():
-    """Lecsatlakozás: token deauth + lokális adat törlés."""
-    data = _load_user_strava(g.user["id"])
+    """Lecsatlakozás: token deauth + token/athlete törlés.
+    A user által mentett client_id/secret (saját app creds) MARAD,
+    hogy ne kelljen újra beírni csatlakozáskor."""
+    user_id = g.user["id"]
+    data = _load_user_strava(user_id)
     if data.get("access_token"):
         try:
             requests.post(STRAVA_DEAUTH_URL, data={"access_token": data["access_token"]}, timeout=10)
         except requests.RequestException as exc:
             log.warning("Strava deauth exception: %s", exc)
-    _delete_user_strava(g.user["id"])
+    # Csak a session-jellegű mezőket töröljük, a creds marad
+    for k in ("access_token", "refresh_token", "expires_at",
+              "athlete_id", "athlete_name", "scope", "connected_at"):
+        data.pop(k, None)
+    if data:
+        _save_user_strava(user_id, data)
+    else:
+        _delete_user_strava(user_id)
+    return jsonify({"ok": True})
+
+
+# ── User-szintű Strava app credentials kezelés (saját Strava-app) ─────────────
+
+@app.route("/api/strava/app-config", methods=["GET"])
+@require_auth
+def user_strava_app_config_get():
+    """User által beállított Strava app credentials állapota."""
+    user_id = g.user["id"]
+    data = _load_user_strava(user_id)
+    return jsonify({
+        "client_id":    data.get("client_id"),        # publikus érték
+        "secret_set":   bool(data.get("client_secret")),
+        "callback_url": data.get("callback_url"),     # user override (vagy None)
+        "redirect_uri": _resolve_redirect_uri(user_id),  # tényleges (override vagy auto)
+    })
+
+
+@app.route("/api/strava/app-config", methods=["PUT"])
+@require_auth
+def user_strava_app_config_set():
+    """User mentse a saját Strava app Client ID + Secret-jét (+ opcionális callback URL)."""
+    body = request.get_json(silent=True) or {}
+    cid  = (body.get("client_id") or "").strip()
+    sec  = (body.get("client_secret") or "").strip()
+    cb   = (body.get("callback_url") or "").strip() or None
+    if not cid:
+        abort(400, description="Client ID kötelező.")
+    user_id = g.user["id"]
+    data = _load_user_strava(user_id)
+    data["client_id"] = cid
+    # Secret-et csak akkor írjuk felül, ha küldött újat (üres string = ne piszkáld)
+    if sec:
+        data["client_secret"] = sec
+    elif not data.get("client_secret"):
+        abort(400, description="Client Secret kötelező (első mentésnél).")
+    # Callback URL: opcionális override, üresnél töröljük
+    if cb:
+        data["callback_url"] = cb
+    else:
+        data.pop("callback_url", None)
+    _save_user_strava(user_id, data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/strava/app-config", methods=["DELETE"])
+@require_auth
+def user_strava_app_config_delete():
+    """User saját Strava app credentials törlése (a tokenek megmaradnak,
+    de refresh fail-elni fog ha nincs env fallback)."""
+    user_id = g.user["id"]
+    data = _load_user_strava(user_id)
+    data.pop("client_id", None)
+    data.pop("client_secret", None)
+    data.pop("callback_url", None)
+    if data:
+        _save_user_strava(user_id, data)
+    else:
+        _delete_user_strava(user_id)
     return jsonify({"ok": True})
 
 

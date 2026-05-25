@@ -393,5 +393,22 @@ export const routesApi = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
+    // User saját Strava app credentials kezelése
+    appConfig: {
+      get()  { return fetchJson(`${BASE}/strava/app-config`); },
+      save(client_id, client_secret, callback_url = null) {
+        return fetchJson(`${BASE}/strava/app-config`, {
+          method: "PUT",
+          body: JSON.stringify({ client_id, client_secret, callback_url }),
+        });
+      },
+      async clear() {
+        const res = await fetch(`${BASE}/strava/app-config`, {
+          method: "DELETE", headers: authHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      },
+    },
   },
 };

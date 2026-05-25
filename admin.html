@@ -352,39 +352,6 @@
       </div>
     </div>
 
-    <!-- Strava app beállítások panel -->
-    <div class="panel" style="margin-top:24px">
-      <div class="panel-header">
-        <span class="panel-title">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#FC4C02;color:#fff;border-radius:3px;font-size:11px;font-weight:800;margin-right:6px;vertical-align:middle">S</span>
-          Strava app beállítások
-        </span>
-        <span id="stravaConfigStatus" style="font-size:12px;color:var(--muted)"></span>
-      </div>
-      <div style="padding:18px 20px">
-        <p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.55">
-          A Strava OAuth integrációhoz az alkalmazás Client ID-ját és Client Secret-jét állítsd be itt. Az env-változókkal beállított értékek (<code>STRAVA_CLIENT_ID</code> / <code>STRAVA_CLIENT_SECRET</code>) felülbírálják az itt megadottakat.
-        </p>
-        <div class="form-group">
-          <label class="form-label">Client ID</label>
-          <input id="stravaClientIdInput" class="form-input" type="text" placeholder="pl. 231390" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Client Secret</label>
-          <input id="stravaClientSecretInput" class="form-input" type="password" placeholder="A Strava-nál Show gombbal kibontható" autocomplete="off">
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Új mentésnél felülírja a meglévőt. Az értéket sosem mutatjuk vissza biztonsági okból.</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Callback URL (a Strava-nál a Callback Domain mezőbe csak a domain rész kell)</label>
-          <input id="stravaCallbackUrlDisplay" class="form-input" type="text" readonly style="background:var(--panel-strong);font-family:monospace;font-size:12px">
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button id="stravaConfigSaveBtn" class="btn btn-primary" type="button">Mentés</button>
-          <button id="stravaConfigDeleteBtn" class="btn btn-ghost" type="button">UI-s konfig törlése</button>
-          <span id="stravaConfigMsg" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
-        </div>
-      </div>
-    </div>
   </main>
 
   <!-- Backup modal -->
@@ -1430,62 +1397,12 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       }
     });
 
-    // ── Strava app config ─────────────────────────────────────────────────────
-    async function loadStravaConfig() {
-      const statusEl = document.querySelector("#stravaConfigStatus");
-      const cidEl    = document.querySelector("#stravaClientIdInput");
-      const cbEl     = document.querySelector("#stravaCallbackUrlDisplay");
-      const secEl    = document.querySelector("#stravaClientSecretInput");
-      try {
-        const cfg = await routesApi.admin.getStravaConfig();
-        cidEl.value = cfg.client_id || "";
-        cbEl.value  = cfg.redirect_uri || "";
-        secEl.placeholder = cfg.secret_set
-          ? "Mentett titok (üres = változatlan)"
-          : "A Strava-nál Show gombbal kibontható";
-        const src = cfg.source;
-        const label = src === "env"      ? "env-változó (read-only)" :
-                      src === "admin_ui" ? "admin UI"                :
-                                           "nincs beállítva";
-        statusEl.textContent = `Forrás: ${label}`;
-        cidEl.disabled = (src === "env");
-        secEl.disabled = (src === "env");
-      } catch (err) {
-        statusEl.textContent = "Hiba: " + err.message;
-      }
-    }
-
-    document.querySelector("#stravaConfigSaveBtn").addEventListener("click", async () => {
-      const msgEl = document.querySelector("#stravaConfigMsg");
-      const cid = document.querySelector("#stravaClientIdInput").value.trim();
-      const sec = document.querySelector("#stravaClientSecretInput").value.trim();
-      if (!cid || !sec) { msgEl.textContent = "Client ID és Secret kötelező."; return; }
-      msgEl.textContent = "Mentés…";
-      try {
-        await routesApi.admin.saveStravaConfig(cid, sec);
-        msgEl.textContent = "Mentve ✓";
-        document.querySelector("#stravaClientSecretInput").value = "";
-        await loadStravaConfig();
-      } catch (err) {
-        msgEl.textContent = "Hiba: " + err.message;
-      }
-    });
-
-    document.querySelector("#stravaConfigDeleteBtn").addEventListener("click", async () => {
-      if (!confirm("Biztosan törlöd az admin UI-s konfigot? Az env-változók (ha vannak) megmaradnak.")) return;
-      const msgEl = document.querySelector("#stravaConfigMsg");
-      try {
-        await routesApi.admin.deleteStravaConfig();
-        msgEl.textContent = "Törölve";
-        await loadStravaConfig();
-      } catch (err) { msgEl.textContent = "Hiba: " + err.message; }
-    });
+    // (Strava app config: már nem az admin panelben, hanem per-user a Beállításokban)
 
     // ── Init ──────────────────────────────────────────────────────────────────
     loadStats();
     loadUsers();
     loadSamples();
-    loadStravaConfig();
   </script>
 </body>
 </html>

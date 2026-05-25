@@ -3090,6 +3090,8 @@ async function refreshStravaStatus() {
     return;
   }
   renderStravaState(stateEl, _stravaStatus);
+  // User saját app config szekció állapotának frissítése
+  await refreshStravaUserAppConfig();
   // Library import dropdown frissítés
   if (stravaImportItem) {
     const ok = _stravaStatus.connected;
@@ -3098,9 +3100,9 @@ async function refreshStravaStatus() {
       ? "Strava activity-k importálása a könyvtárba"
       : (_stravaStatus.app_configured
           ? "Csatlakozz először Stravához (Beállítások → Strava kapcsolat)"
-          : "A bringaterv admin még nem konfigurálta a Strava integrációt");
+          : "Add meg a saját Strava app credentials-t (Beállítások → Strava kapcsolat)");
     if (stravaImportStatus) {
-      stravaImportStatus.textContent = ok ? "" : (_stravaStatus.app_configured ? "nincs csatlakoztatva" : "nincs konfigurálva");
+      stravaImportStatus.textContent = ok ? "" : (_stravaStatus.app_configured ? "nincs csatlakoztatva" : "nincs app credential");
     }
   }
 }
@@ -3112,7 +3114,7 @@ function renderStravaState(el, status) {
     return;
   }
   if (!status.app_configured) {
-    el.innerHTML = `<div class="strava-conn-error">A bringaterv admin még nem állította be a Strava integrációt. Szólj az adminnak.</div>`;
+    el.innerHTML = `<div class="strava-conn-error" style="font-size:12px">Először add meg a saját Strava app Client ID-t és Secret-jét fent ↑, utána tudsz csatlakozni.</div>`;
     return;
   }
   if (status.connected) {
@@ -3138,6 +3140,65 @@ function renderStravaState(el, status) {
         </button>
       </div>`;
     el.querySelector("#stravaConnectBtn")?.addEventListener("click", stravaConnect);
+  }
+}
+
+// ── User saját Strava app credentials (Settings) ──────────────────────────────
+async function refreshStravaUserAppConfig() {
+  const cidEl     = document.querySelector("#stravaUserClientId");
+  const secEl     = document.querySelector("#stravaUserClientSecret");
+  const cbEl      = document.querySelector("#stravaUserCallbackInput");
+  const cbDomEl   = document.querySelector("#stravaUserCallbackDomain");
+  const clearBtn  = document.querySelector("#stravaUserAppClearBtn");
+  if (!cidEl) return;
+  try {
+    const cfg = await routesApi.strava.appConfig.get();
+    cidEl.value = cfg.client_id || "";
+    secEl.value = "";
+    secEl.placeholder = cfg.secret_set ? "•••••• (mentve – csak felülíráshoz írj újat)" : "Másold ide a Strava-tól";
+    // Callback URL: override szerkeszthető. Ha nincs override, mutatjuk az auto-detected-et placeholder-ként
+    cbEl.value       = cfg.callback_url || "";
+    cbEl.placeholder = `auto: ${cfg.redirect_uri || "—"}`;
+    // A Strava-nál a DOMAIN-t kell beírni (csak host)
+    const effective = cfg.callback_url || cfg.redirect_uri;
+    if (effective && cbDomEl) {
+      try {
+        const u = new URL(effective);
+        cbDomEl.textContent = `Authorization Callback Domain a Strava-nál: ${u.host}`;
+      } catch { cbDomEl.textContent = ""; }
+    }
+    clearBtn.style.display = (cfg.client_id || cfg.secret_set) ? "" : "none";
+  } catch (err) {
+    console.warn("Strava app config lekérési hiba:", err);
+  }
+}
+
+async function saveStravaUserAppConfig() {
+  const cid = document.querySelector("#stravaUserClientId")?.value.trim();
+  const sec = document.querySelector("#stravaUserClientSecret")?.value.trim();
+  const cb  = document.querySelector("#stravaUserCallbackInput")?.value.trim() || null;
+  const msg = document.querySelector("#stravaUserAppMsg");
+  if (!cid) {
+    if (msg) { msg.textContent = "Client ID kötelező."; msg.style.color = "#dc2626"; }
+    return;
+  }
+  try {
+    await routesApi.strava.appConfig.save(cid, sec, cb);
+    if (msg) { msg.textContent = "Mentve ✓"; msg.style.color = "#16a34a"; }
+    setTimeout(() => { if (msg) msg.textContent = ""; }, 2500);
+    await refreshStravaStatus();
+  } catch (err) {
+    if (msg) { msg.textContent = "Hiba: " + err.message; msg.style.color = "#dc2626"; }
+  }
+}
+
+async function clearStravaUserAppConfig() {
+  if (!confirm("Biztosan törlöd a Strava app credentials-t? Ezután újra kell csatlakozni Stravához.")) return;
+  try {
+    await routesApi.strava.appConfig.clear();
+    await refreshStravaStatus();
+  } catch (err) {
+    alert("Törlési hiba: " + err.message);
   }
 }
 
@@ -3185,6 +3246,8 @@ window.addEventListener("message", (e) => {
 
 // Inicializáció (és újrafutás amikor a user belép)
 refreshStravaStatus();
+document.querySelector("#stravaUserAppSaveBtn")?.addEventListener("click", saveStravaUserAppConfig);
+document.querySelector("#stravaUserAppClearBtn")?.addEventListener("click", clearStravaUserAppConfig);
 
 // ── Strava import modal ─────────────────────────────────────────────────────
 let _stravaActivities = [];
