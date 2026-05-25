@@ -165,7 +165,9 @@ export const routesApi = {
   async deleteRoute(id) {
     const res = await fetch(`${BASE}/routes/${encodeURIComponent(id)}`, {
       method: "DELETE",
+      headers: authHeaders(),
     });
+    if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
     if (!res.ok && res.status !== 204) {
       throw new Error(`Törlési hiba: HTTP ${res.status}`);
     }

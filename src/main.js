@@ -100,6 +100,7 @@ let hasImportedFile = false;   // igaz, ha az Elemzés fülön van betöltött f
 let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
 let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
 let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti binary
+let _loadedLibraryRouteId = null; // ha könyvtárból töltöttük (vagy már elmentettük), akkor az ID
 
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
@@ -3639,6 +3640,8 @@ function clearAllRouteState() {
   importedCadGeometry = null;
   importedPowerGeometry = null;
   importedGpxText = null;
+  _loadedLibraryRouteId = null;
+  updateFileSaveButtonState();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
@@ -4383,6 +4386,8 @@ async function processImportedFile(file) {
   importedFileName  = file.name.replace(/\.(gpx|fit)$/i, "");
   importedGpxText   = gpxText;
   importedFitBuffer = fitBuffer; // null ha GPX-ből jött
+  _loadedLibraryRouteId = null;  // külső fájl → fel lehet ajánlani a mentést
+  updateFileSaveButtonState();
   populateFileTab({
     filename: file.name,
     geometry: imported.geometry,
@@ -4460,7 +4465,37 @@ elements.gpxInput.addEventListener("change", async () => {
 elements.fileExportButton?.addEventListener("click", () => openExportModal());
 
 // ── Edzés mentése könyvtárba (Elemzés fül) ────────────────────────────────────
+/** A Mentés gomb állapotát igazítja: rejtett ha már könyvtárban van (vagy nincs adat). */
+function updateFileSaveButtonState() {
+  const btn = elements.fileSaveToLibraryButton;
+  if (!btn) return;
+  const hasPoints = store.getState().waypoints?.length > 0;
+  if (!hasPoints) {
+    btn.disabled = true;
+    btn.hidden = false;
+    return;
+  }
+  if (_loadedLibraryRouteId) {
+    // Már a könyvtárban van — ne ajánljuk a mentést
+    btn.hidden = true;
+    return;
+  }
+  btn.hidden = false;
+  btn.disabled = false;
+  // Visszaállítjuk az alapszöveget (ha korábban "Mentve" volt)
+  const lbl = btn.querySelector("span");
+  if (lbl) lbl.textContent = "Mentés könyvtárba";
+}
+
 elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
+  const btn = elements.fileSaveToLibraryButton;
+  if (btn?.disabled) return;
+  // Dupla-mentés ellen: azonnal letiltjuk
+  if (btn) {
+    btn.disabled = true;
+    const lbl = btn.querySelector("span");
+    if (lbl) lbl.textContent = "Mentés…";
+  }
   const state = store.getState();
   const name = importedFileName || "Edzés";
 
@@ -4491,7 +4526,7 @@ elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
   }
 
   try {
-    await routesApi.saveRoute({
+    const saved = await routesApi.saveRoute({
       name,
       gpxContent:  content,
       fitContent,                 // null vagy base64 string
@@ -4502,9 +4537,19 @@ elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
       description: "",
     });
     showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
+    // Megjegyezzük hogy ez most már a könyvtárban van – nincs többszörös mentés
+    _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
+    updateFileSaveButtonState();   // gomb eltűnik
+    if (typeof loadRouteLibrary === "function") loadRouteLibrary();
   } catch (err) {
     console.error("Edzés mentési hiba:", err);
     showToast("Nem sikerült menteni. Az API elérhető?");
+    // Hiba esetén visszaengedjük a mentést
+    if (btn) {
+      btn.disabled = false;
+      const lbl = btn.querySelector("span");
+      if (lbl) lbl.textContent = "Mentés könyvtárba";
+    }
   }
 });
 
@@ -4655,6 +4700,8 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     hasImportedFile = true;
     importedFileName = routeName;
     importedGpxText  = gpxText; // eredeti GPX megőrzése (esetleges újramentéshez)
+    _loadedLibraryRouteId = id;  // már a könyvtárban van – mentés gomb el lesz rejtve
+    updateFileSaveButtonState();
     populateFileTab({
       filename: `${routeName}.gpx`,
       geometry: imported.geometry,
