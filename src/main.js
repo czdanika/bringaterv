@@ -103,7 +103,7 @@ let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti bina
 
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
-let _libraryFilter = { type: 'all', source: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
+let _libraryFilter = { type: 'all', source: 'all', sport: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
 const DIST_MAX = 500;  // km
 const DUR_MAX  = 600;  // perc (10 óra)
 
@@ -4887,14 +4887,16 @@ function applyLibraryListSort(items) {
   const k = _libraryListSort.key;
   const dir = _libraryListSort.dir === "asc" ? 1 : -1;
   const accessor = {
-    date:      x => x.route.date || "",
+    // start_time (ISO timestamp) ha van — különben dátum. Így a napon belüli
+    // óra-perc is figyelembe veszi a rendezést.
+    date:      x => x.route.start_time || x.route.date || "",
     name:      x => (x.route.name || "").toLowerCase(),
     duration:  x => x.route.duration ?? 0,
     distance:  x => x.route.distance ?? 0,
     elevation: x => x.route.elevation ?? 0,
     calories:  x => x.route.calories ?? 0,
     effort:    x => x.route.suffer_score ?? 0,
-  }[k] || (x => x.route.date || "");
+  }[k] || (x => x.route.start_time || x.route.date || "");
   return [...items].sort((a, b) => {
     const va = accessor(a), vb = accessor(b);
     if (va < vb) return -1 * dir;
@@ -4928,6 +4930,16 @@ function smartDateFormat(isoDate) {
   return d.toLocaleDateString("hu-HU", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+/** Smart date + óra-perc ha van start_time. Pl: "Ma 18:30", "Tegnap 09:15". */
+function smartDateTimeFormat(route) {
+  const dateLbl = smartDateFormat(route.start_time || route.date);
+  if (!route.start_time) return dateLbl;
+  const d = new Date(route.start_time);
+  if (isNaN(d.getTime())) return dateLbl;
+  const hhmm = d.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+  return `${dateLbl} <span class="lib-date-time">${hhmm}</span>`;
+}
+
 function libraryRouteSource(route, category) {
   if (category === "sample") return "sample";
   if (route.source) return route.source;       // ha a backend megadja
@@ -4936,13 +4948,20 @@ function libraryRouteSource(route, category) {
 }
 
 function libraryRouteSport(route) {
-  // Először sport_type (új mező Strava-importnál), aztán type (legacy/route mode)
+  const k = libraryRouteSportKey(route);
+  return { cycling: "🚴", run: "🏃", hike: "🏞️", walk: "🚶", other: "🏷️" }[k] || "🚴";
+}
+
+/** Sport-csoport kulcs (szűréshez): cycling / run / hike / walk / other */
+function libraryRouteSportKey(route) {
   const t = (route.sport_type || route.type || "").toLowerCase();
-  if (t.includes("cycl") || t === "asphalt" || t === "gravel" || t === "mtb" || t === "bike") return "🚴";
-  if (t.includes("walk")) return "🚶";
-  if (t.includes("run"))  return "🏃";
-  if (t.includes("hik"))  return "🏞️";
-  return "🚴";
+  if (!t) return "cycling"; // alapértelmezett (régi adatok, terv-mód)
+  if (t.includes("cycl") || t.includes("ride") || t.includes("bike")
+      || t === "asphalt" || t === "gravel" || t === "mtb") return "cycling";
+  if (t.includes("hik")) return "hike";
+  if (t.includes("walk")) return "walk";
+  if (t.includes("run")) return "run";
+  return "other";
 }
 
 function libraryFormatDuration(min) {
@@ -4984,6 +5003,13 @@ function renderLibraryGrid() {
     });
   }
 
+  // Szűrés sport szerint (cycling / run / hike / walk / other)
+  if (_libraryFilter.sport !== 'all') {
+    filtered = filtered.filter(({ route }) =>
+      libraryRouteSportKey(route) === _libraryFilter.sport
+    );
+  }
+
   // Szűrés keresési kifejezés szerint
   const q = _libraryFilter.query.toLowerCase().trim();
   if (q) {
@@ -5011,14 +5037,15 @@ function renderLibraryGrid() {
     });
   }
 
-  // Rendezés
+  // Rendezés (start_time-mal ha van — különben date)
+  const ts = r => r.start_time || r.date || '';
   filtered = [...filtered].sort((a, b) => {
     switch (_libraryFilter.sort) {
-      case 'oldest':   return (a.route.date ?? '') < (b.route.date ?? '') ? -1 : 1;
+      case 'oldest':   return ts(a.route) < ts(b.route) ? -1 : 1;
       case 'name':     return (a.route.name ?? '').localeCompare(b.route.name ?? '');
       case 'distance': return (b.route.distance ?? 0) - (a.route.distance ?? 0);
       case 'duration': return (b.route.duration ?? 0) - (a.route.duration ?? 0);
-      default:         return (a.route.date ?? '') < (b.route.date ?? '') ? 1 : -1; // newest
+      default:         return ts(a.route) < ts(b.route) ? 1 : -1; // newest
     }
   });
 
@@ -5145,7 +5172,7 @@ function buildLibraryListRow({ route, category, isSample }) {
 
   tr.innerHTML = `
     <td class="lib-col-sport">${sport}</td>
-    <td class="lib-col-date">${smartDateFormat(route.date)}</td>
+    <td class="lib-col-date">${smartDateTimeFormat(route)}</td>
     <td class="lib-col-name" data-meta="${metaBits.join(' · ')}">${escapeHtml(route.name || '—')}</td>
     <td class="lib-col-time lib-col-num">${libraryFormatDuration(route.duration)}</td>
     <td class="lib-col-num">${distStr || '—'}</td>
@@ -5721,6 +5748,14 @@ document.querySelectorAll('[data-lib-source]').forEach(chip => {
     document.querySelectorAll('[data-lib-source]').forEach(c => c.classList.remove('is-active'));
     chip.classList.add('is-active');
     _libraryFilter.source = chip.dataset.libSource;
+    renderLibraryGrid();
+  });
+});
+document.querySelectorAll('[data-lib-sport]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('[data-lib-sport]').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    _libraryFilter.sport = chip.dataset.libSport;
     renderLibraryGrid();
   });
 });
