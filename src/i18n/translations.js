@@ -122,7 +122,7 @@ export const translations = {
     },
     stats: {
       distance: "Distance",
-      points: "Points",
+      points: "Waypoints",
       ascent: "↑ Ascent",
       descent: "↓ Descent",
       avgSpeed: "⌀ Avg speed",
@@ -262,7 +262,7 @@ export const translations = {
     },
     stats: {
       distance: "Távolság",
-      points: "Pontok",
+      points: "Útvonalpontok",
       ascent: "↑ Emelkedő",
       descent: "↓ Ereszkedő",
       avgSpeed: "⌀ Átlag sebesség",
