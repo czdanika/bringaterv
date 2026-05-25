@@ -2041,18 +2041,42 @@
       <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
     </h4>
     <div class="settings-section-body">
-      <!-- Strava app credentials (saját Strava-app) -->
-      <div id="stravaAppConfig" class="strava-app-config">
-        <p style="margin:0 0 8px;font-size:12px;color:var(--muted);line-height:1.55">
+      <!-- Strava app credentials – csak gomb, részletek modalban -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <button id="stravaUserAppOpenBtn" class="strava-conn-btn strava-conn-btn--ghost" type="button" style="font-size:12px;padding:6px 12px">
+          <i data-lucide="settings" style="width:14px;height:14px"></i>
+          API beállítás
+        </button>
+        <span id="stravaAppStatusBadge" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <!-- OAuth csatlakozás (Connect/Disconnect) -->
+      <div id="stravaConnectionState" class="strava-conn-state">
+        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Strava API config modal -->
+  <div id="stravaAppConfigOverlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1500;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--panel-bg);border:1px solid var(--border);border-radius:12px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:8px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#FC4C02;color:#fff;border-radius:3px;font-size:11px;font-weight:800">S</span>
+          Strava API beállítás
+        </h3>
+        <button id="stravaAppConfigCloseBtn" type="button" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px 8px">×</button>
+      </div>
+      <div style="padding:16px 18px">
+        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.55">
           A Strava integrációhoz <strong>saját Strava app</strong> kell. A Stravánál minden app limitálva van (alapból 1 athlete = te magad), ezért nem lehet közös app-ot használni több felhasználóval.
         </p>
-        <details class="strava-app-howto">
-          <summary style="cursor:pointer;font-size:12px;color:var(--accent);margin-bottom:8px">Hogyan hozz létre Strava app-ot? (1 perc)</summary>
-          <ol style="font-size:12px;line-height:1.6;margin:6px 0 12px;padding-left:18px;color:var(--muted)">
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:12px;color:var(--accent)">Hogyan hozz létre Strava app-ot? (1 perc)</summary>
+          <ol style="font-size:12px;line-height:1.6;margin:8px 0 0;padding-left:18px;color:var(--muted)">
             <li>Nyisd meg: <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener" style="color:var(--accent)">strava.com/settings/api</a></li>
             <li>Töltsd ki a mezőket (app neve tetszőleges, weboldal lehet bármi)</li>
             <li><strong>Authorization Callback Domain</strong>: másold be a lent megjelenő domain részét (csak a domain, http:// nélkül)</li>
-            <li>Mentés után másold ide a <strong>Client ID</strong>-t és a <strong>Client Secret</strong>-et (a Secret-et "Show" gombbal lehet előhívni)</li>
+            <li>Mentés után másold ide a <strong>Client ID</strong>-t és a <strong>Client Secret</strong>-et (a Secret-et „Show" gombbal lehet előhívni)</li>
           </ol>
         </details>
         <div class="form-group" style="margin-bottom:8px">
@@ -2069,19 +2093,14 @@
           <div id="stravaUserCallbackDomain" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:monospace"></div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">Üresen hagyva a szerver automatikusan kiszámolja a request-ből. Más telepítésnél (pl. cloudflared tunnel, NAS, custom domain) felülbírálhatod.</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-          <button id="stravaUserAppSaveBtn" class="strava-conn-btn strava-conn-btn--ghost" type="button" style="font-size:12px;padding:6px 12px">Credentials mentése</button>
-          <button id="stravaUserAppClearBtn" class="strava-conn-btn strava-conn-btn--ghost" type="button" style="font-size:12px;padding:6px 12px;display:none">Credentials törlése</button>
-          <span id="stravaUserAppMsg" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
-        </div>
       </div>
-      <hr style="border:none;border-top:1px solid var(--border);margin:0 0 14px">
-      <!-- OAuth csatlakozás -->
-      <div id="stravaConnectionState" class="strava-conn-state">
-        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      <div style="display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--border);background:var(--panel-strong);border-radius:0 0 12px 12px;color:var(--text)">
+        <button id="stravaUserAppSaveBtn" class="strava-conn-btn" type="button" style="font-size:12px;padding:6px 14px">Mentés</button>
+        <button id="stravaUserAppClearBtn" class="strava-conn-btn strava-conn-btn--ghost" type="button" style="font-size:12px;padding:6px 12px;display:none">Törlés</button>
+        <span id="stravaUserAppMsg" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
       </div>
     </div>
-  </section>
+  </div>
 
   <section class="settings-section" data-settings-section="backup">
     <h4 class="settings-section-title">
