@@ -644,6 +644,10 @@
                   <i data-lucide="save" aria-hidden="true"></i>
                   <span>Mentés könyvtárba</span>
                 </button>
+                <button id="fileShareButton" class="file-action-btn file-action-btn--share" type="button">
+                  <i data-lucide="share-2" aria-hidden="true"></i>
+                  <span>Megosztó kép</span>
+                </button>
                 <button id="fileClearButton" class="file-action-btn file-action-btn--danger" type="button">
                   <i data-lucide="trash-2" aria-hidden="true"></i>
                   <span data-i18n="actions.clear">Törlés</span>
@@ -2142,6 +2146,76 @@
   </div>
   </div>
 
+
+  <!-- ===== SHARE CARD MODAL ===== -->
+  <div id="shareCardOverlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1500;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--panel-bg);border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="margin:0;font-size:17px;font-weight:700">Megosztó kép</h2>
+        <button id="shareCardClose" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px" type="button">
+          <i data-lucide="x" aria-hidden="true" style="width:20px;height:20px"></i>
+        </button>
+      </div>
+
+      <!-- Cím szerkesztése -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Cím</div>
+        <input id="shareCardTitle" type="text" placeholder="pl. Balatoni kör, Reggeli tekerés…"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit">
+      </div>
+
+      <!-- Opciók -->
+      <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Téma</div>
+          <div style="display:flex;gap:6px">
+            <button class="share-opt-btn" data-share-theme="dark" type="button">
+              <i data-lucide="moon" aria-hidden="true"></i> Sötét
+            </button>
+            <button class="share-opt-btn share-opt-btn--active" data-share-theme="light" type="button">
+              <i data-lucide="sun" aria-hidden="true"></i> Világos
+            </button>
+          </div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Méret</div>
+          <div style="display:flex;gap:6px">
+            <button class="share-opt-btn share-opt-btn--active" data-share-size="square" type="button">
+              <i data-lucide="square" aria-hidden="true"></i> Négyzet
+            </button>
+            <button class="share-opt-btn" data-share-size="story" type="button">
+              <i data-lucide="smartphone" aria-hidden="true"></i> Sztori
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div id="shareCardPreviewWrap" style="background:var(--bg);border-radius:10px;overflow:hidden;text-align:center;margin-bottom:16px;max-height:340px;display:flex;align-items:center;justify-content:center">
+        <canvas id="shareCardPreview" style="max-width:100%;max-height:340px;border-radius:8px"></canvas>
+      </div>
+
+      <!-- Akció gombok -->
+      <div style="display:flex;gap:8px;flex-direction:column">
+        <!-- Natív megosztás (mobil: Instagram, Facebook, WhatsApp stb.) -->
+        <button id="shareCardNativeShare" class="btn btn--primary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px" type="button">
+          <i data-lucide="share-2" aria-hidden="true"></i>
+          <span>Megosztás</span>
+          <span style="display:flex;gap:6px;align-items:center;margin-left:4px;opacity:.7">
+            <!-- Facebook -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            <!-- Instagram -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </span>
+        </button>
+        <!-- Letöltés fallback -->
+        <button id="shareCardDownload" class="btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel-strong);border:1px solid var(--border)" type="button">
+          <i data-lucide="download" aria-hidden="true"></i>
+          <span>Letöltés (PNG)</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   </body>
 </html>

@@ -20,6 +20,7 @@ import { analyzeWind, defaultAvgSpeed, windTimeMultiplier, WIND_COLORS, WIND_LAB
 // Kalóriaszámítás modul (calories.js) – elérhető, de a UI-on jelenleg nincs használva.
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
+import { createWorkoutShareCard, downloadShareCard } from "./ui/shareCard.js";
 
 requireAuth();
 
@@ -101,6 +102,10 @@ let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
 let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
 let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti binary
 let _loadedLibraryRouteId = null; // ha könyvtárból töltöttük (vagy már elmentettük), akkor az ID
+
+// ── Share card állapot ──────────────────────────────────────────────────────
+// Az aktuálisan betöltött fájl adatai (a share card modal ezeket használja)
+let _shareCardData = null;  // { title, date, distanceKm, durationText, avgSpeedKmh, elevationM, points }
 
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
@@ -497,6 +502,46 @@ function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, des
   const powerLegendEl = document.querySelector("#powerLegend");
   if (powerLegendEl) powerLegendEl.hidden = !hasPower;
 
+  // ── Share card adatok összegyűjtése ──────────────────────────────────────
+  {
+    // title: canvas fallback ha az input üres; metaTitle: csak meta.name (fájlnevet NEM töltjük be)
+    const titleStr  = meta.name || "Bringaterv edzés";
+    const metaTitle = meta.name || "";  // az input alapértéke – üres, ha csak fájlnév lett volna
+    let dateStr = "";
+    if (meta.startTime) {
+      const d = new Date(meta.startTime);
+      dateStr = d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" });
+    }
+    const distKm = distanceMeters > 0 ? Math.round(distanceMeters / 100) / 10 : 0;
+    const durStr = meta.movingDuration
+      ? formatDuration(meta.movingDuration)
+      : (meta.totalDuration ? formatDuration(meta.totalDuration) : "");
+    const avgSpd = hasSpeed
+      ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10
+      : 0;
+    // Geometria egyszerűsítve (max ~400 pont a gyors renderhez)
+    const step = Math.max(1, Math.floor(geometry.length / 400));
+    const simPts = [];
+    for (let i = 0; i < geometry.length; i += step) simPts.push({ lat: geometry[i].lat, lng: geometry[i].lng });
+    if (simPts.length && simPts[simPts.length - 1] !== geometry[geometry.length - 1]) {
+      const last = geometry[geometry.length - 1];
+      simPts.push({ lat: last.lat, lng: last.lng });
+    }
+    _shareCardData = {
+      title:        titleStr,   // canvas fallback
+      metaTitle:    metaTitle,  // input default (csak meta.name, fájlnév nélkül)
+      date:         dateStr,
+      distanceKm:   distKm,
+      durationText: durStr,
+      avgSpeedKmh:  avgSpd,
+      elevationM:   ascentMeters || 0,
+      points:       simPts,
+    };
+    // Share gomb engedélyezése ha van adat
+    const shareBtn = document.querySelector("#fileShareButton");
+    if (shareBtn) shareBtn.disabled = false;
+  }
+
   window.lucide?.createIcons();
 }
 
@@ -514,6 +559,9 @@ function clearFileTab() {
   if (powerLeg) powerLeg.hidden = true;
   const metaBlock = document.querySelector("#fileMetaBlock");
   if (metaBlock) metaBlock.hidden = true;
+  _shareCardData = null;
+  const shareBtn = document.querySelector("#fileShareButton");
+  if (shareBtn) shareBtn.disabled = true;
 }
 
 const elements = {
@@ -574,6 +622,7 @@ const elements = {
   exportFilename: document.querySelector("#exportFilename"),
   fileExportButton: document.querySelector("#fileExportButton"),
   fileSaveToLibraryButton: document.querySelector("#fileSaveToLibraryButton"),
+  fileShareButton: document.querySelector("#fileShareButton"),
   elevationBtn: document.querySelector("#elevationBtn"),
   windBtn: document.querySelector("#windBtn"),
   chartWind: document.querySelector("#chartWind"),
@@ -968,6 +1017,7 @@ elements.unitInputs.forEach((input) => {
 elements.exportButton.disabled = true;
 if (elements.fileExportButton) elements.fileExportButton.disabled = true;
 if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled = true;
+if (elements.fileShareButton) elements.fileShareButton.disabled = true;
 
 // Szintprofil – aktív geometry (tervezett vagy importált)
 let activeGeometry = [];
@@ -4553,6 +4603,165 @@ elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
   }
 });
 
+// ── Share Card modal ──────────────────────────────────────────────────────────
+{
+  let _shareTheme = "light";
+  let _shareSize  = "square";
+
+  /** Az aktuális opciókkal újrarajzolja a preview canvas-t. */
+  async function refreshSharePreview() {
+    if (!_shareCardData) return;
+    const previewCanvas = document.querySelector("#shareCardPreview");
+    if (!previewCanvas) return;
+
+    const titleInput = document.querySelector("#shareCardTitle");
+    const titleVal   = titleInput?.value?.trim() || _shareCardData.title;
+
+    const card = await createWorkoutShareCard({
+      ..._shareCardData,
+      title: titleVal,
+      theme: _shareTheme,
+      size:  _shareSize,
+    });
+
+    // Skálázott preview – CSS max-height gondoskodik arról, hogy ne lógjon ki
+    previewCanvas.width  = card.width;
+    previewCanvas.height = card.height;
+    const ctx = previewCanvas.getContext("2d");
+    ctx.drawImage(card, 0, 0);
+  }
+
+  function openShareCardModal() {
+    if (!_shareCardData) return;
+    const overlay = document.querySelector("#shareCardOverlay");
+    if (!overlay) return;
+    // Cím input feltöltése (csak meta.name vagy library route name – fájlnevet NEM írunk be)
+    const titleInput = document.querySelector("#shareCardTitle");
+    if (titleInput) titleInput.value = _shareCardData.metaTitle || "";
+    overlay.hidden = false;
+    refreshSharePreview();   // async, de nem kell await – a preview frissül magától
+    window.lucide?.createIcons();
+  }
+
+  function closeShareCardModal() {
+    const overlay = document.querySelector("#shareCardOverlay");
+    if (overlay) overlay.hidden = true;
+  }
+
+  // Megnyitás – Megosztó kép gomb
+  elements.fileShareButton?.addEventListener("click", openShareCardModal);
+
+  // Bezárás
+  document.querySelector("#shareCardClose")?.addEventListener("click", closeShareCardModal);
+  document.querySelector("#shareCardOverlay")?.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeShareCardModal();
+  });
+
+  // Cím input – live preview frissítés (debounce: 400ms)
+  {
+    let _titleDebounce = null;
+    document.querySelector("#shareCardTitle")?.addEventListener("input", () => {
+      clearTimeout(_titleDebounce);
+      _titleDebounce = setTimeout(() => refreshSharePreview(), 400);
+    });
+  }
+
+  // Téma választó
+  document.querySelectorAll("[data-share-theme]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _shareTheme = btn.dataset.shareTheme;
+      document.querySelectorAll("[data-share-theme]").forEach((b) => {
+        b.classList.toggle("share-opt-btn--active", b.dataset.shareTheme === _shareTheme);
+      });
+      refreshSharePreview();
+    });
+  });
+
+  // Méret választó
+  document.querySelectorAll("[data-share-size]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _shareSize = btn.dataset.shareSize;
+      document.querySelectorAll("[data-share-size]").forEach((b) => {
+        b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _shareSize);
+      });
+      refreshSharePreview();
+    });
+  });
+
+  /** Az aktuális cím (input értéke, ha üres → fallback) */
+  function _getShareTitle() {
+    const v = document.querySelector("#shareCardTitle")?.value?.trim();
+    return v || _shareCardData?.title || "bringaterv";
+  }
+
+  /** Canvas → safeName fájlnév */
+  function _safeName(title) {
+    return title.toLowerCase().replace(/[^a-z0-9áéíóöőúüűäçšžñ]+/gi, "-").replace(/^-+|-+$/g, "");
+  }
+
+  /** Canvas generálás az aktuális beállításokkal */
+  async function _buildCard() {
+    return createWorkoutShareCard({
+      ..._shareCardData,
+      title: _getShareTitle(),
+      theme: _shareTheme,
+      size:  _shareSize,
+    });
+  }
+
+  // Native share (mobil: Instagram, Facebook, WhatsApp…)
+  document.querySelector("#shareCardNativeShare")?.addEventListener("click", async () => {
+    if (!_shareCardData) return;
+    const btn = document.querySelector("#shareCardNativeShare");
+    const span = btn?.querySelector("span");
+    if (btn) { btn.disabled = true; if (span) span.textContent = "Generálás…"; }
+    try {
+      const card = await _buildCard();
+      const title = _getShareTitle();
+      const filename = `${_safeName(title)}-share.png`;
+
+      // Web Share API (mobil Chrome/Safari – megnyitja az Instagram/Facebook/WhatsApp stb. sheet-et)
+      if (navigator.canShare) {
+        const blob = await new Promise(res => card.toBlob(res, "image/png"));
+        const file = new File([blob], filename, { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Bringaterv edzés" });
+          return;
+        }
+      }
+      // Fallback: letöltés (asztali böngésző)
+      downloadShareCard(card, filename);
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        // Ha a share sikertelen, letöltéssel próbálkozunk
+        try { downloadShareCard(await _buildCard(), `${_safeName(_getShareTitle())}-share.png`); } catch {}
+      }
+    } finally {
+      if (btn) { btn.disabled = false; if (span) span.textContent = "Megosztás"; }
+    }
+  });
+
+  // Letöltés
+  document.querySelector("#shareCardDownload")?.addEventListener("click", async () => {
+    if (!_shareCardData) return;
+    const dlBtn = document.querySelector("#shareCardDownload");
+    const span  = dlBtn?.querySelector("span");
+    if (dlBtn) { dlBtn.disabled = true; if (span) span.textContent = "Generálás…"; }
+    try {
+      const card = await _buildCard();
+      downloadShareCard(card, `${_safeName(_getShareTitle())}-share.png`);
+    } finally {
+      if (dlBtn) { dlBtn.disabled = false; if (span) span.textContent = "Letöltés (PNG)"; }
+    }
+  });
+
+  // Könyvtárból is megnyitható: globálisan elérhető segédfüggvény
+  window._openShareCardWith = function(data) {
+    _shareCardData = data;
+    openShareCardModal();
+  };
+}
+
 /** ArrayBuffer → base64 string (chunkban, hogy nagy FIT fájloknál se akadjon meg). */
 function arrayBufferToBase64(buf) {
   const bytes = new Uint8Array(buf);
@@ -5399,6 +5608,7 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${route.has_fit ? '<button class="library-card-btn" data-action="download-fit">FIT</button>' : ''}
           ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh" title="Strava adatok frissítése (kalória, suffer score stb. újra lekérése)">🔄 Frissít Stravából</button>' : ''}
           ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener" title="Megnyitás a Stravan">↗ Stravan</a>` : ''}
+          <button class="library-card-btn" data-action="share">📤 Megosztó kép</button>
           ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
           ${!isSample ? '<button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>' : ''}
         </div>
@@ -5448,6 +5658,50 @@ function buildLibraryExpandRow(route, category, isSample) {
             } else {
               showToast("Frissítés sikertelen: " + err.message);
             }
+          }
+        }
+        else if (act === "share") {
+          // Geometry betöltése GPX-ből a share card-hoz
+          btn.disabled = true;
+          btn.textContent = "Betöltés…";
+          try {
+            const gpxText = isSample
+              ? await routesApi.loadSample(route.id)
+              : await routesApi.loadRoute(route.id);
+            const xml  = new DOMParser().parseFromString(gpxText, "application/xml");
+            const nodes = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")];
+            const pts = nodes
+              .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")) }))
+              .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+            // Egyszerűsítés
+            const step = Math.max(1, Math.floor(pts.length / 400));
+            const simPts = [];
+            for (let i = 0; i < pts.length; i += step) simPts.push(pts[i]);
+            if (simPts.length && simPts[simPts.length - 1] !== pts[pts.length - 1] && pts.length > 0)
+              simPts.push(pts[pts.length - 1]);
+
+            const distKm = route.distance ?? 0;
+            const durMin = route.duration ?? null;
+            const durStr = durMin != null ? formatDuration(durMin * 60 * 1000) : "";
+
+            if (typeof window._openShareCardWith === "function") {
+              window._openShareCardWith({
+                title:        route.name || "Bringaterv edzés",
+                metaTitle:    route.name || "",   // input default
+                date:         route.date ? new Date(route.date).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "",
+                distanceKm:   distKm,
+                durationText: durStr,
+                avgSpeedKmh:  (durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0,
+                elevationM:   route.elevation ?? 0,
+                points:       simPts,
+              });
+            }
+          } catch (err) {
+            showToast("Nem sikerült betölteni a geometriát.");
+            console.error(err);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "📤 Megosztó kép";
           }
         }
         else if (act === "delete") {
