@@ -1074,6 +1074,19 @@ body.is-drag-over::after {
 .file-action-btn--danger:hover { background: rgba(229,62,62,0.08); }
 .file-action-btn--save { color: var(--brand); border-color: rgba(252,76,2,0.3); }
 .file-action-btn--save:hover { background: rgba(252,76,2,0.08); }
+.file-action-btn--share { color: #7c3aed; border-color: rgba(124,58,237,0.3); }
+.file-action-btn--share:hover { background: rgba(124,58,237,0.08); }
+
+/* Share card modal opció gombok */
+.share-opt-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-strong); color: var(--text); font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.share-opt-btn svg { width: 13px; height: 13px; }
+.share-opt-btn:hover { background: var(--panel-strong2, var(--panel-strong)); }
+.share-opt-btn--active { background: var(--brand); color: #fff; border-color: var(--brand); }
 
 /* "Tervezés ez alapján" gomb */
 .plan-from-file-btn {
