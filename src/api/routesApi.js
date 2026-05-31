@@ -99,6 +99,14 @@ export const routesApi = {
   },
 
   /**
+   * Az összes útvonal/edzés egyszerűsített geometriája egyetlen kérésben (hőtérképhez).
+   * @returns {Promise<{ tracks: Array<{ id: string, sport: string, points: [number,number][] }> }>}
+   */
+  geometryBulk() {
+    return fetchJson(`${BASE}/routes/geometry-bulk`);
+  },
+
+  /**
    * Új útvonal mentése a szerverre.
    *
    * @param {{

@@ -2,7 +2,7 @@ export const translations = {
   en: {
     app: {
       title: "Bringaterv",
-      slogan: "Plan. Ride. Explore.",
+      slogan: "Plan, ride, explore!",
     },
     nav: {
       collapse: "Collapse sidebar",
@@ -142,7 +142,7 @@ export const translations = {
   hu: {
     app: {
       title: "Bringaterv",
-      slogan: "Tervezz. Tekerj. Fedezd fel.",
+      slogan: "Tervezz, tekerj, fedezd fel!",
     },
     nav: {
       collapse: "Menü összecsukása",

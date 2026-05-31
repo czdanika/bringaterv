@@ -175,6 +175,26 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088**
 | `JWT_SECRET` | routes-api | JWT aláíró kulcs – **élesben kötelező megváltoztatni!** | `change-me-please` |
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
 
+#### A `JWT_SECRET` beállítása
+
+A bejelentkezési tokenek aláírására szolgál. Aki ismeri, érvényes tokent tud hamisítani bármely felhasználó (akár az admin) nevében, ezért éles üzemben **kötelező** sajátra cserélni.
+
+- **Formátum:** hexadecimális string (csak `0–9` és `a–f`), így nincs benne speciális karakter, ami a docker-compose YAML-ben gondot okozna.
+- **Hossz:** legalább 32 byte = 64 hex karakter (256 bit). Az algoritmus HS256 (HMAC-SHA256), ehhez ez az ajánlott kulcsméret.
+- **Generálás:**
+
+```bash
+openssl rand -hex 32
+```
+
+**Példa egy generált értékre** (ne ezt használd – generálj sajátot):
+
+```
+JWT_SECRET=ed07db6c05dc7384047806ae33942d9a9dba203475784855a89b39cefeae84b5
+```
+
+> A `JWT_SECRET` megváltoztatásakor minden korábban kiadott token érvénytelenné válik, így minden felhasználónak újra be kell jelentkeznie.
+
 ### 3. Frissítés új verzióra
 
 Ha új verzió jelent meg (GitHub Actions lefutott):

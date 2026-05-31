@@ -32,7 +32,7 @@
           <img src="./src/assets/logo.png" alt="Bringaterv logó" class="topnav-logo">
           <div class="topnav-brand-text">
             <span class="topnav-name">Bringa<span class="brand-accent">terv</span></span>
-            <span class="topnav-slogan" data-i18n="app.slogan">Tervezz. Tekerj. Fedezd fel.</span>
+            <span class="topnav-slogan" data-i18n="app.slogan">Tervezz, tekerj, fedezd fel!</span>
           </div>
         </div>
         <div class="topnav-end">
@@ -1076,15 +1076,24 @@
         </div>
 
         <!-- ── HŐTÉRKÉP nézet ── -->
-        <div id="statsViewHeatmap" class="stats-view" hidden style="flex-direction:column">
-          <div class="heatmap-status" id="heatmapStatus">
-            <div class="heatmap-status-text" id="heatmapStatusText">Kattints a betöltés gombra a hőtérkép megjelenítéséhez.</div>
-            <div class="heatmap-progress-bar-wrap" id="heatmapProgressWrap" hidden>
-              <div class="heatmap-progress-bar" id="heatmapProgressBar"></div>
+        <div id="statsViewHeatmap" class="stats-view" hidden style="flex-direction:column;position:relative">
+          <!-- Sport szűrő sáv -->
+          <div class="heatmap-toolbar" id="heatmapToolbar">
+            <div class="heatmap-chip-group">
+              <button class="stats-chip stats-chip--active" data-heatmap-sport="all">Mind</button>
+              <button class="stats-chip" data-heatmap-sport="cycling">Kerékpár</button>
+              <button class="stats-chip" data-heatmap-sport="run">Futás</button>
+              <button class="stats-chip" data-heatmap-sport="hike">Túra</button>
+              <button class="stats-chip" data-heatmap-sport="walk">Gyaloglás</button>
             </div>
-            <button class="btn btn--primary" id="heatmapLoadBtn" style="margin-top:12px">Útvonalak betöltése</button>
+            <span class="heatmap-count" id="heatmapCount"></span>
           </div>
-          <canvas id="heatmapCanvas" class="heatmap-canvas"></canvas>
+          <!-- Leaflet térkép -->
+          <div id="heatmapMap" class="heatmap-map"></div>
+          <!-- Overlay állapot -->
+          <div class="heatmap-overlay" id="heatmapOverlay">
+            <div class="heatmap-overlay-text" id="heatmapStatusText">Hőtérkép betöltése…</div>
+          </div>
         </div>
 
       </div>
