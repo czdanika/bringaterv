@@ -25,6 +25,10 @@
       <!-- TOP NAV -->
       <header class="topnav">
         <div class="topnav-brand">
+          <button id="navToggle" class="topnav-icon-btn topnav-collapse-btn" type="button" aria-expanded="true"
+            title="Menü összecsukása" data-i18n-title="nav.collapse">
+            <i data-lucide="panel-left-close" aria-hidden="true"></i>
+          </button>
           <img src="./src/assets/logo.png" alt="Bringaterv logó" class="topnav-logo">
           <div class="topnav-brand-text">
             <span class="topnav-name">Bringa<span class="brand-accent">terv</span></span>
@@ -46,21 +50,33 @@
       <!-- SIDEBAR -->
       <aside class="sidebar">
 
-        <!-- TAB SWITCHER -->
-        <div class="sidebar-tabs">
-          <button class="sidebar-tab is-active" data-tab="plan" type="button">
+        <!-- VERTICAL ICON RAIL -->
+        <nav class="app-rail">
+          <button class="sidebar-tab rail-tab is-active" data-tab="plan" type="button" title="Tervezés" data-i18n-title="nav.planner">
             <i data-lucide="map-pin-plus" aria-hidden="true"></i>
-            <span data-i18n="tabs.plan">Tervezés</span>
+            <span class="rail-label" data-i18n="tabs.plan">Tervezés</span>
           </button>
-          <button class="sidebar-tab" data-tab="file" type="button">
+          <button class="sidebar-tab rail-tab" data-tab="file" type="button" title="Elemzés">
             <i data-lucide="chart-line" aria-hidden="true"></i>
-            <span>Elemzés</span>
+            <span class="rail-label">Elemzés</span>
           </button>
-          <button class="sidebar-tab" data-tab="library" type="button" title="Útvonalkönyvtár">
+          <button class="sidebar-tab rail-tab" data-tab="library" type="button" title="Könyvtár">
             <i data-lucide="bookmark" aria-hidden="true"></i>
-            <span>Könyvtár</span>
+            <span class="rail-label">Könyvtár</span>
           </button>
-        </div>
+          <button class="sidebar-tab rail-tab" data-tab="stats" type="button" title="Statisztikák">
+            <i data-lucide="bar-chart-2" aria-hidden="true"></i>
+            <span class="rail-label">Statok</span>
+          </button>
+          <div class="rail-spacer"></div>
+          <button class="rail-collapse-btn" id="railNavToggle" type="button" title="Menü összecsukása" data-i18n-title="nav.collapse">
+            <i data-lucide="panel-left-close" aria-hidden="true"></i>
+          </button>
+          <span class="rail-version" id="appVersion"></span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
+        </nav>
+
+        <!-- SIDEBAR INNER (panels) -->
+        <div class="sidebar-inner">
 
         <!-- SCROLLABLE BODY -->
         <div class="sidebar-body">
@@ -763,17 +779,46 @@
 
           </div><!-- /tabLibrary -->
 
+          <!-- ===== STATISZTIKÁK SIDEBAR ===== -->
+          <div class="tab-panel stats-sidebar" id="tabStats" hidden>
+
+            <!-- Alnavigáció -->
+            <nav class="stats-nav">
+              <button class="stats-nav-item stats-nav-item--active" data-stats-view="overview">Áttekintés</button>
+              <button class="stats-nav-item" data-stats-view="monthly">Havi statisztikák</button>
+              <button class="stats-nav-item" data-stats-view="records">Személyes rekordok</button>
+              <button class="stats-nav-item" data-stats-view="eddington">Eddington-szám</button>
+              <button class="stats-nav-item" data-stats-view="training">Edzésterhelés</button>
+              <button class="stats-nav-item" data-stats-view="heatmap">Hőtérkép</button>
+            </nav>
+
+            <div class="stats-sidebar-divider"></div>
+
+            <!-- Szűrők -->
+            <div class="stats-sidebar-section" id="statsFilterPeriodSection">
+              <div class="stats-sidebar-label">Időszak</div>
+              <div class="stats-chip-group">
+                <button class="stats-chip stats-chip--active" data-stats-period="year">Idén</button>
+                <button class="stats-chip" data-stats-period="12m">12 hónap</button>
+                <button class="stats-chip" data-stats-period="all">Összes</button>
+              </div>
+            </div>
+
+            <div class="stats-sidebar-section" id="statsFilterSportSection">
+              <div class="stats-sidebar-label">Sporttípus</div>
+              <div class="stats-chip-group">
+                <button class="stats-chip stats-chip--active" data-stats-sport="all">Mind</button>
+                <button class="stats-chip" data-stats-sport="cycling">Kerékpár</button>
+                <button class="stats-chip" data-stats-sport="run">Futás</button>
+                <button class="stats-chip" data-stats-sport="hike">Túra</button>
+              </div>
+            </div>
+
+          </div><!-- /tabStats -->
+
         </div><!-- /sidebar-body -->
 
-        <!-- FOOTER -->
-        <footer class="sidebar-footer">
-          <button id="navToggle" class="nav-toggle-btn" type="button" aria-expanded="true"
-            title="Menü összecsukása" data-i18n-title="nav.collapse">
-            <i data-lucide="panel-left-close" aria-hidden="true"></i>
-          </button>
-          <span class="sidebar-version" id="appVersion"></span><a id="updateDot" class="update-dot" href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener" title="Új verzió elérhető!" hidden></a>
-          <span class="sidebar-copyright">© Czibolya Dániel 2026</span>
-        </footer>
+        </div><!-- /sidebar-inner -->
 
       <!-- Tab váltás megerősítő modal -->
       <div id="tabSwitchModal" class="tab-switch-overlay" hidden role="dialog" aria-modal="true">
@@ -833,6 +878,215 @@
           <i data-lucide="inbox" aria-hidden="true"></i>
           <p>Nincs találat a szűrési feltételeknek megfelelően.</p>
         </div>
+      </div>
+
+      <!-- STATS MAIN (replaces map in stats mode) -->
+      <div id="statsMain" class="stats-main" hidden>
+
+        <!-- ── ÁTTEKINTÉS nézet ── -->
+        <div id="statsViewOverview" class="stats-view stats-main-inner">
+
+          <div class="stats-kpi-grid">
+            <div class="stats-kpi-card">
+              <div class="stats-kpi-value" id="statsKpiKm">—</div>
+              <div class="stats-kpi-label">Összes km</div>
+            </div>
+            <div class="stats-kpi-card">
+              <div class="stats-kpi-value" id="statsKpiCount">—</div>
+              <div class="stats-kpi-label">Edzések</div>
+            </div>
+            <div class="stats-kpi-card">
+              <div class="stats-kpi-value" id="statsKpiElev">—</div>
+              <div class="stats-kpi-label">Szintemelkedés</div>
+            </div>
+            <div class="stats-kpi-card">
+              <div class="stats-kpi-value" id="statsKpiTime">—</div>
+              <div class="stats-kpi-label">Összes idő</div>
+            </div>
+          </div>
+
+          <div class="stats-charts-row">
+            <div class="stats-chart-block">
+              <div class="stats-chart-title">Havi km</div>
+              <canvas id="statsKmChart" style="width:100%;display:block"></canvas>
+            </div>
+            <div class="stats-chart-block">
+              <div class="stats-chart-title">Havi szintemelkedés</div>
+              <canvas id="statsElevChart" style="width:100%;display:block"></canvas>
+            </div>
+          </div>
+
+          <div class="stats-bottom-row">
+            <div class="stats-section">
+              <div class="stats-section-title">Sporttípus megoszlás</div>
+              <div id="statsSportBreakdown"></div>
+            </div>
+            <div class="stats-section">
+              <div class="stats-section-title">Személyes rekordok</div>
+              <div class="stats-records-grid" id="statsRecords"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── HAVI STATISZTIKÁK nézet ── -->
+        <div id="statsViewMonthly" class="stats-view stats-view--table" hidden>
+          <table class="stats-monthly-table">
+            <thead>
+              <tr>
+                <th>Hónap</th>
+                <th class="num">Edzések</th>
+                <th class="num">km</th>
+                <th class="num">Szint</th>
+                <th class="num">Idő</th>
+              </tr>
+            </thead>
+            <tbody id="statsMonthlyBody">
+              <tr><td colspan="5" class="stats-monthly-empty">Betöltés…</td></tr>
+            </tbody>
+            <tfoot id="statsMonthlyFoot"></tfoot>
+          </table>
+        </div>
+
+        <!-- ── SZEMÉLYES REKORDOK nézet ── -->
+        <div id="statsViewRecords" class="stats-view stats-main-inner" hidden>
+          <div id="statsRecordsFull" class="stats-records-full"></div>
+        </div>
+
+        <!-- ── EDDINGTON nézet ── -->
+        <div id="statsViewEddington" class="stats-view stats-main-inner" hidden>
+          <div class="edd-header">
+            <div class="edd-number-wrap">
+              <div class="edd-number-label">Eddington-szám</div>
+              <div class="edd-number">—</div>
+              <div class="edd-explain"></div>
+            </div>
+            <div class="edd-info">
+              <p>Az Eddington-szám az a legnagyobb <strong>E</strong> egész, amelyre igaz, hogy legalább <strong>E</strong> km-t teljesítettél legalább <strong>E</strong> különböző napon.</p>
+              <p>Minél magasabb, annál következetesebb az edzésmintázatod.</p>
+            </div>
+          </div>
+          <div class="stats-section">
+            <div class="stats-section-title">Következő szint</div>
+            <div class="edd-progress-wrap"></div>
+          </div>
+          <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
+            <div class="stats-chart-title">Napok száma tavolság szerint (a szaggatott vonal az E=N átlót jelzi)</div>
+            <canvas class="edd-chart" style="width:100%;display:block"></canvas>
+          </div>
+        </div>
+
+        <!-- ── EDZÉSTERHELÉS nézet ── -->
+        <div id="statsViewTraining" class="stats-view stats-main-inner" hidden>
+
+          <!-- Bevezető magyarázat -->
+          <div class="training-intro">
+            <p>Az edzésterhelés-modell (Banister-féle impulzusmodell) három mutatóval írja le az edzettségi állapotot. Az értékek az edzések időtartamából és szintemelkedéséből számítódnak – pontosabb eredmény pulzusadattal érhető el.</p>
+          </div>
+
+          <!-- KPI kártyák magyarázattal -->
+          <div class="stats-kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr" style="color:#3B82F6">CTL</span>
+                <span class="training-kpi-name">Fittség</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingCTL">—</div>
+              <div class="training-kpi-desc">Chronic Training Load – a 42 napos exponenciálisan súlyozott edzésterhelés-átlag. Minél magasabb, annál jobb az általános edzettség.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr" style="color:#22C55E">ATL</span>
+                <span class="training-kpi-name">Fáradtság</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingATL">—</div>
+              <div class="training-kpi-desc">Acute Training Load – az elmúlt 7 nap edzésterhelésének átlaga. Ha magas, sokat edztél nemrég; pihenővel gyorsan csökken.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr" style="color:#fc4c02">TSB</span>
+                <span class="training-kpi-name">Forma</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingTSB">—</div>
+              <div class="training-kpi-desc">Training Stress Balance = CTL − ATL. Pozitív érték: kipihent, csúcsteljesítményre kész. Negatív: fáradt, de fejlődsz.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between">
+              <div class="training-kpi-header">
+                <span class="training-kpi-name">Aktuális állapot</span>
+              </div>
+              <span id="trainingForm" class="training-form-badge">—</span>
+              <div class="training-kpi-desc" id="trainingFormDesc"></div>
+            </div>
+          </div>
+
+          <!-- Diagramok -->
+          <div class="training-charts">
+            <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
+              <div class="stats-chart-title">Fittség (CTL) és fáradtság (ATL) – elmúlt 6 hónap</div>
+              <div class="training-chart-hint">A kék vonal lassan épül (hónapok), a zöld gyorsan reagál. Ha a zöld tartósan a kék fölé kerül, az túledzés jele lehet.</div>
+              <canvas class="training-ctl-chart" style="width:100%;display:block;margin-top:10px"></canvas>
+            </div>
+            <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
+              <div class="stats-chart-title">Forma (TSB) – a nulla vonal felett: friss, alatta: fáradt</div>
+              <div class="training-chart-hint">Verseny előtt érdemes pozitívba hozni pihenőnapokkal. Edzésblokk közben természetes, hogy negatív.</div>
+              <canvas class="training-tsb-chart" style="width:100%;display:block;margin-top:10px"></canvas>
+            </div>
+          </div>
+
+          <!-- Forma zónák -->
+          <div class="stats-section" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px">
+            <div class="stats-section-title">Forma zónák (TSB alapján)</div>
+            <div class="training-zones">
+              <div class="training-zone">
+                <span class="zone-dot" style="background:#22C55E"></span>
+                <div>
+                  <strong>+10 felett – Friss</strong>
+                  <div class="zone-desc">Kipihent állapot. Versenyekre, hosszú túrákra ideális. Ha sokáig itt maradsz, a CTL lassan csökkenni fog.</div>
+                </div>
+              </div>
+              <div class="training-zone">
+                <span class="zone-dot" style="background:#3B82F6"></span>
+                <div>
+                  <strong>−10 és +10 között – Edzés zóna</strong>
+                  <div class="zone-desc">Optimális fejlődési tartomány. Elég terhelés a fejlődéshez, de még kezelhető fáradtság.</div>
+                </div>
+              </div>
+              <div class="training-zone">
+                <span class="zone-dot" style="background:#F59E0B"></span>
+                <div>
+                  <strong>−10 és −30 között – Fáradt</strong>
+                  <div class="zone-desc">Több edzést végzel, mint amennyit a tested tud feldolgozni. Figyelj az alvásra és a táplálkozásra; tarts be könnyű napokat.</div>
+                </div>
+              </div>
+              <div class="training-zone">
+                <span class="zone-dot" style="background:#EF4444"></span>
+                <div>
+                  <strong>−30 alatt – Túlterhelt</strong>
+                  <div class="zone-desc">Sérülés- és betegségveszély. Csökkentsd az edzésmennyiséget, és iktass be legalább 2–3 pihenőnapot.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Módszertani megjegyzés -->
+          <div class="training-note">
+            Megjegyzés: az értékek edzés-időtartam és szintemelkedés alapján becsültek (nem klasszikus TSS/TRIMP), ezért relatívan értelmezendők – a trendek és az arányok a fontosak.
+          </div>
+
+        </div>
+
+        <!-- ── HŐTÉRKÉP nézet ── -->
+        <div id="statsViewHeatmap" class="stats-view" hidden style="flex-direction:column">
+          <div class="heatmap-status" id="heatmapStatus">
+            <div class="heatmap-status-text" id="heatmapStatusText">Kattints a betöltés gombra a hőtérkép megjelenítéséhez.</div>
+            <div class="heatmap-progress-bar-wrap" id="heatmapProgressWrap" hidden>
+              <div class="heatmap-progress-bar" id="heatmapProgressBar"></div>
+            </div>
+            <button class="btn btn--primary" id="heatmapLoadBtn" style="margin-top:12px">Útvonalak betöltése</button>
+          </div>
+          <canvas id="heatmapCanvas" class="heatmap-canvas"></canvas>
+        </div>
+
       </div>
 
       <!-- MAP -->

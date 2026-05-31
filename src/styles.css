@@ -242,7 +242,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   grid-column: 1;
   grid-row: 2;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;        /* [rail][inner] */
   background: var(--sidebar-bg);
   box-shadow: var(--sidebar-shadow);
   overflow: hidden;
@@ -251,38 +251,87 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   position: relative; /* tab-switch-overlay-hez */
 }
 
-.brand-accent { color: var(--brand); }
-
-/* Sidebar tabs */
-.sidebar-tabs {
-  display: flex;
-  border-bottom: 2px solid var(--line);
-  background: var(--panel);
+/* ── Függőleges ikon-rail ───────────────────────────── */
+.app-rail {
+  width: 52px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
 }
-.sidebar-tab {
-  flex: 1;
+.rail-tab {
+  width: 44px;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.rail-tab svg { width: 18px; height: 18px; }
+.rail-label {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.rail-tab:hover { color: var(--text); background: var(--panel-strong); }
+.rail-tab.is-active {
+  color: var(--brand);
+  background: var(--brand-soft, color-mix(in srgb, var(--brand) 12%, transparent));
+}
+.rail-spacer { flex: 1; }
+.rail-collapse-btn {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 8px;
-  font-size: 12px;
-  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 9px;
   color: var(--muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color .15s, background .15s;
+  margin-bottom: 8px;
 }
-.sidebar-tab svg { width: 14px; height: 14px; }
-.sidebar-tab:hover { color: var(--text); }
-.sidebar-tab.is-active {
-  color: var(--brand);
-  border-bottom-color: var(--brand);
+.rail-collapse-btn:hover { color: var(--brand); background: var(--panel-strong); }
+.rail-collapse-btn svg { width: 17px; height: 17px; }
+.rail-version {
+  font-size: 9px;
+  color: var(--muted);
+  opacity: .7;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: .04em;
+  margin-bottom: 4px;
 }
+
+/* Sidebar inner (panelek + footer) */
+.sidebar-inner {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header collapse gomb */
+.topnav-collapse-btn { margin-right: 2px; }
+
+.brand-accent { color: var(--brand); }
+
+/* (A régi vízszintes .sidebar-tabs megszűnt – a fülek a függőleges .app-rail-ben vannak) */
 
 /* Tab panels */
 .tab-panel { display: block; }
@@ -938,28 +987,41 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 40px 16px;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 24px;
+  min-height: 60vh;          /* függőlegesen középre tolja a tartalmat */
   text-align: center;
 }
-.file-empty-state svg { width: 36px; height: 36px; opacity: 0.3; }
+.file-empty-state svg { width: 34px; height: 34px; opacity: 0.28; }
 .file-empty-trigger {
-  width: 100%;
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  margin: 10px 12px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--muted);
-  font-size: inherit;
-  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  border-radius: 14px;
   transition: background 0.15s, color 0.15s;
+}
+.file-empty-trigger > span[data-i18n] {
+  display: block;
+  max-width: 230px;
+  margin: 0 auto;
+  font-weight: 500;
 }
 .file-empty-trigger:hover {
   background: var(--accent-soft);
   color: var(--text);
 }
-.file-empty-trigger:hover svg { opacity: 0.6; }
+.file-empty-trigger:hover svg { opacity: 0.55; }
 .file-empty-hint {
-  font-size: 11px;
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--brand);
   font-weight: 600;
   opacity: 0.85;
@@ -1048,12 +1110,12 @@ body.is-drag-over::after {
 .file-meta-row span { color: var(--text); }
 .file-stats { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .file-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   padding: 12px 16px;
 }
 .file-action-btn {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1109,6 +1171,304 @@ body.is-drag-over::after {
 .plan-from-file-btn:hover { background: rgba(59,130,246,0.08); }
 .plan-from-file-btn svg,
 .plan-from-file-btn i[data-lucide] { width: 15px; height: 15px; }
+
+/* ── Stats Dashboard ────────────────────────────────────────────────────────── */
+
+/* Sidebar */
+.stats-sidebar { padding: 0; }
+
+/* Alnavigáció – Strava-stílusú bal menü */
+.stats-nav {
+  display: flex; flex-direction: column;
+  padding: 8px 0;
+}
+.stats-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 13px; font-weight: 600;
+  text-align: left; width: 100%;
+  transition: background .12s, color .12s;
+  border-left: 3px solid transparent;
+}
+.stats-nav-item:hover { background: var(--panel-strong); color: var(--text); }
+.stats-nav-item--active {
+  color: var(--brand); border-left-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+.stats-sidebar-divider {
+  height: 1px; background: var(--border); margin: 6px 0;
+}
+.stats-sidebar-section {
+  padding: 12px 16px 10px;
+}
+.stats-sidebar-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+}
+.stats-chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.stats-chip {
+  padding: 5px 11px; border-radius: 20px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.stats-chip:hover { background: var(--panel-strong); color: var(--text); }
+.stats-chip--active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* ── Stats mode (map helyett stats-main) ─────────────────────────────── */
+.app-shell.is-stats-mode .map-toolbar  { display: none !important; }
+.app-shell.is-stats-mode .sidebar-footer { display: none; }
+.app-shell.is-stats-mode .map-wrap     { display: none; }
+.app-shell.is-stats-mode .stats-main   { display: flex; }
+
+/* Stats main terület (a térkép helyén) */
+.stats-main {
+  display: none; flex: 1; flex-direction: column;
+  overflow-y: auto; background: var(--bg);
+}
+.stats-view { display: flex; flex-direction: column; flex: 1; }
+.stats-main-inner {
+  padding: 24px; display: flex; flex-direction: column; gap: 20px;
+  max-width: 1200px; width: 100%;
+}
+
+/* Havi táblázat nézet */
+.stats-view--table { padding: 0; }
+.stats-monthly-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.stats-monthly-table thead th {
+  padding: 12px 16px; text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 2px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+}
+.stats-monthly-table thead th.num { text-align: right; }
+.stats-monthly-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.stats-monthly-table tbody tr:hover { background: var(--panel-strong); }
+.stats-monthly-table tbody td {
+  padding: 12px 16px; color: var(--text);
+}
+.stats-monthly-table tbody td.num {
+  text-align: right; font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.stats-monthly-table tbody td.num strong { color: var(--text); font-weight: 700; }
+.stats-monthly-table .stats-monthly-month {
+  font-weight: 700; color: var(--text);
+}
+.stats-monthly-table .stats-monthly-cur { color: var(--brand); }
+.stats-monthly-table tfoot td {
+  padding: 12px 16px; font-weight: 700; font-size: 12px;
+  border-top: 2px solid var(--border); background: var(--panel-strong);
+}
+.stats-monthly-table tfoot td.num { text-align: right; }
+.stats-monthly-empty {
+  text-align: center; padding: 40px !important;
+  color: var(--text-muted);
+}
+
+/* Személyes rekordok – teljes nézet */
+.stats-records-full {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.stats-record-full-card {
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px 22px;
+}
+.stats-record-clickable {
+  cursor: pointer; transition: border-color .15s, transform .1s, box-shadow .15s;
+}
+.stats-record-clickable:hover {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 1px var(--brand);
+  transform: translateY(-1px);
+}
+.stats-record-open-hint {
+  font-size: 11px; color: var(--brand); margin-top: 8px; font-weight: 600;
+  opacity: 0; transition: opacity .15s;
+}
+.stats-record-clickable:hover .stats-record-open-hint { opacity: 1; }
+
+.stats-record-full-val {
+  font-size: 32px; font-weight: 900; color: var(--text);
+  letter-spacing: -.03em; line-height: 1;
+}
+.stats-record-full-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-top: 6px;
+}
+.stats-record-full-name {
+  font-size: 12px; color: var(--text-muted); margin-top: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stats-record-full-date {
+  font-size: 11px; color: var(--text-muted); opacity: .7; margin-top: 2px;
+}
+
+/* KPI kártyák – 4 egymás mellett */
+.stats-kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.stats-kpi-card {
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+}
+.stats-kpi-value {
+  font-size: 28px; font-weight: 800; line-height: 1;
+  color: var(--text); letter-spacing: -.03em;
+}
+.stats-kpi-label {
+  font-size: 11px; color: var(--text-muted); font-weight: 600;
+  margin-top: 5px; text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* Diagramok – 2 egymás mellett */
+.stats-charts-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.stats-chart-block {
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+}
+.stats-chart-title {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
+}
+
+/* Alsó sor – sport + rekordok */
+.stats-bottom-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.stats-section {
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+}
+.stats-section-title {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px;
+}
+
+/* Sport breakdown bars */
+.stats-sport-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; font-size: 13px;
+}
+.stats-sport-name {
+  width: 76px; flex-shrink: 0; color: var(--text); font-weight: 600;
+}
+.stats-sport-bar-wrap {
+  flex: 1; height: 8px; background: var(--border);
+  border-radius: 4px; overflow: hidden;
+}
+.stats-sport-bar {
+  height: 100%; border-radius: 4px; transition: width .4s ease;
+}
+.stats-sport-val {
+  width: 80px; flex-shrink: 0; text-align: right;
+  color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12px;
+}
+
+/* Personal records */
+.stats-records-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.stats-record-card {
+  background: var(--panel-strong); border-radius: 10px;
+  padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px;
+}
+.stats-record-body { min-width: 0; }
+.stats-record-val {
+  font-size: 17px; font-weight: 800; color: var(--text); line-height: 1.1;
+}
+.stats-record-label {
+  font-size: 10px; color: var(--text-muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; margin-top: 3px;
+}
+.stats-record-sub {
+  font-size: 11px; color: var(--text-muted); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Reszponzív: 2 col alatt */
+@media (max-width: 700px) {
+  .stats-kpi-grid    { grid-template-columns: 1fr 1fr; }
+  .stats-charts-row  { grid-template-columns: 1fr; }
+  .stats-bottom-row  { grid-template-columns: 1fr; }
+}
+
+/* ── Eddington ─────────────────────────────────────────────────────────────── */
+.edd-header {
+  display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start;
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 24px;
+}
+.edd-number-wrap { text-align: center; min-width: 140px; }
+.edd-number-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.edd-number { font-size: 80px; font-weight: 900; line-height: 1; color: var(--brand); letter-spacing: -.04em; }
+.edd-explain { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+.edd-info { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+.edd-info p { margin: 0 0 8px; }
+.edd-info strong { color: var(--text); }
+.edd-next-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.edd-next-label strong { color: var(--text); }
+.edd-progress-bar-wrap { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.edd-progress-bar { height: 100%; background: var(--brand); border-radius: 4px; transition: width .4s ease; }
+.edd-next-sub { font-size: 12px; color: var(--text-muted); }
+.edd-next-sub strong { color: var(--text); }
+
+/* ── Edzésterhelés ────────────────────────────────────────────────────────── */
+.stats-kpi-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.training-intro {
+  background: var(--panel-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 20px;
+  font-size: 13px; color: var(--text-muted); line-height: 1.6;
+}
+.training-intro p { margin: 0; }
+.training-kpi-card { display: flex; flex-direction: column; gap: 6px; }
+.training-kpi-header { display: flex; align-items: baseline; gap: 7px; }
+.training-kpi-abbr { font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+.training-kpi-name { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.training-kpi-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-top: 2px; }
+.training-chart-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.training-charts { display: flex; flex-direction: column; gap: 12px; }
+.training-zones { display: flex; flex-direction: column; gap: 14px; }
+.training-zone { display: flex; align-items: flex-start; gap: 12px; font-size: 13px; color: var(--text-muted); }
+.training-zone strong { color: var(--text); display: block; margin-bottom: 2px; }
+.zone-desc { font-size: 12px; line-height: 1.5; margin-top: 2px; }
+.zone-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.training-form-badge {
+  display: inline-block; padding: 6px 16px; border-radius: 20px;
+  font-size: 14px; font-weight: 700;
+}
+.form--fresh    { background: rgba(34,197,94,.15);  color: #22C55E; }
+.form--training { background: rgba(59,130,246,.15); color: #3B82F6; }
+.form--tired    { background: rgba(245,158,11,.15); color: #F59E0B; }
+.form--overload { background: rgba(239,68,68,.15);  color: #EF4444; }
+.training-note {
+  font-size: 11px; color: var(--text-muted); line-height: 1.5;
+  padding: 12px 16px; border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+.stats-empty { color: var(--text-muted); font-size: 13px; padding: 40px 0; text-align: center; }
+
+/* ── Hőtérkép ─────────────────────────────────────────────────────────────── */
+.heatmap-status {
+  padding: 24px; text-align: center; border-bottom: 1px solid var(--border);
+}
+.heatmap-status-text { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.heatmap-progress-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 8px 0; }
+.heatmap-progress-bar { height: 100%; background: var(--brand); border-radius: 3px; transition: width .2s; }
+.heatmap-canvas { flex: 1; width: 100%; min-height: 400px; display: block; }
 
 /* Plan tab GPX import gomb */
 .plan-import-btn {
@@ -1884,54 +2244,8 @@ body.is-drag-over::after {
 }
 
 /* ── Collapsed sidebar ──────────────────────────────── */
-.app-shell.is-nav-collapsed .sidebar-body > *:not(.collapsed-visible),
-.app-shell.is-nav-collapsed .footer-btn span,
-.app-shell.is-nav-collapsed .footer-nav {
-  display: none;
-}
-.app-shell.is-nav-collapsed .sidebar-footer {
-  justify-content: center;
-  padding: 8px 0;
-  gap: 0;
-  flex-wrap: nowrap;
-}
-.app-shell.is-nav-collapsed .sidebar-body > .collapsed-visible {
-  display: block;
-}
-.app-shell.is-nav-collapsed .tool-menu {
-  padding: 4px;
-}
-.app-shell.is-nav-collapsed .tool-menu-btn {
-  width: 100%;
-  height: 36px;
-  padding: 0;
-  justify-content: center;
-}
-.app-shell.is-nav-collapsed .tool-menu-btn span,
-.app-shell.is-nav-collapsed .sidebar-section-title {
-  display: none;
-}
-.app-shell.is-nav-collapsed .sidebar-tabs {
-  flex-direction: column;
-  border-bottom: none;
-  border-right: 2px solid var(--line);
-  gap: 2px;
-  padding: 4px 0;
-}
-.app-shell.is-nav-collapsed .sidebar-tab {
-  padding: 10px 0;
-  border-bottom: none;
-  border-right: 2px solid transparent;
-  margin-bottom: 0;
-  margin-right: -2px;
-  flex-direction: column;
-  gap: 0;
-}
-.app-shell.is-nav-collapsed .sidebar-tab.is-active {
-  border-bottom-color: transparent;
-  border-right-color: var(--brand);
-}
-.app-shell.is-nav-collapsed .sidebar-tab span {
+/* Összecsukva: csak a rail marad látszó, a tartalmi panel eltűnik. */
+.app-shell.is-nav-collapsed .sidebar-inner {
   display: none;
 }
 
@@ -1939,10 +2253,6 @@ body.is-drag-over::after {
 .app-shell.is-file-mode    .map-toolbar { display: none !important; }
 .app-shell.is-library-mode .map-toolbar { display: none !important; }
 .app-shell.is-file-mode #map { cursor: default !important; }
-
-/* Sidebar footer – csak Tervezés tabon látszik */
-.app-shell.is-file-mode .sidebar-footer,
-.app-shell.is-library-mode .sidebar-footer { display: none; }
 
 /* ── Library layout ──────────────────────────────────────────────────────── */
 .library-main {
@@ -2230,6 +2540,16 @@ body.is-drag-over::after {
 .library-card-btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .library-card-btn--primary:hover { background: var(--accent-dark, #1558d6); border-color: var(--accent-dark, #1558d6); color: #fff; }
 .library-card-btn--danger:hover { background: #ffeaea; color: #d32f2f; border-color: #d32f2f; }
+
+/* Statisztika-kapcsoló a könyvtár expand-row-ban */
+.library-stats-toggle.is-on {
+  background: color-mix(in srgb, #22C55E 12%, transparent);
+  color: #16a34a; border-color: color-mix(in srgb, #22C55E 45%, transparent);
+}
+.library-stats-toggle:not(.is-on) {
+  color: var(--text-muted); opacity: .75;
+}
+.library-stats-toggle:hover { opacity: 1; }
 
 /* ── Map ────────────────────────────────────────────── */
 .map-wrap {
