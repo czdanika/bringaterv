@@ -21,7 +21,7 @@ import { analyzeWind, defaultAvgSpeed, windTimeMultiplier, WIND_COLORS, WIND_LAB
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
 import { createWorkoutShareCard, downloadShareCard } from "./ui/shareCard.js";
-import { renderStats, renderMonthlyTable, renderRecordsFull, renderEddington, renderTrainingLoad, renderHeatmapCanvas } from "./ui/statsPanel.js";
+import { renderStats, renderMonthlyTable, renderRecordsFull, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
 
 requireAuth();
 
@@ -6877,7 +6877,7 @@ function _switchStatsView(view) {
   if (view === "records")   renderRecordsFull(all);
   if (view === "eddington") renderEddington(all);
   if (view === "training")  renderTrainingLoad(all);
-  // Hőtérkép: ne töltse be automatikusan – a gomb indítja
+  if (view === "heatmap")   window._showHeatmap?.();
 }
 
 async function loadAndRenderStats() {
@@ -6929,75 +6929,104 @@ document.querySelectorAll("[data-stats-sport]").forEach(btn => {
   });
 });
 
-// ── Hőtérkép – progresszív GPX betöltés ──────────────────────────────────────
+// ── Hőtérkép – Leaflet térkép + bulk geometria (egy kérés) ───────────────────
 {
-  const _heatmapCache = new Map();  // routeId → [[lat,lng], ...]
-  let   _heatmapLoaded = false;
+  let _hmMap     = null;   // Leaflet térkép
+  let _hmLayer   = null;   // vonalak LayerGroup-ja
+  let _hmTracks  = null;   // betöltött geometriák [{id, sport, points}]
+  let _hmSport   = "all";
+  let _hmLoading = false;
 
-  async function loadHeatmap() {
-    const btn      = document.getElementById("heatmapLoadBtn");
-    const statusEl = document.getElementById("heatmapStatusText");
-    const progWrap = document.getElementById("heatmapProgressWrap");
-    const progBar  = document.getElementById("heatmapProgressBar");
-    const canvas   = document.getElementById("heatmapCanvas");
-
-    if (!canvas) return;
-    if (btn) btn.disabled = true;
-
-    // Ha még nincs adat, először betöltjük a könyvtárat
-    if (!_allStatsRoutes().length) {
-      if (statusEl) statusEl.textContent = "Edzések listájának betöltése…";
-      try {
-        const userRoutes = await routesApi.listRoutes();
-        const isWorkout = r => r.type === "workout" || !!r.strava_id || !!r.start_time;
-        _libraryData.routes   = userRoutes.filter(r => !isWorkout(r));
-        _libraryData.workouts = userRoutes.filter(isWorkout);
-      } catch (err) {
-        if (statusEl) statusEl.textContent = "Nem sikerült betölteni az edzések listáját.";
-        if (btn) btn.disabled = false;
-        return;
-      }
-    }
-
-    const routes = _allStatsRoutes().filter(r => r.id);
-    const tracks = [];
-    if (progWrap) progWrap.hidden = false;
-
-    for (let i = 0; i < routes.length; i++) {
-      const r = routes[i];
-      if (statusEl) statusEl.textContent = `Betöltés: ${i + 1} / ${routes.length}`;
-      if (progBar)  progBar.style.width  = `${Math.round((i + 1) / routes.length * 100)}%`;
-
-      if (_heatmapCache.has(r.id)) {
-        const pts = _heatmapCache.get(r.id);
-        if (pts.length) tracks.push(pts);
-        continue;
-      }
-
-      try {
-        const gpxText = await routesApi.loadRoute(r.id);
-        const xml  = new DOMParser().parseFromString(gpxText, "application/xml");
-        const nodes = [...xml.getElementsByTagNameNS("*", "trkpt")];
-        // Minden 8. pont (hőtérkép nem igényel sűrű mintát)
-        const pts = nodes
-          .filter((_, i) => i % 8 === 0)
-          .map(n => [parseFloat(n.getAttribute("lat")), parseFloat(n.getAttribute("lon"))])
-          .filter(([a, b]) => isFinite(a) && isFinite(b));
-        _heatmapCache.set(r.id, pts);
-        if (pts.length > 1) tracks.push(pts);
-      } catch { _heatmapCache.set(r.id, []); }
-
-      // Kis szünet, hogy ne blokkolja az UI-t
-      if (i % 10 === 9) await new Promise(res => setTimeout(res, 0));
-    }
-
-    if (statusEl) statusEl.textContent = `${tracks.length} útvonal betöltve.`;
-    if (progWrap) progWrap.hidden = true;
-    if (btn)      btn.hidden      = true;
-    _heatmapLoaded = true;
-
-    renderHeatmapCanvas(canvas, tracks);
+  function _hmSportKey(t) {
+    const s = (t.sport || "").toLowerCase();
+    if (!s || s === "route" || s === "workout") return "cycling";
+    if (s.includes("cycl") || s.includes("ride") || s.includes("bike")
+        || s === "asphalt" || s === "gravel" || s === "mtb") return "cycling";
+    if (s.includes("hik")) return "hike";
+    if (s.includes("walk")) return "walk";
+    if (s.includes("run")) return "run";
+    return "other";
   }
 
-  document.getElementById("heatmapLoadBtn")?.addEventListener("click", loadHeatmap);
+  function _ensureHeatmapMap() {
+    if (_hmMap) return _hmMap;
+    _hmMap = L.map("heatmapMap", { zoomControl: true, preferCanvas: true })
+              .setView([47.5, 19.05], 7);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19, subdomains: "abcd",
+      attribution: "© OpenStreetMap, © CARTO",
+    }).addTo(_hmMap);
+    _hmLayer = L.layerGroup().addTo(_hmMap);
+    return _hmMap;
+  }
+
+  function _drawHeatmapTracks() {
+    if (!_hmLayer || !_hmTracks) return;
+    _hmLayer.clearLayers();
+    const filtered = _hmTracks.filter(t => _hmSport === "all" || _hmSportKey(t) === _hmSport);
+
+    // Track kezdőpontok mediánja → outlier (pl. másik kontinens) kizárása a zoomból
+    const firsts = filtered.map(t => t.points?.[0]).filter(Boolean);
+    const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] ?? 0; };
+    const medLat = firsts.length ? median(firsts.map(p => p[0])) : 0;
+    const medLng = firsts.length ? median(firsts.map(p => p[1])) : 0;
+
+    const boundsPts = [];
+    for (const t of filtered) {
+      if (!t.points || t.points.length < 2) continue;
+      // Két réteg: vastag halvány "glow" + vékonyabb erősebb vonal → hő hatás
+      L.polyline(t.points, { color: "#fc4c02", weight: 6, opacity: 0.10, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
+      L.polyline(t.points, { color: "#fc4c02", weight: 2, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
+      // Zoom-bounds: csak a fő klaszterhez közeli trackek (±5 fok a mediántól)
+      const [lat0, lng0] = t.points[0];
+      if (Math.abs(lat0 - medLat) <= 5 && Math.abs(lng0 - medLng) <= 5) {
+        for (const p of t.points) boundsPts.push(p);
+      }
+    }
+    const countEl = document.getElementById("heatmapCount");
+    if (countEl) countEl.textContent = `${filtered.length} útvonal`;
+    if (boundsPts.length) {
+      try { _hmMap.fitBounds(boundsPts, { padding: [30, 30], maxZoom: 14 }); } catch {}
+    }
+  }
+
+  async function showHeatmap() {
+    _ensureHeatmapMap();
+    // A térkép méretét frissíteni kell, mert rejtett konténerben jött létre
+    setTimeout(() => _hmMap.invalidateSize(), 60);
+
+    if (_hmTracks) { _drawHeatmapTracks(); return; }   // már betöltöttük
+    if (_hmLoading) return;
+    _hmLoading = true;
+
+    const overlay  = document.getElementById("heatmapOverlay");
+    const statusEl = document.getElementById("heatmapStatusText");
+    if (overlay)  overlay.hidden = false;
+    if (statusEl) statusEl.textContent = "Hőtérkép betöltése…";
+
+    try {
+      const res = await routesApi.geometryBulk();
+      _hmTracks = res.tracks || [];
+      if (overlay) overlay.hidden = true;
+      setTimeout(() => { _hmMap.invalidateSize(); _drawHeatmapTracks(); }, 80);
+    } catch (err) {
+      if (statusEl) statusEl.textContent = "Nem sikerült betölteni a hőtérképet.";
+      console.error("Hőtérkép hiba:", err);
+    } finally {
+      _hmLoading = false;
+    }
+  }
+
+  // Sport szűrő
+  document.querySelectorAll("[data-heatmap-sport]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      _hmSport = btn.dataset.heatmapSport;
+      document.querySelectorAll("[data-heatmap-sport]").forEach(b =>
+        b.classList.toggle("stats-chip--active", b.dataset.heatmapSport === _hmSport));
+      _drawHeatmapTracks();
+    });
+  });
+
+  // A _switchStatsView hívja, amikor a Hőtérkép nézetre váltunk
+  window._showHeatmap = showHeatmap;
 }

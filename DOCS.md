@@ -464,7 +464,13 @@ networks:
 | `JWT_SECRET` | routes-api | JWT aláíró kulcs | `change-me-please` |
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartam napban | `30` |
 
-> ⚠️ **`JWT_SECRET` éles üzemben kötelező megváltoztatni!** Véletlenszerű, legalább 32 karakteres string legyen.
+> **`JWT_SECRET` éles üzemben kötelező megváltoztatni!** Véletlenszerű, legalább 32 byte (64 hex karakter) hosszú string legyen, `openssl rand -hex 32` paranccsal generálva.
+>
+> Példa formátum (ne ezt használd – generálj sajátot):
+>
+> ```
+> JWT_SECRET=ed07db6c05dc7384047806ae33942d9a9dba203475784855a89b39cefeae84b5
+> ```
 
 ---
 

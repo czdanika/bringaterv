@@ -926,6 +926,57 @@ def list_routes():
     return jsonify(sorted(_load_index(idx), key=lambda r: r.get("date", ""), reverse=True))
 
 
+# GPX trackpont regex (lat előbb – a saját és importált GPX-ek így állnak elő)
+_TRKPT_RE = re.compile(r'<(?:trkpt|rtept)\b[^>]*\blat="([-\d.]+)"[^>]*\blon="([-\d.]+)"')
+
+
+def _extract_track_points(gpx_path: str, every: int = 8, max_points: int = 300) -> list:
+    """Egyszerűsített [lat, lon] lista egy GPX-ből (hőtérképhez – ritkított)."""
+    try:
+        with open(gpx_path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return []
+    pts = []
+    for i, m in enumerate(_TRKPT_RE.finditer(text)):
+        if i % every:
+            continue
+        try:
+            pts.append([round(float(m.group(1)), 5), round(float(m.group(2)), 5)])
+        except ValueError:
+            continue
+    if len(pts) > max_points:
+        step = len(pts) // max_points + 1
+        pts = pts[::step]
+    return pts
+
+
+@app.route("/api/routes/geometry-bulk", methods=["GET"])
+@require_auth
+def routes_geometry_bulk():
+    """Az összes saját útvonal/edzés egyszerűsített geometriája egyetlen válaszban.
+    A hőtérkép használja – így nem kell fájlonként külön HTTP-kérés."""
+    user_dir, idx = _resolve_dirs()
+    index = _load_index(idx)
+    out = []
+    for entry in index:
+        rid = entry.get("id")
+        if not rid:
+            continue
+        gpx_path = os.path.join(user_dir, f"{rid}.gpx")
+        if not os.path.isfile(gpx_path):
+            continue
+        pts = _extract_track_points(gpx_path)
+        if len(pts) < 2:
+            continue
+        out.append({
+            "id":    rid,
+            "sport": entry.get("sport_type") or entry.get("type") or "cycling",
+            "points": pts,
+        })
+    return jsonify({"tracks": out})
+
+
 @app.route("/api/routes", methods=["POST"])
 @require_auth
 def save_route():
