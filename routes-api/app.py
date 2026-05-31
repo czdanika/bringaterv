@@ -1039,6 +1039,7 @@ def update_route(route_id: str):
     if "name"        in data: entry["name"]        = (data["name"] or "Névtelen").strip()
     if "type"        in data: entry["type"]        = data["type"]
     if "description" in data: entry["description"] = (data["description"] or "").strip()
+    if "include_in_stats" in data: entry["include_in_stats"] = bool(data["include_in_stats"])
     try:
         _save_index(index, idx)
     except OSError:
@@ -1821,9 +1822,23 @@ def strava_activities():
     by_strava  = {r.get("strava_id"): r for r in idx if r.get("strava_id")}
     deny_list  = _load_strava_deny_list(g.user["id"])
 
+    # Nem útvonal-alapú (GPS nélküli) Strava aktivitás-típusok – ezeket nem listázzuk,
+    # mert nincs térképük/útvonaluk (pl. konditermi "Workout", súlyzós edzés, jóga).
+    NON_GPS_TYPES = {
+        "workout", "weighttraining", "yoga", "crossfit", "elliptical",
+        "stairstepper", "pilates", "rockclimbing", "hiit", "swim",
+        "virtualrun", "velomobile",
+    }
+
     items = []
     for a in data:
         sid = a.get("id")
+        # Kihagyjuk a nem-térképes edzéseket (típus-alapon VAGY ha nincs se GPS-track, se táv)
+        sport_t  = (a.get("sport_type") or a.get("type") or "").lower()
+        polyline = (a.get("map") or {}).get("summary_polyline")
+        dist_m   = a.get("distance") or 0
+        if sport_t in NON_GPS_TYPES or (not polyline and dist_m <= 0):
+            continue
         dup_local   = by_strava.get(sid)
         dup_deleted = sid in deny_list
         # Esetleges manuális-import egyezés (start_time + distance heurisztika)
