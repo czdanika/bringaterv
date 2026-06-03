@@ -707,7 +707,7 @@ function calcTrainingLoad(routes) {
   return result;
 }
 
-function drawLineChart(canvas, series, { height = 220 } = {}) {
+function drawLineChart(canvas, series, { height = 220, refLines = [] } = {}) {
   const DPR = window.devicePixelRatio || 1;
   const W   = canvas.offsetWidth || 600;
   const H   = height;
@@ -776,6 +776,21 @@ function drawLineChart(canvas, series, { height = 220 } = {}) {
     ctx.stroke();
   });
 
+  // Referencia vonalak (pl. TSB zónák)
+  if (refLines.length) {
+    refLines.forEach(({ v, color, label }) => {
+      if (v < dataMin || v > dataMax) return;
+      const y = toY(v);
+      ctx.strokeStyle = color; ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color; ctx.font = 'bold 9px system-ui,sans-serif';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, W - PAD.right - 2, y - 6);
+    });
+  }
+
   // X tengelycímkék (~6 darab)
   const labelStep = Math.max(1, Math.floor(n / 6));
   ctx.fillStyle = textColor; ctx.font = '9px system-ui,sans-serif';
@@ -797,31 +812,75 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
     return;
   }
 
-  // Aktuális értékek (utolsó nap)
   const last = timeSeries[timeSeries.length - 1];
-  const setV = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const setV  = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const setEl = (id, fn) => { const e = document.getElementById(id); if (e) fn(e); };
+
+  // ── Fő KPI-k ──────────────────────────────────────────────────────────────
   setV('trainingCTL', Math.round(last.ctl));
   setV('trainingATL', Math.round(last.atl));
   setV('trainingTSB', (last.tsb > 0 ? '+' : '') + Math.round(last.tsb));
 
   // Forma zóna
-  const formEl     = document.getElementById('trainingForm');
-  const formDescEl = document.getElementById('trainingFormDesc');
-  if (formEl) {
-    const tsb = last.tsb;
-    const { label, cls, desc } = tsb > 10
+  setEl('trainingForm', formEl => {
+    const { label, cls, desc } = last.tsb > 10
       ? { label: 'Friss',      cls: 'form--fresh',    desc: 'Kipihent, csúcsra kész.' }
-      : tsb > -10
+      : last.tsb > -10
       ? { label: 'Edzés zóna', cls: 'form--training', desc: 'Optimális fejlődési állapot.' }
-      : tsb > -30
+      : last.tsb > -30
       ? { label: 'Fáradt',     cls: 'form--tired',    desc: 'Érdemes lassítani egy kicsit.' }
       : { label: 'Túlterhelt', cls: 'form--overload', desc: 'Pihenő szükséges a sérülés elkerüléséhez.' };
-    formEl.textContent     = label;
-    formEl.className       = `training-form-badge ${cls}`;
-    if (formDescEl) formDescEl.textContent = desc;
-  }
+    formEl.textContent = label;
+    formEl.className   = `training-form-badge ${cls}`;
+    setV('trainingFormDesc', desc);
+  });
 
-  // Szűrés a választott időszakra (months = null/0 → összes)
+  // ── Másodlagos mutatók ─────────────────────────────────────────────────────
+
+  // A:C arány (ATL/CTL)
+  const ac = last.ctl > 0 ? Math.round((last.atl / last.ctl) * 100) / 100 : null;
+  setV('trainingAC', ac != null ? ac.toFixed(2) : '—');
+  setEl('trainingACColor', e => {
+    const color = ac == null ? 'var(--text-muted)'
+      : ac > 1.5  ? '#EF4444'
+      : ac > 1.3  ? '#F97316'
+      : ac >= 0.8 ? '#22C55E'
+      : '#EAB308';
+    e.style.color = color;
+  });
+  setEl('trainingACDesc', e => {
+    if (ac == null) return;
+    e.textContent = ac > 1.5  ? 'Magas sérülésveszély – csökkentsd a terhelést.'
+      : ac > 1.3  ? 'Figyelj oda – közel a veszélyes zónához.'
+      : ac >= 0.8 ? 'Optimális – jó az egyensúly.'
+      : 'Alacsony terhelés – esetleg detraining.';
+  });
+
+  // Pihenőnapok az elmúlt 7 napban
+  const last7 = timeSeries.slice(-7);
+  const restDays = last7.filter(d => d.load === 0).length;
+  setV('trainingRestDays', `${restDays} / 7`);
+
+  // Monotonitás (Foster) = átlag / szórás (utolsó 7 nap)
+  const loads7 = last7.map(d => d.load);
+  const avg7 = loads7.reduce((a, b) => a + b, 0) / loads7.length;
+  const std7 = Math.sqrt(loads7.reduce((s, l) => s + (l - avg7) ** 2, 0) / loads7.length);
+  const monotony = std7 > 0 ? Math.round((avg7 / std7) * 100) / 100 : 0;
+  setV('trainingMonotony', monotony.toFixed(2));
+  setEl('trainingMonotonyColor', e => {
+    e.style.color = monotony > 2 ? '#EF4444' : monotony > 1.5 ? '#F97316' : '#22C55E';
+  });
+  setEl('trainingMonotonyDesc', e => {
+    e.textContent = monotony > 2   ? 'Magas – változatosabb edzés javasolt.'
+      : monotony > 1.5 ? 'Közepes – próbálj több pihenő- és intenzív napot váltani.'
+      : 'Jó változatosság.';
+  });
+
+  // Heti terhelés
+  const weeklyLoad = Math.round(loads7.reduce((a, b) => a + b, 0));
+  setV('trainingWeeklyLoad', weeklyLoad);
+
+  // ── Diagramok ─────────────────────────────────────────────────────────────
   let recent = timeSeries;
   if (months && months > 0) {
     const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - months);
@@ -829,22 +888,19 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
   }
   if (!recent.length) recent = timeSeries;
 
-  // Grafikon cím időszak-felirata
   const rangeLabelEl = document.getElementById('trainingCtlRangeLabel');
   if (rangeLabelEl) {
-    rangeLabelEl.textContent =
-      !months || months <= 0 ? 'teljes időszak'
-      : months === 12        ? 'elmúlt 1 év'
-      : `elmúlt ${months} hónap`;
+    rangeLabelEl.textContent = !months || months <= 0 ? 'teljes időszak'
+      : months === 12 ? 'elmúlt 1 év' : `elmúlt ${months} hónap`;
   }
 
-  // Mindenből arányos ritkítás (gyors render)
   const sample = (arr, step) => arr.filter((_, i) => i % step === 0 || i === arr.length - 1);
   const step   = Math.max(1, Math.floor(recent.length / 300));
   const data   = sample(recent, step);
 
-  const ctlCanvas  = el.querySelector('.training-ctl-chart');
-  const tsbCanvas  = el.querySelector('.training-tsb-chart');
+  const ctlCanvas   = el.querySelector('.training-ctl-chart');
+  const tsbCanvas   = el.querySelector('.training-tsb-chart');
+  const dailyCanvas = el.querySelector('.training-daily-chart');
 
   if (ctlCanvas) {
     drawLineChart(ctlCanvas, [
@@ -855,7 +911,64 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
   if (tsbCanvas) {
     drawLineChart(tsbCanvas, [
       { data: data.map(d => ({ date: d.date, v: d.tsb })), color: '#fc4c02', fill: true },
-    ], { height: 140 });
+    ], {
+      height: 160,
+      refLines: [
+        { v: 15,  color: '#22C55E', label: 'Csúcsforma +15' },
+        { v: -10, color: '#EAB308', label: 'Edzés zóna −10' },
+        { v: -30, color: '#EF4444', label: 'Túlterhelés −30' },
+      ],
+    });
+  }
+  if (dailyCanvas) {
+    // Napi terhelés bar chart – sűrítjük ha sok adat van
+    const barStep = Math.max(1, Math.floor(recent.length / 180));
+    const barData = sample(recent, barStep);
+    drawDailyLoadBars(dailyCanvas, barData);
+  }
+}
+
+/** Napi terhelés oszlopdiagram */
+function drawDailyLoadBars(canvas, data) {
+  const DPR = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth || 600;
+  const H   = 120;
+  canvas.width  = W * DPR;
+  canvas.height = H * DPR;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const PAD = { top: 8, right: 16, bottom: 24, left: 48 };
+  const iW  = W - PAD.left - PAD.right;
+  const iH  = H - PAD.top  - PAD.bottom;
+  const maxLoad = Math.max(...data.map(d => d.load), 1);
+  const textColor   = cssVar('--text-muted') || '#888';
+  const borderColor = cssVar('--border')     || 'rgba(128,128,128,.15)';
+
+  // Grid
+  ctx.strokeStyle = borderColor; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(PAD.left, PAD.top + iH); ctx.lineTo(W - PAD.right, PAD.top + iH); ctx.stroke();
+  ctx.fillStyle = textColor; ctx.font = '9px system-ui,sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(maxLoad), PAD.left - 4, PAD.top);
+
+  const barW = Math.max(1, iW / data.length * 0.7);
+  data.forEach((d, i) => {
+    if (!d.load) return;
+    const x  = PAD.left + (i / data.length) * iW;
+    const bH = Math.max(1, (d.load / maxLoad) * iH);
+    ctx.fillStyle = '#fc4c02cc';
+    ctx.fillRect(x - barW / 2, PAD.top + iH - bH, barW, bH);
+  });
+
+  // X tengely – ~6 felirat
+  const labelStep = Math.max(1, Math.floor(data.length / 6));
+  ctx.fillStyle = textColor; ctx.font = '9px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i < data.length; i += labelStep) {
+    const lbl = (data[i].date || '').slice(5, 10).replace('-', '.');
+    ctx.fillText(lbl, PAD.left + (i / data.length) * iW, H - PAD.bottom + 4);
   }
 }
 
