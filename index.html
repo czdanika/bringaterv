@@ -1032,6 +1032,42 @@
             </div>
           </div>
 
+          <!-- Másodlagos KPI kártyák -->
+          <div class="stats-kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px" id="trainingSecondaryKpis">
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr" id="trainingACColor">A:C</span>
+                <span class="training-kpi-name">Arány</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingAC">—</div>
+              <div class="training-kpi-desc" id="trainingACDesc">ATL/CTL – az akut és krónikus terhelés aránya. Optimális: 0.8–1.3. Ha >1.5, sérülésveszély nő.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr">🛌</span>
+                <span class="training-kpi-name">Pihenőnapok</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingRestDays">—</div>
+              <div class="training-kpi-desc">Edzés nélküli napok az elmúlt 7-ben. Legalább 1–2 pihenőnap javasolt hetente a regenerációhoz.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr" id="trainingMonotonyColor">M</span>
+                <span class="training-kpi-name">Monotonitás</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingMonotony">—</div>
+              <div class="training-kpi-desc" id="trainingMonotonyDesc">Foster-monotonitás = átlag/szórás (7 nap). &lt;1.5 jó változatosság, &gt;2 monoton – sérülés- és kiégésveszély.</div>
+            </div>
+            <div class="stats-kpi-card training-kpi-card">
+              <div class="training-kpi-header">
+                <span class="training-kpi-abbr">📅</span>
+                <span class="training-kpi-name">Heti terhelés</span>
+              </div>
+              <div class="stats-kpi-value" id="trainingWeeklyLoad">—</div>
+              <div class="training-kpi-desc">Az elmúlt 7 nap összesített edzésterhelése (percek + szint/20).</div>
+            </div>
+          </div>
+
           <!-- Diagramok -->
           <div class="training-charts">
             <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
@@ -1041,8 +1077,13 @@
             </div>
             <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
               <div class="stats-chart-title">Forma (TSB) – a nulla vonal felett: friss, alatta: fáradt</div>
-              <div class="training-chart-hint">Verseny előtt érdemes pozitívba hozni pihenőnapokkal. Edzésblokk közben természetes, hogy negatív.</div>
+              <div class="training-chart-hint">Verseny előtt érdemes pozitívba hozni pihenőnapokkal. Edzésblokk közben természetes, hogy negatív. Szaggatott vonalak: csúcsforma (+15), edzés zóna (−10), túlterhelés (−30).</div>
               <canvas class="training-tsb-chart" style="width:100%;display:block;margin-top:10px"></canvas>
+            </div>
+            <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
+              <div class="stats-chart-title">Napi terhelés</div>
+              <div class="training-chart-hint">Minden nap összesített edzésterhelése (percek + szintemelkedés/20). A csúcsos napok intenzív blokkokat jeleznek.</div>
+              <canvas class="training-daily-chart" style="width:100%;display:block;margin-top:10px"></canvas>
             </div>
           </div>
 
