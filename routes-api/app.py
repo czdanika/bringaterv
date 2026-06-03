@@ -994,14 +994,15 @@ def save_route():
     if not data:
         abort(400, description="Hiányzó JSON body")
 
-    name        = (data.get("name") or "Névtelen útvonal").strip()
-    gpx_content = data.get("gpxContent", "").strip()
-    fit_b64     = data.get("fitContent")     # opcionális base64-kódolt FIT binary
-    distance    = data.get("distance")
-    duration    = data.get("duration")
-    elevation   = data.get("elevation")
-    route_type  = data.get("type", "cycling")
-    description = (data.get("description") or "").strip()
+    name             = (data.get("name") or "Névtelen útvonal").strip()
+    gpx_content      = data.get("gpxContent", "").strip()
+    fit_b64          = data.get("fitContent")     # opcionális base64-kódolt FIT binary
+    distance         = data.get("distance")
+    duration         = data.get("duration")
+    elevation        = data.get("elevation")
+    route_type       = data.get("type", "cycling")
+    description      = (data.get("description") or "").strip()
+    include_in_stats = data.get("include_in_stats", True)  # tervezett útvonalak False-t küldenek
 
     if not gpx_content:
         abort(400, description="Hiányzó gpxContent mező")
@@ -1034,14 +1035,15 @@ def save_route():
 
     entry = {
         "id":          route_id,
-        "name":        name,
-        "date":        _now_date(),
-        "distance":    round(distance, 1) if isinstance(distance, (int, float)) else None,
-        "duration":    int(duration)      if isinstance(duration,  (int, float)) else None,
-        "elevation":   int(elevation)     if isinstance(elevation, (int, float)) else None,
-        "type":        route_type,
-        "description": description,
-        "has_fit":     has_fit,
+        "name":             name,
+        "date":             _now_date(),
+        "distance":         round(distance, 1) if isinstance(distance, (int, float)) else None,
+        "duration":         int(duration)      if isinstance(duration,  (int, float)) else None,
+        "elevation":        int(elevation)     if isinstance(elevation, (int, float)) else None,
+        "type":             route_type,
+        "description":      description,
+        "has_fit":          has_fit,
+        "include_in_stats": bool(include_in_stats),
     }
     index = _load_index(idx)
     index.append(entry)

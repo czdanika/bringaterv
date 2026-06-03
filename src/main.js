@@ -2498,12 +2498,13 @@ document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async 
   try {
     await routesApi.saveRoute({
       name,
-      gpxContent: content,
-      distance:  distanceKm,
-      duration:  durationMin,
-      elevation: ascentMeters || null,
-      type:      selectedMode === "walking" ? "hiking" : selectedMode,
-      description: desc,
+      gpxContent:       content,
+      distance:         distanceKm,
+      duration:         durationMin,
+      elevation:        ascentMeters || null,
+      type:             selectedMode === "walking" ? "hiking" : selectedMode,
+      description:      desc,
+      include_in_stats: false,  // tervezett útvonal – statisztikából kizárva alapból
     });
     showToast(`„${name}" elmentve a könyvtárba`);
   } catch (err) {
