@@ -1417,6 +1417,20 @@ body.is-drag-over::after {
 }
 
 /* ── Eddington ─────────────────────────────────────────────────────────────── */
+.edd-sport-chips {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.edd-sport-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  border: 1.5px solid var(--border); background: var(--panel-bg);
+  color: var(--text-muted); cursor: pointer; transition: all .15s;
+}
+.edd-sport-chip:hover { border-color: var(--brand); color: var(--text); }
+.edd-sport-chip.is-active { border-color: var(--brand); background: var(--brand); color: #fff; }
+.edd-sport-chip.is-active .edd-chip-val { color: #fff; }
+.edd-chip-val { font-weight: 800; font-size: 14px; color: var(--brand); }
+.edd-sport-chip.is-active .edd-chip-val { color: #fff; }
 .edd-header {
   display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start;
   background: var(--panel-bg); border: 1px solid var(--border);
