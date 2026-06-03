@@ -954,12 +954,18 @@ def _extract_track_points(gpx_path: str, every: int = 8, max_points: int = 300) 
 @app.route("/api/routes/geometry-bulk", methods=["GET"])
 @require_auth
 def routes_geometry_bulk():
-    """Az összes saját útvonal/edzés egyszerűsített geometriája egyetlen válaszban.
-    A hőtérkép használja – így nem kell fájlonként külön HTTP-kérés."""
+    """Edzések egyszerűsített geometriája egyetlen válaszban (hőtérképhez).
+    Csak type=workout bejegyzések kerülnek be, és csak ha include_in_stats nincs False-ra állítva."""
     user_dir, idx = _resolve_dirs()
     index = _load_index(idx)
     out = []
     for entry in index:
+        # Csak edzések – tervezett útvonalak nem kerülnek a hőtérképre
+        if entry.get("type") != "workout":
+            continue
+        # Statisztikákból kizárt edzések sem kellenek
+        if entry.get("include_in_stats") is False:
+            continue
         rid = entry.get("id")
         if not rid:
             continue

@@ -207,12 +207,12 @@ function _drawHeatmapTracks() {
     </div>`).join("");
     L.popup({ maxWidth: 280, className: "hm-leaflet-popup" })
       .setLatLng(e.latlng)
-      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli útvonal</div>${rows}</div>`)
+      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli edzés</div>${rows}</div>`)
       .openOn(_hmMap);
   });
 
   const countEl = document.getElementById("heatmapCount");
-  if (countEl) countEl.textContent = `${filtered.length} útvonal`;
+  if (countEl) countEl.textContent = `${filtered.length} edzés`;
   if (boundsPts.length) try { _hmMap.fitBounds(boundsPts, { padding: [30, 30], maxZoom: 14 }); } catch {}
 }
 
