@@ -1274,12 +1274,10 @@ body.is-drag-over::after {
   text-align: center; padding: 40px !important;
   color: var(--text-muted);
 }
-/* Expand toggle */
-.stats-monthly-th-toggle { width: 28px; padding: 0 4px !important; }
-.stats-monthly-toggle { width: 28px; padding: 0 4px !important; text-align: center; }
+/* Expand toggle – chevron a hónap cellán belül */
 .stats-monthly-chevron {
-  display: inline-block; font-size: 14px; color: var(--text-muted);
-  transition: transform .15s; line-height: 1; cursor: pointer;
+  display: inline-block; font-size: 13px; color: var(--text-muted);
+  transition: transform .15s; line-height: 1; margin-right: 4px; user-select: none;
 }
 .stats-monthly-row { cursor: pointer; }
 .stats-monthly-row[aria-expanded="true"] .stats-monthly-chevron { transform: rotate(90deg); }
