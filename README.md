@@ -197,12 +197,51 @@ JWT_SECRET=ed07db6c05dc7384047806ae33942d9a9dba203475784855a89b39cefeae84b5
 
 ### 3. Frissítés új verzióra
 
-Ha új verzió jelent meg (GitHub Actions lefutott):
+Ha új verzió jelent meg:
 
 1. Portainer → **Stacks** → `bringaterv`
 2. Kattints a **Pull and redeploy** gombra
 
 > **Figyelem:** A `routes-data` volume megmarad frissítéskor – a mentett útvonalak, edzések és felhasználói adatok nem vesznek el.
+
+### 4. Hibaelhárítás – mentés nem működik
+
+Ha az alkalmazásba be tudsz lépni, de az útvonalak / edzések mentése „Nem sikerült menteni" hibával meghiúsul:
+
+**a) Ellenőrizd, hogy az API elérhető-e:**
+
+Böngészőben nyisd meg: `http://[szerver-ip]:8088/api/health`
+
+Helyes válasz: `{"ok": true}`
+
+**b) Nézd meg az API naplóját Portainerben:**
+
+Portainer → Containers → `bringaterv_routes-api_1` → Logs
+
+Keress `PermissionError`, `OSError` vagy `500` sort.
+
+**c) Teszteld az írási jogot:**
+
+Portainer → Containers → `bringaterv_routes-api_1` → Console → Exec
+
+```bash
+touch /data/users/test.txt && echo "ÍRHATÓ" || echo "NEM ÍRHATÓ"
+```
+
+Ha `NEM ÍRHATÓ`, a volume nem írható a konténer számára. Megoldás: Portainer → Volumes → töröld a `bringaterv_routes-data` volume-ot, majd deployold újra a stacket. (Csak akkor, ha még nincs benne fontos adat – friss telepítésnél ez biztonságos.)
+
+**d) Frissítsd az image-et:**
+
+Portainer → Stacks → `bringaterv` → Editor → alul: **Pull and redeploy**
+
+Ha a Pull and redeploy nem érhető el, manuálisan:
+
+```bash
+docker pull ghcr.io/czdanika/bringaterv-api:latest
+docker pull ghcr.io/czdanika/bringaterv:latest
+```
+
+Majd Portainer → Stacks → `bringaterv` → Stop → Start.
 
 ---
 
