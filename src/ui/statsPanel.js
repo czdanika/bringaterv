@@ -5,10 +5,14 @@
  * Nincs backend-változás – minden számítás frontenden történik.
  */
 
+import { estimateKcal } from '../calories.js';
+import { getCyclistProfile } from './settings.js';
+
 const MONTHS_HU = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
+const MONTHS_LONG = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 
 const SPORT_LABELS = {
-  cycling: 'Kerékpár', run: 'Futás', hike: 'Túra', walk: 'Gyaloglás', other: 'Egyéb',
+  cycling: 'Kerékpáros túrák', run: 'Futások', hike: 'Túrák', walk: 'Séták', other: 'Egyéb',
 };
 const SPORT_COLORS = {
   cycling: '#3B82F6', run: '#22C55E', hike: '#A855F7', walk: '#F59E0B', other: '#6B7280',
@@ -43,6 +47,45 @@ function fmtMin(min) {
   if (h === 0) return `${m}p`;
   if (m === 0) return `${h}ó`;
   return `${h}ó ${m}p`;
+}
+
+/** Hosszú forma: "2 nap 4 óra 37 perc" / "17 óra 56 perc" / "53 perc" */
+function fmtMinVerbose(min) {
+  if (!min || min < 1) return '—';
+  const totalMin = Math.round(min);
+  const days = Math.floor(totalMin / 1440);
+  const h    = Math.floor((totalMin % 1440) / 60);
+  const m    = totalMin % 60;
+  const parts = [];
+  if (days > 0) parts.push(`${days} nap`);
+  if (h > 0)    parts.push(`${h} óra`);
+  if (m > 0 || parts.length === 0) parts.push(`${m} perc`);
+  return parts.join(' ');
+}
+
+function calcKcalForRoutes(routes) {
+  const profile = getCyclistProfile();
+  return routes.reduce((sum, r) => {
+    if (!r.distance || !r.duration) return sum;
+    const { kcal } = estimateKcal(r.distance, r.duration / 60, r.elevation || 0, profile);
+    return sum + kcal;
+  }, 0);
+}
+
+function calcEddingtonMonth(routes) {
+  const byDay = {};
+  routes.forEach(r => {
+    if (!r.date || !r.distance || r.distance < 0.5) return;
+    const day = r.date.slice(0, 10);
+    byDay[day] = (byDay[day] || 0) + r.distance;
+  });
+  const dayDists = Object.values(byDay).sort((a, b) => b - a);
+  let E = 0;
+  for (let i = 0; i < dayDists.length; i++) {
+    if (Math.floor(dayDists[i]) >= i + 1) E = i + 1;
+    else break;
+  }
+  return E;
 }
 
 function fmtElev(m) {
@@ -326,41 +369,93 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
   const now = new Date();
 
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="stats-monthly-empty">Nincs adat</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="stats-monthly-empty">Nincs adat</td></tr>';
     return;
   }
 
-  // Összesítők
+  // Összesítők a lábléchez
   const totKm   = routes.reduce((s, r) => s + (r.distance  || 0), 0);
   const totElev = routes.reduce((s, r) => s + (r.elevation || 0), 0);
   const totDur  = routes.reduce((s, r) => s + (r.duration  || 0), 0);
+  const totKcal = calcKcalForRoutes(routes);
 
-  const MONTHS_LONG = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+  const rows = [];
+  for (const [key, { year, month, routes: mrs }] of sorted) {
+    const isCur  = year === now.getFullYear() && month === now.getMonth();
+    const label  = `${year}. ${MONTHS_LONG[month]}`;
+    const km     = mrs.reduce((s, r) => s + (r.distance  || 0), 0);
+    const elev   = mrs.reduce((s, r) => s + (r.elevation || 0), 0);
+    const dur    = mrs.reduce((s, r) => s + (r.duration  || 0), 0);
+    const kcal   = calcKcalForRoutes(mrs);
+    const edd    = calcEddingtonMonth(mrs);
 
-  tbody.innerHTML = sorted.map(([key, { year, month, routes: mrs }]) => {
-    const km   = mrs.reduce((s, r) => s + (r.distance  || 0), 0);
-    const elev = mrs.reduce((s, r) => s + (r.elevation || 0), 0);
-    const dur  = mrs.reduce((s, r) => s + (r.duration  || 0), 0);
-    const isCur = year === now.getFullYear() && month === now.getMonth();
-    const label = `${year}. ${MONTHS_LONG[month]}`;
-    return `<tr>
+    // Fősor
+    rows.push(`<tr class="stats-monthly-row" data-month-key="${key}" role="button" tabindex="0" aria-expanded="false">
+      <td class="stats-monthly-toggle"><span class="stats-monthly-chevron">›</span></td>
       <td class="stats-monthly-month ${isCur ? 'stats-monthly-cur' : ''}">${label}</td>
       <td class="num"><strong>${mrs.length}</strong></td>
-      <td class="num"><strong>${km > 0 ? Math.round(km) + ' km' : '—'}</strong></td>
+      <td class="num">${km   > 0 ? Math.round(km) + ' km'  : '—'}</td>
       <td class="num">${elev > 0 ? Math.round(elev).toLocaleString('hu-HU') + ' m' : '—'}</td>
-      <td class="num">${dur > 0 ? fmtMin(dur) : '—'}</td>
-    </tr>`;
-  }).join('');
+      <td class="num">${dur  > 0 ? fmtMinVerbose(dur) : '—'}</td>
+      <td class="num">${kcal > 0 ? Math.round(kcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
+      <td class="num">${edd}</td>
+    </tr>`);
 
-  // Lábléc összesítő – tfoot-ba írjuk (ha van)
+    // Sport-bontás sorok (alapból rejtve)
+    const bySport = new Map();
+    mrs.forEach(r => {
+      const sk = sportKey(r);
+      if (!bySport.has(sk)) bySport.set(sk, []);
+      bySport.get(sk).push(r);
+    });
+    // Sorrendben: cycling, run, hike, walk, other
+    for (const sk of ['cycling', 'run', 'hike', 'walk', 'other']) {
+      const group = bySport.get(sk);
+      if (!group?.length) continue;
+      const gKm   = group.reduce((s, r) => s + (r.distance  || 0), 0);
+      const gElev = group.reduce((s, r) => s + (r.elevation || 0), 0);
+      const gDur  = group.reduce((s, r) => s + (r.duration  || 0), 0);
+      const gKcal = calcKcalForRoutes(group);
+      rows.push(`<tr class="stats-monthly-sub" data-month-parent="${key}" hidden>
+        <td></td>
+        <td class="stats-monthly-sub-label">${SPORT_LABELS[sk] || sk}</td>
+        <td class="num">${group.length}</td>
+        <td class="num">${gKm   > 0 ? Math.round(gKm) + ' km'  : '—'}</td>
+        <td class="num">${gElev > 0 ? Math.round(gElev).toLocaleString('hu-HU') + ' m' : '—'}</td>
+        <td class="num">${gDur  > 0 ? fmtMinVerbose(gDur) : '—'}</td>
+        <td class="num">${gKcal > 0 ? Math.round(gKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
+        <td></td>
+      </tr>`);
+    }
+  }
+
+  tbody.innerHTML = rows.join('');
+
+  // Expand / collapse kattintás
+  tbody.addEventListener('click', (e) => {
+    const row = e.target.closest('.stats-monthly-row');
+    if (!row) return;
+    const key = row.dataset.monthKey;
+    const expanded = row.getAttribute('aria-expanded') === 'true';
+    row.setAttribute('aria-expanded', String(!expanded));
+    row.querySelector('.stats-monthly-chevron').textContent = expanded ? '›' : '⌄';
+    tbody.querySelectorAll(`[data-month-parent="${key}"]`).forEach(sub => {
+      sub.hidden = expanded;
+    });
+  });
+
+  // Lábléc
   const tfoot = tbody.closest('table')?.tFoot;
   if (tfoot) {
-    tfoot.innerHTML = `<tr>
+    tfoot.innerHTML = `<tr class="stats-monthly-total">
+      <td></td>
       <td><strong>Összesen</strong></td>
       <td class="num"><strong>${routes.length}</strong></td>
-      <td class="num"><strong>${totKm > 0 ? Math.round(totKm) + ' km' : '—'}</strong></td>
+      <td class="num"><strong>${totKm   > 0 ? Math.round(totKm) + ' km' : '—'}</strong></td>
       <td class="num"><strong>${totElev > 0 ? Math.round(totElev).toLocaleString('hu-HU') + ' m' : '—'}</strong></td>
-      <td class="num"><strong>${totDur > 0 ? fmtMin(totDur) : '—'}</strong></td>
+      <td class="num"><strong>${totDur  > 0 ? fmtMinVerbose(totDur) : '—'}</strong></td>
+      <td class="num"><strong>${totKcal > 0 ? Math.round(totKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</strong></td>
+      <td></td>
     </tr>`;
   }
 }
