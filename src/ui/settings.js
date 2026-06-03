@@ -67,6 +67,7 @@ export function calcHrZoneStats(geometry) {
 
   const zoneDurMs = new Array(zones.length).fill(0);
   let totalDurMs = 0;
+  let lastKnownHr = null; // carry-forward: ha nincs HR adat, az utolsó ismert értéket használjuk
 
   for (let i = 1; i < geometry.length; i++) {
     const prev = geometry[i - 1];
@@ -75,20 +76,21 @@ export function calcHrZoneStats(geometry) {
     const dt = Math.min(curr.time - prev.time, 60000);
     if (dt <= 0) continue;
 
-    const hr = curr.hr ?? prev.hr;
-    if (hr == null) continue;
+    // Frissítjük a carry-forward értéket ha van adat
+    if (prev.hr != null) lastKnownHr = prev.hr;
+    if (curr.hr != null) lastKnownHr = curr.hr;
+
+    const hr = curr.hr ?? prev.hr ?? lastKnownHr;
+    if (hr == null) continue; // csak akkor ugrik, ha egyáltalán nincs HR az edzésen
 
     totalDurMs += dt;
 
     let zoneIdx = zones.length - 1;
     for (let z = 0; z < zones.length; z++) {
-      if (hr >= zones[z].low && hr <= zones[z].high) {
-        zoneIdx = z;
-        break;
-      }
+      if (hr >= zones[z].low && hr <= zones[z].high) { zoneIdx = z; break; }
     }
-    if (hr < zones[0].low)                   zoneIdx = 0;
-    if (hr > zones[zones.length - 1].high)   zoneIdx = zones.length - 1;
+    if (hr < zones[0].low)                 zoneIdx = 0;
+    if (hr > zones[zones.length - 1].high) zoneIdx = zones.length - 1;
 
     zoneDurMs[zoneIdx] += dt;
   }
