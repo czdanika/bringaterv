@@ -18,36 +18,141 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── app.py              # Teljes Flask backend (egyetlen fájl, ~2000 sor)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001
 └── src/
-    ├── main.js             # Fő app logika (~7000 sor → modulokra bontás folyamatban)
+    ├── main.js             # Fő app belépési pont (~2864 sor) – orchestrálja a modulokat
     ├── styles.css          # Teljes CSS
     ├── version.js          # APP_VERSION egyetlen forrás
     ├── config.js           # Login enabled flag (docker-entrypoint injektálja)
     ├── auth.js             # JWT kezelés, requireAuth, logout
-    ├── appSettings.js      # LocalStorage beállítások
-    ├── karvonen.js         # HR zóna számítás, TRIMP
-    ├── calories.js         # MET-alapú kalóriaszámítás
+    ├── appSettings.js      # LocalStorage beállítások (getSettings, saveSetting)
+    ├── karvonen.js         # HR zóna számítás (calculateZones, calculateTRIMP)
+    ├── calories.js         # MET-alapú kalóriaszámítás (nincs UI-on, jövőre)
     ├── api/
     │   └── routesApi.js    # Backend API kliens (fetch wrapper-ek)
     ├── gpx/
-    │   ├── gpx.js          # GPX import/export
-    │   └── fit.js          # FIT → GPX konverzió
+    │   ├── gpx.js          # GPX import/export, calcElevationFromGeometry
+    │   └── fit.js          # FIT → GPX konverzió (fitToGpx)
     ├── i18n/
     │   ├── i18n.js
     │   └── translations.js # hu / en szótár
     ├── map/
-    │   ├── mapAdapter.js   # Leaflet wrapper (createMapAdapter)
+    │   ├── mapAdapter.js   # Leaflet wrapper (createMapAdapter, SEGMENT_COLORS)
     │   └── surfaceAnalysis.js
     ├── state/
     │   └── routeStore.js   # Tervező route state (waypoints, geometry)
     ├── wind/
-    │   └── windService.js  # Open-Meteo + szélkomponens
+    │   └── windService.js  # Open-Meteo API + szélkomponens számítás
     └── ui/
         ├── dom.js          # createToast, formatDistance
-        ├── search.js       # Nominatim helykeresés
+        ├── search.js       # Nominatim helykeresés (searchPlaces, reverseGeocode)
         ├── elevationProfile.js  # Canvas szintprofil/sebesség/HR/cad/power chart
-        ├── shareCard.js    # Canvas megosztó kép generálás
-        └── statsPanel.js   # Statisztikák renderelése (renderStats, calcEddington stb.)
+        ├── shareCard.js    # Canvas megosztó kép generálás (createWorkoutShareCard)
+        ├── statsPanel.js   # Statisztikák renderelése (renderStats, calcEddington stb.)
+        ├── statsManager.js # Stats fül orchestrátor (initStats, loadAndRenderStats)
+        ├── library.js      # Könyvtár fül teljes UI (initLibrary, loadRouteLibrary)
+        ├── wind.js         # Szélelemzés UI (initWind, renderWindResult, scheduleWindRunIfActive)
+        ├── fileTab.js      # Elemzés fül: GPX/FIT import, share card modal (initFileTab)
+        ├── strava.js       # Strava kapcsolat + import modal (initStrava)
+        ├── settings.js     # Beállítások panel: Karvonen, zóna csúszkák, kerékpáros profil, backup (initSettings)
+        └── planning.js     # Tervező fül: renderSidebar, waypontok, navigáció, sebességcsúszkák (initPlanning)
 ```
+
+## Modulok – melyik mit tartalmaz
+
+Ha egy területen fejlesztesz, **csak az adott modult** kell megnyitnod:
+
+| Modul | Tartalom | Init hívás |
+|-------|----------|------------|
+| `ui/wind.js` | Szélelemzés UI, időpont-picker, eredmény renderelés, térkép-színezés | `initWind({...})` |
+| `ui/fileTab.js` | GPX/FIT import, fájl statisztikák, drag&drop, share card modal, mentés könyvtárba | `initFileTab({...})` |
+| `ui/strava.js` | Strava OAuth, app credentials, aktivitás lista, import modal | `initStrava({...})` |
+| `ui/settings.js` | HR zóna beállítások (Karvonen), sebesség/kad/power zóna csúszkák, diagram színek, kerékpáros profil, backup/restore | `initSettings({...})` |
+| `ui/planning.js` | `renderSidebar`, waypont lista, szegmens-picker, navigáció toggle, sebességcsúszkák, `formatDisplayDistance`, `calculateImportedDistance` | `initPlanning({...})` |
+| `ui/library.js` | Könyvtár fül: kártya nézet, lista nézet, szűrők, könyvtár szerkesztő | `initLibrary({...})` |
+| `ui/statsPanel.js` | Statisztika renderelők (áttekintés, havi, rekordok, Eddington, edzésterhelés, hőtérkép) | közvetlen importok |
+| `ui/statsManager.js` | Stats fül állapot, betöltés, nézet váltás | `initStats({...})` |
+
+## Dependency Injection minta
+
+Minden modul `initXxx(deps)` hívással kap injektált függőségeket. Példa:
+
+```js
+// main.js
+import { initWind, clearWindResult } from "./ui/wind.js";
+
+initWind({
+  mapAdapter,
+  store,
+  onRenderSidebar: () => renderSidebar(store.getState()),
+  getActiveGeometry: () => activeGeometry,
+  elements,
+  visibleSections,
+  applyRouteLayer,
+  syncElevationBtnState,
+});
+```
+
+A modulok belső state-je privát (`let _mapAdapter, ...`), a szükséges getterek exportálva:
+- `ui/wind.js` → `getWindResult()`
+- `ui/fileTab.js` → `getHasImportedFile()`, `getImportedColoredGeometry()`, `setLoadedRoute()`, stb.
+- `ui/settings.js` → `buildHrZoneColorFn()`, `getCyclistProfile()`, `gradeColorForGrade()`, stb.
+- `ui/planning.js` → `renderSidebar()`, `formatDisplayDistance()`, `getSelectedWaypointId()`, stb.
+
+## main.js – mi maradt benne
+
+`main.js` (~2864 sor) már csak az orchestrátor szerepet tölti be:
+- Import-ok és init hívások sorrendje
+- `elements` DOM referencia objektum
+- `store`, `mapAdapter` példányosítás
+- `switchTab()`, `applyRouteLayer()`, `updateElevationButton()` – UI koordinátor függvények
+- Chart példányok (elevation, speed, HR, cad, power)
+- Export modal (`buildExportPayload`, `openExportModal`)
+- `loadRouteFromLibrary()`, `showLoadPreview()` – könyvtár→tervező híd
+- `calcEstimatedTimeMixed()`, `calcEstimatedTime()` – időbecslés (exportálva planning.js-be is injektálva)
+- `clearAllRouteState()` – teljes reset
+- Douglas-Peucker + `buildAnchorWaypoints` – waypoint-generáló
+- `runSearch()`, `renderSearchResults()` – helykeresés
+- Toolbar drag&drop, eszköztár sorrend
+- Kezdő nézet mentés/GPS
+
+## Frontend főbb state változók (main.js-ben)
+
+```js
+store             // createRouteStore() – tervező waypoints + geometry
+mapAdapter        // createMapAdapter() – Leaflet wrapper
+elements          // DOM referenciák objektuma (egyetlen helyen definiált)
+currentTab        // "plan" | "file" | "library" | "stats"
+activeGeometry    // aktuálisan megjelenített geometria tömb
+visibleSections   // Set – nyitott chart szekciók ("elevation", "wind" stb.)
+elevationTimeEnabled  // bool – szintkülönbség figyelembe vétele az időbecslésben
+_libraryData      // { routes: [], workouts: [], samples: [] }
+_libraryFilter    // { type, source, sport, query, sort, ... }
+units             // "metric" | "imperial"
+```
+
+State a modulokban (getterekkel érhetők el):
+```js
+// ui/fileTab.js
+getHasImportedFile()          // bool
+getImportedColoredGeometry()  // geometry | null (sebességszínezéshez)
+getImportedHrGeometry()       // geometry | null
+getImportedCadGeometry()      // geometry | null
+getImportedPowerGeometry()    // geometry | null
+
+// ui/planning.js
+getSelectedWaypointId()       // string | null
+
+// ui/wind.js
+getWindResult()               // { segments, stats, coverage } | null
+
+// ui/strava.js
+getStravaStatus()             // { connected, app_configured, ... } | null
+```
+
+## Navigáció / tab rendszer
+- Fő fülek: `data-tab="plan|file|library|stats"` – `switchTab(name)` váltja
+- Stats al-navigáció: `data-stats-view="overview|monthly|records|eddington|training|heatmap"`
+- Collapse: `#navToggle` (header) + `#railNavToggle` (rail alján) – `is-nav-collapsed` class
+- Library / Stats módban a térkép rejtett, `#libraryMain` / `#statsMain` látható
 
 ## Backend API végpontok (app.py)
 ```
@@ -74,25 +179,6 @@ GET/PUT/DELETE /api/strava/app-config   Per-user Strava app credentials
 /api/admin/...                          Admin végpontok
 ```
 
-## Frontend főbb state változók (main.js-ben)
-```js
-store           // createRouteStore() – tervező waypoints + geometry
-mapAdapter      // createMapAdapter() – Leaflet wrapper
-_libraryData    // { routes: [], workouts: [], samples: [] }
-_libraryFilter  // { type, source, sport, query, sort, ... }
-elements        // DOM referenciák objektuma
-currentTab      // "plan" | "file" | "library" | "stats"
-importedFileName, importedGpxText, importedFitBuffer  // Elemzés fül betöltött fájl
-_shareCardData  // Megosztó kép adatai
-_statsPeriod, _statsSport, _statsView, _trainingRange  // Statisztikák szűrők
-```
-
-## Navigáció / tab rendszer
-- Fő fülek: `data-tab="plan|file|library|stats"` – `switchTab(name)` váltja
-- Stats al-navigáció: `data-stats-view="overview|monthly|records|eddington|training|heatmap"`
-- Collapse: `#navToggle` (header) + `#railNavToggle` (rail alján) – `is-nav-collapsed` class
-- Library / Stats módban a térkép rejtett, `#libraryMain` / `#statsMain` látható
-
 ## Deployment – Pi (teszt)
 ```bash
 # Fájlok másolása
@@ -112,11 +198,6 @@ A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli pus
 
 ## Jelenlegi verzió
 v1.1.2
-
-## Aktív fejlesztési irány
-- `main.js` (~7000 sor) felbontása modulokra
-- Tervezett modulok: `ui/library.js`, `ui/fileTab.js`, `ui/stats.js`, `ui/wind.js`, `ui/strava.js`, `ui/settings.js`, `ui/planning.js`
-- Minden modul `init(deps)` mintával kapja a függőségeit (routesApi, showToast, store, mapAdapter)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)
