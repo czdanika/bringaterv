@@ -137,18 +137,18 @@ export function renderHrZoneAnalysis(geometry) {
 
   if (rowsEl) {
     rowsEl.innerHTML = zones.map(z => {
-      const barPct = z.pct;
       const highLabel = z.high === 999 ? '∞' : z.high;
       return `
-        <div class="hr-zone-row" style="--zone-color:${z.color}">
-          <div class="hr-zone-dot" style="background:${z.color}"></div>
-          <div class="hr-zone-name">${z.name}</div>
-          <div class="hr-zone-bpm">${z.low === 0 ? '0' : z.low}–${highLabel} bpm</div>
-          <div class="hr-zone-bar-wrap">
-            <div class="hr-zone-bar" style="width:${barPct}%;background:${z.color}"></div>
+        <div class="hr-zone-row hint-target" data-hint="${z.hint ?? ''}">
+          <div class="hr-zone-row-label">
+            <span class="hr-zone-row-name" style="color:${z.color}">${z.name}</span>
+            <span class="hr-zone-row-bpm">${z.low === 0 ? '0' : z.low}–${highLabel} bpm</span>
           </div>
-          <div class="hr-zone-time">${fmtDurMs(z.durationMs)}</div>
-          <div class="hr-zone-pct">${z.pct}%</div>
+          <div class="hr-zone-row-bar-wrap">
+            <div class="hr-zone-row-bar" style="width:${z.pct}%;background:${z.color}"></div>
+          </div>
+          <span class="hr-zone-row-time">${fmtDurMs(z.durationMs)}</span>
+          <span class="hr-zone-row-pct" style="color:${z.color}">${z.pct}%</span>
         </div>`;
     }).join('');
   }
