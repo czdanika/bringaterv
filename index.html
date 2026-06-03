@@ -984,6 +984,16 @@
             <p>Az edzésterhelés-modell (Banister-féle impulzusmodell) három mutatóval írja le az edzettségi állapotot. Az értékek az edzések időtartamából és szintemelkedéséből számítódnak – pontosabb eredmény pulzusadattal érhető el.</p>
           </div>
 
+          <!-- Időszak választó -->
+          <div class="training-range" id="trainingRange">
+            <span class="training-range-label">Időszak:</span>
+            <button class="stats-chip" data-training-range="1">1 hónap</button>
+            <button class="stats-chip" data-training-range="3">3 hónap</button>
+            <button class="stats-chip stats-chip--active" data-training-range="6">6 hónap</button>
+            <button class="stats-chip" data-training-range="12">1 év</button>
+            <button class="stats-chip" data-training-range="0">Összes</button>
+          </div>
+
           <!-- KPI kártyák magyarázattal -->
           <div class="stats-kpi-grid" style="grid-template-columns:repeat(4,1fr)">
             <div class="stats-kpi-card training-kpi-card">
@@ -1022,7 +1032,7 @@
           <!-- Diagramok -->
           <div class="training-charts">
             <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
-              <div class="stats-chart-title">Fittség (CTL) és fáradtság (ATL) – elmúlt 6 hónap</div>
+              <div class="stats-chart-title">Fittség (CTL) és fáradtság (ATL) – <span id="trainingCtlRangeLabel">elmúlt 6 hónap</span></div>
               <div class="training-chart-hint">A kék vonal lassan épül (hónapok), a zöld gyorsan reagál. Ha a zöld tartósan a kék fölé kerül, az túledzés jele lehet.</div>
               <canvas class="training-ctl-chart" style="width:100%;display:block;margin-top:10px"></canvas>
             </div>

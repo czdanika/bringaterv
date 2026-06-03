@@ -6847,6 +6847,7 @@ function renderSearchResults(places) {
 let _statsPeriod = "year";
 let _statsSport  = "all";
 let _statsView   = "overview";  // "overview" | "monthly" | "records"
+let _trainingRange = 6;         // edzésterhelés grafikon időszaka hónapban (0 = összes)
 
 function _allStatsRoutes() {
   // Csak azok az edzések/útvonalak, amelyeket nem zártunk ki a statisztikából.
@@ -6876,7 +6877,7 @@ function _switchStatsView(view) {
   if (view === "monthly")   renderMonthlyTable(all, { sport: _statsSport });
   if (view === "records")   renderRecordsFull(all);
   if (view === "eddington") renderEddington(all);
-  if (view === "training")  renderTrainingLoad(all);
+  if (view === "training")  renderTrainingLoad(all, { months: _trainingRange });
   if (view === "heatmap")   window._showHeatmap?.();
 }
 
@@ -6896,6 +6897,16 @@ async function loadAndRenderStats() {
 // Alnavigáció
 document.querySelectorAll("[data-stats-view]").forEach(btn => {
   btn.addEventListener("click", () => _switchStatsView(btn.dataset.statsView));
+});
+
+// Edzésterhelés időszak választó
+document.querySelectorAll("[data-training-range]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    _trainingRange = Number(btn.dataset.trainingRange);
+    document.querySelectorAll("[data-training-range]").forEach(b =>
+      b.classList.toggle("stats-chip--active", b.dataset.trainingRange === btn.dataset.trainingRange));
+    renderTrainingLoad(_allStatsRoutes(), { months: _trainingRange });
+  });
 });
 
 // Rekord kártyák kattintása → edzés megnyitása Elemzés fülön
@@ -6950,7 +6961,7 @@ document.querySelectorAll("[data-stats-sport]").forEach(btn => {
 
   function _ensureHeatmapMap() {
     if (_hmMap) return _hmMap;
-    _hmMap = L.map("heatmapMap", { zoomControl: true, preferCanvas: true })
+    _hmMap = L.map("heatmapMap", { zoomControl: true })
               .setView([47.5, 19.05], 7);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 19, subdomains: "abcd",
@@ -6977,12 +6988,65 @@ document.querySelectorAll("[data-stats-sport]").forEach(btn => {
       // Két réteg: vastag halvány "glow" + vékonyabb erősebb vonal → hő hatás
       L.polyline(t.points, { color: "#fc4c02", weight: 6, opacity: 0.10, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
       L.polyline(t.points, { color: "#fc4c02", weight: 2, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
+
       // Zoom-bounds: csak a fő klaszterhez közeli trackek (±5 fok a mediántól)
       const [lat0, lng0] = t.points[0];
       if (Math.abs(lat0 - medLat) <= 5 && Math.abs(lng0 - medLng) <= 5) {
         for (const p of t.points) boundsPts.push(p);
       }
     }
+
+    // Kattintásra popup: közeli útvonalak listája
+    _hmMap.off("click"); // előző handler törlése
+    _hmMap.on("click", (e) => {
+      const { lat, lng } = e.latlng;
+      const zoom    = _hmMap.getZoom();
+      const mpp     = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+      const thresh  = Math.max(50, mpp * 18); // ~18 pixel sugarú keresési terület
+
+      function dist(lat1, lng1, lat2, lng2) {
+        const R = 6371000;
+        const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lng2-lng1) * Math.PI/180;
+        const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+
+      const nearby = filtered.filter(t => {
+        if (!t.points) return false;
+        const step = Math.max(1, Math.floor(t.points.length / 60));
+        for (let i = 0; i < t.points.length; i += step) {
+          if (dist(lat, lng, t.points[i][0], t.points[i][1]) <= thresh) return true;
+        }
+        return false;
+      });
+
+      if (!nearby.length) return;
+
+      const fmtDate = d => {
+        if (!d) return "";
+        try { return new Date(d).toLocaleDateString("hu-HU"); } catch { return d; }
+      };
+
+      const rows = nearby.map(t => `
+        <div class="hm-popup-row">
+          <div class="hm-popup-name">${t.name || "Névtelen"}</div>
+          <div class="hm-popup-meta">
+            <span>${fmtDate(t.date)}</span>
+            ${t.distance != null ? `<span class="hm-popup-dist">${t.distance} km</span>` : ""}
+          </div>
+        </div>`).join("");
+
+      const html = `<div class="hm-popup">
+        <div class="hm-popup-header">${nearby.length} közeli útvonal</div>
+        ${rows}
+      </div>`;
+
+      L.popup({ maxWidth: 280, className: "hm-leaflet-popup" })
+        .setLatLng(e.latlng)
+        .setContent(html)
+        .openOn(_hmMap);
+    });
     const countEl = document.getElementById("heatmapCount");
     if (countEl) countEl.textContent = `${filtered.length} útvonal`;
     if (boundsPts.length) {

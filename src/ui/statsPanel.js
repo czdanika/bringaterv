@@ -264,7 +264,13 @@ export function renderStats(allRoutes, { period = 'year', sport = 'all' } = {}) 
     const withDist  = base.filter(r => (r.distance  || 0) > 0);
     const withElev  = base.filter(r => (r.elevation || 0) > 0);
     const withDur   = base.filter(r => (r.duration  || 0) > 0);
-    const withSpeed = base.filter(r => (r.distance || 0) > 0 && (r.duration || 0) > 0);
+    // Sebesség-rekordhoz: min 5 perc időtartam (kizárja a hibás GPS adatokat)
+    // és max 120 km/h (fizikailag ésszerű felső határ)
+    const withSpeed = base.filter(r => {
+      const d = r.distance || 0, t = r.duration || 0;
+      if (d <= 0 || t < 5) return false;
+      return (d / (t / 60)) <= 120;
+    });
 
     const bestDist  = withDist.length  ? withDist.reduce((a, b)  => b.distance > a.distance   ? b : a) : null;
     const bestElev  = withElev.length  ? withElev.reduce((a, b)  => b.elevation > a.elevation  ? b : a) : null;
@@ -368,7 +374,11 @@ export function renderRecordsFull(allRoutes) {
   const withDist  = base.filter(r => (r.distance  || 0) > 0);
   const withElev  = base.filter(r => (r.elevation || 0) > 0);
   const withDur   = base.filter(r => (r.duration  || 0) > 0);
-  const withSpeed = base.filter(r => (r.distance || 0) > 0 && (r.duration || 0) > 0);
+  const withSpeed = base.filter(r => {
+    const d = r.distance || 0, t = r.duration || 0;
+    if (d <= 0 || t < 5) return false;
+    return (d / (t / 60)) <= 120;
+  });
 
   const bestDist  = withDist.length  ? withDist.reduce((a, b)  => b.distance > a.distance   ? b : a) : null;
   const bestElev  = withElev.length  ? withElev.reduce((a, b)  => b.elevation > a.elevation  ? b : a) : null;
@@ -654,7 +664,7 @@ function drawLineChart(canvas, series, { height = 220 } = {}) {
   }
 }
 
-export function renderTrainingLoad(routes) {
+export function renderTrainingLoad(routes, { months = 6 } = {}) {
   const el = document.getElementById('statsViewTraining');
   if (!el) return;
 
@@ -688,11 +698,24 @@ export function renderTrainingLoad(routes) {
     if (formDescEl) formDescEl.textContent = desc;
   }
 
-  // Szűrés az utolsó 6 hónapra
-  const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const recent = timeSeries.filter(d => new Date(d.date) >= sixMonthsAgo);
+  // Szűrés a választott időszakra (months = null/0 → összes)
+  let recent = timeSeries;
+  if (months && months > 0) {
+    const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - months);
+    recent = timeSeries.filter(d => new Date(d.date) >= cutoff);
+  }
+  if (!recent.length) recent = timeSeries;
 
-  // Mindenből minden 3. nap (gyors render)
+  // Grafikon cím időszak-felirata
+  const rangeLabelEl = document.getElementById('trainingCtlRangeLabel');
+  if (rangeLabelEl) {
+    rangeLabelEl.textContent =
+      !months || months <= 0 ? 'teljes időszak'
+      : months === 12        ? 'elmúlt 1 év'
+      : `elmúlt ${months} hónap`;
+  }
+
+  // Mindenből arányos ritkítás (gyors render)
   const sample = (arr, step) => arr.filter((_, i) => i % step === 0 || i === arr.length - 1);
   const step   = Math.max(1, Math.floor(recent.length / 300));
   const data   = sample(recent, step);

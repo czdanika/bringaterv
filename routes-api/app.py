@@ -970,9 +970,12 @@ def routes_geometry_bulk():
         if len(pts) < 2:
             continue
         out.append({
-            "id":    rid,
-            "sport": entry.get("sport_type") or entry.get("type") or "cycling",
-            "points": pts,
+            "id":       rid,
+            "name":     entry.get("name") or "",
+            "sport":    entry.get("sport_type") or entry.get("type") or "cycling",
+            "distance": entry.get("distance"),
+            "date":     entry.get("date"),
+            "points":   pts,
         })
     return jsonify({"tracks": out})
 
