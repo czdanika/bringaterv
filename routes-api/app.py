@@ -1008,7 +1008,8 @@ def save_route():
 
     index = _load_index(idx)
     if len(index) >= g.user.get("quota_routes", 50):
-        abort(429, description=f"Útvonal kvóta elérve ({g.user['quota_routes']} db)")
+        kind = "Edzés" if route_type == "workout" else "Útvonal"
+        abort(429, description=f"{kind} kvóta elérve ({g.user['quota_routes']} db max). Törölj néhányat a könyvtárból.")
 
     route_id = uuid.uuid4().hex[:8]
     gpx_path = os.path.join(user_dir, f"{route_id}.gpx")

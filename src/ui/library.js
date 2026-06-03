@@ -347,7 +347,7 @@ export function openLibraryEditModal(route) {
       overlay.hidden = true;
       renderLibraryGrid();
       _toast(`„${updated.name}" frissítve`);
-    } catch { _toast("Nem sikerült menteni a módosítást."); }
+    } catch (err) { _toast(err.message || "Nem sikerült menteni a módosítást."); }
   });
 }
 
