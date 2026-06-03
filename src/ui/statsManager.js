@@ -148,6 +148,15 @@ function _ensureHeatmapMap() {
     maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap, © CARTO",
   }).addTo(_hmMap);
   _hmLayer = L.layerGroup().addTo(_hmMap);
+  // Elemzés gomb – event delegation a térkép containerén (popup tartalomra)
+  _hmMap.getContainer().addEventListener("click", (e) => {
+    const btn = e.target.closest(".hm-popup-load-btn");
+    if (!btn || !_onLoadRoute) return;
+    L.DomEvent.stopPropagation(e);
+    e.stopPropagation();
+    _hmMap.closePopup();
+    _onLoadRoute(btn.dataset.id, false, btn.dataset.name, "file");
+  });
   // Hőtérkép sport szűrő
   document.querySelectorAll("[data-heatmap-sport]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -209,19 +218,10 @@ function _drawHeatmapTracks() {
       </div>
       ${_onLoadRoute ? `<button class="hm-popup-load-btn" data-id="${t.id}" data-name="${(t.name || 'Névtelen').replace(/"/g, '&quot;')}">Elemzés</button>` : ""}
     </div>`).join("");
-    const popup = L.popup({ maxWidth: 300, className: "hm-leaflet-popup" })
+    L.popup({ maxWidth: 300, className: "hm-leaflet-popup" })
       .setLatLng(e.latlng)
-      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli edzés</div>${rows}</div>`);
-    // Gombok bekötése a popup DOM megnyitása után
-    _hmMap.once("popupopen", () => {
-      popup.getElement()?.querySelectorAll(".hm-popup-load-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          _hmMap.closePopup();
-          await _onLoadRoute(btn.dataset.id, false, btn.dataset.name, "file");
-        });
-      });
-    });
-    popup.openOn(_hmMap);
+      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli edzés</div>${rows}</div>`)
+      .openOn(_hmMap);
   });
 
   const countEl = document.getElementById("heatmapCount");
