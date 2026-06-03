@@ -188,6 +188,11 @@ GET/PUT/DELETE /api/strava/app-config   Per-user Strava app credentials
 # Fájlok másolása (--relative megőrzi a könyvtárstruktúrát!)
 sshpass -p 'admin' rsync -avz --relative <fájlok> admin@192.168.0.136:/home/admin/bringaterv/
 
+# ⚠️ FONTOS: ha új src/ui/*.js modult hozol létre, azt is ki kell küldeni!
+# A Docker a Pi helyi fájljaiból buildel – csak azt látja, amit rsync-kel kaptott.
+# Teljes ui/ könyvtár kiküldése:
+# sshpass -p 'admin' rsync -avz --relative src/ui/ src/main.js src/styles.css admin@192.168.0.136:/home/admin/bringaterv/
+
 # Ha backend (routes-api/app.py) változott – force rebuild kell:
 sshpass -p 'admin' ssh admin@192.168.0.136 \
   "cd /home/admin/bringaterv && docker-compose build --no-cache routes-api && docker-compose up -d"
