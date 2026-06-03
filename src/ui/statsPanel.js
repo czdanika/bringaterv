@@ -534,21 +534,53 @@ function calcEddington(routes) {
   return { E, next, daysAtNext, daysNeeded, histogram, totalDays: dayDists.length };
 }
 
-export function renderEddington(routes) {
+export function renderEddington(allRoutes) {
   const el = document.getElementById('statsViewEddington');
   if (!el) return;
 
-  const { E, next, daysAtNext, daysNeeded, histogram, totalDays } = calcEddington(routes);
+  // Sport-csoportok meghatározása (csak amik léteznek)
+  const sportGroups = [{ key: 'all', label: 'Összes', routes: allRoutes }];
+  for (const sk of ['cycling', 'run', 'hike', 'walk', 'other']) {
+    const gr = allRoutes.filter(r => sportKey(r) === sk);
+    if (gr.length > 0) {
+      sportGroups.push({ key: sk, label: SPORT_LABELS[sk] || sk, routes: gr });
+    }
+  }
 
-  const pct = Math.round((daysAtNext / next) * 100);
+  // Eddington per sport előszámítás
+  const eddByKey = {};
+  sportGroups.forEach(g => { eddByKey[g.key] = calcEddington(g.routes); });
 
-  // Nagy szám + magyarázat
+  // Chipek renderelése
+  const chipsEl = el.querySelector('#eddSportChips') || el.querySelector('.edd-sport-chips');
+  if (chipsEl) {
+    chipsEl.innerHTML = sportGroups.map(g => {
+      const E = eddByKey[g.key].E;
+      return `<button class="edd-sport-chip${g.key === 'all' ? ' is-active' : ''}" data-sport="${g.key}">
+        ${g.label} <span class="edd-chip-val">${E || 0}</span>
+      </button>`;
+    }).join('');
+    chipsEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.edd-sport-chip');
+      if (!btn) return;
+      chipsEl.querySelectorAll('.edd-sport-chip').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      _renderEddingtonDetail(el, eddByKey[btn.dataset.sport]);
+    });
+  }
+
+  // Alapértelmezett: összes
+  _renderEddingtonDetail(el, eddByKey['all']);
+}
+
+function _renderEddingtonDetail(el, { E, next, daysAtNext, daysNeeded, histogram }) {
+  const pct = next > 0 ? Math.round((daysAtNext / next) * 100) : 0;
+
   el.querySelector('.edd-number').textContent = E || '—';
   el.querySelector('.edd-explain').textContent = E
     ? `Legalább ${E} km-t teljesítettél ${E} különböző napon.`
     : 'Még nincs elegendő adat.';
 
-  // Progress a következő szinthez
   const prog = el.querySelector('.edd-progress-wrap');
   if (prog) {
     prog.innerHTML = `
@@ -559,7 +591,6 @@ export function renderEddington(routes) {
       <div class="edd-next-sub">${daysAtNext}/${next} nap — még <strong>${daysNeeded}</strong> nap hiányzik ${next}+ km-rel</div>`;
   }
 
-  // Eddington diagram (canvas)
   const canvas = el.querySelector('.edd-chart');
   if (canvas && histogram.length) {
     drawEddingtonChart(canvas, histogram, E);
