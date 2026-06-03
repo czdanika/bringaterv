@@ -389,10 +389,9 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
     const kcal   = calcKcalForRoutes(mrs);
     const edd    = calcEddingtonMonth(mrs);
 
-    // Fősor
+    // Fősor – chevron a hónap cellán belül (7 oszlop)
     rows.push(`<tr class="stats-monthly-row" data-month-key="${key}" role="button" tabindex="0" aria-expanded="false">
-      <td class="stats-monthly-toggle"><span class="stats-monthly-chevron">›</span></td>
-      <td class="stats-monthly-month ${isCur ? 'stats-monthly-cur' : ''}">${label}</td>
+      <td class="stats-monthly-month ${isCur ? 'stats-monthly-cur' : ''}"><span class="stats-monthly-chevron">›</span> ${label}</td>
       <td class="num"><strong>${mrs.length}</strong></td>
       <td class="num">${km   > 0 ? Math.round(km) + ' km'  : '—'}</td>
       <td class="num">${elev > 0 ? Math.round(elev).toLocaleString('hu-HU') + ' m' : '—'}</td>
@@ -417,7 +416,6 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
       const gDur  = group.reduce((s, r) => s + (r.duration  || 0), 0);
       const gKcal = calcKcalForRoutes(group);
       rows.push(`<tr class="stats-monthly-sub" data-month-parent="${key}" hidden>
-        <td></td>
         <td class="stats-monthly-sub-label">${SPORT_LABELS[sk] || sk}</td>
         <td class="num">${group.length}</td>
         <td class="num">${gKm   > 0 ? Math.round(gKm) + ' km'  : '—'}</td>
@@ -448,7 +446,6 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
   const tfoot = tbody.closest('table')?.tFoot;
   if (tfoot) {
     tfoot.innerHTML = `<tr class="stats-monthly-total">
-      <td></td>
       <td><strong>Összesen</strong></td>
       <td class="num"><strong>${routes.length}</strong></td>
       <td class="num"><strong>${totKm   > 0 ? Math.round(totKm) + ' km' : '—'}</strong></td>
