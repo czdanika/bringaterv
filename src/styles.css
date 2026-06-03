@@ -1274,6 +1274,19 @@ body.is-drag-over::after {
   text-align: center; padding: 40px !important;
   color: var(--text-muted);
 }
+/* Expand toggle */
+.stats-monthly-th-toggle { width: 28px; padding: 0 4px !important; }
+.stats-monthly-toggle { width: 28px; padding: 0 4px !important; text-align: center; }
+.stats-monthly-chevron {
+  display: inline-block; font-size: 14px; color: var(--text-muted);
+  transition: transform .15s; line-height: 1; cursor: pointer;
+}
+.stats-monthly-row { cursor: pointer; }
+.stats-monthly-row[aria-expanded="true"] .stats-monthly-chevron { transform: rotate(90deg); }
+/* Sport-bontás al-sorok */
+.stats-monthly-sub td { padding: 8px 16px !important; background: var(--panel-strong); }
+.stats-monthly-sub-label { color: var(--text-muted); font-size: 12px; padding-left: 28px !important; }
+.stats-monthly-sub td.num { font-size: 12px; }
 
 /* Személyes rekordok – teljes nézet */
 .stats-records-full {
