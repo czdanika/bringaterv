@@ -18,10 +18,16 @@ import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
 import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
+import {
+  initFileTab, populateFileTab, clearFileTab, processImportedFile,
+  updateFileSaveButtonState, setLoadedRoute, setImportedGeometries, clearImportedGeometries,
+  getHasImportedFile, getImportedColoredGeometry, getImportedHrGeometry,
+  getImportedCadGeometry, getImportedPowerGeometry, getLoadedLibraryRouteId,
+  getImportedFileName, getImportedGpxText,
+} from "./ui/fileTab.js";
 // Kalóriaszámítás modul (calories.js) – elérhető, de a UI-on jelenleg nincs használva.
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
-import { createWorkoutShareCard, downloadShareCard } from "./ui/shareCard.js";
 import { renderStats, renderMonthlyTable, renderRecordsFull, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
 import { initStats, loadAndRenderStats, switchStatsView } from "./ui/statsManager.js";
 import {
@@ -107,16 +113,6 @@ const tabFile     = document.querySelector("#tabFile");
 const tabLibrary  = document.querySelector("#tabLibrary");
 const tabStats    = document.querySelector("#tabStats");
 let currentTab = "plan";
-let hasImportedFile = false;   // igaz, ha az Elemzés fülön van betöltött fájl
-let importedFileName = "";    // az importált fájl neve (edzés mentéshez)
-let importedGpxText  = null;  // az eredeti GPX tartalom (edzés könyvtár-mentéshez)
-let importedFitBuffer = null; // ha FIT-ből konvertáltunk, itt az eredeti binary
-let _loadedLibraryRouteId = null; // ha könyvtárból töltöttük (vagy már elmentettük), akkor az ID
-
-// ── Share card állapot ──────────────────────────────────────────────────────
-// Az aktuálisan betöltött fájl adatai (a share card modal ezeket használja)
-let _shareCardData = null;  // { title, date, distanceKm, durationText, avgSpeedKmh, elevationM, points }
-
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
 let _libraryFilter = { type: 'all', source: 'all', sport: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
@@ -186,7 +182,7 @@ function requestTabSwitch(targetTab) {
     pendingTabSwitch = targetTab;
     return;
   }
-  if (currentTab === "file" && targetTab === "plan" && hasImportedFile) {
+  if (currentTab === "file" && targetTab === "plan" && getHasImportedFile()) {
     showTabSwitchModal("file→plan");
     pendingTabSwitch = targetTab;
     return;
@@ -279,305 +275,6 @@ function findWaypointInsertIndex(waypoints, geometry, clickGeomIdx) {
     if (wpGeomIndices[i] <= clickGeomIdx) insertAfter = i;
   }
   return insertAfter + 1;
-}
-
-// ── File tab helpers ────────────────────────────────────────
-function formatDuration(ms) {
-  if (ms == null || ms <= 0) return null;
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-    : `${m}:${String(s).padStart(2, "0")}`;
-}
-
-/** Pulzuszóna időeloszlás számítása a geometry alapján (time vagy pontszám proxy) */
-function calcHrZoneStats(geometry) {
-  const { restHR, maxHR, method, zoneModel, lthr, customBoundaries } = getHrZoneSettings();
-  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries);
-  const zoneDurMs = zones.map(() => 0);
-  let totalDurMs = 0;
-
-  for (let i = 1; i < geometry.length; i++) {
-    const pt   = geometry[i];
-    const prev = geometry[i - 1];
-    if (pt.hr == null || pt.hr <= 0) continue;
-    // időköz: ha van timestamp → azt használjuk, különben 1 egység (pontszám proxy)
-    const dt = (pt.time != null && prev.time != null)
-      ? Math.min(pt.time - prev.time, 60000) // max 1 perces gap
-      : 1000; // proxy: ~1 mp/pont
-    if (dt <= 0) continue;
-    totalDurMs += dt;
-    const hr = pt.hr;
-    let matched = false;
-    for (let z = 0; z < zones.length; z++) {
-      if (hr >= zones[z].low && hr <= zones[z].high) { zoneDurMs[z] += dt; matched = true; break; }
-    }
-    if (!matched) {
-      if (hr < zones[0].low) zoneDurMs[0] += dt;
-      else zoneDurMs[zones.length - 1] += dt;
-    }
-  }
-
-  return {
-    zones: zones.map((z, i) => ({
-      ...z,
-      durationMs: zoneDurMs[i],
-      pct: totalDurMs > 0 ? Math.round(zoneDurMs[i] / totalDurMs * 100) : 0,
-    })),
-    totalDurMs,
-  };
-}
-
-function fmtDurMs(ms) {
-  const totalSec = Math.round(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function calcEdwards(zones) {
-  // Edwards zónaalapú TRIMP: Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5 pont/perc
-  const weights = [1, 2, 3, 4, 5];
-  return Math.round(zones.reduce((sum, z, i) => sum + (z.durationMs / 60000) * weights[i], 0));
-}
-
-function renderHrZoneAnalysis(geometry) {
-  const rowsEl   = document.getElementById('hrZoneRows');
-  const scoresEl = document.getElementById('hrZoneScores');
-  if (!rowsEl) return;
-
-  const { zones, totalDurMs } = calcHrZoneStats(geometry);
-
-  rowsEl.innerHTML = zones.map(z => `
-    <div class="hr-zone-row hint-target" data-hint="${z.hint ?? ''}">
-      <div class="hr-zone-row-label">
-        <span class="hr-zone-row-name" style="color:${z.color}">${z.name}</span>
-        <span class="hr-zone-row-bpm">${z.low}–${z.high} bpm</span>
-      </div>
-      <div class="hr-zone-row-bar-wrap">
-        <div class="hr-zone-row-bar" style="width:${z.pct}%;background:${z.color}"></div>
-      </div>
-      <span class="hr-zone-row-time">${fmtDurMs(z.durationMs)}</span>
-      <span class="hr-zone-row-pct" style="color:${z.color}">${z.pct}%</span>
-    </div>`).join('');
-
-  // Terhelési pontszámok (TRIMP + Edwards RE) – csak ha van időadat
-  if (scoresEl && totalDurMs > 0) {
-    const { restHR, maxHR, sex } = getHrZoneSettings();
-    const hrs = geometry.map(p => p.hr).filter(h => h != null && h > 0);
-    if (hrs.length > 0) {
-      const avgHr  = Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
-      const trimp  = calculateTRIMP(totalDurMs / 60000, avgHr, restHR, maxHR, sex);
-      const edwards = calcEdwards(zones);
-      scoresEl.innerHTML = `
-        <div class="hr-score-item hint-target" data-hint="Banister TRIMP – folyamatos HR-arány alapú terhelési mutató. Exponenciálisan súlyozza a magas intenzitású időt. Férfi/nő koefficiensekkel.">
-          <span class="hr-score-label">TRIMP</span>
-          <span class="hr-score-value">${trimp}</span>
-        </div>
-        <div class="hr-score-item hint-target" data-hint="Edwards terhelési pontszám – zónaalapú becslés (Z1×1 + Z2×2 … Z5×5 pont/perc). A Strava Relative Effort-hoz hasonló módszer.">
-          <span class="hr-score-label">Effort</span>
-          <span class="hr-score-value">${edwards}</span>
-        </div>`;
-      scoresEl.hidden = false;
-    }
-  }
-}
-
-function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {}, isFit = false }) {
-  document.querySelector("#fileEmptyState").hidden = true;
-  const details = document.querySelector("#fileDetails");
-  details.hidden = false;
-
-  document.querySelector("#importedFileName").textContent = filename;
-  const fitBadge = document.querySelector("#importedFitBadge");
-  if (fitBadge) fitBadge.hidden = !isFit;
-
-  // Metaadatok
-  const metaBlock = document.querySelector("#fileMetaBlock");
-  const nameRow  = document.querySelector("#fileMetaNameRow");
-  const typeRow  = document.querySelector("#fileMetaTypeRow");
-  const descRow  = document.querySelector("#fileMetaDescRow");
-  const startRow = document.querySelector("#fileMetaStartRow");
-  const hasMeta  = meta.name || meta.type || meta.desc || meta.startTime;
-  if (metaBlock) metaBlock.hidden = !hasMeta;
-  if (nameRow)  { nameRow.hidden  = !meta.name; if (meta.name)  document.querySelector("#fileMetaName").textContent = meta.name; }
-  if (typeRow)  { typeRow.hidden  = !meta.type; if (meta.type)  document.querySelector("#fileMetaType").textContent = meta.type; }
-  if (descRow)  { descRow.hidden  = !meta.desc; if (meta.desc)  document.querySelector("#fileMetaDesc").textContent = meta.desc; }
-  if (startRow && meta.startTime) {
-    const d = new Date(meta.startTime);
-    document.querySelector("#fileMetaStart").textContent =
-      d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) + " " +
-      d.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
-    startRow.hidden = false;
-  } else if (startRow) startRow.hidden = true;
-
-  // Időtartam
-  const totalDurRow   = document.querySelector("#fileTotalDurRow");
-  const movingDurRow  = document.querySelector("#fileMovingDurRow");
-  const totalDurStr   = formatDuration(meta.totalDuration);
-  const movingDurStr  = formatDuration(meta.movingDuration);
-  if (totalDurRow)  { totalDurRow.hidden  = !totalDurStr; if (totalDurStr)  document.querySelector("#fileTotalDur").textContent  = totalDurStr; }
-  if (movingDurRow) { movingDurRow.hidden = !movingDurStr; if (movingDurStr) document.querySelector("#fileMovingDur").textContent = movingDurStr; }
-  document.querySelector("#fileDistance").textContent = formatDisplayDistance(distanceMeters);
-  document.querySelector("#filePoints").textContent = geometry.length.toLocaleString();
-
-  const hasEle = ascentMeters > 0 || descentMeters > 0;
-  document.querySelector("#fileAscentRow").hidden = !hasEle;
-  document.querySelector("#fileDescentRow").hidden = !hasEle;
-  if (hasEle) {
-    document.querySelector("#fileAscent").textContent = `${ascentMeters} m`;
-    document.querySelector("#fileDescent").textContent = `${descentMeters} m`;
-  }
-
-  const speeds = geometry.map(p => p.speed).filter(s => s != null && s < 120 && s > 0);
-  const hasSpeed = speeds.length > 0;
-  document.querySelector("#fileAvgSpeedRow").hidden = !hasSpeed;
-  document.querySelector("#fileMaxSpeedRow").hidden = !hasSpeed;
-  if (hasSpeed) {
-    const avg = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10;
-    const max = Math.round(Math.max(...speeds) * 10) / 10;
-    document.querySelector("#fileAvgSpeed").textContent = `${avg} km/h`;
-    document.querySelector("#fileMaxSpeed").textContent = `${max} km/h`;
-  }
-
-  // HR stats
-  const hrs = geometry.map(p => p.hr).filter(h => h != null && h > 0);
-  const hasHr = hrs.length > 0;
-  const avgHrRowEl = document.querySelector("#fileAvgHrRow");
-  const maxHrRowEl = document.querySelector("#fileMaxHrRow");
-  if (avgHrRowEl) avgHrRowEl.hidden = !hasHr;
-  if (maxHrRowEl) maxHrRowEl.hidden = !hasHr;
-  if (hasHr) {
-    const avgHr = Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
-    const maxHr = Math.max(...hrs);
-    const avgHrEl = document.querySelector("#fileAvgHr");
-    const maxHrEl = document.querySelector("#fileMaxHr");
-    if (avgHrEl) avgHrEl.textContent = `${avgHr} bpm`;
-    if (maxHrEl) maxHrEl.textContent = `${maxHr} bpm`;
-
-    // HR zóna elemzés
-    try {
-      renderHrZoneAnalysis(geometry);
-    } catch (err) {
-      console.error('HR zone analysis hiba:', err);
-    }
-  }
-  // hrZoneAnalysis beolvasztva a hrLegend-be — nincs külön panel
-
-  // Cadence stats
-  const cads = geometry.map(p => p.cad).filter(c => c != null && c > 0);
-  const hasCad = cads.length > 0;
-  const avgCadRowEl = document.querySelector("#fileAvgCadRow");
-  const maxCadRowEl = document.querySelector("#fileMaxCadRow");
-  if (avgCadRowEl) avgCadRowEl.hidden = !hasCad;
-  if (maxCadRowEl) maxCadRowEl.hidden = !hasCad;
-  if (hasCad) {
-    const avgCad = Math.round(cads.reduce((a, b) => a + b, 0) / cads.length);
-    const maxCad = Math.max(...cads);
-    const avgCadEl = document.querySelector("#fileAvgCad");
-    const maxCadEl = document.querySelector("#fileMaxCad");
-    if (avgCadEl) avgCadEl.textContent = `${avgCad} rpm`;
-    if (maxCadEl) maxCadEl.textContent = `${maxCad} rpm`;
-  }
-
-  // Speed legend
-  const legendEl = document.querySelector("#speedLegend");
-  if (legendEl) legendEl.hidden = !speedColored;
-
-  // HR legend
-  const hrLegendEl = document.querySelector("#hrLegend");
-  if (hrLegendEl) hrLegendEl.hidden = !hasHr;
-  if (hasHr) renderHrZoneAnalysis(geometry);
-
-  // Cadence legend
-  const cadLegendEl = document.querySelector("#cadLegend");
-  if (cadLegendEl) cadLegendEl.hidden = !hasCad;
-
-  // Power stats
-  const powers = geometry.map(p => p.power).filter(p => p != null && p >= 0);
-  const hasPower = powers.length > 0;
-  const avgPowerRowEl = document.querySelector("#fileAvgPowerRow");
-  const maxPowerRowEl = document.querySelector("#fileMaxPowerRow");
-  if (avgPowerRowEl) avgPowerRowEl.hidden = !hasPower;
-  if (maxPowerRowEl) maxPowerRowEl.hidden = !hasPower;
-  if (hasPower) {
-    const avgPower = Math.round(powers.reduce((a, b) => a + b, 0) / powers.length);
-    const maxPower = Math.round(Math.max(...powers));
-    const avgPowerEl = document.querySelector("#fileAvgPower");
-    const maxPowerEl = document.querySelector("#fileMaxPower");
-    if (avgPowerEl) avgPowerEl.textContent = `${avgPower} W`;
-    if (maxPowerEl) maxPowerEl.textContent = `${maxPower} W`;
-  }
-
-  // Power legend
-  const powerLegendEl = document.querySelector("#powerLegend");
-  if (powerLegendEl) powerLegendEl.hidden = !hasPower;
-
-  // ── Share card adatok összegyűjtése ──────────────────────────────────────
-  {
-    // title: canvas fallback ha az input üres; metaTitle: csak meta.name (fájlnevet NEM töltjük be)
-    const titleStr  = meta.name || "Bringaterv edzés";
-    const metaTitle = meta.name || "";  // az input alapértéke – üres, ha csak fájlnév lett volna
-    let dateStr = "";
-    if (meta.startTime) {
-      const d = new Date(meta.startTime);
-      dateStr = d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" });
-    }
-    const distKm = distanceMeters > 0 ? Math.round(distanceMeters / 100) / 10 : 0;
-    const durStr = meta.movingDuration
-      ? formatDuration(meta.movingDuration)
-      : (meta.totalDuration ? formatDuration(meta.totalDuration) : "");
-    const avgSpd = hasSpeed
-      ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10
-      : 0;
-    // Geometria egyszerűsítve (max ~400 pont a gyors renderhez)
-    const step = Math.max(1, Math.floor(geometry.length / 400));
-    const simPts = [];
-    for (let i = 0; i < geometry.length; i += step) simPts.push({ lat: geometry[i].lat, lng: geometry[i].lng });
-    if (simPts.length && simPts[simPts.length - 1] !== geometry[geometry.length - 1]) {
-      const last = geometry[geometry.length - 1];
-      simPts.push({ lat: last.lat, lng: last.lng });
-    }
-    _shareCardData = {
-      title:        titleStr,   // canvas fallback
-      metaTitle:    metaTitle,  // input default (csak meta.name, fájlnév nélkül)
-      date:         dateStr,
-      distanceKm:   distKm,
-      durationText: durStr,
-      avgSpeedKmh:  avgSpd,
-      elevationM:   ascentMeters || 0,
-      points:       simPts,
-    };
-    // Share gomb engedélyezése ha van adat
-    const shareBtn = document.querySelector("#fileShareButton");
-    if (shareBtn) shareBtn.disabled = false;
-  }
-
-  window.lucide?.createIcons();
-}
-
-function clearFileTab() {
-  hasImportedFile = false;
-  document.querySelector("#fileEmptyState").hidden = false;
-  document.querySelector("#fileDetails").hidden = true;
-  const speedLeg = document.querySelector("#speedLegend");
-  const hrLeg = document.querySelector("#hrLegend");
-  const cadLeg = document.querySelector("#cadLegend");
-  const powerLeg = document.querySelector("#powerLegend");
-  if (speedLeg) speedLeg.hidden = true;
-  if (hrLeg) hrLeg.hidden = true;
-  if (cadLeg) cadLeg.hidden = true;
-  if (powerLeg) powerLeg.hidden = true;
-  const metaBlock = document.querySelector("#fileMetaBlock");
-  if (metaBlock) metaBlock.hidden = true;
-  _shareCardData = null;
-  const shareBtn = document.querySelector("#fileShareButton");
-  if (shareBtn) shareBtn.disabled = true;
 }
 
 const elements = {
@@ -1001,10 +698,6 @@ let selectedWaypointId = null;
 let activeSegmentPickerId = null; // melyik waypointhoz van nyitva a szegmens-picker
 let dragSrcIndex = null;
 let activeTool = "route";
-let importedColoredGeometry = null; // ha van sebességszínezés
-let importedHrGeometry = null;      // ha van pulzusszínezés
-let importedCadGeometry = null;     // ha van kadenciaszínezés
-let importedPowerGeometry = null;   // ha van teljesítményszínezés
 
 store.setState({
   mode: (() => { const m = localStorage.getItem("route4meDefaultRouteMode") || "asphalt"; return m === "cycling" ? "asphalt" : m; })(),
@@ -1227,27 +920,27 @@ function applyRouteLayer(type) {
   // 3. Aktív réteg bekapcsolása
   switch (type) {
     case "speed":
-      if (importedColoredGeometry) {
+      if (getImportedColoredGeometry()) {
         if (elements.speedMapToggle) elements.speedMapToggle.checked = true;
-        mapAdapter.renderColoredRoute(importedColoredGeometry);
+        mapAdapter.renderColoredRoute(getImportedColoredGeometry());
       }
       break;
     case "hr":
-      if (importedHrGeometry) {
+      if (getImportedHrGeometry()) {
         if (elements.hrMapToggle) elements.hrMapToggle.checked = true;
-        mapAdapter.renderHrRoute(importedHrGeometry, buildHrZoneColorFn());
+        mapAdapter.renderHrRoute(getImportedHrGeometry(), buildHrZoneColorFn());
       }
       break;
     case "cad":
-      if (importedCadGeometry) {
+      if (getImportedCadGeometry()) {
         if (elements.cadMapToggle) elements.cadMapToggle.checked = true;
-        mapAdapter.renderCadRoute(importedCadGeometry);
+        mapAdapter.renderCadRoute(getImportedCadGeometry());
       }
       break;
     case "power":
-      if (importedPowerGeometry) {
+      if (getImportedPowerGeometry()) {
         if (elements.powerMapToggle) elements.powerMapToggle.checked = true;
-        mapAdapter.renderPowerRoute(importedPowerGeometry);
+        mapAdapter.renderPowerRoute(getImportedPowerGeometry());
       }
       break;
     case "grade":
@@ -1495,6 +1188,26 @@ initWind({
   visibleSections,
   applyRouteLayer,
   syncElevationBtnState,
+});
+
+// ── Elemzés (File Tab) ────────────────────────────────────────────────────────
+initFileTab({
+  store,
+  mapAdapter,
+  api:                      routesApi,
+  elements,
+  i18n,
+  showToast,
+  switchTab,
+  updateElevationButton,
+  applyRouteLayer,
+  clearWindResult,
+  calculateImportedDistance,
+  calcEstimatedTimeMixed,
+  loadRouteLibrary,
+  openExportModal,
+  renderHrZoneAnalysis,
+  formatDisplayDistance,
 });
 
 
@@ -2576,9 +2289,9 @@ function initZoneMultiSlider(kind) {
         renderZoneDisplay();
         rebuildZoneLegend(kind);
         // Élő újraszínezés a térképen (ha be van töltve a megfelelő geometry)
-        if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
-        if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
-        if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+        if (kind === 'speed' && getImportedColoredGeometry()) mapAdapter.renderColoredRoute(getImportedColoredGeometry());
+        if (kind === 'cad'   && getImportedCadGeometry())     mapAdapter.renderCadRoute(getImportedCadGeometry());
+        if (kind === 'power' && getImportedPowerGeometry())   mapAdapter.renderPowerRoute(getImportedPowerGeometry());
       }
       function onUp() {
         h.removeEventListener('pointermove', onMove);
@@ -2645,9 +2358,9 @@ function initZoneMultiSlider(kind) {
       rebuildZoneLegend(kind);
       saveZones();
       // Élő újraszínezés a térképen
-      if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
-      if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
-      if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+      if (kind === 'speed' && getImportedColoredGeometry()) mapAdapter.renderColoredRoute(getImportedColoredGeometry());
+      if (kind === 'cad'   && getImportedCadGeometry())     mapAdapter.renderCadRoute(getImportedCadGeometry());
+      if (kind === 'power' && getImportedPowerGeometry())   mapAdapter.renderPowerRoute(getImportedPowerGeometry());
     });
   }
 
@@ -2658,9 +2371,9 @@ function initZoneMultiSlider(kind) {
     renderSlider();
     renderZoneDisplay();
     rebuildZoneLegend(kind);
-    if (kind === 'speed' && importedColoredGeometry) mapAdapter.renderColoredRoute(importedColoredGeometry);
-    if (kind === 'cad'   && importedCadGeometry)     mapAdapter.renderCadRoute(importedCadGeometry);
-    if (kind === 'power' && importedPowerGeometry)   mapAdapter.renderPowerRoute(importedPowerGeometry);
+    if (kind === 'speed' && getImportedColoredGeometry()) mapAdapter.renderColoredRoute(getImportedColoredGeometry());
+    if (kind === 'cad'   && getImportedCadGeometry())     mapAdapter.renderCadRoute(getImportedCadGeometry());
+    if (kind === 'power' && getImportedPowerGeometry())   mapAdapter.renderPowerRoute(getImportedPowerGeometry());
   });
 }
 
@@ -2805,9 +2518,9 @@ function getCyclistProfile() {
 
 // Ha a zónák változnak és van betöltött edzés → újraszámoljuk az elemzést + térképszínt
 window.addEventListener('hrZonesChanged', () => {
-  if (importedHrGeometry) {
-    renderHrZoneAnalysis(importedHrGeometry);
-    mapAdapter.recolorHrRoute(importedHrGeometry, buildHrZoneColorFn());
+  if (getImportedHrGeometry()) {
+    renderHrZoneAnalysis(getImportedHrGeometry());
+    mapAdapter.recolorHrRoute(getImportedHrGeometry(), buildHrZoneColorFn());
   }
 });
 
@@ -3432,13 +3145,7 @@ function syncMapStyleButtons(style) {
 }
 
 function clearAllRouteState() {
-  importedColoredGeometry = null;
-  importedHrGeometry = null;
-  importedCadGeometry = null;
-  importedPowerGeometry = null;
-  importedGpxText = null;
-  _loadedLibraryRouteId = null;
-  updateFileSaveButtonState();
+  clearImportedGeometries();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
@@ -4117,409 +3824,6 @@ document.querySelector("#fileEmptyState")?.addEventListener("click", () => eleme
  * FIT-et bemenettől konvertál GPX-szé memóriában; az eredeti FIT buffer-t
  * tárolja a `importedFitBuffer` változóban (későbbi `.fit` mellé-mentéshez).
  */
-async function processImportedFile(file) {
-  if (!file) return;
-  const isFit = /\.fit$/i.test(file.name);
-  let gpxText;
-  let fitBuffer = null;
-
-  if (isFit) {
-    try {
-      fitBuffer = await file.arrayBuffer();
-      gpxText   = fitToGpx(fitBuffer, file.name);
-    } catch (err) {
-      showToast("Nem sikerült feldolgozni a FIT fájlt.");
-      console.error("FIT parse error:", err);
-      return;
-    }
-  } else {
-    gpxText = await file.text();
-  }
-
-  // Az `importGpx()` egy File-szerű objektumot vár (`.text()` metódussal).
-  // FIT esetén szintetikus Blob-ot adunk, GPX esetén az eredeti File-t.
-  const gpxFile = isFit
-    ? new File([gpxText], file.name.replace(/\.fit$/i, ".gpx"), { type: "application/gpx+xml" })
-    : file;
-
-  let imported;
-  try {
-    imported = await importGpx(gpxFile, { sampleWaypoints: elements.gpxSampleWaypoints?.checked });
-  } catch (err) {
-    showToast(isFit
-      ? "Nem sikerült betölteni a FIT fájlt."
-      : "Nem sikerült betölteni a fájlt. Ellenőrizd, hogy érvényes GPX fájl-e.");
-    console.error("Import error:", err);
-    return;
-  }
-
-  store.replaceWaypoints(imported.waypoints, {
-    geometry: imported.geometry,
-    importedRoute: true,
-    sourcePointCount: imported.sourcePointCount,
-  });
-  const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
-  const distanceMeters = calculateImportedDistance(imported.geometry);
-  store.setState({ distanceMeters, ascentMeters, descentMeters });
-
-  const hasSpeed = imported.geometry.some(p => p.speed != null);
-  const hasHr    = imported.geometry.some(p => p.hr    != null);
-  const hasCad   = imported.geometry.some(p => p.cad   != null);
-  const hasPower = imported.geometry.some(p => p.power != null);
-
-  importedColoredGeometry = hasSpeed ? imported.geometry : null;
-  importedCadGeometry     = hasCad   ? imported.geometry : null;
-  importedHrGeometry      = hasHr    ? imported.geometry : null;
-  importedPowerGeometry   = hasPower ? imported.geometry : null;
-
-  // Fájl betöltés → szélelemzés állapot törlése (planning-context-only feature)
-  clearWindResult();
-
-  updateElevationButton(imported.geometry);
-  applyRouteLayer(null);
-  mapAdapter.renderRoute(imported.geometry, store.getState().mode);
-
-  hasImportedFile   = true;
-  importedFileName  = file.name.replace(/\.(gpx|fit)$/i, "");
-  importedGpxText   = gpxText;
-  importedFitBuffer = fitBuffer; // null ha GPX-ből jött
-  _loadedLibraryRouteId = null;  // külső fájl → fel lehet ajánlani a mentést
-  updateFileSaveButtonState();
-  populateFileTab({
-    filename: file.name,
-    geometry: imported.geometry,
-    distanceMeters, ascentMeters, descentMeters,
-    speedColored: hasSpeed,
-    meta: imported.meta ?? {},
-    isFit,
-  });
-  switchTab("file");
-
-  if (imported.sourcePointCount > imported.geometry.length) {
-    showToast(`${isFit ? "FIT" : "GPX"} betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);
-  } else {
-    showToast(i18n.t("route.imported", { points: imported.sourcePointCount }));
-  }
-  setTimeout(() => mapAdapter.fitRoute(), 50);
-
-  // Reverse geocode imported waypoints in the background
-  for (const wp of store.getState().waypoints) {
-    const name = await reverseGeocode(wp.lat, wp.lng);
-    if (name && store.getState().waypoints.some((w) => w.id === wp.id)) {
-      store.updateWaypoint(wp.id, { name });
-    }
-  }
-}
-
-elements.gpxInput.addEventListener("change", async () => {
-  const [file] = elements.gpxInput.files;
-  if (!file) return;
-  await processImportedFile(file);
-  elements.gpxInput.value = "";
-});
-
-// ── Drag & drop az Elemzés fülön ─────────────────────────────────────────────
-{
-  let dragCounter = 0;
-  const fileTabEl = document.querySelector("#fileTabSection") || document.body;
-
-  function isFileDrag(e) {
-    return e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
-  }
-
-  window.addEventListener("dragenter", (e) => {
-    if (!isFileDrag(e)) return;
-    e.preventDefault();
-    dragCounter++;
-    document.body.classList.add("is-drag-over");
-  });
-  window.addEventListener("dragover", (e) => {
-    if (!isFileDrag(e)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  });
-  window.addEventListener("dragleave", (e) => {
-    if (!isFileDrag(e)) return;
-    dragCounter = Math.max(0, dragCounter - 1);
-    if (dragCounter === 0) document.body.classList.remove("is-drag-over");
-  });
-  window.addEventListener("drop", async (e) => {
-    if (!isFileDrag(e)) return;
-    e.preventDefault();
-    dragCounter = 0;
-    document.body.classList.remove("is-drag-over");
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!/\.(gpx|fit)$/i.test(file.name)) {
-      showToast("Csak .gpx és .fit fájl tölthető be.");
-      return;
-    }
-    await processImportedFile(file);
-  });
-}
-
-// File tab export button — same modal
-elements.fileExportButton?.addEventListener("click", () => openExportModal());
-
-// ── Edzés mentése könyvtárba (Elemzés fül) ────────────────────────────────────
-/** A Mentés gomb állapotát igazítja: rejtett ha már könyvtárban van (vagy nincs adat). */
-function updateFileSaveButtonState() {
-  const btn = elements.fileSaveToLibraryButton;
-  if (!btn) return;
-  const hasPoints = store.getState().waypoints?.length > 0;
-  if (!hasPoints) {
-    btn.disabled = true;
-    btn.hidden = false;
-    return;
-  }
-  if (_loadedLibraryRouteId) {
-    // Már a könyvtárban van — ne ajánljuk a mentést
-    btn.hidden = true;
-    return;
-  }
-  btn.hidden = false;
-  btn.disabled = false;
-  // Visszaállítjuk az alapszöveget (ha korábban "Mentve" volt)
-  const lbl = btn.querySelector("span");
-  if (lbl) lbl.textContent = "Mentés könyvtárba";
-}
-
-elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
-  const btn = elements.fileSaveToLibraryButton;
-  if (btn?.disabled) return;
-  // Dupla-mentés ellen: azonnal letiltjuk
-  if (btn) {
-    btn.disabled = true;
-    const lbl = btn.querySelector("span");
-    if (lbl) lbl.textContent = "Mentés…";
-  }
-  const state = store.getState();
-  const name = importedFileName || "Edzés";
-
-  // Eredeti GPX tartalom használata ha elérhető (megőrzi a sebesség/pulzus/idő adatokat),
-  // különben fallback: újragenerálás geometriából (adatvesztéssel jár)
-  const content = importedGpxText ?? exportGpx({
-    waypoints: state.waypoints,
-    geometry:  state.routeGeometry,
-    name,
-    desc: "",
-    mode: state.mode,
-  });
-
-  const distanceKm = state.distanceMeters > 0
-    ? Math.round(state.distanceMeters / 100) / 10
-    : null;
-  const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : null;
-  const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
-  // Becsült időtartam – szegmensenként ha vegyes mód, egyébként Naismith-formula
-  const durationMin = distanceKm != null
-    ? calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
-    : null;
-
-  // FIT mellécsatolás: ha az importnál FIT volt az eredeti, base64-be kódoljuk
-  let fitContent = null;
-  if (importedFitBuffer) {
-    fitContent = arrayBufferToBase64(importedFitBuffer);
-  }
-
-  try {
-    const saved = await routesApi.saveRoute({
-      name,
-      gpxContent:  content,
-      fitContent,                 // null vagy base64 string
-      distance:    distanceKm,
-      duration:    durationMin,
-      elevation:   ascentMeters,
-      type:        "workout",
-      description: "",
-    });
-    showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
-    // Megjegyezzük hogy ez most már a könyvtárban van – nincs többszörös mentés
-    _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
-    updateFileSaveButtonState();   // gomb eltűnik
-    if (typeof loadRouteLibrary === "function") loadRouteLibrary();
-  } catch (err) {
-    console.error("Edzés mentési hiba:", err);
-    showToast("Nem sikerült menteni. Az API elérhető?");
-    // Hiba esetén visszaengedjük a mentést
-    if (btn) {
-      btn.disabled = false;
-      const lbl = btn.querySelector("span");
-      if (lbl) lbl.textContent = "Mentés könyvtárba";
-    }
-  }
-});
-
-// ── Share Card modal ──────────────────────────────────────────────────────────
-{
-  let _shareTheme = "light";
-  let _shareSize  = "square";
-
-  /** Az aktuális opciókkal újrarajzolja a preview canvas-t. */
-  async function refreshSharePreview() {
-    if (!_shareCardData) return;
-    const previewCanvas = document.querySelector("#shareCardPreview");
-    if (!previewCanvas) return;
-
-    const titleInput = document.querySelector("#shareCardTitle");
-    const titleVal   = titleInput?.value?.trim() || _shareCardData.title;
-
-    const card = await createWorkoutShareCard({
-      ..._shareCardData,
-      title: titleVal,
-      theme: _shareTheme,
-      size:  _shareSize,
-    });
-
-    // Skálázott preview – CSS max-height gondoskodik arról, hogy ne lógjon ki
-    previewCanvas.width  = card.width;
-    previewCanvas.height = card.height;
-    const ctx = previewCanvas.getContext("2d");
-    ctx.drawImage(card, 0, 0);
-  }
-
-  function openShareCardModal() {
-    if (!_shareCardData) return;
-    const overlay = document.querySelector("#shareCardOverlay");
-    if (!overlay) return;
-    // Cím input feltöltése (csak meta.name vagy library route name – fájlnevet NEM írunk be)
-    const titleInput = document.querySelector("#shareCardTitle");
-    if (titleInput) titleInput.value = _shareCardData.metaTitle || "";
-    overlay.hidden = false;
-    refreshSharePreview();   // async, de nem kell await – a preview frissül magától
-    window.lucide?.createIcons();
-  }
-
-  function closeShareCardModal() {
-    const overlay = document.querySelector("#shareCardOverlay");
-    if (overlay) overlay.hidden = true;
-  }
-
-  // Megnyitás – Megosztó kép gomb
-  elements.fileShareButton?.addEventListener("click", openShareCardModal);
-
-  // Bezárás
-  document.querySelector("#shareCardClose")?.addEventListener("click", closeShareCardModal);
-  document.querySelector("#shareCardOverlay")?.addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) closeShareCardModal();
-  });
-
-  // Cím input – live preview frissítés (debounce: 400ms)
-  {
-    let _titleDebounce = null;
-    document.querySelector("#shareCardTitle")?.addEventListener("input", () => {
-      clearTimeout(_titleDebounce);
-      _titleDebounce = setTimeout(() => refreshSharePreview(), 400);
-    });
-  }
-
-  // Téma választó
-  document.querySelectorAll("[data-share-theme]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      _shareTheme = btn.dataset.shareTheme;
-      document.querySelectorAll("[data-share-theme]").forEach((b) => {
-        b.classList.toggle("share-opt-btn--active", b.dataset.shareTheme === _shareTheme);
-      });
-      refreshSharePreview();
-    });
-  });
-
-  // Méret választó
-  document.querySelectorAll("[data-share-size]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      _shareSize = btn.dataset.shareSize;
-      document.querySelectorAll("[data-share-size]").forEach((b) => {
-        b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _shareSize);
-      });
-      refreshSharePreview();
-    });
-  });
-
-  /** Az aktuális cím (input értéke, ha üres → fallback) */
-  function _getShareTitle() {
-    const v = document.querySelector("#shareCardTitle")?.value?.trim();
-    return v || _shareCardData?.title || "bringaterv";
-  }
-
-  /** Canvas → safeName fájlnév */
-  function _safeName(title) {
-    return title.toLowerCase().replace(/[^a-z0-9áéíóöőúüűäçšžñ]+/gi, "-").replace(/^-+|-+$/g, "");
-  }
-
-  /** Canvas generálás az aktuális beállításokkal */
-  async function _buildCard() {
-    return createWorkoutShareCard({
-      ..._shareCardData,
-      title: _getShareTitle(),
-      theme: _shareTheme,
-      size:  _shareSize,
-    });
-  }
-
-  // Native share (mobil: Instagram, Facebook, WhatsApp…)
-  document.querySelector("#shareCardNativeShare")?.addEventListener("click", async () => {
-    if (!_shareCardData) return;
-    const btn = document.querySelector("#shareCardNativeShare");
-    const span = btn?.querySelector("span");
-    if (btn) { btn.disabled = true; if (span) span.textContent = "Generálás…"; }
-    try {
-      const card = await _buildCard();
-      const title = _getShareTitle();
-      const filename = `${_safeName(title)}-share.png`;
-
-      // Web Share API (mobil Chrome/Safari – megnyitja az Instagram/Facebook/WhatsApp stb. sheet-et)
-      if (navigator.canShare) {
-        const blob = await new Promise(res => card.toBlob(res, "image/png"));
-        const file = new File([blob], filename, { type: "image/png" });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Bringaterv edzés" });
-          return;
-        }
-      }
-      // Fallback: letöltés (asztali böngésző)
-      downloadShareCard(card, filename);
-    } catch (err) {
-      if (err?.name !== "AbortError") {
-        // Ha a share sikertelen, letöltéssel próbálkozunk
-        try { downloadShareCard(await _buildCard(), `${_safeName(_getShareTitle())}-share.png`); } catch {}
-      }
-    } finally {
-      if (btn) { btn.disabled = false; if (span) span.textContent = "Megosztás"; }
-    }
-  });
-
-  // Letöltés
-  document.querySelector("#shareCardDownload")?.addEventListener("click", async () => {
-    if (!_shareCardData) return;
-    const dlBtn = document.querySelector("#shareCardDownload");
-    const span  = dlBtn?.querySelector("span");
-    if (dlBtn) { dlBtn.disabled = true; if (span) span.textContent = "Generálás…"; }
-    try {
-      const card = await _buildCard();
-      downloadShareCard(card, `${_safeName(_getShareTitle())}-share.png`);
-    } finally {
-      if (dlBtn) { dlBtn.disabled = false; if (span) span.textContent = "Letöltés (PNG)"; }
-    }
-  });
-
-  // Könyvtárból is megnyitható: globálisan elérhető segédfüggvény
-  window._openShareCardWith = function(data) {
-    _shareCardData = data;
-    openShareCardModal();
-  };
-}
-
-/** ArrayBuffer → base64 string (chunkban, hogy nagy FIT fájloknál se akadjon meg). */
-function arrayBufferToBase64(buf) {
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  let binary  = "";
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
 // Legend accordion (expand/collapse color items on header click)
 document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -4577,16 +3881,12 @@ planGpxInput?.addEventListener("change", async () => {
 document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   // A waypontok már a store-ban vannak (az import feltöltötte)
   // Csak az elemzés-specifikus állapotot töröljük, majd váltunk
-  importedColoredGeometry = null;
-  importedHrGeometry = null;
-  importedCadGeometry = null;
-  importedPowerGeometry = null;
+  clearImportedGeometries();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
   mapAdapter.clearPowerRoute();
   mapAdapter.clearGradeRoute();
-  hasImportedFile = false;
   clearFileTab();
   applyRouteLayer(null);
   switchTab("plan");
@@ -4644,19 +3944,18 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     const hasCad   = imported.geometry.some(p => p.cad   != null);
     const hasPower = imported.geometry.some(p => p.power != null);
 
-    importedColoredGeometry = hasSpeed ? imported.geometry : null;
-    importedHrGeometry      = hasHr    ? imported.geometry : null;
-    importedCadGeometry     = hasCad   ? imported.geometry : null;
-    importedPowerGeometry   = hasPower ? imported.geometry : null;
+    setImportedGeometries({
+      colored: hasSpeed ? imported.geometry : null,
+      hr:      hasHr    ? imported.geometry : null,
+      cad:     hasCad   ? imported.geometry : null,
+      power:   hasPower ? imported.geometry : null,
+    });
 
     updateElevationButton(imported.geometry);
     applyRouteLayer(null);
     mapAdapter.renderRoute(imported.geometry, store.getState().mode);
 
-    hasImportedFile = true;
-    importedFileName = routeName;
-    importedGpxText  = gpxText; // eredeti GPX megőrzése (esetleges újramentéshez)
-    _loadedLibraryRouteId = id;  // már a könyvtárban van – mentés gomb el lesz rejtve
+    setLoadedRoute(id, routeName, gpxText);
     updateFileSaveButtonState();
     populateFileTab({
       filename: `${routeName}.gpx`,
