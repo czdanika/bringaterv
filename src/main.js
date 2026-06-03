@@ -16,7 +16,8 @@ import { searchPlaces, reverseGeocode } from "./ui/search.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
-import { analyzeWind, defaultAvgSpeed, windTimeMultiplier, WIND_COLORS, WIND_LABELS, WIND_MODES } from "./wind/windService.js";
+import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
+import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 // Kalóriaszámítás modul (calories.js) – elérhető, de a UI-on jelenleg nincs használva.
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { calculateZones, calculateZonesMaxHR, calculateZonesLTHR, calculateZonesCustom, calculateTRIMP, ZONE_DEFS_FRIEL } from "./karvonen.js";
@@ -1148,13 +1149,10 @@ function updateElevationButton(geometry) {
     const st = store?.getState?.();
     const planning = !st?.importedRoute && (st?.waypoints?.length ?? 0) >= 2;
     elements.windLegendPlan.hidden = !planning;
-    if (planning && typeof initWindPlanInputsIfNeeded === "function") {
+    if (planning) {
       initWindPlanInputsIfNeeded();
-      // Csak ha már aktiválva van a wind elemzés, akkor frissítjük az új geometriára
-      if (_windResult && typeof scheduleWindRunIfActive === "function") {
-        scheduleWindRunIfActive("geometry");
-      }
-    } else if (!planning && typeof clearWindResult === "function") {
+      if (getWindResult()) scheduleWindRunIfActive("geometry");
+    } else {
       clearWindResult();
     }
   }
@@ -1486,306 +1484,19 @@ const elevationResizeObserver = new ResizeObserver(() => {
 });
 if (elements.elevationPanel) elevationResizeObserver.observe(elements.elevationPanel);
 
-// ── Szél (Wind) UI ────────────────────────────────────────────────────────────
 
-let _windResult = null;          // { segments, stats, coverage }
-let _windRunInflight = false;
-
-function fmtTime(d) {
-  return d.toLocaleString("hu-HU", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
-}
-
-function fmtHour(d) {
-  return d.toLocaleTimeString("hu-HU", { hour:"2-digit", minute:"2-digit" });
-}
-
-function roundUpToHour(d) {
-  const r = new Date(d);
-  r.setMinutes(0, 0, 0);
-  if (r <= d) r.setHours(r.getHours() + 1);
-  return r;
-}
-
-// datetime-local input formátum: "YYYY-MM-DDTHH:mm"
-function toLocalInputValue(d) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function windArrow(deg) {
-  // wind direction = honnan fúj; nyíl arra mutat ahova fúj
-  const arrows = ["↓","↙","←","↖","↑","↗","→","↘"];
-  return arrows[Math.round(((deg + 180) % 360) / 45) % 8];
-}
-
-
-function renderWindResult(result) {
-  const { stats, segments, coverage } = result;
-  const km = (n) => `${n.toFixed(1)} km`;
-  const pct = (n) => `${n.toFixed(0)}%`;
-
-  elements.windStats.hidden = false;
-  elements.windStats.innerHTML = `
-    <div class="wind-stat wind-stat--tail">
-      <span class="wind-stat-label">Hátszél</span>
-      <span class="wind-stat-value">${pct(stats.tailPct)} <small>${km(stats.tailKm)}</small></span>
-    </div>
-    <div class="wind-stat wind-stat--cross">
-      <span class="wind-stat-label">Oldalszél</span>
-      <span class="wind-stat-value">${pct(stats.crossPct)} <small>${km(stats.crossKm)}</small></span>
-    </div>
-    <div class="wind-stat wind-stat--head">
-      <span class="wind-stat-label">Szembeszél</span>
-      <span class="wind-stat-value">${pct(stats.headPct)} <small>${km(stats.headKm)}</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Átlag szél</span>
-      <span class="wind-stat-value">${stats.avgWindSpeed.toFixed(1)} <small>km/h</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Hőmérséklet</span>
-      <span class="wind-stat-value">${stats.avgTemperature != null ? stats.avgTemperature.toFixed(1) : "—"} <small>°C</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Csapadék (max)</span>
-      <span class="wind-stat-value">${stats.maxPrecipitation != null ? stats.maxPrecipitation.toFixed(0) : "—"} <small>%</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Felhőzet</span>
-      <span class="wind-stat-value">${stats.avgCloudcover != null ? stats.avgCloudcover.toFixed(0) : "—"} <small>%</small></span>
-    </div>`;
-
-  // Sáv
-  elements.windBar.hidden = false;
-  const totalKm = stats.totalDistKm || 1;
-  elements.windBar.innerHTML = segments.map(seg => {
-    const w = (seg.distanceKm / totalKm) * 100;
-    const color = WIND_COLORS[seg.wind.mode] ?? "#888";
-    return `<div class="wind-bar-seg" style="width:${w.toFixed(2)}%;background:${color}"
-      title="${WIND_LABELS[seg.wind.mode]} – ${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km, ${seg.wind.speed.toFixed(1)} km/h"></div>`;
-  }).join("");
-
-  // Szegmens lista
-  elements.windSegments.hidden = false;
-  elements.windSegments.innerHTML = segments.map(seg => {
-    const color = WIND_COLORS[seg.wind.mode] ?? "#888";
-    return `<div class="wind-segment-row">
-      <div class="wind-segment-dot" style="background:${color}"></div>
-      <div>${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km <span style="color:var(--muted)">· ${WIND_LABELS[seg.wind.mode]}</span></div>
-      <span class="wind-segment-arrow" title="szél felé fúj">${windArrow(seg.wind.direction)}</span>
-      <span class="wind-segment-speed">${seg.wind.speed.toFixed(1)} km/h</span>
-      <span class="wind-segment-time">${fmtHour(seg.arrivalTime)}</span>
-    </div>`;
-  }).join("");
-
-  // Header info
-  elements.windHeaderInfo.textContent =
-    `${fmtTime(coverage.from)} → ${fmtTime(coverage.to)}${coverage.withinForecast ? "" : " (részben az előrejelzésen kívül)"}`;
-
-  // Térkép színezés
-  applyWindMapColoring(segments);
-
-  // Sidebar gyors stats
-  if (elements.windQuickStats) {
-    elements.windQuickStats.hidden = false;
-    elements.windQuickStats.innerHTML = `
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#22C55E"></span><span class="wind-quick-stat-val">${stats.tailPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EAB308"></span><span class="wind-quick-stat-val">${stats.crossPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EF4444"></span><span class="wind-quick-stat-val">${stats.headPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat" title="átlag szélerősség"><span class="wind-quick-stat-val">${stats.avgWindSpeed.toFixed(0)} km/h</span></span>
-    `;
-  }
-  // Szélhatás toggle sor megjelenítése (eredmény után érhető el)
-  const windTimeRow = document.querySelector('#planWindTimeRow');
-  if (windTimeRow) windTimeRow.hidden = false;
-  // Idő-érték frissítés (ha be van kapcsolva a toggle)
-  renderSidebar(store.getState());
-}
-
-function clearWindResult() {
-  _windResult = null;
-  elements.windStats.hidden = true;
-  elements.windBar.hidden = true;
-  elements.windSegments.hidden = true;
-  elements.windHeaderInfo.textContent = "";
-  elements.windStatus.textContent = "";
-  if (elements.windQuickStats) { elements.windQuickStats.hidden = true; elements.windQuickStats.innerHTML = ""; }
-  // Szélhatás toggle eltüntetése + visszakapcsolása
-  const windTimeRow    = document.querySelector('#planWindTimeRow');
-  const windTimeToggle = document.querySelector('#planWindTimeToggle');
-  if (windTimeRow)    windTimeRow.hidden    = true;
-  if (windTimeToggle) windTimeToggle.checked = false;
-  // Térkép kapcsoló visszaállítása
-  if (elements.windMapTogglePlan) elements.windMapTogglePlan.checked = false;
-  // Térkép visszaállítása
-  if (mapAdapter.clearWindRoute) mapAdapter.clearWindRoute();
-  // Idő-érték újraszámolás szél nélkül
-  if (typeof store !== "undefined") renderSidebar(store.getState());
-}
-
-function applyWindMapColoring(segments) {
-  if (!mapAdapter.renderWindRoute || !activeGeometry?.length) return;
-  // A térkép színezése csak akkor érvényes ha a sidebar toggle be van kapcsolva
-  const wantColor = elements.windMapTogglePlan?.checked ?? true;
-  if (wantColor) {
-    // Kölcsönösen kizáró: a szintprofil térképszínezés kikapcsolódik
-    if (elements.gradeMapTogglePlan?.checked) {
-      elements.gradeMapTogglePlan.checked = false;
-      applyRouteLayer(null);
-    }
-    if (elements.gradeMapToggle?.checked) {
-      elements.gradeMapToggle.checked = false;
-    }
-    mapAdapter.renderWindRoute(activeGeometry, segments);
-  } else {
-    mapAdapter.clearWindRoute?.();
-  }
-}
-
-function setBothStatus(text) {
-  if (elements.windStatus)     elements.windStatus.textContent     = text;
-  if (elements.windStatusPlan) elements.windStatusPlan.textContent = text;
-}
-
-async function runWindAnalysis() {
-  if (_windRunInflight) return;
-  if (!activeGeometry || activeGeometry.length < 2) {
-    setBothStatus("Nincs betöltött útvonal.");
-    return;
-  }
-  const depRaw = elements.windDeparturePlan?.value;
-  const speed  = parseFloat(elements.windAvgSpeedPlan?.value);
-  if (!depRaw || !speed || speed <= 0) {
-    setBothStatus("Add meg az indulási időt és az átlagsebességet.");
-    return;
-  }
-  const departureTime = new Date(depRaw);
-
-  _windRunInflight = true;
-  setBothStatus("Open-Meteo lekérdezés folyamatban…");
-  try {
-    const result = await analyzeWind(activeGeometry, departureTime, speed);
-    _windResult = result;
-    // Sikeres elemzés után: ha a térkép-toggle még nincs bekapcsolva, kapcsoljuk be
-    if (elements.windMapTogglePlan && !elements.windMapTogglePlan.checked) {
-      elements.windMapTogglePlan.checked = true;
-    }
-    renderWindResult(result);
-    if (!result.coverage.withinForecast) {
-      setBothStatus("Figyelem: az érkezési idő egy része a 7 napos előrejelzésen kívül esik.");
-    } else {
-      setBothStatus(`${result.segments.length} szegmens elemezve.`);
-    }
-  } catch (err) {
-    setBothStatus("Hiba: " + err.message);
-  } finally {
-    _windRunInflight = false;
-  }
-}
-
-function openWindSection() {
-  if (!elements.chartWind || !elements.elevationPanel) return;
-  elements.elevationPanel.hidden = false;
-  elements.chartWind.hidden = false;
-  visibleSections.add("wind");
-  elements.windBtn?.classList.add("is-active");
-  syncElevationBtnState();
-  // Ha még nincs eredmény és van útvonal, indítsunk egy elemzést
-  if (!_windResult && activeGeometry?.length >= 2) {
-    runWindAnalysis();
-  }
-}
-
-function closeWindSection() {
-  if (elements.chartWind) elements.chartWind.hidden = true;
-  visibleSections.delete("wind");
-  elements.windBtn?.classList.remove("is-active");
-  // Ha más szekció sincs nyitva, csukjuk az egész panelt
-  if (visibleSections.size === 0 && elements.elevationPanel) elements.elevationPanel.hidden = true;
-  // Térkép visszaszínezése: töröljük a wind layer-t
-  if (mapAdapter.clearWindRoute) mapAdapter.clearWindRoute();
-  syncElevationBtnState();
-}
-
-elements.windBtn?.addEventListener("click", () => {
-  if (visibleSections.has("wind")) closeWindSection();
-  else openWindSection();
-});
-// Sidebar wind chart gomb – ugyanaz mint a toolbar windBtn
-elements.windChartBtnPlan?.addEventListener("click", () => {
-  if (visibleSections.has("wind")) closeWindSection();
-  else openWindSection();
-});
-elements.closeChartWind?.addEventListener("click", closeWindSection);
-// Auto-run: mindig aktív – ha van geometria, megy. Minden input/útvonal-változásra debounced re-run.
-let _windRunDebounce = null;
-function scheduleWindRunIfActive(reason = "input") {
-  // Csak akkor fusson auto re-run, ha a wind ALREADY aktiválva van (eredmény van)
-  if (!_windResult) return;
-  if (!activeGeometry || activeGeometry.length < 2) return;
-  const st = store?.getState?.();
-  if (st?.importedRoute) return;
-  if ((st?.waypoints?.length ?? 0) < 2) return;
-  if (_windRunDebounce) clearTimeout(_windRunDebounce);
-  const delay = reason === "geometry" ? 800 : 400;
-  _windRunDebounce = setTimeout(() => runWindAnalysis(), delay);
-}
-elements.windDeparturePlan?.addEventListener("change", () => scheduleWindRunIfActive("departure"));
-elements.windAvgSpeedPlan?.addEventListener("change", () => scheduleWindRunIfActive("speed"));
-
-// Sidebar wind input default értékek + max=+7 nap
-function initWindPlanInputsIfNeeded() {
-  if (elements.windDeparturePlan && !elements.windDeparturePlan.value) {
-    elements.windDeparturePlan.value = toLocalInputValue(roundUpToHour(new Date()));
-  }
-  if (elements.windAvgSpeedPlan && !elements.windAvgSpeedPlan.value) {
-    elements.windAvgSpeedPlan.value = defaultAvgSpeed(store?.getState?.()?.mode ?? "asphalt");
-  }
-  // max attribute: 7 nap előre (Open-Meteo limit)
-  if (elements.windDeparturePlan) {
-    const max = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-    elements.windDeparturePlan.max = toLocalInputValue(max);
-    elements.windDeparturePlan.min = toLocalInputValue(new Date(Date.now() - 60 * 60 * 1000));
-  }
-}
-
-// Térkép-színezés toggle
-elements.windMapTogglePlan?.addEventListener("change", () => {
-  if (elements.windMapTogglePlan.checked) {
-    // Kölcsönösen kizáró: szintprofil térképszínezés kikapcsolása
-    if (elements.gradeMapTogglePlan?.checked) {
-      elements.gradeMapTogglePlan.checked = false;
-      applyRouteLayer(null);
-    }
-    if (elements.gradeMapToggle?.checked) {
-      elements.gradeMapToggle.checked = false;
-      applyRouteLayer(null);
-    }
-    if (_windResult) {
-      mapAdapter.renderWindRoute?.(activeGeometry, _windResult.segments);
-    } else {
-      // Még nincs elemzés – futtassuk le (csak tervezési kontextusban)
-      const st = store?.getState?.();
-      if (!st?.importedRoute && (st?.waypoints?.length ?? 0) >= 2) {
-        runWindAnalysis();
-      }
-    }
-  } else {
-    mapAdapter.clearWindRoute?.();
-  }
+// ── Szél (Wind) UI ──────────────────────────────────────────────────────────
+initWind({
+  mapAdapter,
+  store,
+  onRenderSidebar: () => renderSidebar(store.getState()),
+  getActiveGeometry: () => activeGeometry,
+  elements,
+  visibleSections,
+  applyRouteLayer,
+  syncElevationBtnState,
 });
 
-// Wind gomb engedélyezése / tiltása az aktív geometria alapján
-function syncWindBtnEnabled() {
-  if (!elements.windBtn) return;
-  elements.windBtn.disabled = !activeGeometry || activeGeometry.length < 2;
-}
-// Inicializációkor egyszer + 500ms múlva (hátha még nincs activeGeometry)
-syncWindBtnEnabled();
-setTimeout(syncWindBtnEnabled, 500);
-
-// Ha az aktív geometria törlődik, töröljük az eredményt is
-window.addEventListener("route4me:geometry-cleared", clearWindResult);
 
 const _initSettings = getSettings();
 // sidebar toggles
@@ -3084,10 +2795,7 @@ function getCyclistProfile() {
     };
     localStorage.setItem("bringaterv.cyclistProfile", JSON.stringify(payload));
     window.dispatchEvent(new CustomEvent("bringaterv:settingChanged", { detail: { kind: "cyclistProfile" } }));
-    // Wind újraszámolás (a szélhatás idő-szorzó megváltozik)
-    if (_windResult && typeof renderSidebar === "function" && typeof store !== "undefined") {
-      renderSidebar(store.getState());
-    }
+    if (getWindResult()) renderSidebar(store.getState());
   }
 
   applyToUI();
@@ -4465,7 +4173,7 @@ async function processImportedFile(file) {
   importedPowerGeometry   = hasPower ? imported.geometry : null;
 
   // Fájl betöltés → szélelemzés állapot törlése (planning-context-only feature)
-  if (typeof clearWindResult === "function") clearWindResult();
+  clearWindResult();
 
   updateElevationButton(imported.geometry);
   applyRouteLayer(null);
@@ -5279,10 +4987,10 @@ function renderSidebar(state) {
       );
       // Szélhatás: ha be van kapcsolva és van eredmény, alkalmazzuk a szorzót
       const windToggle = document.querySelector('#planWindTimeToggle');
-      if (windToggle?.checked && _windResult) {
+      if (windToggle?.checked && getWindResult()) {
         const planned = parseFloat(elements.windAvgSpeedPlan?.value) || defaultAvgSpeed(state.mode);
         const profile = { ...getCyclistProfile(), routeMode: state.mode ?? "asphalt" };
-        const mul = windTimeMultiplier(_windResult.segments, planned, profile);
+        const mul = windTimeMultiplier(getWindResult().segments, planned, profile);
         mins = Math.round(mins * mul);
       }
       const h = Math.floor(mins / 60);
