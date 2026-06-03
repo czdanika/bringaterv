@@ -984,7 +984,9 @@
 
           <!-- Bevezető magyarázat -->
           <div class="training-intro">
-            <p>Az edzésterhelés-modell (Banister-féle impulzusmodell) három mutatóval írja le az edzettségi állapotot. Az értékek az edzések időtartamából és szintemelkedéséből számítódnak – pontosabb eredmény pulzusadattal érhető el.</p>
+            <p>Az edzésterhelés-modell (Banister-féle impulzusmodell) három mutatóval írja le az edzettségi állapotot.</p>
+            <p><strong>Napi terhelés = edzés percei.</strong> Tervezett útvonalnál ez Naismith-képlettel becsült idő (tartalmazza az emelkedés hatását), FIT/Strava importnál a tényleges mozgási idő. Így az emelkedés már benne van az időben – nem számítjuk kétszer.</p>
+            <p style="color:var(--text-muted);font-size:12px">Megjegyzés: pulzusadattal (TRIMP) pontosabb lenne, de az nem minden edzésnél áll rendelkezésre.</p>
           </div>
 
           <!-- Időszak választó -->
@@ -1086,7 +1088,7 @@
             </div>
             <div class="stats-chart-block" style="background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:18px 20px">
               <div class="stats-chart-title">Napi terhelés</div>
-              <div class="training-chart-hint">Minden nap összesített edzésterhelése (percek + szintemelkedés/20). A csúcsos napok intenzív blokkokat jeleznek.</div>
+              <div class="training-chart-hint">Edzésnapok percben mért terhelése. A szintemelkedés hatása az időben van benne (Naismith / moving time) – nincs külön hozzáadva.</div>
               <canvas class="training-daily-chart" style="width:100%;display:block;margin-top:10px"></canvas>
             </div>
           </div>

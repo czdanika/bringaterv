@@ -680,12 +680,14 @@ function calcTrainingLoad(routes) {
   const a7  = 1 - Math.exp(-1 / 7);   // ATL alpha
   const a42 = 1 - Math.exp(-1 / 42);  // CTL alpha
 
-  // Napi terhelés: percek összege (+ szintemelkedés bónusz)
+  // Napi terhelés: edzés percek összege
+  // A szintemelkedést NEM adjuk hozzá külön – a duration már tartalmazza:
+  // tervezett útvonalnál Naismith-becsléssel, FIT/Strava importnál a tényleges moving_time-mal.
   const dayLoad = {};
   routes.forEach(r => {
     if (!r.date) return;
     const day = r.date.slice(0, 10);
-    const load = (r.duration || 0) + (r.elevation || 0) / 20;
+    const load = r.duration || 0;
     dayLoad[day] = (dayLoad[day] || 0) + load;
   });
 
