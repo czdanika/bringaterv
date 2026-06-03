@@ -180,17 +180,23 @@ GET/PUT/DELETE /api/strava/app-config   Per-user Strava app credentials
 ```
 
 ## Deployment – Pi (teszt)
+- **IP:** 192.168.0.136 | **SSH user:** admin | **SSH password:** admin
+- **App URL:** http://192.168.0.136:8088
+- **Projekt mappa:** /home/admin/bringaterv
+
 ```bash
-# Fájlok másolása
+# Fájlok másolása (--relative megőrzi a könyvtárstruktúrát!)
 sshpass -p 'admin' rsync -avz --relative <fájlok> admin@192.168.0.136:/home/admin/bringaterv/
 
-# Ha backend (app.py) változott:
-docker-compose down && docker-compose up -d --build
+# Ha backend (routes-api/app.py) változott – force rebuild kell:
+sshpass -p 'admin' ssh admin@192.168.0.136 \
+  "cd /home/admin/bringaterv && docker-compose build --no-cache routes-api && docker-compose up -d"
 
 # Ha csak frontend változott:
-docker-compose up -d --build bringaterv
+sshpass -p 'admin' ssh admin@192.168.0.136 \
+  "cd /home/admin/bringaterv && docker-compose up -d --build bringaterv"
 ```
-**Fontos:** a frontend az image-be van bake-elve (Dockerfile COPY), ezért `restart` nem elég – mindig `up -d --build` kell frontend változásnál.
+**Fontos:** a frontend az image-be van bake-elve (Dockerfile COPY), ezért `restart` nem elég – mindig `up -d --build` kell frontend változásnál. Backend változásnál `--no-cache` kell, különben Docker cache-ből buildel.
 
 ## Deployment – NAS (éles)
 Portainer → Stacks → Pull and redeploy.
