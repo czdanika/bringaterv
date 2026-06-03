@@ -1511,6 +1511,19 @@ body.is-drag-over::after {
   font-size: 12px; color: #9ca3af; margin-top: 2px;
 }
 .hm-popup-dist { font-weight: 500; }
+.hm-popup-load-btn {
+  margin-top: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fc4c02;
+  background: transparent;
+  border: 1px solid #fc4c02;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.hm-popup-load-btn:hover { background: #fc4c02; color: #fff; }
 
 /* Plan tab GPX import gomb */
 .plan-import-btn {
