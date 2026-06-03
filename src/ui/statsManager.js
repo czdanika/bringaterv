@@ -203,12 +203,25 @@ function _drawHeatmapTracks() {
     const fmtD = d => { try { return d ? new Date(d).toLocaleDateString("hu-HU") : ""; } catch { return d||""; } };
     const rows = nearby.map(t => `<div class="hm-popup-row">
       <div class="hm-popup-name">${t.name || "Névtelen"}</div>
-      <div class="hm-popup-meta"><span>${fmtD(t.date)}</span>${t.distance != null ? `<span class="hm-popup-dist">${t.distance} km</span>` : ""}</div>
+      <div class="hm-popup-meta">
+        <span>${fmtD(t.date)}</span>
+        ${t.distance != null ? `<span class="hm-popup-dist">${t.distance} km</span>` : ""}
+      </div>
+      ${_onLoadRoute ? `<button class="hm-popup-load-btn" data-id="${t.id}" data-name="${(t.name || 'Névtelen').replace(/"/g, '&quot;')}">Elemzés</button>` : ""}
     </div>`).join("");
-    L.popup({ maxWidth: 280, className: "hm-leaflet-popup" })
+    const popup = L.popup({ maxWidth: 300, className: "hm-leaflet-popup" })
       .setLatLng(e.latlng)
-      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli edzés</div>${rows}</div>`)
-      .openOn(_hmMap);
+      .setContent(`<div class="hm-popup"><div class="hm-popup-header">${nearby.length} közeli edzés</div>${rows}</div>`);
+    // Gombok bekötése a popup DOM megnyitása után
+    _hmMap.once("popupopen", () => {
+      popup.getElement()?.querySelectorAll(".hm-popup-load-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          _hmMap.closePopup();
+          await _onLoadRoute(btn.dataset.id, false, btn.dataset.name, "file");
+        });
+      });
+    });
+    popup.openOn(_hmMap);
   });
 
   const countEl = document.getElementById("heatmapCount");
