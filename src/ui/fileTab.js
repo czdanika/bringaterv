@@ -140,7 +140,7 @@ export function initFileTab({
       if (typeof _loadRouteLibrary === "function") _loadRouteLibrary();
     } catch (err) {
       console.error("Edzés mentési hiba:", err);
-      _showToast("Nem sikerült menteni. Az API elérhető?");
+      _showToast(err.message || "Nem sikerült menteni. Az API elérhető?");
       if (btn) {
         btn.disabled = false;
         const lbl = btn.querySelector("span");

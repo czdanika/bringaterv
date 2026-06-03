@@ -2508,7 +2508,7 @@ document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async 
     showToast(`„${name}" elmentve a könyvtárba`);
   } catch (err) {
     console.error("Könyvtár mentési hiba:", err);
-    showToast("Nem sikerült menteni a könyvtárba. Az API elérhető?");
+    showToast(err.message || "Nem sikerült menteni a könyvtárba.");
   }
 });
 
