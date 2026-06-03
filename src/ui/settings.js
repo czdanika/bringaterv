@@ -72,8 +72,10 @@ export function calcHrZoneStats(geometry) {
   for (let i = 1; i < geometry.length; i++) {
     const prev = geometry[i - 1];
     const curr = geometry[i];
-    if (prev.time == null || curr.time == null) continue;
-    const dt = Math.min(curr.time - prev.time, 60000);
+    // Ha van timestamp → azt használjuk; ha nincs → 1 mp proxy (pontszám-alapú becslés)
+    const dt = (prev.time != null && curr.time != null)
+      ? Math.min(curr.time - prev.time, 60000)
+      : 1000;
     if (dt <= 0) continue;
 
     // Frissítjük a carry-forward értéket ha van adat
