@@ -23,8 +23,21 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 ├── docker-compose-nas.yml  # NAS / éles (ghcr.io image-ek)
 ├── nginx.conf              # Frontend szerver + /api/ proxy → routes-api:5001
 ├── routes-api/
-│   ├── app.py              # Teljes Flask backend (egyetlen fájl, ~2100 sor)
-│   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001
+│   ├── app.py              # Flask app + blueprint regisztráció + health + hibakezelés (~100 sor)
+│   ├── config.py           # Env változók, logging
+│   ├── utils.py            # Közös helperek (_safe_id, index load/save, dátum)
+│   ├── security.py         # bcrypt jelszó hash + JWT token
+│   ├── storage.py          # Per-user fájltárolás (mappák, settings.json, storage stats)
+│   ├── db.py               # SQLite séma, migrációk (v1–v6), _db_create_user
+│   ├── auth.py             # require_auth / require_admin dekorátorok
+│   ├── api_auth.py         # /api/auth/* + /api/user/settings
+│   ├── api_admin.py        # /api/admin/users*, /api/admin/stats
+│   ├── api_routes.py       # /api/routes* (CRUD, geometry-bulk, FIT)
+│   ├── api_samples.py      # /api/samples* + /api/admin/samples*
+│   ├── api_backup.py       # backup/restore ZIP (user + admin)
+│   ├── strava_service.py   # Strava helperek (token refresh, app config, deny-list, GPX builder)
+│   ├── api_strava.py       # /api/strava/* + /api/admin/strava/config
+│   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
     ├── styles.css          # Teljes CSS
@@ -203,7 +216,7 @@ Az index.json bejegyzésekben:
 
 A statisztikák csak `type === "workout"` és `include_in_stats !== false` bejegyzésekből számolnak.
 
-## Backend API végpontok (app.py)
+## Backend API végpontok (routes-api/api_*.py modulok)
 ```
 POST   /api/auth/login                  Bejelentkezés → JWT
 GET    /api/routes                      Útvonalak listája (routes + workouts)
@@ -244,7 +257,8 @@ sshpass -p 'admin' rsync -avz --relative <fájlok> admin@192.168.0.136:/home/adm
 # Teljes ui/ kiküldése (ajánlott ha sok fájl változott):
 # sshpass -p 'admin' rsync -avz --relative src/ui/ src/main.js src/styles.css index.html admin@192.168.0.136:/home/admin/bringaterv/
 
-# Ha backend (routes-api/app.py) változott – force rebuild kell:
+# Ha backend (routes-api/*.py) változott – force rebuild kell:
+# ⚠️ Backend modulok: app.py mellett config/db/auth/api_*/strava_service stb. – mindet rsync-elni kell!
 sshpass -p 'admin' ssh admin@192.168.0.136 \
   "cd /home/admin/bringaterv && docker-compose build --no-cache routes-api && docker-compose up -d"
 
@@ -259,7 +273,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.2.0
+v1.2.1
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

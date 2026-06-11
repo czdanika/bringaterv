@@ -13,8 +13,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Alkalmazás kód
-COPY app.py .
+# Alkalmazás kód (app.py + modulok: config, db, auth, api_*, strava_service, ...)
+COPY *.py ./
 
 # Minta GPX + JSON fájlok beégetése az image-be
 # (ha a samples/ mappa üres, a COPY nem hibázik, csak kihagyja)

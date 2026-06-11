@@ -5,3 +5,5 @@
 ROADMAP.md
 docs/
 
+__pycache__/
+*.pyc
