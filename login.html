@@ -144,6 +144,34 @@
     .login-btn:hover { background: #e04400; }
     .login-btn:active { transform: scale(0.98); }
 
+    .consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      text-align: left;
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.55);
+      margin: 4px 2px 12px;
+      line-height: 1.45;
+    }
+    .consent input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      accent-color: #fc4c02;
+      cursor: pointer;
+    }
+    .consent label { cursor: pointer; }
+    .consent a { color: #fc4c02; font-weight: 600; text-decoration: none; }
+    .consent a:hover { text-decoration: underline; }
+
+    .login-btn:disabled {
+      background: rgba(0, 0, 0, 0.18);
+      cursor: not-allowed;
+    }
+    .login-btn:disabled:hover { background: rgba(0, 0, 0, 0.18); }
+
     .card-footer {
       margin-top: 14px;
       font-size: 11px;
@@ -183,9 +211,15 @@
           placeholder="Jelszó" autocomplete="current-password">
       </div>
 
+      <div class="consent">
+        <input type="checkbox" id="privacyConsent">
+        <label for="privacyConsent">Elolvastam és tudomásul vettem az
+          <a href="./privacy.html" target="_blank" rel="noopener">adatkezelési tájékoztatót</a>.</label>
+      </div>
+
       <p class="error-msg" id="errorMsg" aria-live="polite"></p>
 
-      <button class="login-btn" type="submit">Belépés</button>
+      <button class="login-btn" type="submit" disabled>Belépés</button>
     </form>
 
     <p class="card-footer">Bringaterv &nbsp;·&nbsp; <span id="loginVersion"></span> &nbsp;·&nbsp; © Czibolya Dániel 2026</p>
@@ -201,12 +235,36 @@
       window.location.replace("./index.html");
     }
 
-    const form  = document.getElementById("loginForm");
-    const errEl = document.getElementById("errorMsg");
-    const btn   = form.querySelector(".login-btn");
+    const form    = document.getElementById("loginForm");
+    const errEl   = document.getElementById("errorMsg");
+    const btn     = form.querySelector(".login-btn");
+    const consent = document.getElementById("privacyConsent");
+
+    // Az adatkezelési tájékoztató verziója – ha változik, újra kell pipálni
+    const PRIVACY_VERSION = "2026-06";
+    const ACCEPT_KEY = "bringaterv.privacyAccepted";
+
+    // Korábban elfogadta-e (azonos verziót)? Akkor előre bepipáljuk.
+    try {
+      if (localStorage.getItem(ACCEPT_KEY) === PRIVACY_VERSION) consent.checked = true;
+    } catch {}
+
+    function syncBtn() { btn.disabled = !consent.checked; }
+    consent.addEventListener("change", () => {
+      syncBtn();
+      try {
+        if (consent.checked) localStorage.setItem(ACCEPT_KEY, PRIVACY_VERSION);
+        else localStorage.removeItem(ACCEPT_KEY);
+      } catch {}
+    });
+    syncBtn();
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!consent.checked) {
+        errEl.textContent = "A belépéshez fogadd el az adatkezelési tájékoztatót.";
+        return;
+      }
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
       errEl.textContent = "";
@@ -221,7 +279,7 @@
         document.getElementById("password").value = "";
         document.getElementById("password").focus();
       } finally {
-        btn.disabled = false;
+        btn.disabled = !consent.checked;
         btn.textContent = "Belépés";
       }
     });
