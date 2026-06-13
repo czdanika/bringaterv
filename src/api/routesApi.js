@@ -421,4 +421,47 @@ export const routesApi = {
       },
     },
   },
+
+  // Garmin Connect (user-szintű)
+  garmin: {
+    status() { return fetchJson(`${BASE}/garmin/status`); },
+    connect(email, password) {
+      return fetchJson(`${BASE}/garmin/connect`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+    },
+    mfa(code) {
+      return fetchJson(`${BASE}/garmin/mfa`, {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      });
+    },
+    async disconnect() {
+      const res = await fetch(`${BASE}/garmin/disconnect`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      return true;
+    },
+    weight(days = 365) { return fetchJson(`${BASE}/garmin/weight?days=${days}`); },
+    activities({ limit = 30, after = null } = {}) {
+      const params = new URLSearchParams({ limit });
+      if (after) params.set("after", after);
+      return fetchJson(`${BASE}/garmin/activities?${params}`);
+    },
+    importActivity(id) {
+      return fetchJson(`${BASE}/garmin/import/${id}`, { method: "POST" });
+    },
+    uploadCourse(routeId) {
+      return fetchJson(`${BASE}/garmin/course/${encodeURIComponent(routeId)}`, { method: "POST" });
+    },
+    async removeFromDenyList(id) {
+      const res = await fetch(`${BASE}/garmin/deny-list/${id}`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+  },
 };

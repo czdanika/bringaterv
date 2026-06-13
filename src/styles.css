@@ -5275,9 +5275,40 @@ body.is-drag-over::after {
   color: var(--muted);
 }
 .lib-source-badge--strava { background: #FC4C02; color: #fff; }
+.lib-source-badge--garmin { background: #007CC3; color: #fff; }
 .lib-source-badge--fit    { background: #2563eb; color: #fff; }
 .lib-source-badge--manual { background: var(--panel-strong); color: var(--muted); }
 .lib-source-badge--sample { background: #7c3aed; color: #fff; }
+
+/* Forrás-badge a lista/kártya nézetben (a JS lib-badge-* osztályokat ad) */
+.lib-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--panel-strong);
+  color: var(--muted);
+}
+.lib-badge--strava { background: #FC4C02; color: #fff; }
+.lib-badge--garmin { background: #007CC3; color: #fff; }
+.lib-badge--fit    { background: #2563eb; color: #fff; }
+.lib-badge--saját  { background: var(--panel-strong); color: var(--muted); }
+.lib-badge--sablon { background: #7c3aed; color: #fff; }
+
+/* Garmin course feltöltés – "feltöltve" gombállapot + link */
+.library-card-btn.garmin-uploaded {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+.library-card-btn.garmin-course-link {
+  color: #007CC3;
+  border-color: color-mix(in srgb, #007CC3 40%, var(--border));
+}
 
 /* Expand-row content */
 .library-list-expand-row td {

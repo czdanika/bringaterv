@@ -19,6 +19,8 @@ Modulok:
   api_backup.py       /api/user/backup|restore + admin párjaik
   strava_service.py   Strava helperek (token, app config, deny-list, GPX builder)
   api_strava.py       /api/strava/* + /api/admin/strava/config
+  garmin_service.py   Garmin helperek (login, MFA state, tokenek, testsúly)
+  api_garmin.py       /api/garmin/*
 """
 
 import os
@@ -29,6 +31,7 @@ from flask_cors import CORS
 import api_admin
 import api_auth
 import api_backup
+import api_garmin
 import api_routes
 import api_samples
 import api_strava
@@ -48,6 +51,7 @@ app.register_blueprint(api_routes.bp)
 app.register_blueprint(api_samples.bp)
 app.register_blueprint(api_backup.bp)
 app.register_blueprint(api_strava.bp)
+app.register_blueprint(api_garmin.bp)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -76,8 +80,11 @@ def health():
 @app.errorhandler(403)
 @app.errorhandler(404)
 @app.errorhandler(409)
+@app.errorhandler(410)
 @app.errorhandler(429)
 @app.errorhandler(500)
+@app.errorhandler(502)
+@app.errorhandler(503)
 def json_error(e):
     return jsonify({"error": e.description}), e.code
 

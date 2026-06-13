@@ -713,6 +713,7 @@
                   <button class="lib-type-chip is-active" data-lib-source="all" type="button">Mind</button>
                   <button class="lib-type-chip" data-lib-source="manual" type="button">Saját</button>
                   <button class="lib-type-chip" data-lib-source="strava" type="button" title="Strava-ról szinkronizált">Strava</button>
+                  <button class="lib-type-chip" data-lib-source="garmin" type="button" title="Garmin Connectről szinkronizált">Garmin</button>
                   <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
                 </div>
               </div>
@@ -857,6 +858,11 @@
                   <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#FC4C02;color:#fff;border-radius:2px;font-size:9px;font-weight:800">S</span>
                   <span>Strava-ból</span>
                   <span class="lib-import-strava-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
+                </button>
+                <button class="library-import-item" id="libraryImportGarminItem" data-import-src="garmin" type="button" disabled title="Garmin kapcsolat szükséges – Beállítások panelben kapcsolódhatsz Garminhoz">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#007CC3;color:#fff;border-radius:2px;font-size:9px;font-weight:800">G</span>
+                  <span>Garminból</span>
+                  <span class="lib-import-garmin-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
                 </button>
               </div>
             </div>
@@ -1440,6 +1446,8 @@
     ></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script type="module" src="./src/main.js"></script>
+    <!-- Garmin Connect – önálló plug-in modul, nincs a main.js-be drótozva -->
+    <script type="module" src="./src/ui/garmin.js"></script>
     <!-- Tooltip singleton -->
     <div id="hintTooltip" class="hint-tooltip" hidden role="tooltip"></div>
 
@@ -1684,6 +1692,69 @@
         </label>
         <span id="stravaImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
         <button id="stravaImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import kiválasztottakat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Garmin import modal (Strava modál stílusát újrahasználja) -->
+  <div id="garminImportOverlay" class="shortcut-overlay" hidden>
+    <div class="strava-import-panel">
+      <div class="strava-import-header">
+        <h3>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#007CC3;color:#fff;border-radius:3px;font-size:12px;font-weight:800">G</span>
+          Garmin import
+        </h3>
+        <button id="garminImportClose" class="shortcut-close" type="button" aria-label="Bezárás">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="strava-import-body">
+        <div class="strava-import-controls">
+          <label class="strava-import-control">
+            <span>Időszak</span>
+            <select id="garminImportRange">
+              <option value="30">Utolsó 30 nap</option>
+              <option value="90">Utolsó 90 nap</option>
+              <option value="365">Utolsó 1 év</option>
+              <option value="0">Legutóbbiak</option>
+            </select>
+          </label>
+          <label class="strava-import-control">
+            <span>Max aktivitás</span>
+            <select id="garminImportLimit">
+              <option value="30" selected>30</option>
+              <option value="60">60</option>
+              <option value="100">100</option>
+              <option value="200">200 (lassú)</option>
+            </select>
+          </label>
+          <button id="garminImportListBtn" class="strava-list-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Listázás
+          </button>
+        </div>
+        <div id="garminImportStatus" class="strava-import-status"></div>
+        <div id="garminImportProgress" class="strava-import-progress" hidden>
+          <div class="strava-progress-header">
+            <span id="garminProgressLabel">Importálás folyamatban…</span>
+            <span id="garminProgressCount" class="strava-progress-count">0 / 0</span>
+          </div>
+          <div class="strava-progress-track">
+            <div id="garminProgressBar" class="strava-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="garminProgressCurrent" class="strava-progress-current"></div>
+        </div>
+        <div id="garminImportList" class="strava-import-list"></div>
+      </div>
+      <div class="strava-import-footer" id="garminImportFooter" hidden>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="garminImportSelectAll"> Mindent ami új
+        </label>
+        <span id="garminImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
+        <button id="garminImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Import kiválasztottakat
         </button>
@@ -2418,6 +2489,22 @@
       </div>
     </div>
   </div>
+
+  <section class="settings-section" data-settings-section="garmin">
+    <h4 class="settings-section-title">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#007CC3;color:#fff;border-radius:3px;font-size:11px;font-weight:800">G</span>
+      Garmin Connect
+      <button class="hint-btn" type="button" data-hint="Garmin Connect fiók csatlakoztatása email + jelszóval. A jelszót nem tároljuk – csak a belépési tokent (kb. 1 évig érvényes). Ha a fiókodon kétlépcsős azonosítás (MFA) van, a kapott kódot is be kell írni. A mérleg-adatok (testsúly) szinkronizálhatók a kerékpáros profilba." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div id="garminConnectionState" class="strava-conn-state">
+        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+    </div>
+  </section>
 
   <section class="settings-section" data-settings-section="backup">
     <h4 class="settings-section-title">

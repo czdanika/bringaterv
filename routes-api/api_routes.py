@@ -216,12 +216,17 @@ def delete_route(route_id: str):
     fit_path      = os.path.join(user_dir, f"{route_id}.fit")
     if not os.path.isfile(gpx_path):
         abort(404, description=f"Útvonal nem található: {route_id}")
-    # Strava-os importnál → deny-listbe (hogy ne kerüljön re-importra a következő sync-en)
+    # Strava/Garmin-os importnál → deny-listbe (hogy ne kerüljön re-importra a következő sync-en)
     existing = _load_index(idx)
     deleted_entry = next((r for r in existing if r.get("id") == route_id), None)
     if deleted_entry and deleted_entry.get("strava_id"):
         try: _add_strava_deny(g.user["id"], deleted_entry["strava_id"])
         except Exception as exc: log.warning("Strava deny-list update hiba: %s", exc)
+    if deleted_entry and deleted_entry.get("garmin_id"):
+        try:
+            from garmin_service import _add_garmin_deny
+            _add_garmin_deny(g.user["id"], deleted_entry["garmin_id"])
+        except Exception as exc: log.warning("Garmin deny-list update hiba: %s", exc)
     try:
         os.remove(gpx_path)
         if os.path.isfile(fit_path):
