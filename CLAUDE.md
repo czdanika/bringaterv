@@ -278,7 +278,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.3.0
+v1.3.1
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bringaterv – Adatkezelési tájékoztató</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #f4f5f7;
+      color: #1f2430;
+      line-height: 1.6;
+      padding: 32px 16px 64px;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .top {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+    }
+    .logo-img { width: 34px; height: 34px; border-radius: 8px; }
+    .logo-text {
+      font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 900;
+      letter-spacing: -0.5px; color: #1a1a1a;
+    }
+    .logo-text .accent { color: #fc4c02; }
+    .card {
+      background: #fff; border: 1px solid #e4e7ec; border-radius: 16px;
+      padding: 28px 32px; box-shadow: 0 4px 24px rgba(0,0,0,.05);
+    }
+    h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.3px; }
+    .updated { font-size: 12.5px; color: #8a93a3; margin-bottom: 20px; }
+    h2 {
+      font-size: 16px; font-weight: 700; margin: 22px 0 8px;
+      padding-top: 16px; border-top: 1px solid #eef0f3; color: #2a3140;
+    }
+    h2:first-of-type { border-top: none; padding-top: 0; }
+    p { margin-bottom: 10px; font-size: 14.5px; }
+    ul { margin: 4px 0 12px 20px; font-size: 14.5px; }
+    li { margin-bottom: 5px; }
+    .lead {
+      background: #fff7f3; border: 1px solid #ffd9c5; border-radius: 10px;
+      padding: 12px 16px; font-size: 14px; margin-bottom: 6px;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 13.5px; }
+    th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+    th { background: #f7f8fa; font-weight: 600; color: #586072; }
+    code { background: #f0f1f4; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+    .note { font-size: 12.5px; color: #8a93a3; margin-top: 18px; font-style: italic; }
+    .back {
+      display: inline-block; margin-top: 22px; padding: 10px 18px;
+      background: #fc4c02; color: #fff; text-decoration: none; border-radius: 9px;
+      font-weight: 600; font-size: 14px;
+    }
+    .back:hover { background: #e04400; }
+    a { color: #fc4c02; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <img src="./src/assets/logo.png" alt="Bringaterv logó" class="logo-img">
+      <span class="logo-text">Bringa<span class="accent">terv</span></span>
+    </div>
+
+    <div class="card">
+      <h1>Adatkezelési tájékoztató</h1>
+      <p class="updated">Hatályos: 2026. június</p>
+
+      <p class="lead">
+        A Bringaterv <strong>önhosztolt</strong> alkalmazás: az adataidat a szerver
+        üzemeltetője (a telepítő) tárolja a saját szerverén – nem egy külső
+        felhőszolgáltatónál. Harmadik félnek marketing célból adatot nem adunk át.
+      </p>
+
+      <h2>Milyen adatokat kezelünk</h2>
+      <table>
+        <tr><th>Kategória</th><th>Konkrét adatok</th></tr>
+        <tr><td>Fiók</td><td>email-cím, név, jelszó (kizárólag titkosított <em>hash</em> formában), szerepkör</td></tr>
+        <tr><td>Belépési napló</td><td>belépések időpontja és IP-cím</td></tr>
+        <tr><td>Beállítások / biometria</td><td>születési év, testsúly, pulzuszónák (nyugalmi/maximális pulzus); Garmin-mérleg esetén testsúly és testzsír%</td></tr>
+        <tr><td>Útvonalak és edzések</td><td>az általad mentett GPS-nyomvonalak (ezekből helyszínek és szokások kiderülhetnek)</td></tr>
+        <tr><td>Integrációk</td><td>a Strava / Garmin kapcsolat hozzáférési tokenjei – a fiókjaid jelszavát ezeknél <strong>nem</strong> tároljuk</td></tr>
+      </table>
+
+      <h2>Hol és hogyan tároljuk</h2>
+      <ul>
+        <li>A szerveren <strong>SQLite</strong> adatbázisban és felhasználónkénti fájlokban (beállítások, GPX-ek).</li>
+        <li>A jelszó <strong>bcrypt</strong> algoritmussal titkosítva, visszafejthetetlen formában.</li>
+        <li>A belépés <strong>JWT</strong>-tokennel működik; az integrációs tokenek korlátozott hozzáférésű fájlban (<code>0600</code>).</li>
+        <li>Ajánlott az alkalmazást HTTPS mögött üzemeltetni.</li>
+      </ul>
+
+      <h2>Külső szolgáltatások, amelyek adatot kapnak</h2>
+      <p>A működéshez az alkalmazás az alábbi szolgáltatásokhoz fordul; ezek a kért funkcióhoz szükséges adatokat (jellemzően koordinátákat és az IP-címedet) megkapják:</p>
+      <ul>
+        <li><strong>Térkép-csempék</strong> (OpenStreetMap, Carto, Esri/ArcGIS) – a megjelenített terület koordinátái</li>
+        <li><strong>Open-Meteo</strong> – szél- és időjárás-előrejelzés az útvonal pontjaira</li>
+        <li><strong>BRouter</strong> – útvonaltervezés a megadott pontok között</li>
+        <li><strong>Nominatim</strong> – helykeresés (a beírt keresőszöveg)</li>
+        <li><strong>Overpass</strong> – útburkolat-elemzés koordináták alapján</li>
+        <li><strong>Strava / Garmin Connect</strong> – csak ha kifejezetten csatlakoztatod a fiókodat</li>
+        <li><strong>GitHub</strong> – verzióellenőrzés</li>
+      </ul>
+
+      <h2>Megőrzés és a te jogaid</h2>
+      <ul>
+        <li>Az adataid addig tárolódnak, amíg a fiókod létezik.</li>
+        <li><strong>Adathordozhatóság:</strong> a teljes adatodat bármikor letöltheted (Beállítások → Backup).</li>
+        <li><strong>Hozzájárulás visszavonása:</strong> a Strava/Garmin kapcsolatot bármikor lecsatolhatod a Beállításokban.</li>
+        <li><strong>Törlés:</strong> a fiókod és adataid törlését az üzemeltetőtől kérheted.</li>
+      </ul>
+
+      <p class="note">
+        Ez a tájékoztató nem minősül jogi tanácsadásnak. Nyilvános, sok felhasználós
+        üzemeltetés esetén javasolt szakemberrel véglegesíttetni.
+      </p>
+
+      <a class="back" href="./login.html">← Vissza a bejelentkezéshez</a>
+    </div>
+  </div>
+</body>
+</html>
