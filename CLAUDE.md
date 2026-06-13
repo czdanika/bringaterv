@@ -37,6 +37,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_backup.py       # backup/restore ZIP (user + admin)
 │   ├── strava_service.py   # Strava helperek (token refresh, app config, deny-list, GPX builder)
 │   ├── api_strava.py       # /api/strava/* + /api/admin/strava/config
+│   ├── garmin_service.py   # Garmin helperek (login+MFA, tokenek, testsúly, import, course feltöltés)
+│   ├── api_garmin.py       # /api/garmin/* (status, connect, mfa, weight, activities, import, course)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
@@ -81,6 +83,9 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         │                   #   drag&drop, share card modal, mentés könyvtárba (initFileTab)
         ├── strava.js       # Strava OAuth, app credentials beállítás, aktivitás lista,
         │                   #   import modal progress bar (initStrava, getStravaStatus)
+        ├── garmin.js       # ÖNÁLLÓ plug-in modul (nincs a main.js-be drótozva, külön
+        │                   #   <script> includolva). Garmin kapcsolat+MFA, testsúly-szinkron,
+        │                   #   aktivitás-import modal, course feltöltés. Self-bootstrap.
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,
@@ -273,7 +278,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.2.1
+v1.3.0
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

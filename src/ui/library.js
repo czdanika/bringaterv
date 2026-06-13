@@ -106,7 +106,7 @@ export function escapeHtml(s) {
 }
 
 function sourceLabel(src) {
-  return { strava: "STRAVA", fit: "FIT", manual: "SAJÁT" }[src] ?? src?.toUpperCase() ?? "—";
+  return { strava: "STRAVA", garmin: "GARMIN", fit: "FIT", manual: "SAJÁT" }[src] ?? src?.toUpperCase() ?? "—";
 }
 
 export function libraryRouteSportKey(route) {
@@ -128,6 +128,7 @@ function libraryRouteSport(route) {
 export function libraryRouteSource(route, category) {
   if (category === "sample") return "sample";
   if (route.strava_id) return "strava";
+  if (route.garmin_id) return "garmin";
   if (route.has_fit)   return "fit";
   return "manual";
 }
@@ -415,6 +416,8 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${route.has_fit ? '<button class="library-card-btn" data-action="download-fit">FIT</button>' : ''}
           ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh">Frissít Stravából</button>' : ''}
           ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">↗ Stravan</a>` : ''}
+          ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#007CC3;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">G</span>${route.garmin_course_id ? '✓ Feltöltve – újraküldés' : 'Küldés Garminra'}</button>` : ''}
+          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">↗ Garmin course</a>` : ''}
           <button class="library-card-btn" data-action="share">Megosztó kép</button>
           ${!isSample ? `<button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>` : ''}
           ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
@@ -468,6 +471,39 @@ function buildLibraryExpandRow(route, category, isSample) {
             if (err.message?.includes("401")) { _toast("Strava kapcsolat lejárt – csatlakozz újra"); await _refreshStravaStatus?.(); }
             else _toast("Frissítés sikertelen: " + err.message);
           }
+        } else if (act === "garmin-course") {
+          const already = !!route.garmin_course_id;
+          if (already && !confirm("Ezt az útvonalat korábban már feltöltötted Garminra.\n\nFeltöltöd újra? Új course jön létre a Garminon. (Ha a régit közben törölted a Garmin oldalon, ez pótolja; ha nem, akkor egy másolat lesz belőle.)")) return;
+          btn.disabled = true;
+          const labelSpan = btn.childNodes[btn.childNodes.length - 1];
+          labelSpan.textContent = "Feltöltés Garminra…";
+          try {
+            const res = await _api.garmin.uploadCourse(route.id);
+            // Megjegyezzük memóriában is, hogy a re-render is mutassa
+            route.garmin_course_id = res.course_id;
+            for (const coll of [_data.routes, _data.workouts]) {
+              const i = coll.findIndex(r => r.id === route.id);
+              if (i >= 0) coll[i].garmin_course_id = res.course_id;
+            }
+            btn.classList.add("garmin-uploaded");
+            labelSpan.textContent = "✓ Feltöltve – újraküldés";
+            // Course-link beszúrása (ha még nincs)
+            if (res.course_id && !btn.parentElement.querySelector(".garmin-course-link")) {
+              const a = document.createElement("a");
+              a.className = "library-card-btn garmin-course-link";
+              a.href = `https://connect.garmin.com/modern/course/${res.course_id}`;
+              a.target = "_blank"; a.rel = "noopener";
+              a.title = "Course megnyitása a Garmin Connectben";
+              a.textContent = "↗ Garmin course";
+              btn.after(a);
+            }
+            _toast(`✓ Garminra feltöltve: „${res.course_name}" (${res.distance_km} km, +${res.elevation_gain_m} m) – nézd meg a Garmin Connect appban`);
+          } catch (err) {
+            labelSpan.textContent = already ? "✓ Feltöltve – újraküldés" : "Küldés Garminra";
+            if (err.message?.toLowerCase().includes("nincs garmin") || err.message?.includes("409"))
+              _toast("Előbb csatlakozz Garminhoz: Beállítások → Garmin Connect");
+            else _toast("Garmin feltöltés sikertelen: " + err.message);
+          } finally { btn.disabled = false; }
         } else if (act === "share") {
           btn.disabled = true; btn.textContent = "Betöltés…";
           try {
@@ -562,7 +598,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
   const sportIcon = SPORT_ICONS[sportKey] ?? "bike";
   const source = libraryRouteSource(route, category);
   const srcLbl = sourceLabel(source);
-  const srcCls = { strava: "lib-badge--strava", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
+  const srcCls = { strava: "lib-badge--strava", garmin: "lib-badge--garmin", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
   const dateStr = smartDateTimeFormat(route);
   const effortVal = route.suffer_score != null ? Math.round(route.suffer_score) : (route.calories != null ? Math.round(route.calories / 10) : null);
 
@@ -598,7 +634,7 @@ export function createLibraryCard(route, category, isSample) {
   const sportKey = libraryRouteSportKey(route);
   const source = libraryRouteSource(route, category);
   const srcLbl = sourceLabel(source);
-  const srcCls = { strava: "lib-badge--strava", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
+  const srcCls = { strava: "lib-badge--strava", garmin: "lib-badge--garmin", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
 
   card.innerHTML = `
     <div class="library-card-inner">
