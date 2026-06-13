@@ -87,15 +87,23 @@
       </table>
 
       <h2>Hol és hogyan tároljuk</h2>
-      <ul>
-        <li>A szerveren <strong>SQLite</strong> adatbázisban és felhasználónkénti fájlokban (beállítások, GPX-ek).</li>
-        <li>A jelszó <strong>bcrypt</strong> algoritmussal titkosítva, visszafejthetetlen formában.</li>
-        <li>A belépés <strong>JWT</strong>-tokennel működik; az integrációs tokenek korlátozott hozzáférésű fájlban (<code>0600</code>).</li>
-        <li>Ajánlott az alkalmazást HTTPS mögött üzemeltetni.</li>
-      </ul>
+      <p>
+        Az adataid a szerveren maradnak – ott, ahová a Bringaterv telepítve van.
+        Nem szinkronizáljuk felhőbe, és nem adjuk tovább külső szolgáltatónak.
+      </p>
+      <p>
+        A jelszavadat <strong>soha nem tároljuk olvasható formában</strong>: csak egy
+        visszafejthetetlen, titkosított lenyomat készül belőle, így azt még az
+        üzemeltető sem látja. A bejelentkezést egy ideiglenes belépési kulcs tartja
+        életben, a Strava- és Garmin-kapcsolat adatai pedig külön, védett fájlban
+        vannak. Éles használatra titkosított (HTTPS) kapcsolat ajánlott.
+      </p>
 
-      <h2>Külső szolgáltatások, amelyek adatot kapnak</h2>
-      <p>A működéshez az alkalmazás az alábbi szolgáltatásokhoz fordul; ezek a kért funkcióhoz szükséges adatokat (jellemzően koordinátákat és az IP-címedet) megkapják:</p>
+      <h2>Külső szolgáltatások</h2>
+      <p>
+        Ahhoz, hogy a térkép betöltődjön, az útvonal kiszámolódjon vagy az időjárás
+        megjelenjen, az alkalmazás néhány külső szolgáltatáshoz fordul. Ezek csak a
+        feladathoz szükséges adatot kapják (jellemzően koordinátákat és az IP-címedet):</p>
       <ul>
         <li><strong>Térkép-csempék</strong> (OpenStreetMap, Carto, Esri/ArcGIS) – a megjelenített terület koordinátái</li>
         <li><strong>Open-Meteo</strong> – szél- és időjárás-előrejelzés az útvonal pontjaira</li>
@@ -107,11 +115,11 @@
       </ul>
 
       <h2>Megőrzés és a te jogaid</h2>
+      <p>Az adataid addig maradnak nálunk, amíg a fiókod létezik – és bármikor te döntesz róluk:</p>
       <ul>
-        <li>Az adataid addig tárolódnak, amíg a fiókod létezik.</li>
-        <li><strong>Adathordozhatóság:</strong> a teljes adatodat bármikor letöltheted (Beállítások → Backup).</li>
-        <li><strong>Hozzájárulás visszavonása:</strong> a Strava/Garmin kapcsolatot bármikor lecsatolhatod a Beállításokban.</li>
-        <li><strong>Törlés:</strong> a fiókod és adataid törlését az üzemeltetőtől kérheted.</li>
+        <li><strong>Letöltöd:</strong> a teljes adatodat egyetlen kattintással mentheted (Beállítások → Backup).</li>
+        <li><strong>Lecsatolod:</strong> a Strava- és Garmin-kapcsolatot bármikor megszüntetheted a Beállításokban.</li>
+        <li><strong>Töröltetheted:</strong> a fiókod és adataid törlését az üzemeltetőtől kérheted.</li>
       </ul>
 
       <p class="note">
