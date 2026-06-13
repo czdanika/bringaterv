@@ -3,7 +3,7 @@
 ![Bringaterv](src/assets/banner.jpg)
 
 **Nyílt forráskódú GPX útvonaltervező és edzésnapló kerékpárosoknak és gyalogosoknak.**
-Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és könyvtár egy helyen.
+Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés, könyvtár, valamint **Strava** és **Garmin Connect** szinkron egy helyen.
 
 ![Elemzés – egymás alatti diagramok](https://github.com/czdanika/bringaterv/releases/download/v0.11/screen1_small.png)
 
@@ -57,6 +57,24 @@ Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés és
 - Minták – beépített minta útvonalak (Balatoni kör 204 km, Tisza-tó kör 90 km)
 - Kártyákon statisztikák: távolság, időtartam, emelkedő, FIT címke ha elérhető
 - GPX és (ha van) FIT letöltés könyvtárból
+- Forrás szerinti szűrés és jelölés a könyvtárban: **Saját**, **Strava**, **Garmin**, **FIT** – színes badge-ekkel
+- Edzésenként állítható, hogy beleszámítson-e a statisztikákba
+
+### Strava integráció
+- Per-user Strava kapcsolat OAuth-tal: saját Strava app credentials (Client ID + Secret), csak olvasási jogosultság (`activity:read_all`) – a Bringaterv semmit nem ír a Stravára
+- Aktivitások importálása a könyvtárba (a Strava streamekből GPX generálódik, HR / kadencia / teljesítmény adatokkal)
+- Kötegelt import progress-barral, időszak- és darabszám-szűréssel
+- Duplikátum-kezelés: „már importálva" / „korábban törölted" / „hasonló van" jelzés; törölt elem nem kerül újra-importra
+- Importált edzés metaadatainak frissítése Stravából (kalória, Relative Effort, teljesítmény, HR, kadencia, helyszín, stb.)
+- Beállítás: **Beállítások → Strava kapcsolat**
+
+### Garmin Connect integráció
+- Per-user kapcsolat **email + jelszóval**, kétlépcsős azonosítás (**MFA**) támogatással – a jelszót nem tároljuk, csak a belépési tokent (kb. 1 évig érvényes)
+- **Testsúly-szinkron** az okosmérlegről (súly + testzsír%) → egy gombbal a kerékpáros profilba, ami a szél- és kalóriaszámítás bemenete
+- **Edzés-import**: aktivitás-lista + GPX letöltés a könyvtárba (Garmin forrásszűrő és badge, cross-source duplikáció-jelzés a Strava/FIT elemekhez képest)
+- **Tervezett útvonal → Garmin course**: a könyvtárból „Küldés Garminra" gombbal az útvonal Garmin Connect course-ként feltölthető navigációhoz; tartós „feltöltve" jelzés és közvetlen link a course-ra
+- Önálló, moduláris felépítés (a feature külön be-/kikapcsolható, a `garminconnect` csomag nélkül a többi funkció zavartalanul fut)
+- Beállítás: **Beállítások → Garmin Connect**
 
 ### Multi-user és admin panel
 - JWT autentikáció, per-user adatok és beállítások
