@@ -1,9 +1,21 @@
 /**
  * Bringaterv – Workout Share Card Generator
  * ==========================================
- * Canvas-alapú megosztó kép létrehozása edzésekhez.
- * 1080×1080 (négyzet) vagy 1080×1920 (sztori) formátum.
+ * Canvas-alapú megosztó kép – „Tiszta / minimalista" dizájn.
+ * A teljes elrendezés 360px-es alapra van tervezve, és scale = width/360
+ * faktorral skálázódik bármilyen méretre.
+ *
+ *   square : 1080×1080 (1:1)
+ *   story  : 1080×1920 (9:16)   – a térkép-terület tölti ki a magasságot
+ *
+ * A header (96) és a stat-sáv (80) magassága fix (skálázva), a térkép a
+ * kettő közti teret tölti ki.
  */
+
+const BASE = 360;
+const HEADER_H = 96;   // base px
+const STATBAR_H = 80;  // base px
+const SLOGAN = "Tervezz · Tekerj · Fedezd fel!";
 
 // Logo képobjektum – egyszer töltjük be, cache-eljük
 let _logoCache = null;
@@ -12,11 +24,54 @@ function loadLogo() {
   _logoCache = new Promise((resolve) => {
     const img = new Image();
     img.onload  = () => resolve(img);
-    img.onerror = () => resolve(null);  // ha nem tölthető, fallback a "BT" szövegre
+    img.onerror = () => resolve(null);
     img.src = "/src/assets/logo.png";
   });
   return _logoCache;
 }
+
+function palette(theme) {
+  if (theme === "dark") {
+    return {
+      cardBg:    "#1a2228",
+      header:    "#e8461e",
+      mapTop:    "#232d34",
+      mapBottom: "#1c2429",
+      statBar:   "#232d34",
+      statNum:   "#ffffff",
+      statLabel: "#8a97a0",
+      route:     "#ff6a3d",
+      startDot:  "#ff6a3d",
+      endDot:    "#ffffff",
+      endCore:   "#1a2228",
+      dotBorder: "#1a2228",
+      grid:      "rgba(255,255,255,0.07)",
+      topBorder: "rgba(255,255,255,0.10)",
+      sep:       "rgba(255,255,255,0.08)",
+      watermark: "rgba(255,255,255,0.28)",
+    };
+  }
+  return {
+    cardBg:    "#f5f2eb",
+    header:    "#e8461e",
+    mapTop:    "#f0ede6",
+    mapBottom: "#e8e4db",
+    statBar:   "#ffffff",
+    statNum:   "#2d4a5a",
+    statLabel: "#aaaaaa",
+    route:     "#e8461e",
+    startDot:  "#e8461e",
+    endDot:    "#2d4a5a",
+    endCore:   "#ffffff",
+    dotBorder: "#f5f2eb",
+    grid:      "rgba(0,0,0,0.06)",
+    topBorder: "rgba(0,0,0,0.08)",
+    sep:       "rgba(0,0,0,0.07)",
+    watermark: "rgba(0,0,0,0.2)",
+  };
+}
+
+const FONT = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 /** Async – Promise<HTMLCanvasElement> */
 export async function createWorkoutShareCard({
@@ -27,52 +82,60 @@ export async function createWorkoutShareCard({
   avgSpeedKmh = 0,
   elevationM = 0,
   points = [],
-  theme = "dark",   // "dark" | "light"
-  size = "square",  // "square" | "story"
+  theme = "light",            // "light" | "dark"
+  size = "square",            // "square" | "story"
+  backgroundImage = null,     // opcionális HTMLImageElement a térkép-területre
 }) {
-  const dimensions = size === "story"
+  const dim = size === "story"
     ? { width: 1080, height: 1920 }
     : { width: 1080, height: 1080 };
 
-  const colors = theme === "dark"
-    ? {
-        bg:     "#111713",
-        panel:  "#18211c",
-        text:   "#ffffff",
-        muted:  "#aab5ae",
-        accent: "#fc4c02",
-        route:  "#ffffff",
-      }
-    : {
-        bg:     "#f7f7f4",
-        panel:  "#ffffff",
-        text:   "#111713",
-        muted:  "#606a64",
-        accent: "#fc4c02",
-        route:  "#111713",
-      };
+  const s = dim.width / BASE;
+  const c = palette(theme);
 
   const [canvas, logoImg] = await Promise.all([
     Promise.resolve(document.createElement("canvas")),
     loadLogo(),
   ]);
-  canvas.width  = dimensions.width;
-  canvas.height = dimensions.height;
-
+  canvas.width  = dim.width;
+  canvas.height = dim.height;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = colors.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  drawHeader(ctx, canvas, colors, title, date, logoImg);
-  drawRoute(ctx, canvas, colors, points, size);
-  drawStats(ctx, canvas, colors, {
-    distanceKm,
-    durationText,
-    avgSpeedKmh,
-    elevationM,
+  const W = canvas.width, H = canvas.height;
+  const headerH  = HEADER_H * s;
+  const statBarH = STATBAR_H * s;
+  const statBarY = H - statBarH;
+  const mapY = headerH;
+  const mapH = statBarY - headerH;
+
+  // Lekerekített kártya-klip (a header/stat-sáv sarkai is követik)
+  ctx.save();
+  roundRectPath(ctx, 0, 0, W, H, 16 * s);
+  ctx.clip();
+
+  // 1. Alap háttér
+  ctx.fillStyle = c.cardBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // 5–6. Térkép terület + rácsozat (a route alá)
+  drawMapArea(ctx, c, s, { x: 0, y: mapY, w: W, h: mapH }, backgroundImage);
+
+  // 7. Útvonal
+  drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
+
+  // 2. Header sáv
+  ctx.fillStyle = c.header;
+  ctx.fillRect(0, 0, W, headerH);
+
+  // 3–4. Logó + brand szöveg
+  drawHeaderContent(ctx, s, logoImg, title, date);
+
+  // 8–11. Stat sáv
+  drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, {
+    distanceKm, durationText, avgSpeedKmh, elevationM,
   });
-  drawBrand(ctx, canvas, colors);
 
+  ctx.restore();
   return canvas;
 }
 
@@ -88,179 +151,236 @@ export function downloadShareCard(canvas, filename = "bringaterv-share.png") {
   }, "image/png");
 }
 
-// ── Belső rajzoló függvények ──────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────────────────
 
-function drawHeader(ctx, canvas, colors, title, date, logoImg) {
-  const LOGO_SIZE = 120;
-  const LOGO_X    = 60;
-  const LOGO_Y    = 50;
-
+function drawHeaderContent(ctx, s, logoImg, title, date) {
+  // Logó kör
+  const cx = 44 * s, cy = 50 * s, r = 26 * s;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
   if (logoImg) {
-    // Valódi logo – négyzetes clip + lekerekített sarok
-    ctx.save();
-    roundRect(ctx, LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE, 22);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(logoImg, LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE);
-    ctx.restore();
+    ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
   } else {
-    // Fallback: narancs "BT" négyzet
-    ctx.fillStyle = colors.accent;
-    roundRect(ctx, LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE, 22);
-    ctx.fill();
-    ctx.fillStyle    = "#fff";
-    ctx.font         = "800 40px system-ui, -apple-system, Segoe UI, sans-serif";
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("BT", LOGO_X + LOGO_SIZE / 2, LOGO_Y + LOGO_SIZE / 2);
+    ctx.fillStyle = "#fff";
+    ctx.font = `800 ${20 * s}px ${FONT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("BT", cx, cy + 1 * s);
   }
+  ctx.restore();
 
-  const textX = LOGO_X + LOGO_SIZE + 24;
+  const tx = 78 * s;
 
-  // Cím – vertikálisan középre a logóhoz képest
-  ctx.textAlign    = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle    = colors.text;
-  ctx.font         = "800 54px system-ui, -apple-system, Segoe UI, sans-serif";
-  wrapText(ctx, title, textX, LOGO_Y + 50, canvas.width - textX - 60, 62, 2);
+  // Brand „Bringa" + „terv"
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.font = `700 ${22 * s}px ${FONT}`;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("Bringa", tx, 44 * s);
+  const bringaW = ctx.measureText("Bringa").width;
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillText("terv", tx + bringaW, 44 * s);
 
-  // Dátum
-  ctx.fillStyle = colors.muted;
-  ctx.font      = "600 28px system-ui, -apple-system, Segoe UI, sans-serif";
-  ctx.fillText(date, textX, LOGO_Y + LOGO_SIZE - 4);
+  // Szlogen
+  ctx.font = `400 ${11 * s}px ${FONT}`;
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.fillText(SLOGAN, tx, 62 * s);
+
+  // Edzés neve + dátum
+  const nameLine = [title, date].filter(Boolean).join("  ·  ");
+  ctx.font = `600 ${13 * s}px ${FONT}`;
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  fitOneLine(ctx, nameLine, tx, 84 * s, (360 - 78 - 14) * s);
 }
 
-function drawRoute(ctx, canvas, colors, points, size) {
-  const box = size === "story"
-    ? { x: 90, y: 320, w: canvas.width - 180, h: 760 }
-    : { x: 90, y: 260, w: canvas.width - 180, h: 440 };
+// ── Térkép terület ───────────────────────────────────────────────────────────
 
-  ctx.fillStyle = colors.panel;
-  roundRect(ctx, box.x, box.y, box.w, box.h, 28);
-  ctx.fill();
+function drawMapArea(ctx, c, s, rect, bgImage) {
+  const grad = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
+  grad.addColorStop(0, c.mapTop);
+  grad.addColorStop(1, c.mapBottom);
+  ctx.fillStyle = grad;
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
+  // Opcionális háttérkép (cover) + sötét overlay a kontrasztért
+  if (bgImage) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    drawCoverImage(ctx, bgImage, rect.x, rect.y, rect.w, rect.h);
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    return; // rácsozat fotó fölött nem kell
+  }
+
+  // Rácsozat – 4 vízszintes, 3 függőleges, arányosan
+  ctx.strokeStyle = c.grid;
+  ctx.lineWidth = Math.max(1, 0.5 * s);
+  ctx.beginPath();
+  for (let i = 1; i <= 4; i++) {
+    const y = rect.y + (rect.h * i) / 5;
+    ctx.moveTo(rect.x, y); ctx.lineTo(rect.x + rect.w, y);
+  }
+  for (let j = 1; j <= 3; j++) {
+    const x = rect.x + (rect.w * j) / 4;
+    ctx.moveTo(x, rect.y); ctx.lineTo(x, rect.y + rect.h);
+  }
+  ctx.stroke();
+}
+
+// ── Útvonal ──────────────────────────────────────────────────────────────────
+
+function drawRoute(ctx, c, s, points, mapRect) {
   if (!points || points.length < 2) {
-    ctx.fillStyle    = colors.muted;
-    ctx.font         = "700 32px system-ui, -apple-system, Segoe UI, sans-serif";
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("Nincs útvonaladat", canvas.width / 2, box.y + box.h / 2);
+    ctx.fillStyle = c.statLabel;
+    ctx.font = `600 ${13 * s}px ${FONT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("Nincs útvonaladat", mapRect.x + mapRect.w / 2, mapRect.y + mapRect.h / 2);
     return;
   }
 
-  const projected = projectPoints(points, box);
+  const box = {
+    x: mapRect.x + 14 * s,
+    y: mapRect.y + 14 * s,
+    w: mapRect.w - 28 * s,
+    h: mapRect.h - 28 * s,
+  };
+  const pts = projectPoints(points, box);
 
-  // Glow árnyék
-  ctx.strokeStyle = "rgba(252, 76, 2, 0.18)";
-  ctx.lineWidth   = 26;
-  ctx.lineCap     = "round";
-  ctx.lineJoin    = "round";
-  drawPath(ctx, projected);
+  // Árnyék-vonal
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.12)";
+  ctx.shadowBlur  = 6 * s;
+  ctx.strokeStyle = "rgba(0,0,0,0.10)";
+  ctx.lineWidth   = 6 * s;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  drawPath(ctx, pts);
+  ctx.restore();
 
   // Fő vonal
-  ctx.strokeStyle = colors.route;
-  ctx.lineWidth   = 12;
-  drawPath(ctx, projected);
+  ctx.strokeStyle = c.route;
+  ctx.lineWidth   = 3 * s;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  drawPath(ctx, pts);
 
-  const start = projected[0];
-  const end   = projected[projected.length - 1];
-
-  drawPoint(ctx, start.x, start.y, "#19a974");   // zöld start
-  drawPoint(ctx, end.x,   end.y,   colors.accent); // narancs cél
+  const start = pts[0], end = pts[pts.length - 1];
+  // Start pont (narancs teli)
+  drawDot(ctx, start.x, start.y, 6 * s, c.startDot, c.dotBorder, 2 * s);
+  // Vég pont (sötét, belül világos mag)
+  drawDot(ctx, end.x, end.y, 7 * s, c.endDot, c.dotBorder, 2 * s);
+  ctx.fillStyle = c.endCore;
+  ctx.beginPath();
+  ctx.arc(end.x, end.y, 3 * s, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function drawStats(ctx, canvas, colors, stats) {
-  const y = canvas.height > 1200 ? 1160 : 760;
-  const x = 64;
-  const w = canvas.width - 128;
-  const h = 210;
+// ── Stat sáv ─────────────────────────────────────────────────────────────────
 
-  ctx.fillStyle = colors.panel;
-  roundRect(ctx, x, y, w, h, 28);
-  ctx.fill();
+function drawStatBar(ctx, c, s, rect, stats) {
+  ctx.fillStyle = c.statBar;
+  ctx.fillRect(0, rect.y, rect.w, rect.h);
+
+  // Felső szegély
+  ctx.strokeStyle = c.topBorder;
+  ctx.lineWidth = Math.max(1, 0.5 * s);
+  ctx.beginPath();
+  ctx.moveTo(0, rect.y); ctx.lineTo(rect.w, rect.y);
+  ctx.stroke();
+
+  // Elválasztók
+  ctx.strokeStyle = c.sep;
+  ctx.beginPath();
+  for (let j = 1; j <= 3; j++) {
+    const x = (rect.w * j) / 4;
+    ctx.moveTo(x, rect.y + 12 * s); ctx.lineTo(x, rect.y + 68 * s);
+  }
+  ctx.stroke();
 
   const items = [
-    ["TÁV",    `${formatNumber(stats.distanceKm, 1)} km`],
-    ["IDŐ",    stats.durationText || "-"],
-    ["ÁTLAG",  `${formatNumber(stats.avgSpeedKmh, 1)} km/h`],
-    ["SZINT",  `${Math.round(stats.elevationM || 0)} m`],
+    [`${formatNumber(stats.distanceKm, 1)}`, "KM · TÁV"],
+    [stats.durationText || "–",              "IDŐ"],
+    [`${formatNumber(stats.avgSpeedKmh, 1)}`, "KM/H ÁTLAG"],
+    [`${Math.round(stats.elevationM || 0)} m`, "SZINT"],
   ];
 
-  const colW = w / items.length;
+  const numY   = rect.y + 35 * s;
+  const labelY = rect.y + 50 * s;
 
-  items.forEach(([label, value], index) => {
-    const cx = x + colW * index + 28;
+  items.forEach(([value, label], i) => {
+    const cx = rect.w * ((i * 2 + 1) / 8);   // 0.125, 0.375, 0.625, 0.875
 
-    ctx.fillStyle    = colors.muted;
-    ctx.font         = "800 24px system-ui, -apple-system, Segoe UI, sans-serif";
-    ctx.textAlign    = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText(label, cx, y + 72);
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = c.statNum;
+    fitCentered(ctx, value, cx, numY, rect.w / 4 - 10 * s, 22 * s);
 
-    ctx.fillStyle = colors.text;
-    ctx.font      = "900 38px system-ui, -apple-system, Segoe UI, sans-serif";
-    fitText(ctx, value, cx, y + 128, colW - 46, 38);
+    ctx.fillStyle = c.statLabel;
+    ctx.font = `400 ${9 * s}px ${FONT}`;
+    ctx.letterSpacing = `${0.06 * 9 * s}px`;
+    ctx.fillText(label, cx, labelY);
+    ctx.letterSpacing = "0px";
   });
+
+  // Domain watermark
+  ctx.fillStyle = c.watermark;
+  ctx.font = `400 ${9 * s}px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.letterSpacing = `${0.05 * 9 * s}px`;
+  ctx.fillText("bringaterv.hu", rect.w / 2, rect.y + rect.h - 8 * s);
+  ctx.letterSpacing = "0px";
 }
 
-function drawBrand(ctx, canvas, colors) {
-  ctx.fillStyle    = colors.muted;
-  ctx.font         = "700 26px system-ui, -apple-system, Segoe UI, sans-serif";
-  ctx.textAlign    = "center";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText("Made with Bringaterv", canvas.width / 2, canvas.height - 56);
-}
-
-// ── Segéd-geometria ───────────────────────────────────────────────────────────
+// ── Segéd-geometria / rajz ───────────────────────────────────────────────────
 
 function projectPoints(points, box) {
   const lats = points.map((p) => p.lat);
   const lngs = points.map((p) => p.lng);
-
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-
-  const latRange = Math.max(maxLat - minLat, 0.000001);
-  const lngRange = Math.max(maxLng - minLng, 0.000001);
-
-  const padding = 56;
-  const usableW = box.w - padding * 2;
-  const usableH = box.h - padding * 2;
-  const scale   = Math.min(usableW / lngRange, usableH / latRange);
-
-  const routeW  = lngRange * scale;
-  const routeH  = latRange * scale;
-  const offsetX = box.x + (box.w - routeW) / 2;
-  const offsetY = box.y + (box.h - routeH) / 2;
-
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const latRange = Math.max(maxLat - minLat, 1e-6);
+  const lngRange = Math.max(maxLng - minLng, 1e-6);
+  const scale = Math.min(box.w / lngRange, box.h / latRange);
+  const routeW = lngRange * scale, routeH = latRange * scale;
+  const offX = box.x + (box.w - routeW) / 2;
+  const offY = box.y + (box.h - routeH) / 2;
   return points.map((p) => ({
-    x: offsetX + (p.lng - minLng) * scale,
-    y: offsetY + (maxLat - p.lat) * scale,
+    x: offX + (p.lng - minLng) * scale,
+    y: offY + (maxLat - p.lat) * scale,
   }));
 }
 
-function drawPath(ctx, points) {
+function drawPath(ctx, pts) {
   ctx.beginPath();
-  points.forEach((pt, i) => {
-    if (i === 0) ctx.moveTo(pt.x, pt.y);
-    else         ctx.lineTo(pt.x, pt.y);
-  });
+  pts.forEach((pt, i) => (i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)));
   ctx.stroke();
 }
 
-function drawPoint(ctx, x, y, color) {
-  ctx.fillStyle = color;
+function drawDot(ctx, x, y, r, fill, border, borderW) {
+  ctx.fillStyle = fill;
   ctx.beginPath();
-  ctx.arc(x, y, 15, 0, Math.PI * 2);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth   = 6;
-  ctx.stroke();
+  if (border) {
+    ctx.strokeStyle = border;
+    ctx.lineWidth = borderW;
+    ctx.stroke();
+  }
 }
 
-function roundRect(ctx, x, y, w, h, r) {
+function drawCoverImage(ctx, img, x, y, w, h) {
+  const ir = img.width / img.height, br = w / h;
+  let dw, dh, dx, dy;
+  if (ir > br) { dh = h; dw = h * ir; dx = x - (dw - w) / 2; dy = y; }
+  else         { dw = w; dh = w / ir; dx = x; dy = y - (dh - h) / 2; }
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y,     x + w, y + h, r);
@@ -270,33 +390,20 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
-  const words = String(text).split(" ");
-  let line  = "";
-  let lines = [];
-
-  words.forEach((word) => {
-    const testLine = line ? `${line} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = testLine;
-    }
-  });
-
-  if (line) lines.push(line);
-  lines = lines.slice(0, maxLines);
-  lines.forEach((item, index) => ctx.fillText(item, x, y + index * lineHeight));
+function fitOneLine(ctx, text, x, y, maxWidth) {
+  let t = String(text);
+  if (ctx.measureText(t).width <= maxWidth) { ctx.fillText(t, x, y); return; }
+  while (t.length > 1 && ctx.measureText(t + "…").width > maxWidth) t = t.slice(0, -1);
+  ctx.fillText(t + "…", x, y);
 }
 
-function fitText(ctx, text, x, y, maxWidth, baseSize) {
+function fitCentered(ctx, text, x, y, maxWidth, baseSize) {
   let size = baseSize;
   do {
-    ctx.font = `900 ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+    ctx.font = `700 ${size}px ${FONT}`;
     if (ctx.measureText(text).width <= maxWidth) break;
-    size -= 2;
-  } while (size > 22);
+    size -= 1 * (baseSize / 22);
+  } while (size > baseSize * 0.6);
   ctx.fillText(text, x, y);
 }
 
