@@ -33,41 +33,45 @@ function loadLogo() {
 function palette(theme) {
   if (theme === "dark") {
     return {
-      cardBg:    "#1a2228",
-      header:    "#e8461e",
-      mapTop:    "#232d34",
-      mapBottom: "#1c2429",
-      statBar:   "#232d34",
-      statNum:   "#ffffff",
-      statLabel: "#8a97a0",
-      route:     "#ff6a3d",
-      startDot:  "#ff6a3d",
-      endDot:    "#ffffff",
-      endCore:   "#1a2228",
-      dotBorder: "#1a2228",
-      grid:      "rgba(255,255,255,0.07)",
-      topBorder: "rgba(255,255,255,0.10)",
-      sep:       "rgba(255,255,255,0.08)",
-      watermark: "rgba(255,255,255,0.28)",
+      cardBg:     "#161d23",
+      header:     "#243b48",   // brand navy (sötétebb árnyalat)
+      brandText:  "#ffffff",
+      brandAccent:"#ff6a3d",   // „terv" akcentus
+      mapTop:     "#222c33",
+      mapBottom:  "#1a2228",
+      statBar:    "#1f2930",
+      statNum:    "#ffffff",
+      statLabel:  "#8a97a0",
+      route:      "#ff6a3d",
+      startDot:   "#ff6a3d",
+      endDot:     "#ffffff",
+      endCore:    "#161d23",
+      dotBorder:  "#161d23",
+      grid:       "rgba(255,255,255,0.07)",
+      topBorder:  "rgba(255,255,255,0.10)",
+      sep:        "rgba(255,255,255,0.08)",
+      watermark:  "rgba(255,255,255,0.28)",
     };
   }
   return {
-    cardBg:    "#f5f2eb",
-    header:    "#e8461e",
-    mapTop:    "#f0ede6",
-    mapBottom: "#e8e4db",
-    statBar:   "#ffffff",
-    statNum:   "#2d4a5a",
-    statLabel: "#aaaaaa",
-    route:     "#e8461e",
-    startDot:  "#e8461e",
-    endDot:    "#2d4a5a",
-    endCore:   "#ffffff",
-    dotBorder: "#f5f2eb",
-    grid:      "rgba(0,0,0,0.06)",
-    topBorder: "rgba(0,0,0,0.08)",
-    sep:       "rgba(0,0,0,0.07)",
-    watermark: "rgba(0,0,0,0.2)",
+    cardBg:     "#f5f2eb",
+    header:     "#2d4a5a",   // brand navy
+    brandText:  "#ffffff",
+    brandAccent:"#ff6a3d",   // „terv" akcentus (logó piros/narancs)
+    mapTop:     "#f0ede6",
+    mapBottom:  "#e8e4db",
+    statBar:    "#ffffff",
+    statNum:    "#2d4a5a",
+    statLabel:  "#aaaaaa",
+    route:      "#e8461e",   // akcentus útvonal
+    startDot:   "#e8461e",
+    endDot:     "#2d4a5a",
+    endCore:    "#ffffff",
+    dotBorder:  "#f5f2eb",
+    grid:       "rgba(0,0,0,0.06)",
+    topBorder:  "rgba(0,0,0,0.08)",
+    sep:        "rgba(0,0,0,0.07)",
+    watermark:  "rgba(0,0,0,0.2)",
   };
 }
 
@@ -128,7 +132,7 @@ export async function createWorkoutShareCard({
   ctx.fillRect(0, 0, W, headerH);
 
   // 3–4. Logó + brand szöveg
-  drawHeaderContent(ctx, s, logoImg, title, date);
+  drawHeaderContent(ctx, s, c, logoImg, title, date);
 
   // 8–11. Stat sáv
   drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, {
@@ -153,7 +157,7 @@ export function downloadShareCard(canvas, filename = "bringaterv-share.png") {
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
-function drawHeaderContent(ctx, s, logoImg, title, date) {
+function drawHeaderContent(ctx, s, c, logoImg, title, date) {
   // Logó kör
   const cx = 44 * s, cy = 50 * s, r = 26 * s;
   ctx.save();
@@ -176,13 +180,13 @@ function drawHeaderContent(ctx, s, logoImg, title, date) {
 
   const tx = 78 * s;
 
-  // Brand „Bringa" + „terv"
+  // Brand „Bringa" (fehér) + „terv" (akcentus – mint a logóban)
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.font = `700 ${22 * s}px ${FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = c.brandText;
   ctx.fillText("Bringa", tx, 44 * s);
   const bringaW = ctx.measureText("Bringa").width;
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = c.brandAccent;
   ctx.fillText("terv", tx + bringaW, 44 * s);
 
   // Szlogen
