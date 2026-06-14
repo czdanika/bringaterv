@@ -155,7 +155,12 @@ export async function createWorkoutShareCard({
       ctx.fillStyle = "rgba(45,74,90,0.55)";
       ctx.fillRect(0, 0, W, headerH);
     }
-    drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
+    drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH }, {
+      color:   photo?.routeColor,
+      offsetX: photo?.routeOffsetX,
+      offsetY: photo?.routeOffsetY,
+      scale:   photo?.routeScale,
+    });
     drawHeaderContent(ctx, s, c, logoImg, title, date);
     drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, statValues);
   } else {
@@ -299,7 +304,7 @@ function drawMapArea(ctx, c, s, rect) {
 
 // ── Útvonal ──────────────────────────────────────────────────────────────────
 
-function drawRoute(ctx, c, s, points, mapRect) {
+function drawRoute(ctx, c, s, points, mapRect, routeOpts) {
   if (!points || points.length < 2) {
     ctx.fillStyle = c.statLabel;
     ctx.font = `600 ${13 * s}px ${FONT}`;
@@ -315,6 +320,19 @@ function drawRoute(ctx, c, s, points, mapRect) {
     h: mapRect.h - 28 * s,
   };
   const pts = projectPoints(points, box);
+
+  // Fotó témánál testreszabható: szín, pozíció (offset), méret (scale)
+  const routeColor = routeOpts?.color || c.route;
+  if (routeOpts) {
+    const ox = (routeOpts.offsetX || 0) * s;
+    const oy = (routeOpts.offsetY || 0) * s;
+    const sc = Math.max(0.2, routeOpts.scale || 1);
+    const bcx = box.x + box.w / 2, bcy = box.y + box.h / 2;
+    for (const p of pts) {
+      p.x = bcx + (p.x - bcx) * sc + ox;
+      p.y = bcy + (p.y - bcy) * sc + oy;
+    }
+  }
 
   // Árnyék-vonal (fotón erősebb, hogy bármilyen háttéren olvasható legyen)
   ctx.save();
@@ -334,15 +352,16 @@ function drawRoute(ctx, c, s, points, mapRect) {
   ctx.restore();
 
   // Fő vonal
-  ctx.strokeStyle = c.route;
+  ctx.strokeStyle = routeColor;
   ctx.lineWidth   = 3 * s;
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   drawPath(ctx, pts);
 
   const start = pts[0], end = pts[pts.length - 1];
-  // Start pont (narancs teli)
-  drawDot(ctx, start.x, start.y, 6 * s, c.startDot, c.dotBorder, 2 * s);
-  // Vég pont (sötét, belül világos mag)
+  const startCol = routeOpts?.color || c.startDot;
+  // Start pont (útvonal színe)
+  drawDot(ctx, start.x, start.y, 6 * s, startCol, c.dotBorder, 2 * s);
+  // Vég pont
   drawDot(ctx, end.x, end.y, 7 * s, c.endDot, c.dotBorder, 2 * s);
   ctx.fillStyle = c.endCore;
   ctx.beginPath();

@@ -2629,8 +2629,25 @@
               <button class="share-opt-btn" data-photo-headerbg="none" type="button">Nincs</button>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <span style="font-size:11px;color:var(--text-muted)">💡 Húzd a képet az előnézeten a pozícionáláshoz</span>
+
+          <!-- Útvonal testreszabás -->
+          <div style="border-top:1px solid var(--border);margin:10px 0 8px;padding-top:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:12px;color:var(--text-muted)">Útvonal színe</span>
+              <input id="sharePhotoRouteColor" type="color" value="#ff6a3d" style="width:42px;height:26px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;padding:0">
+            </div>
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px">
+              <span style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Útvonal mérete</span><span id="sharePhotoRouteScaleVal">1.0×</span></span>
+              <input id="sharePhotoRouteScale" type="range" min="0.4" max="2.5" step="0.01" value="1" style="width:100%">
+            </label>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Mit mozgatsz húzással az előnézeten?</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="share-opt-btn share-opt-btn--active" data-photo-drag="photo" type="button">🖼️ Háttér</button>
+              <button class="share-opt-btn" data-photo-drag="route" type="button">📍 Útvonal</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px">
             <button id="sharePhotoReset" class="btn" type="button" style="font-size:12px;padding:5px 10px;background:var(--panel-strong);border:1px solid var(--border)">Visszaállítás</button>
           </div>
         </div>
