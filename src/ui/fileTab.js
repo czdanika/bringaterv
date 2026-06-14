@@ -510,6 +510,14 @@ export async function processImportedFile(file) {
 function _initShareCardModal() {
   let _shareTheme = "light";
   let _shareSize  = "square";
+  const _sharePhoto = { img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6 };
+
+  let _refreshScheduled = false;
+  function scheduleRefresh() {
+    if (_refreshScheduled) return;
+    _refreshScheduled = true;
+    requestAnimationFrame(() => { _refreshScheduled = false; refreshSharePreview(); });
+  }
 
   async function refreshSharePreview() {
     if (!_shareCardData) return;
@@ -522,12 +530,94 @@ function _initShareCardModal() {
       title: titleVal,
       theme: _shareTheme,
       size:  _shareSize,
+      photo: _shareTheme === "photo" ? _sharePhoto : null,
     });
     previewCanvas.width  = card.width;
     previewCanvas.height = card.height;
     const ctx = previewCanvas.getContext("2d");
     ctx.drawImage(card, 0, 0);
   }
+
+  // ── Fotó vezérlők ──────────────────────────────────────────────────────────
+  function _togglePhotoControls() {
+    const panel = document.querySelector("#sharePhotoControls");
+    if (panel) panel.hidden = _shareTheme !== "photo";
+  }
+
+  document.querySelector("#sharePhotoUploadBtn")?.addEventListener("click", () => {
+    document.querySelector("#sharePhotoInput")?.click();
+  });
+  document.querySelector("#sharePhotoInput")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      _sharePhoto.img = img;
+      _sharePhoto.scale = 1; _sharePhoto.offsetX = 0; _sharePhoto.offsetY = 0;
+      const scaleEl = document.querySelector("#sharePhotoScale");
+      if (scaleEl) scaleEl.value = "1";
+      const sv = document.querySelector("#sharePhotoScaleVal");
+      if (sv) sv.textContent = "1.0×";
+      const sliders = document.querySelector("#sharePhotoSliders");
+      if (sliders) sliders.hidden = false;
+      const lbl = document.querySelector("#sharePhotoUploadLabel");
+      if (lbl) lbl.textContent = "Másik kép kiválasztása";
+      refreshSharePreview();
+    };
+    img.src = url;
+  });
+  document.querySelector("#sharePhotoScale")?.addEventListener("input", (e) => {
+    _sharePhoto.scale = parseFloat(e.target.value);
+    const v = document.querySelector("#sharePhotoScaleVal");
+    if (v) v.textContent = _sharePhoto.scale.toFixed(1) + "×";
+    scheduleRefresh();
+  });
+  document.querySelector("#sharePhotoBlur")?.addEventListener("input", (e) => {
+    _sharePhoto.blur = parseInt(e.target.value);
+    const v = document.querySelector("#sharePhotoBlurVal");
+    if (v) v.textContent = String(_sharePhoto.blur);
+    scheduleRefresh();
+  });
+  document.querySelector("#sharePhotoReset")?.addEventListener("click", () => {
+    _sharePhoto.scale = 1; _sharePhoto.offsetX = 0; _sharePhoto.offsetY = 0;
+    const scaleEl = document.querySelector("#sharePhotoScale");
+    if (scaleEl) scaleEl.value = "1";
+    const sv = document.querySelector("#sharePhotoScaleVal");
+    if (sv) sv.textContent = "1.0×";
+    refreshSharePreview();
+  });
+
+  // Drag-to-position az előnézeten (csak fotó témánál, betöltött képpel)
+  (() => {
+    const cv = document.querySelector("#shareCardPreview");
+    if (!cv) return;
+    let dragging = false, lastX = 0, lastY = 0;
+    cv.addEventListener("pointerdown", (e) => {
+      if (_shareTheme !== "photo" || !_sharePhoto.img) return;
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      cv.setPointerCapture(e.pointerId);
+      cv.style.cursor = "grabbing";
+    });
+    cv.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const rect = cv.getBoundingClientRect();
+      const basePerPx = 360 / rect.width;   // base-360 egység / megjelenített px
+      _sharePhoto.offsetX += (e.clientX - lastX) * basePerPx;
+      _sharePhoto.offsetY += (e.clientY - lastY) * basePerPx;
+      lastX = e.clientX; lastY = e.clientY;
+      scheduleRefresh();
+    });
+    const endDrag = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { cv.releasePointerCapture(e.pointerId); } catch {}
+      cv.style.cursor = "";
+    };
+    cv.addEventListener("pointerup", endDrag);
+    cv.addEventListener("pointercancel", endDrag);
+    cv.addEventListener("pointerleave", endDrag);
+  })();
 
   function openShareCardModal() {
     if (!_shareCardData) return;
@@ -565,6 +655,7 @@ function _initShareCardModal() {
       document.querySelectorAll("[data-share-theme]").forEach((b) => {
         b.classList.toggle("share-opt-btn--active", b.dataset.shareTheme === _shareTheme);
       });
+      _togglePhotoControls();
       refreshSharePreview();
     });
   });
@@ -594,6 +685,7 @@ function _initShareCardModal() {
       title: _getShareTitle(),
       theme: _shareTheme,
       size:  _shareSize,
+      photo: _shareTheme === "photo" ? _sharePhoto : null,
     });
   }
 
