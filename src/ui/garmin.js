@@ -77,10 +77,19 @@ function escapeHtmlStr(s) {
 export async function refreshGarminStatus() {
   const stateEl = document.querySelector("#garminConnectionState");
   try {
-    _garminStatus = await routesApi.garmin.status();
+    // Időkorlát: ha 12 mp alatt nincs válasz, ne ragadjon be a „lekérdezés"
+    _garminStatus = await Promise.race([
+      routesApi.garmin.status(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Időtúllépés")), 12000)),
+    ]);
   } catch (err) {
     _garminStatus = null;
-    if (stateEl) stateEl.innerHTML = `<div class="strava-conn-error">Hiba a státusz lekérésekor: ${escapeHtmlStr(err.message)}</div>`;
+    if (stateEl) {
+      stateEl.innerHTML = `
+        <div class="strava-conn-error" style="margin-bottom:8px">Nem sikerült lekérdezni a Garmin állapotot: ${escapeHtmlStr(err.message)}</div>
+        <button class="strava-conn-btn strava-conn-btn--ghost" id="garminRetryBtn" type="button">Újrapróbálkozás</button>`;
+      stateEl.querySelector("#garminRetryBtn")?.addEventListener("click", refreshGarminStatus);
+    }
     updateGarminImportButton();
     return;
   }
