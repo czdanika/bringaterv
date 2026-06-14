@@ -510,7 +510,11 @@ export async function processImportedFile(file) {
 function _initShareCardModal() {
   let _shareTheme = "light";
   let _shareSize  = "square";
-  const _sharePhoto = { img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6, headerBg: "translucent" };
+  const _sharePhoto = {
+    img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6, headerBg: "translucent",
+    routeColor: "#ff6a3d", routeOffsetX: 0, routeOffsetY: 0, routeScale: 1,
+  };
+  let _dragTarget = "photo";   // "photo" | "route" – mit mozgat a húzás
 
   let _refreshScheduled = false;
   function scheduleRefresh() {
@@ -588,12 +592,39 @@ function _initShareCardModal() {
       refreshSharePreview();
     });
   });
+  // Útvonal szín
+  document.querySelector("#sharePhotoRouteColor")?.addEventListener("input", (e) => {
+    _sharePhoto.routeColor = e.target.value;
+    scheduleRefresh();
+  });
+  // Útvonal méret
+  document.querySelector("#sharePhotoRouteScale")?.addEventListener("input", (e) => {
+    _sharePhoto.routeScale = parseFloat(e.target.value);
+    const v = document.querySelector("#sharePhotoRouteScaleVal");
+    if (v) v.textContent = _sharePhoto.routeScale.toFixed(1) + "×";
+    scheduleRefresh();
+  });
+  // Drag-cél kapcsoló: háttér vagy útvonal
+  document.querySelectorAll("[data-photo-drag]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _dragTarget = btn.dataset.photoDrag;
+      document.querySelectorAll("[data-photo-drag]").forEach((b) => {
+        b.classList.toggle("share-opt-btn--active", b.dataset.photoDrag === _dragTarget);
+      });
+    });
+  });
+
   document.querySelector("#sharePhotoReset")?.addEventListener("click", () => {
     _sharePhoto.scale = 1; _sharePhoto.offsetX = 0; _sharePhoto.offsetY = 0;
+    _sharePhoto.routeOffsetX = 0; _sharePhoto.routeOffsetY = 0; _sharePhoto.routeScale = 1;
     const scaleEl = document.querySelector("#sharePhotoScale");
     if (scaleEl) scaleEl.value = "1";
     const sv = document.querySelector("#sharePhotoScaleVal");
     if (sv) sv.textContent = "1.0×";
+    const rScaleEl = document.querySelector("#sharePhotoRouteScale");
+    if (rScaleEl) rScaleEl.value = "1";
+    const rsv = document.querySelector("#sharePhotoRouteScaleVal");
+    if (rsv) rsv.textContent = "1.0×";
     refreshSharePreview();
   });
 
@@ -603,7 +634,9 @@ function _initShareCardModal() {
     if (!cv) return;
     let dragging = false, lastX = 0, lastY = 0;
     cv.addEventListener("pointerdown", (e) => {
-      if (_shareTheme !== "photo" || !_sharePhoto.img) return;
+      if (_shareTheme !== "photo") return;
+      // Háttér mozgatásához kell kép; útvonal mozgatásához nem
+      if (_dragTarget === "photo" && !_sharePhoto.img) return;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       cv.setPointerCapture(e.pointerId);
       cv.style.cursor = "grabbing";
@@ -612,8 +645,15 @@ function _initShareCardModal() {
       if (!dragging) return;
       const rect = cv.getBoundingClientRect();
       const basePerPx = 360 / rect.width;   // base-360 egység / megjelenített px
-      _sharePhoto.offsetX += (e.clientX - lastX) * basePerPx;
-      _sharePhoto.offsetY += (e.clientY - lastY) * basePerPx;
+      const dx = (e.clientX - lastX) * basePerPx;
+      const dy = (e.clientY - lastY) * basePerPx;
+      if (_dragTarget === "route") {
+        _sharePhoto.routeOffsetX += dx;
+        _sharePhoto.routeOffsetY += dy;
+      } else {
+        _sharePhoto.offsetX += dx;
+        _sharePhoto.offsetY += dy;
+      }
       lastX = e.clientX; lastY = e.clientY;
       scheduleRefresh();
     });
