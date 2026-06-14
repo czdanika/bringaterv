@@ -2623,6 +2623,14 @@
             <span style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Életlenítés (blur)</span><span id="sharePhotoBlurVal">6</span></span>
             <input id="sharePhotoBlur" type="range" min="0" max="20" step="1" value="6" style="width:100%">
           </label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">
+            <div style="margin-bottom:4px">Fejléc háttere</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="share-opt-btn share-opt-btn--active" data-photo-headerbg="translucent" type="button">Áttetsző</button>
+              <button class="share-opt-btn" data-photo-headerbg="solid" type="button">Tömör</button>
+              <button class="share-opt-btn" data-photo-headerbg="none" type="button">Nincs</button>
+            </div>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <span style="font-size:11px;color:var(--text-muted)">💡 Húzd a képet az előnézeten a pozícionáláshoz</span>
             <button id="sharePhotoReset" class="btn" type="button" style="font-size:12px;padding:5px 10px;background:var(--panel-strong);border:1px solid var(--border)">Visszaállítás</button>
