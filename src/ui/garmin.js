@@ -13,7 +13,6 @@
 
 import { routesApi } from '../api/routesApi.js';
 import { createToast } from './dom.js';
-import { isAuthenticated } from '../auth.js';
 import { loadRouteLibrary } from './library.js';
 
 // ── Saját toast (nem injektált) ───────────────────────────────────────────────
@@ -48,19 +47,6 @@ export function initGarmin({ showToast } = {}) {
   });
 
   refreshGarminStatus();
-}
-
-// ── Önálló bootstrap – csak ha be vagyunk jelentkezve és van DOM csatlakozási pont ──
-function bootstrap() {
-  if (!isAuthenticated()) return;            // login.html / kijelentkezett állapot
-  if (!document.querySelector("#garminConnectionState")) return;  // nincs settings panel
-  initGarmin();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", bootstrap);
-} else {
-  bootstrap();
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
