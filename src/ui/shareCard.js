@@ -31,6 +31,26 @@ function loadLogo() {
 }
 
 function palette(theme) {
+  if (theme === "photo") {
+    return {
+      photo:      true,
+      cardBg:     "#11161a",
+      header:     null,            // nincs tömör sáv – gradiens olvashatóságért
+      brandText:  "#ffffff",
+      brandAccent:"#ff6a3d",
+      statBar:    null,            // áttetsző (gradiens)
+      statNum:    "#ffffff",
+      statLabel:  "rgba(255,255,255,0.78)",
+      route:      "#ff6a3d",
+      startDot:   "#ff6a3d",
+      endDot:     "#ffffff",
+      endCore:    "#ff6a3d",
+      dotBorder:  "rgba(255,255,255,0.9)",
+      topBorder:  "rgba(255,255,255,0.18)",
+      sep:        "rgba(255,255,255,0.18)",
+      watermark:  "rgba(255,255,255,0.65)",
+    };
+  }
   if (theme === "dark") {
     return {
       cardBg:     "#161d23",
@@ -86,9 +106,9 @@ export async function createWorkoutShareCard({
   avgSpeedKmh = 0,
   elevationM = 0,
   points = [],
-  theme = "light",            // "light" | "dark"
+  theme = "light",            // "light" | "dark" | "photo"
   size = "square",            // "square" | "story"
-  backgroundImage = null,     // opcionális HTMLImageElement a térkép-területre
+  photo = null,               // { img, scale, offsetX, offsetY, blur } – fotó téma
 }) {
   const dim = size === "story"
     ? { width: 1080, height: 1920 }
@@ -112,6 +132,8 @@ export async function createWorkoutShareCard({
   const mapY = headerH;
   const mapH = statBarY - headerH;
 
+  const statValues = { distanceKm, durationText, avgSpeedKmh, elevationM };
+
   // Lekerekített kártya-klip (a header/stat-sáv sarkai is követik)
   ctx.save();
   roundRectPath(ctx, 0, 0, W, H, 16 * s);
@@ -121,23 +143,21 @@ export async function createWorkoutShareCard({
   ctx.fillStyle = c.cardBg;
   ctx.fillRect(0, 0, W, H);
 
-  // 5–6. Térkép terület + rácsozat (a route alá)
-  drawMapArea(ctx, c, s, { x: 0, y: mapY, w: W, h: mapH }, backgroundImage);
-
-  // 7. Útvonal
-  drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
-
-  // 2. Header sáv
-  ctx.fillStyle = c.header;
-  ctx.fillRect(0, 0, W, headerH);
-
-  // 3–4. Logó + brand szöveg
-  drawHeaderContent(ctx, s, c, logoImg, title, date);
-
-  // 8–11. Stat sáv
-  drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, {
-    distanceKm, durationText, avgSpeedKmh, elevationM,
-  });
+  if (c.photo) {
+    // ── FOTÓ TÉMA: a kép a háttér-réteg, fölötte minden ──
+    drawPhotoLayer(ctx, s, photo, W, H);
+    drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
+    drawHeaderContent(ctx, s, c, logoImg, title, date);
+    drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, statValues);
+  } else {
+    // ── LIGHT / DARK TÉMA ──
+    drawMapArea(ctx, c, s, { x: 0, y: mapY, w: W, h: mapH });
+    drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
+    ctx.fillStyle = c.header;
+    ctx.fillRect(0, 0, W, headerH);
+    drawHeaderContent(ctx, s, c, logoImg, title, date);
+    drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, statValues);
+  }
 
   ctx.restore();
   return canvas;
@@ -201,27 +221,58 @@ function drawHeaderContent(ctx, s, c, logoImg, title, date) {
   fitOneLine(ctx, nameLine, tx, 84 * s, (360 - 78 - 14) * s);
 }
 
+// ── Fotó háttér-réteg ────────────────────────────────────────────────────────
+
+function drawPhotoLayer(ctx, s, photo, W, H) {
+  const img = photo?.img;
+  const scale  = Math.max(0.2, photo?.scale ?? 1);
+  const offX   = (photo?.offsetX ?? 0) * s;
+  const offY   = (photo?.offsetY ?? 0) * s;
+  const blurPx = Math.max(0, photo?.blur ?? 0) * s;
+
+  if (img) {
+    ctx.save();
+    if (blurPx > 0) ctx.filter = `blur(${blurPx}px)`;
+    // „cover" alapméret + felhasználói nagyítás
+    const ir = img.width / img.height, cr = W / H;
+    let dw, dh;
+    if (ir > cr) { dh = H; dw = H * ir; } else { dw = W; dh = W / ir; }
+    dw *= scale; dh *= scale;
+    // Túlnyújtás a blur élének elfedéséhez
+    const margin = blurPx * 2 + 2;
+    dw += margin * 2; dh += margin * 2;
+    const dx = (W - dw) / 2 + offX;
+    const dy = (H - dh) / 2 + offY;
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.filter = "none";
+    ctx.restore();
+  } else {
+    // Nincs kép – felirat
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = `600 ${13 * s}px ${FONT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("Tölts fel egy képet", W / 2, H / 2);
+  }
+
+  // Olvashatósági overlay-ek
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(0, 0, W, H);
+  const gT = ctx.createLinearGradient(0, 0, 0, H * 0.30);
+  gT.addColorStop(0, "rgba(0,0,0,0.58)"); gT.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gT; ctx.fillRect(0, 0, W, H * 0.30);
+  const gB = ctx.createLinearGradient(0, H * 0.62, 0, H);
+  gB.addColorStop(0, "rgba(0,0,0,0)"); gB.addColorStop(1, "rgba(0,0,0,0.68)");
+  ctx.fillStyle = gB; ctx.fillRect(0, H * 0.62, W, H * 0.38);
+}
+
 // ── Térkép terület ───────────────────────────────────────────────────────────
 
-function drawMapArea(ctx, c, s, rect, bgImage) {
+function drawMapArea(ctx, c, s, rect) {
   const grad = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
   grad.addColorStop(0, c.mapTop);
   grad.addColorStop(1, c.mapBottom);
   ctx.fillStyle = grad;
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-
-  // Opcionális háttérkép (cover) + sötét overlay a kontrasztért
-  if (bgImage) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(rect.x, rect.y, rect.w, rect.h);
-    ctx.clip();
-    drawCoverImage(ctx, bgImage, rect.x, rect.y, rect.w, rect.h);
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.restore();
-    return; // rácsozat fotó fölött nem kell
-  }
 
   // Rácsozat – 4 vízszintes, 3 függőleges, arányosan
   ctx.strokeStyle = c.grid;
@@ -257,12 +308,19 @@ function drawRoute(ctx, c, s, points, mapRect) {
   };
   const pts = projectPoints(points, box);
 
-  // Árnyék-vonal
+  // Árnyék-vonal (fotón erősebb, hogy bármilyen háttéren olvasható legyen)
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.12)";
-  ctx.shadowBlur  = 6 * s;
-  ctx.strokeStyle = "rgba(0,0,0,0.10)";
-  ctx.lineWidth   = 6 * s;
+  if (c.photo) {
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur  = 8 * s;
+    ctx.strokeStyle = "rgba(0,0,0,0.45)";
+    ctx.lineWidth   = 7 * s;
+  } else {
+    ctx.shadowColor = "rgba(0,0,0,0.12)";
+    ctx.shadowBlur  = 6 * s;
+    ctx.strokeStyle = "rgba(0,0,0,0.10)";
+    ctx.lineWidth   = 6 * s;
+  }
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   drawPath(ctx, pts);
   ctx.restore();
@@ -287,15 +345,25 @@ function drawRoute(ctx, c, s, points, mapRect) {
 // ── Stat sáv ─────────────────────────────────────────────────────────────────
 
 function drawStatBar(ctx, c, s, rect, stats) {
-  ctx.fillStyle = c.statBar;
-  ctx.fillRect(0, rect.y, rect.w, rect.h);
+  if (c.photo) {
+    // Áttetsző: a fotó átsejlik, de a szöveg olvasható marad (a gradienst
+    // a drawPhotoLayer már lerakta – itt csak finom felső elválasztó kell)
+    ctx.strokeStyle = c.topBorder;
+    ctx.lineWidth = Math.max(1, 0.5 * s);
+    ctx.beginPath();
+    ctx.moveTo(0, rect.y + 1 * s); ctx.lineTo(rect.w, rect.y + 1 * s);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = c.statBar;
+    ctx.fillRect(0, rect.y, rect.w, rect.h);
 
-  // Felső szegély
-  ctx.strokeStyle = c.topBorder;
-  ctx.lineWidth = Math.max(1, 0.5 * s);
-  ctx.beginPath();
-  ctx.moveTo(0, rect.y); ctx.lineTo(rect.w, rect.y);
-  ctx.stroke();
+    // Felső szegély
+    ctx.strokeStyle = c.topBorder;
+    ctx.lineWidth = Math.max(1, 0.5 * s);
+    ctx.beginPath();
+    ctx.moveTo(0, rect.y); ctx.lineTo(rect.w, rect.y);
+    ctx.stroke();
+  }
 
   // Elválasztók
   ctx.strokeStyle = c.sep;

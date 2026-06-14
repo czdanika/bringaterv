@@ -2582,12 +2582,15 @@
       <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px">
           <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Téma</div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="share-opt-btn" data-share-theme="dark" type="button">
               <i data-lucide="moon" aria-hidden="true"></i> Sötét
             </button>
             <button class="share-opt-btn share-opt-btn--active" data-share-theme="light" type="button">
               <i data-lucide="sun" aria-hidden="true"></i> Világos
+            </button>
+            <button class="share-opt-btn" data-share-theme="photo" type="button">
+              <i data-lucide="image" aria-hidden="true"></i> Fotó
             </button>
           </div>
         </div>
@@ -2604,9 +2607,32 @@
         </div>
       </div>
 
+      <!-- Fotó vezérlők (csak Fotó témánál) -->
+      <div id="sharePhotoControls" hidden style="margin-bottom:16px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg)">
+        <input id="sharePhotoInput" type="file" accept="image/*" hidden>
+        <button id="sharePhotoUploadBtn" class="btn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel-strong);border:1px solid var(--border);margin-bottom:10px">
+          <i data-lucide="upload" aria-hidden="true"></i>
+          <span id="sharePhotoUploadLabel">Kép feltöltése</span>
+        </button>
+        <div id="sharePhotoSliders" hidden>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px">
+            <span style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Nagyítás</span><span id="sharePhotoScaleVal">1.0×</span></span>
+            <input id="sharePhotoScale" type="range" min="1" max="3" step="0.01" value="1" style="width:100%">
+          </label>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:8px">
+            <span style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Életlenítés (blur)</span><span id="sharePhotoBlurVal">6</span></span>
+            <input id="sharePhotoBlur" type="range" min="0" max="20" step="1" value="6" style="width:100%">
+          </label>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span style="font-size:11px;color:var(--text-muted)">💡 Húzd a képet az előnézeten a pozícionáláshoz</span>
+            <button id="sharePhotoReset" class="btn" type="button" style="font-size:12px;padding:5px 10px;background:var(--panel-strong);border:1px solid var(--border)">Visszaállítás</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Preview -->
       <div id="shareCardPreviewWrap" style="background:var(--bg);border-radius:10px;overflow:hidden;text-align:center;margin-bottom:16px;max-height:340px;display:flex;align-items:center;justify-content:center">
-        <canvas id="shareCardPreview" style="max-width:100%;max-height:340px;border-radius:8px"></canvas>
+        <canvas id="shareCardPreview" style="max-width:100%;max-height:340px;border-radius:8px;touch-action:none"></canvas>
       </div>
 
       <!-- Akció gombok -->
