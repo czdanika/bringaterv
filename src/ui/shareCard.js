@@ -146,6 +146,15 @@ export async function createWorkoutShareCard({
   if (c.photo) {
     // ── FOTÓ TÉMA: a kép a háttér-réteg, fölötte minden ──
     drawPhotoLayer(ctx, s, photo, W, H);
+    // Fejléc háttér – kapcsolható: tömör navy / félig átlátszó / nincs (csak gradiens)
+    const hb = photo?.headerBg || "translucent";
+    if (hb === "solid") {
+      ctx.fillStyle = "#2d4a5a";
+      ctx.fillRect(0, 0, W, headerH);
+    } else if (hb === "translucent") {
+      ctx.fillStyle = "rgba(45,74,90,0.55)";
+      ctx.fillRect(0, 0, W, headerH);
+    }
     drawRoute(ctx, c, s, points, { x: 0, y: mapY, w: W, h: mapH });
     drawHeaderContent(ctx, s, c, logoImg, title, date);
     drawStatBar(ctx, c, s, { y: statBarY, w: W, h: statBarH }, statValues);
@@ -231,18 +240,17 @@ function drawPhotoLayer(ctx, s, photo, W, H) {
   const blurPx = Math.max(0, photo?.blur ?? 0) * s;
 
   if (img) {
-    ctx.save();
-    if (blurPx > 0) ctx.filter = `blur(${blurPx}px)`;
-    // „cover" alapméret + felhasználói nagyítás
+    // „cover" alapméret + felhasználói nagyítás (a blur NEM befolyásolja a méretet)
     const ir = img.width / img.height, cr = W / H;
     let dw, dh;
     if (ir > cr) { dh = H; dw = H * ir; } else { dw = W; dh = W / ir; }
     dw *= scale; dh *= scale;
-    // Túlnyújtás a blur élének elfedéséhez
-    const margin = blurPx * 2 + 2;
-    dw += margin * 2; dh += margin * 2;
     const dx = (W - dw) / 2 + offX;
     const dy = (H - dh) / 2 + offY;
+    ctx.save();
+    // A blur kizárólag életlenít, a méretet/pozíciót nem változtatja.
+    // Az esetleges életlen szél a sötét háttérbe és az overlay-be simul.
+    if (blurPx > 0) ctx.filter = `blur(${blurPx}px)`;
     ctx.drawImage(img, dx, dy, dw, dh);
     ctx.filter = "none";
     ctx.restore();

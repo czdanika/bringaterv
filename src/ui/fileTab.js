@@ -510,7 +510,7 @@ export async function processImportedFile(file) {
 function _initShareCardModal() {
   let _shareTheme = "light";
   let _shareSize  = "square";
-  const _sharePhoto = { img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6 };
+  const _sharePhoto = { img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6, headerBg: "translucent" };
 
   let _refreshScheduled = false;
   function scheduleRefresh() {
@@ -578,6 +578,15 @@ function _initShareCardModal() {
     const v = document.querySelector("#sharePhotoBlurVal");
     if (v) v.textContent = String(_sharePhoto.blur);
     scheduleRefresh();
+  });
+  document.querySelectorAll("[data-photo-headerbg]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      _sharePhoto.headerBg = btn.dataset.photoHeaderbg;
+      document.querySelectorAll("[data-photo-headerbg]").forEach((b) => {
+        b.classList.toggle("share-opt-btn--active", b.dataset.photoHeaderbg === _sharePhoto.headerBg);
+      });
+      refreshSharePreview();
+    });
   });
   document.querySelector("#sharePhotoReset")?.addEventListener("click", () => {
     _sharePhoto.scale = 1; _sharePhoto.offsetX = 0; _sharePhoto.offsetY = 0;
