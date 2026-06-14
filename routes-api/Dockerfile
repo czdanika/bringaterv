@@ -31,5 +31,6 @@ ENV FLASK_ENV=production
 # Port (belső, nginx proxy-n át érhető el kívülről)
 EXPOSE 5001
 
-# Gunicorn: 2 worker, 120s timeout (nagy GPX fájlok feltöltéséhez)
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "app:app"]
+# Gunicorn: 2 worker × 4 thread (gthread) – így egy lassú külső hívás (pl. élő
+# Garmin lekérés) nem blokkolja a többi kérést. 120s timeout nagy GPX-ekhez.
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "--timeout", "120", "--access-logfile", "-", "app:app"]
