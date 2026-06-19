@@ -20,6 +20,7 @@ import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin } from "./ui/garmin.js";
+import { initMagene } from "./ui/magene.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -1736,6 +1737,9 @@ initStrava({ showToast, loadRouteLibrary });
 // A Strava-val azonos minta: main.js-ből inicializálva (a korábbi önálló
 // <script>-bootstrap Safariban nem futott le megbízhatóan).
 initGarmin({ showToast });
+
+// ── Magene / OneLapFit ───────────────────────────────────────────────────────
+initMagene({ showToast });
 
 // ── Kezdő nézet ────────────────────────────────────────────
 function syncStartViewDisplay() {
