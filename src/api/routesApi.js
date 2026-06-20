@@ -464,25 +464,4 @@ export const routesApi = {
       return res.json();
     },
   },
-
-  // Magene / OneLapFit (user-szintű)
-  magene: {
-    status() { return fetchJson(`${BASE}/magene/status`); },
-    connect(email, password) {
-      return fetchJson(`${BASE}/magene/connect`, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-    },
-    async disconnect() {
-      const res = await fetch(`${BASE}/magene/disconnect`, {
-        method: "DELETE", headers: authHeaders(),
-      });
-      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
-      return true;
-    },
-    uploadRoute(routeId) {
-      return fetchJson(`${BASE}/magene/route/${encodeURIComponent(routeId)}`, { method: "POST" });
-    },
-  },
 };

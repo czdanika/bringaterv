@@ -418,7 +418,6 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">↗ Stravan</a>` : ''}
           ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#007CC3;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">G</span>${route.garmin_course_id ? '✓ Feltöltve – újraküldés' : 'Küldés Garminra'}</button>` : ''}
           ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">↗ Garmin course</a>` : ''}
-          ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.magene_nid ? ' garmin-uploaded' : ''}" data-action="magene-route" title="Tervezett útvonal feltöltése Magene fejegységre (OneLapFit navigáció)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#1769ff;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">M</span>${route.magene_nid ? '✓ Feltöltve – újraküldés' : 'Küldés Magene-re'}</button>` : ''}
           <button class="library-card-btn" data-action="share">Megosztó kép</button>
           ${!isSample ? `<button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>` : ''}
           ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
@@ -504,28 +503,6 @@ function buildLibraryExpandRow(route, category, isSample) {
             if (err.message?.toLowerCase().includes("nincs garmin") || err.message?.includes("409"))
               _toast("Előbb csatlakozz Garminhoz: Beállítások → Garmin Connect");
             else _toast("Garmin feltöltés sikertelen: " + err.message);
-          } finally { btn.disabled = false; }
-        } else if (act === "magene-route") {
-          const already = !!route.magene_nid;
-          if (already && !confirm("Ezt az útvonalat korábban már feltöltötted Magene-re.\n\nFeltöltöd újra? (Új útvonal jön létre az OneLapFitben.)")) return;
-          btn.disabled = true;
-          const labelSpan = btn.childNodes[btn.childNodes.length - 1];
-          labelSpan.textContent = "Feltöltés Magene-re…";
-          try {
-            const res = await _api.magene.uploadRoute(route.id);
-            route.magene_nid = res.nid;
-            for (const coll of [_data.routes, _data.workouts]) {
-              const i = coll.findIndex(r => r.id === route.id);
-              if (i >= 0) coll[i].magene_nid = res.nid;
-            }
-            btn.classList.add("garmin-uploaded");
-            labelSpan.textContent = "✓ Feltöltve – újraküldés";
-            _toast(`✓ Magene-re feltöltve: „${res.name}" (${res.distance_km} km, +${res.climb_m} m) – nézd meg az OneLapFit appban`);
-          } catch (err) {
-            labelSpan.textContent = already ? "✓ Feltöltve – újraküldés" : "Küldés Magene-re";
-            if (err.message?.toLowerCase().includes("nincs magene") || err.message?.includes("409"))
-              _toast("Előbb csatlakozz Magene-hez: Beállítások → Magene");
-            else _toast("Magene feltöltés sikertelen: " + err.message);
           } finally { btn.disabled = false; }
         } else if (act === "share") {
           btn.disabled = true; btn.textContent = "Betöltés…";
