@@ -69,6 +69,22 @@ def _md5_hex(s: str) -> str:
     return hashlib.md5(s.encode()).hexdigest()
 
 
+def _magene_post(url: str, body: str, headers: dict, attempts: int = 5, timeout: int = 12):
+    """POST újrapróbálkozással – a Pi → Magene (Alibaba US-West) kapcsolat ingadozó
+    (a TCP gyorsan kapcsolódik, de a HTTP-válasz néha nem jön). Sikeres válasz
+    általában <1 mp; ezért rövid per-próba timeout + több próba a megoldás."""
+    import time
+    last = None
+    for _ in range(attempts):
+        try:
+            return requests.post(url, data=body, headers=headers, timeout=timeout)
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last = exc
+            time.sleep(0.4)
+    raise RuntimeError(f"A Magene szerver nem válaszolt {attempts} próbálkozás után "
+                       f"(ingadozó kapcsolat): {last}")
+
+
 def _magene_headers(data: dict, authenticated: bool = True, extra: dict = None) -> dict:
     headers = {
         "Language":        "en",
@@ -100,11 +116,10 @@ def magene_login(user_id: str, email: str, password: str) -> dict:
     data.setdefault("device_id", str(uuid.uuid4()))
     data.setdefault("session_id", str(uuid.uuid4()))
 
-    resp = requests.post(
+    resp = _magene_post(
         LOGIN_URL,
-        data=json.dumps({"account": email, "password": _md5_hex(password)}),
-        headers=_magene_headers(data, authenticated=False),
-        timeout=20,
+        json.dumps({"account": email, "password": _md5_hex(password)}),
+        _magene_headers(data, authenticated=False),
     )
     try:
         body = resp.json()
@@ -265,11 +280,11 @@ def magene_upload_route(user_id: str, payload: dict) -> dict:
     data = _load_user_magene(user_id)
     if not data.get("token"):
         return {"ok": False, "error": "Nincs Magene kapcsolat."}
-    resp = requests.post(
+    resp = _magene_post(
         ROUTE_SAVE_URL,
-        data=json.dumps(payload),
-        headers=_magene_headers(data, authenticated=True, extra={"ShowId": SHOW_ID}),
-        timeout=30,
+        json.dumps(payload),
+        _magene_headers(data, authenticated=True, extra={"ShowId": SHOW_ID}),
+        attempts=5, timeout=20,
     )
     try:
         body = resp.json()
