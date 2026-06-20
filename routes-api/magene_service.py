@@ -24,7 +24,7 @@ from utils import _load_index, _now_dt
 # garmin_service-ben már megvannak ezek a helperek – újrahasználjuk
 from garmin_service import _haversine_m, _parse_gpx_points
 
-MAGENE_BASE     = "http://rfs-fitness.rfsvr.com"
+MAGENE_BASE     = "https://rfs-fitness.rfsvr.com"  # a szerver már csak HTTPS (a 80-as port halott)
 LOGIN_URL       = f"{MAGENE_BASE}/api/v1/app/login"
 ROUTE_SAVE_URL  = f"{MAGENE_BASE}/api/navigation/app/navigation/save"
 SHOW_ID         = "1fafed1b-77aa-4e75-8fb2-a31a99285731"  # magpx-ből
