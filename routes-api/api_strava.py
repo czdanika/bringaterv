@@ -202,6 +202,21 @@ def strava_activities():
             abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
         if resp.status_code == 429:
             abort(429, description="Strava rate limit elérve. Próbáld 15 perc múlva.")
+        if resp.status_code == 403:
+            # Jellemzően: a Strava API-alkalmazás „Inactive" státuszban van
+            # (a Strava állította le), ez nem token/scope probléma.
+            detail = ""
+            try:
+                detail = (resp.json().get("errors") or [{}])[0].get("code", "")
+            except Exception:
+                pass
+            if detail == "Inactive":
+                abort(409, description=(
+                    "A Strava az API-alkalmazásodat inaktívvá tette (Forbidden). "
+                    "Nyisd meg a strava.com/settings/api oldalt, ellenőrizd az app "
+                    "állapotát (esetleg új API-feltételt kell elfogadni / újraaktiválni), "
+                    "vagy hozz létre új Strava appot és add meg itt az új adatait."))
+            abort(409, description=f"A Strava elutasította a kérést (403 Forbidden): {detail or 'Forbidden'}.")
         if resp.status_code != 200:
             abort(502, description=f"Strava API hiba ({resp.status_code}).")
         data = resp.json()
