@@ -9,13 +9,13 @@ export const config = {
 };
 EOF
 
-# Cache-busting a belépési modul-scriptre: minden indításkor egyedi token,
-# így a böngésző (Safari is) garantáltan friss main.js-t (és a teljes import-
-# gráfot) tölt deploy után. Idempotens: a meglévő ?b=... tokent felülírja.
+# Cache-busting a belépési scriptekre: minden indításkor egyedi token, így a
+# böngésző (Safari is) garantáltan friss main.js-t (a teljes import-gráfot) és
+# version.js-t tölt deploy után – az index.html-ben és a login.html-ben egyaránt.
+# Idempotens: a meglévő ?b=... tokent felülírja.
 BUST=$(date +%s)
-INDEX=/usr/share/nginx/html/index.html
-if [ -f "$INDEX" ]; then
-  sed -i -E "s#(src=\"\./src/main\.js)(\?b=[0-9]+)?\"#\1?b=${BUST}\"#g" "$INDEX"
-fi
+for F in /usr/share/nginx/html/index.html /usr/share/nginx/html/login.html; do
+  [ -f "$F" ] && sed -i -E "s#(src=\"\./src/(main|version)\.js)(\?b=[0-9]+)?\"#\1?b=${BUST}\"#g" "$F"
+done
 
 exec "$@"
