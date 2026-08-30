@@ -14,7 +14,6 @@ export const SEGMENT_COLORS = {
 };
 
 const esriAttrib = 'Tiles &copy; <a href="https://www.esri.com">Esri</a>';
-const cartoAttrib = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>';
 
 const tileLayers = {
   standard: {
@@ -29,13 +28,24 @@ const tileLayers = {
     url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
     options: { maxZoom: 17, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; OpenTopoMap' },
   },
+  // A CARTO basemap 2026-tól API-kulcsot kér ("API KEY REQUIRED" watermark),
+  // ezért az Esri Gray Canvasre váltottunk (kulcs nélkül, ugyanaz mint a műholdas).
+  // A címkék külön overlay-rétegben jönnek (a Gray Base címke nélküli).
   light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-    options: { maxZoom: 19, attribution: cartoAttrib, subdomains: "abcd" },
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    options: { maxZoom: 19, maxNativeZoom: 16, attribution: esriAttrib },
+    overlay: {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      options: { maxZoom: 19, maxNativeZoom: 16, attribution: "", pane: "shadowPane" },
+    },
   },
   dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-    options: { maxZoom: 19, attribution: cartoAttrib, subdomains: "abcd" },
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    options: { maxZoom: 19, maxNativeZoom: 16, attribution: esriAttrib },
+    overlay: {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      options: { maxZoom: 19, maxNativeZoom: 16, attribution: "", pane: "shadowPane" },
+    },
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",

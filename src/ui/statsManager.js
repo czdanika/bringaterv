@@ -144,8 +144,13 @@ function _hmSportKey(t) {
 function _ensureHeatmapMap() {
   if (_hmMap) return _hmMap;
   _hmMap = L.map("heatmapMap", { zoomControl: true }).setView([47.5, 19.05], 7);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap, © CARTO",
+  // Esri Dark Gray Canvas (kulcs nélkül; a CARTO 2026-tól API-kulcsot kér)
+  const _esriAttr = 'Tiles &copy; <a href="https://www.esri.com">Esri</a>';
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, maxNativeZoom: 16, attribution: _esriAttr,
+  }).addTo(_hmMap);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, maxNativeZoom: 16, attribution: "",
   }).addTo(_hmMap);
   _hmLayer = L.layerGroup().addTo(_hmMap);
   // Elemzés gomb – event delegation a térkép containerén (popup tartalomra)
