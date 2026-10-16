@@ -327,7 +327,15 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 }
 
 /* Header collapse gomb */
-.topnav-collapse-btn { margin-right: 2px; }
+.topnav-collapse-btn {
+  /* Egy tengelyben a bal oldali menüsáv ikonjaival és az alsó elrejtő gombbal:
+     azonos méret (40px) és bal szél (6px) – a topnav 20px-es paddingjét kompenzálja */
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  margin-left: -14px;
+  margin-right: 2px;
+}
 
 .brand-accent { color: var(--brand); }
 
@@ -6116,3 +6124,16 @@ body.is-drag-over::after {
   .share-target { padding: 8px 2px; font-size: 10.5px; gap: 5px; }
   .share-target-icon { width: 30px; height: 30px; }
 }
+.share-no-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.share-save-link-btn { height: 34px; }
+
+/* ── Térkép jobb felső sarok: teljes útvonal + térképstílus (lebegő) ──────── */
+/* z-index: a térképrétegek és az eszköztár (600) fölött, a modálok (700) alatt */
+.map-fab-tools { position: absolute; top: 12px; right: 12px; z-index: 640; display: flex; gap: 8px; align-items: flex-start; }
+.map-fab-style-wrap { position: relative; }
+.map-fab-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; min-width: 36px;
+  padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); color: var(--text);
+  font: 600 12.5px/1 inherit; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.14); }
+.map-fab-btn:hover, .map-fab-btn.is-open { background: var(--panel-strong); }
+.map-fab-btn svg { width: 16px; height: 16px; color: var(--muted); }
+.map-fab-tools .sidebar-style-popup { top: calc(100% + 8px); right: 0; }

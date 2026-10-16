@@ -16,6 +16,8 @@ import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
 import { fitToGpx } from '../gpx/fit.js';
 import { createWorkoutShareCard, downloadShareCard } from './shareCard.js';
 import { reverseGeocode } from './search.js';
+import { openShareModal } from './shareModal.js';
+import { openRoutePdfModal, shareRouteUrl } from './routePdfModal.js';
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _store, _mapAdapter, _api, _elements, _i18n, _showToast, _switchTab;
@@ -90,67 +92,75 @@ export function initFileTab({
   _elements.fileExportButton?.addEventListener("click", () => _openExportModal());
 
   // Mentés a könyvtárba gomb
-  _elements.fileSaveToLibraryButton?.addEventListener("click", async () => {
-    const btn = _elements.fileSaveToLibraryButton;
-    if (btn?.disabled) return;
-    if (btn) {
-      btn.disabled = true;
-      const lbl = btn.querySelector("span");
-      if (lbl) lbl.textContent = "Mentés…";
-    }
-    const state = _store.getState();
-    const name = _importedFileName || "Edzés";
-
-    const content = _importedGpxText ?? exportGpx({
-      waypoints: state.waypoints,
-      geometry:  state.routeGeometry,
-      name,
-      desc: "",
-      mode: state.mode,
-    });
-
-    const distanceKm = state.distanceMeters > 0
-      ? Math.round(state.distanceMeters / 100) / 10
-      : null;
-    const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : null;
-    const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
-    const durationMin = distanceKm != null
-      ? _calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
-      : null;
-
-    let fitContent = null;
-    if (_importedFitBuffer) {
-      fitContent = arrayBufferToBase64(_importedFitBuffer);
-    }
-
-    try {
-      const saved = await _api.saveRoute({
-        name,
-        gpxContent:  content,
-        fitContent,
-        distance:    distanceKm,
-        duration:    durationMin,
-        elevation:   ascentMeters,
-        type:        "workout",
-        description: "",
-      });
-      _showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
-      _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
-      updateFileSaveButtonState();
-      if (typeof _loadRouteLibrary === "function") _loadRouteLibrary();
-    } catch (err) {
-      console.error("Edzés mentési hiba:", err);
-      _showToast(err.message || "Nem sikerült menteni. Az API elérhető?");
-      if (btn) {
-        btn.disabled = false;
-        const lbl = btn.querySelector("span");
-        if (lbl) lbl.textContent = "Mentés könyvtárba";
-      }
-    }
-  });
+  _elements.fileSaveToLibraryButton?.addEventListener("click", () => saveImportedToLibrary());
 
   // Share Card modal
   _initShareCardModal();
+}
+
+/** Az Elemzés fülön betöltött fájl mentése a könyvtárba (Edzések közé).
+ *  Visszaadja az új azonosítót, hiba esetén null-t. A „Mentés könyvtárba"
+ *  gomb és a Megosztás ablak „Mentés és link" opciója is ezt hívja. */
+async function saveImportedToLibrary() {
+  const btn = _elements.fileSaveToLibraryButton;
+  if (btn?.disabled) return null;
+  if (btn) {
+    btn.disabled = true;
+    const lbl = btn.querySelector("span");
+    if (lbl) lbl.textContent = "Mentés…";
+  }
+  const state = _store.getState();
+  const name = _importedFileName || "Edzés";
+
+  const content = _importedGpxText ?? exportGpx({
+    waypoints: state.waypoints,
+    geometry:  state.routeGeometry,
+    name,
+    desc: "",
+    mode: state.mode,
+  });
+
+  const distanceKm = state.distanceMeters > 0
+    ? Math.round(state.distanceMeters / 100) / 10
+    : null;
+  const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : null;
+  const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
+  const durationMin = distanceKm != null
+    ? _calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
+    : null;
+
+  let fitContent = null;
+  if (_importedFitBuffer) {
+    fitContent = arrayBufferToBase64(_importedFitBuffer);
+  }
+
+  try {
+    const saved = await _api.saveRoute({
+      name,
+      gpxContent:  content,
+      fitContent,
+      distance:    distanceKm,
+      duration:    durationMin,
+      elevation:   ascentMeters,
+      type:        "workout",
+      description: "",
+    });
+    _showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
+    _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
+    _loadedIsSample = false;
+    updateFileSaveButtonState();
+    if (typeof _loadRouteLibrary === "function") _loadRouteLibrary();
+    return _loadedLibraryRouteId;
+  } catch (err) {
+    console.error("Edzés mentési hiba:", err);
+    _showToast(err.message || "Nem sikerült menteni. Az API elérhető?");
+    if (btn) {
+      btn.disabled = false;
+      const lbl = btn.querySelector("span");
+      if (lbl) lbl.textContent = "Mentés könyvtárba";
+    }
+  }
+  return null;
 }
 
 // ── Modul-szintű state ────────────────────────────────────────────────────────
@@ -159,7 +169,9 @@ let _importedFileName = "";
 let _importedGpxText  = null;
 let _importedFitBuffer = null;
 let _loadedLibraryRouteId = null;
+let _loadedIsSample = false;
 let _shareCardData = null;
+let _shareRestore = undefined;   // külső megosztó-kép hívás előtti adat
 let _importedColoredGeometry = null;
 let _importedHrGeometry      = null;
 let _importedCadGeometry     = null;
@@ -176,8 +188,9 @@ export function getImportedFileName()         { return _importedFileName; }
 export function getImportedGpxText()          { return _importedGpxText; }
 
 /** loadRouteFromLibrary hívja, hogy könyvtárból töltött fájl adatait állítsa be. */
-export function setLoadedRoute(id, name, gpxText) {
+export function setLoadedRoute(id, name, gpxText, isSample = false) {
   _loadedLibraryRouteId = id;
+  _loadedIsSample       = !!isSample;
   _importedFileName     = name;
   _importedGpxText      = gpxText;
   _hasImportedFile      = true;
@@ -362,6 +375,8 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
       simPts.push({ lat: last.lat, lng: last.lng });
     }
     _shareCardData = {
+      geometry, descentMeters, startTime: meta.startTime || null,
+      isWorkout: !!(meta.startTime || meta.totalDuration),
       title:        titleStr,
       metaTitle:    metaTitle,
       date:         dateStr,
@@ -480,6 +495,7 @@ export async function processImportedFile(file) {
   _importedGpxText   = gpxText;
   _importedFitBuffer = fitBuffer;
   _loadedLibraryRouteId = null;
+  _loadedIsSample = false;
   updateFileSaveButtonState();
   populateFileTab({
     filename: file.name,
@@ -682,9 +698,64 @@ function _initShareCardModal() {
   function closeShareCardModal() {
     const overlay = document.querySelector("#shareCardOverlay");
     if (overlay) overlay.hidden = true;
+    if (_shareRestore !== undefined) { _shareCardData = _shareRestore; _shareRestore = undefined; }
   }
 
-  _elements.fileShareButton?.addEventListener("click", openShareCardModal);
+  // Megosztás: közös ablak (kép, PDF, nyilvános link – ha könyvtári elem)
+  function openFileShareMenu() {
+    if (!_shareCardData) return;
+    const id = _loadedLibraryRouteId;
+    const hasLink = id && id !== "saved" && !_loadedIsSample;
+    openShareModal({
+      title: _shareCardData.title,
+      url: hasLink ? shareRouteUrl(id) : null,
+      noLinkText: _loadedIsSample
+        ? "Minta-útvonalhoz nincs nyilvános link."
+        : "Nyilvános linkhez előbb mentsd el a könyvtárba.",
+      onSaveForLink: _loadedIsSample ? undefined : async () => {
+        const newId = await saveImportedToLibrary();
+        if (!newId || newId === "saved") throw new Error("Mentés sikertelen");
+        return shareRouteUrl(newId);
+      },
+      onImage: openShareCardModal,
+      onPdf: openFilePdf,
+    });
+  }
+
+  function openFilePdf() {
+    const d = _shareCardData;
+    if (!d) return;
+    const geo = d.geometry || [];
+    const vals = (k) => geo.map((p) => p[k]).filter((v) => v != null && Number.isFinite(v));
+    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+    const fmt1 = (v) => v.toLocaleString("hu-HU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const extraStats = [];
+    if (d.isWorkout) {
+      const sp = vals("speed"), hr = vals("hr"), cad = vals("cad"), pw = vals("power");
+      if (sp.length) extraStats.push([fmt1(Math.max(...sp)), "KM/H MAX"]);
+      if (hr.length) { extraStats.push([`${Math.round(avg(hr))}`, "ÁTL. PULZUS"]); extraStats.push([`${Math.round(Math.max(...hr))}`, "MAX PULZUS"]); }
+      if (cad.length) extraStats.push([`${Math.round(avg(cad.filter((c) => c > 0)) || 0)}`, "KADENCIA"]);
+      if (pw.length) extraStats.push([`${Math.round(avg(pw))} W`, "ÁTL. TELJ."]);
+    }
+    const id = _loadedLibraryRouteId;
+    const hasLink = id && id !== "saved" && !_loadedIsSample;
+    openRoutePdfModal({
+      title: d.metaTitle || d.title || "Útvonal",
+      date: d.date || "",
+      distanceKm: d.distanceKm || 0,
+      ascentM: d.elevationM || 0,
+      descentM: d.descentMeters ?? null,
+      durationText: d.durationText || "",
+      avgSpeedKmh: d.avgSpeedKmh || 0,
+      isWorkout: d.isWorkout, extraStats,
+      points: geo, geometry: geo,
+      waypoints: geo.length >= 2 ? [geo[0], geo[geo.length - 1]] : [],
+      shareUrl: hasLink ? shareRouteUrl(id) : null,   // link nélkül nincs QR
+      filename: d.metaTitle || d.title || "utvonal",
+    });
+  }
+
+  _elements.fileShareButton?.addEventListener("click", openFileShareMenu);
   document.querySelector("#shareCardClose")?.addEventListener("click", closeShareCardModal);
   document.querySelector("#shareCardOverlay")?.addEventListener("click", (e) => {
     if (e.target === e.currentTarget) closeShareCardModal();
@@ -778,7 +849,11 @@ function _initShareCardModal() {
     }
   });
 
+  // Külső hívás (könyvtár, tervező): csak ideiglenesen cseréli az Elemzés fül
+  // megosztási adatát – bezáráskor visszaáll (különben az Elemzés fül
+  // Megosztás/PDF funkciója a rossz geometriával dolgozna).
   window._openShareCardWith = function(data) {
+    if (_shareRestore === undefined) _shareRestore = _shareCardData;
     _shareCardData = data;
     openShareCardModal();
   };

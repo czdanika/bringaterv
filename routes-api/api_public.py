@@ -80,6 +80,7 @@ def _meta_from_index(e: dict) -> dict:
         "avgPower":    _num(e.get("avg_watts")),
         "maxPower":    _num(e.get("max_watts")),
         "calories":    _num(e.get("calories")),
+        "kilojoules":  _num(e.get("kilojoules")),
     }
 
 

@@ -228,6 +228,7 @@ function renderStats(meta, geometry, gmeta) {
   if (powAvg) cards.push(["⌀ Átlag teljesítmény", `${Math.round(powAvg)} W`]);
   if (powMax) cards.push(["Max teljesítmény", `${Math.round(powMax)} W`]);
 
+  if (meta.kilojoules) cards.push(["Mechanikai munka", `${Math.round(meta.kilojoules)} kJ`]);
   if (meta.calories) cards.push(["Kalória", `${Math.round(meta.calories)} kcal`]);
 
   $("v-stats").innerHTML = cards.map(([label, value]) =>

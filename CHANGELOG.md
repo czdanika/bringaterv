@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.5.1 – 2026-10-16 – Megosztás mindenhol, térképstílus a térképen
+
+### Megosztás
+- Az **Elemzés** fülön a „Megosztó kép” helyén **Megosztás** gomb: megosztó kép, PDF (edzésadatokkal) és – könyvtári elemnél – nyilvános link.
+- A **Tervezés** fül Mentés ablakában a „PDF letöltés” helyén szintén **Megosztás**.
+- Mentetlen tervnél / helyi fájlnál **„Mentés és link”** gomb: elmenti a könyvtárba, és azonnal megjelenik a link QR-ral, megosztási gombokkal. Link nélkül a PDF-be nem kerül félrevezető QR.
+
+### Térképstílus a térképen
+- A stílusválasztó a térkép **jobb felső sarkába** került (Tervezés + Elemzés), mellette „teljes útvonal” gomb. A régi helyek (oldalsáv, fájl-fejléc, eszköztár) megszűntek; a mentett eszköztár-sorrend kezeli a változást.
+
+### Nézőoldal
+- Új stat-kártya: **Mechanikai munka (kJ)**.
+- Arányosabb cím-blokk (kisebb sport-ikon és cím a logóhoz képest).
+
+### Egyéb
+- A felső és alsó menü-elrejtő gomb egy tengelyben a menüikonokkal.
+- A könyvtár Sport szűrőjében emoji helyett egységes vonalas ikonok.
+- Javítás: a könyvtárból/tervezőből nyitott megosztó kép nem írja felül tartósan az Elemzés fül adatait.
+
+### Verzió
+- v1.5.0 → v1.5.1
+
+---
+
 ## v1.5.0 – 2026-10-16 – Megosztás: nyilvános nézőoldal, link, edzésadatok a PDF-ben
 
 ### Megosztás ablak (Könyvtár)

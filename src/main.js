@@ -20,7 +20,8 @@ import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin } from "./ui/garmin.js";
-import { initRoutePdfModal, openRoutePdfModal, resolveShareBase } from "./ui/routePdfModal.js";
+import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
+import { openShareModal } from "./ui/shareModal.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -371,7 +372,6 @@ const GRAVEL_PICKER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentC
 const TOOLBAR_ITEMS_META = {
   search:      { label: 'Keresés',       group: 'nav',      icon: 'search' },
   routeMode:   { label: 'Tervezési mód', group: 'nav',      icon: null },
-  mapStyle:    { label: 'Térképstílus',  group: 'nav',      icon: 'layers' },
   import:      { label: 'GPX import',    group: 'file',     icon: 'upload' },
   reverse:     { label: 'Megfordítás',   group: 'edit',     icon: 'arrow-left-right' },
   returnRoute: { label: 'Visszaút',      group: 'edit',     icon: 'corner-down-left' },
@@ -384,7 +384,7 @@ const TOOLBAR_ITEMS_META = {
 };
 
 const DEFAULT_TOOLBAR_ORDER = [
-  'routeMode', 'mapStyle', 'search', 'import',
+  'routeMode', 'search', 'import',
   'reverse', 'returnRoute', 'roundTrip', 'undo', 'redo', 'reset',
   'elevation', 'export',
 ];
@@ -436,7 +436,9 @@ function getToolbarOrder() {
     const saved = localStorage.getItem('bringaterv-toolbar-order');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (DEFAULT_TOOLBAR_ORDER.every(id => parsed.includes(id))) return parsed;
+      // ismeretlen (pl. megszűnt) elemek kiszűrése
+      const known = parsed.filter(id => TOOLBAR_ITEMS_META[id]);
+      if (DEFAULT_TOOLBAR_ORDER.every(id => known.includes(id))) return known;
     }
   } catch (_) {}
   return [...DEFAULT_TOOLBAR_ORDER];
@@ -524,23 +526,9 @@ function initToolbarDragDrop(list) {
   list.addEventListener('dragenter', e => e.preventDefault());
 }
 
-const STYLE_ICONS = {
-  standard:  "map",
-  cycling:   "bike",
-  topo:      "mountain",
-  satellite: "satellite",
-  hybrid:    "satellite",
-  light:     "sun",
-  dark:      "moon",
-};
-
-function syncLayerPickerBtn(style) {
-  const pickerBtn = document.querySelector("#layerPickerBtn");
-  if (!pickerBtn) return;
-  // Mindig layers ikon – így nem ütközik a tervezési mód ikonjával
-  pickerBtn.innerHTML = `<i data-lucide="layers" aria-hidden="true"></i>`;
-  pickerBtn.title = `Térképstílus: ${STYLE_LABELS[style] ?? style}`;
-  window.lucide?.createIcons();
+function syncMapFabBtn(style) {
+  const label = document.querySelector("#mapStyleFabLabel");
+  if (label) label.textContent = STYLE_LABELS[style] ?? style;
 }
 
 const STYLE_LABELS = {
@@ -553,21 +541,6 @@ const STYLE_LABELS = {
   dark:      "Sötét",
 };
 
-function syncSidebarStyleBtn(style) {
-  const btn = document.querySelector("#sidebarStyleBtn");
-  if (!btn) return;
-  const icon = STYLE_ICONS[style] ?? "map";
-  btn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span id="sidebarStyleLabel">${STYLE_LABELS[style] ?? style}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
-  window.lucide?.createIcons();
-}
-
-function syncFileStyleBtn(style) {
-  const btn = document.querySelector("#fileStyleBtn");
-  if (!btn) return;
-  const icon = STYLE_ICONS[style] ?? "map";
-  btn.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span id="fileStyleLabel">${STYLE_LABELS[style] ?? style}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
-  window.lucide?.createIcons();
-}
 
 async function addWaypointWithName(point) {
   store.addWaypoint(point);
@@ -716,9 +689,7 @@ updateThemeIcon();
 document.querySelector("#themeToggle")?.addEventListener("click", toggleTheme);
 const savedMapStyle = localStorage.getItem("route4meMapStyle") || "standard";
 syncMapStyleButtons(savedMapStyle);
-syncLayerPickerBtn(savedMapStyle);
-syncSidebarStyleBtn(savedMapStyle);
-syncFileStyleBtn(savedMapStyle);
+syncMapFabBtn(savedMapStyle);
 mapAdapter.setMapStyle(savedMapStyle);
 checkForUpdate(); // GitHub release ellenőrzés – oldalbetöltéskor
 
@@ -1400,82 +1371,31 @@ elements.mapStyleButtons.forEach((btn) => {
     saveSetting("mapStyle", style);
     syncMapStyleButtons(style);
     mapAdapter.setMapStyle(style);
-    // close layer picker
-    const picker = document.querySelector("#layerPicker");
-    const pickerBtn = document.querySelector("#layerPickerBtn");
-    if (picker) picker.hidden = true;
-    if (pickerBtn) {
-      pickerBtn.classList.remove("is-active");
-      syncLayerPickerBtn(style);
-    }
-    // close sidebar style picker
-    const sidebarPicker = document.querySelector("#sidebarStylePicker");
-    const sidebarBtn = document.querySelector("#sidebarStyleBtn");
-    if (sidebarPicker) sidebarPicker.hidden = true;
-    if (sidebarBtn) sidebarBtn.classList.remove("is-open");
-    syncSidebarStyleBtn(style);
-    syncFileStyleBtn(style);
-    // close file style picker
-    const filePicker = document.querySelector("#fileStylePicker");
-    const fileBtn = document.querySelector("#fileStyleBtn");
-    if (filePicker) filePicker.hidden = true;
-    if (fileBtn) fileBtn.classList.remove("is-open");
+    // lebegő választó bezárása + felirat
+    if (mapStyleFabPicker) mapStyleFabPicker.hidden = true;
+    mapStyleFabBtn?.classList.remove("is-open");
+    syncMapFabBtn(style);
   });
 });
 
-// File tab style picker toggle
-const fileStyleBtn = document.querySelector("#fileStyleBtn");
-const fileStylePicker = document.querySelector("#fileStylePicker");
-fileStyleBtn?.addEventListener("click", (e) => {
+// Térképstílus-választó a térkép jobb felső sarkában (Tervezés + Elemzés)
+const mapStyleFabBtn = document.querySelector("#mapStyleFabBtn");
+const mapStyleFabPicker = document.querySelector("#mapStyleFabPicker");
+mapStyleFabBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
-  const isOpen = !fileStylePicker.hidden;
-  fileStylePicker.hidden = isOpen;
-  fileStyleBtn.classList.toggle("is-open", !isOpen);
-  if (!isOpen) window.lucide?.createIcons();
+  const isOpen = !mapStyleFabPicker.hidden;
+  mapStyleFabPicker.hidden = isOpen;
+  mapStyleFabBtn.classList.toggle("is-open", !isOpen);
 });
 document.addEventListener("click", () => {
-  if (fileStylePicker && !fileStylePicker.hidden) {
-    fileStylePicker.hidden = true;
-    fileStyleBtn?.classList.remove("is-open");
+  if (mapStyleFabPicker && !mapStyleFabPicker.hidden) {
+    mapStyleFabPicker.hidden = true;
+    mapStyleFabBtn?.classList.remove("is-open");
   }
 });
-fileStylePicker?.addEventListener("click", (e) => e.stopPropagation());
-
-// Sidebar style picker toggle
-const sidebarStyleBtn = document.querySelector("#sidebarStyleBtn");
-const sidebarStylePicker = document.querySelector("#sidebarStylePicker");
-sidebarStyleBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  const isOpen = !sidebarStylePicker.hidden;
-  sidebarStylePicker.hidden = isOpen;
-  sidebarStyleBtn.classList.toggle("is-open", !isOpen);
-  if (!isOpen) window.lucide?.createIcons();
-});
-document.addEventListener("click", () => {
-  if (sidebarStylePicker && !sidebarStylePicker.hidden) {
-    sidebarStylePicker.hidden = true;
-    sidebarStyleBtn?.classList.remove("is-open");
-  }
-});
-sidebarStylePicker?.addEventListener("click", (e) => e.stopPropagation());
-
-// Layer picker toggle
-const layerPickerBtn = document.querySelector("#layerPickerBtn");
-const layerPicker = document.querySelector("#layerPicker");
-layerPickerBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  const isOpen = !layerPicker.hidden;
-  layerPicker.hidden = isOpen;
-  layerPickerBtn.classList.toggle("is-active", !isOpen);
-  if (!isOpen) window.lucide?.createIcons();
-});
-document.addEventListener("click", () => {
-  if (layerPicker && !layerPicker.hidden) {
-    layerPicker.hidden = true;
-    layerPickerBtn?.classList.remove("is-active");
-  }
-});
-layerPicker?.addEventListener("click", (e) => e.stopPropagation());
+mapStyleFabPicker?.addEventListener("click", (e) => e.stopPropagation());
+// „Teljes útvonal": vissza a teljes nézetre
+document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdapter.fitRoute?.());
 
 // ── Toolbar kereső popup ──────────────────────────────────────────────────────
 (function initToolbarSearch() {
@@ -2528,14 +2448,15 @@ elements.exportConfirm?.addEventListener("click", () => {
 // ── PDF letöltés gomb (nyomtatható útvonallap – beállító + előnézet modal) ─────
 document.querySelector("#exportPdf")?.addEventListener("click", () => {
   if (!activeGeometry || activeGeometry.length < 2) { showToast("Előbb tervezz egy útvonalat."); return; }
-  const { name, filename, distanceKm, ascentMeters, durationMin } = buildExportPayload();
+  const payload = buildExportPayload();
+  const { name, filename, distanceKm, ascentMeters, durationMin } = payload;
   const state = store.getState();
   const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
   const waypoints = (state.waypoints || [])
     .map(wp => ({ lat: wp.lat, lng: wp.lng, name: wp.name || wp.label || "" }))
     .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   elements.exportOverlay.hidden = true;
-  openRoutePdfModal({
+  const pdfCtx = {
     title: name || "Útvonalterv",
     date: "",
     distanceKm: distanceKm ?? 0,
@@ -2546,8 +2467,32 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
     points: activeGeometry,
     geometry: activeGeometry,
     waypoints,
-    shareUrl: resolveShareBase(),
+    shareUrl: null,   // mentetlen tervnek még nincs nyilvános linkje → nincs QR
     filename: (filename?.replace(/\.gpx$/i, "")) || name || "utvonalterv",
+  };
+  // Megosztás ablak: megosztó kép + PDF (mentetlen tervnek még nincs nyilvános linkje)
+  const step = Math.max(1, Math.floor(activeGeometry.length / 400));
+  const simPts = activeGeometry.filter((_, i) => i % step === 0 || i === activeGeometry.length - 1)
+    .map((p) => ({ lat: p.lat, lng: p.lng }));
+  openShareModal({
+    title: name || "Útvonalterv",
+    url: null,
+    noLinkText: "Nyilvános linkhez előbb mentsd el az útvonalat a könyvtárba.",
+    // „Mentés és link": elmenti, és onnantól a PDF is a valódi linket/QR-t kapja
+    onSaveForLink: async () => {
+      const id = await savePlanToLibrary(payload);
+      if (!id) throw new Error("Nem jött vissza azonosító.");
+      showToast(`„${name}" elmentve a könyvtárba`);
+      pdfCtx.shareUrl = shareRouteUrl(id);
+      return pdfCtx.shareUrl;
+    },
+    onImage: () => window._openShareCardWith?.({
+      title: name || "Útvonalterv", metaTitle: name || "", date: "",
+      distanceKm: distanceKm ?? 0,
+      durationText: durationMin != null ? fmtMinutesHuman(durationMin) : "",
+      avgSpeedKmh: 0, elevationM: ascentMeters || 0, points: simPts,
+    }),
+    onPdf: () => openRoutePdfModal(pdfCtx),
   });
 });
 
@@ -2558,21 +2503,29 @@ function fmtMinutesHuman(min) {
 }
 
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
+/** A tervezett útvonal mentése a könyvtárba; visszaadja az új azonosítót. */
+async function savePlanToLibrary(payload = buildExportPayload()) {
+  const { name, desc, content, selectedMode, distanceKm, ascentMeters, durationMin } = payload;
+  const res = await routesApi.saveRoute({
+    name,
+    gpxContent:       content,
+    distance:         distanceKm,
+    duration:         durationMin,
+    elevation:        ascentMeters || null,
+    type:             selectedMode === "walking" ? "hiking" : selectedMode,
+    description:      desc,
+    include_in_stats: false,  // tervezett útvonal – statisztikából kizárva alapból
+  });
+  return res?.id ?? null;
+}
+
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {
-  const { name, desc, content, selectedMode, distanceKm, ascentMeters, durationMin } = buildExportPayload();
+  const payload = buildExportPayload();
+  const { name } = payload;
   elements.exportOverlay.hidden = true;
 
   try {
-    await routesApi.saveRoute({
-      name,
-      gpxContent:       content,
-      distance:         distanceKm,
-      duration:         durationMin,
-      elevation:        ascentMeters || null,
-      type:             selectedMode === "walking" ? "hiking" : selectedMode,
-      description:      desc,
-      include_in_stats: false,  // tervezett útvonal – statisztikából kizárva alapból
-    });
+    await savePlanToLibrary(payload);
     showToast(`„${name}" elmentve a könyvtárba`);
   } catch (err) {
     console.error("Könyvtár mentési hiba:", err);
@@ -2743,7 +2696,7 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     applyRouteLayer(null);
     mapAdapter.renderRoute(imported.geometry, store.getState().mode);
 
-    setLoadedRoute(id, routeName, gpxText);
+    setLoadedRoute(id, routeName, gpxText, isSample);
     updateFileSaveButtonState();
     populateFileTab({
       filename: `${routeName}.gpx`,

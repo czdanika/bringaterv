@@ -78,7 +78,12 @@ function build() {
           </div>
           <div class="share-targets" data-share="targets"></div>
         </div>
-        <div class="share-no-link" data-share="no-link" hidden>Minta-útvonalhoz nincs nyilvános link.</div>
+        <div class="share-no-link" data-share="no-link" hidden>
+          <span data-share="no-link-text"></span>
+          <button class="share-copy-btn share-save-link-btn" type="button" data-share="save-link" hidden>
+            <i data-lucide="link" aria-hidden="true"></i><span>Mentés és link</span>
+          </button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -123,7 +128,8 @@ function targetsHtml(url, title) {
   }).join("");
 }
 
-export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf } = {}) {
+export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf, onSaveForLink,
+                                 noLinkText = "Minta-útvonalhoz nincs nyilvános link." } = {}) {
   if (!_el) _el = build();
   const { ov, q, close } = _el;
 
@@ -131,9 +137,32 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf 
   q("image").onclick = () => { close(); onImage?.(); };
   q("pdf").onclick = () => { close(); onPdf?.(); };
 
-  q("link-block").hidden = !url;
-  q("no-link").hidden = !!url;
-  if (url) {
+  q("no-link-text").textContent = noLinkText;
+  const saveBtn = q("save-link");
+  saveBtn.hidden = !onSaveForLink;
+  saveBtn.disabled = false;
+  saveBtn.querySelector("span").textContent = "Mentés és link";
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    saveBtn.querySelector("span").textContent = "Mentés…";
+    try {
+      const newUrl = await onSaveForLink();
+      if (newUrl) renderLink(newUrl);
+    } catch (err) {
+      console.error("Mentés hiba:", err);
+      saveBtn.disabled = false;
+      saveBtn.querySelector("span").textContent = "Újrapróbálás";
+    }
+  };
+  renderLink(url);
+
+  ov.hidden = false;
+  window.lucide?.createIcons();
+
+  function renderLink(url) {
+    q("link-block").hidden = !url;
+    q("no-link").hidden = !!url;
+    if (!url) return;
     q("url").value = url;
     q("warn").hidden = !isPrivateHost(url);
     q("targets").innerHTML = targetsHtml(url, title);
@@ -142,13 +171,12 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf 
     });
     const qrBox = q("qr");
     qrBox.innerHTML = "";
+    qrBox.hidden = false;
     ensureQR().then((qrcode) => {
       const c = buildQrCanvas(url, qrcode, { size: 240 });
       c.className = "share-qr-canvas";
       qrBox.appendChild(c);
     }).catch(() => { qrBox.hidden = true; });
+    window.lucide?.createIcons();
   }
-
-  ov.hidden = false;
-  window.lucide?.createIcons();
 }

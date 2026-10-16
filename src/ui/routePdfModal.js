@@ -100,6 +100,11 @@ export function openRoutePdfModal(context) {
   setToggle(el.hr, "hr", true);
   setToggle(el.cad, "cad", true);
   setToggle(el.power, "power", false);
+  // QR csak valódi (mentett) linkhez
+  const hasUrl = !!_ctx.shareUrl;
+  el.qr.checked = hasUrl;
+  el.qr.disabled = !hasUrl;
+  el.qr.closest(".pdf-toggle")?.classList.toggle("is-disabled", !hasUrl);
 
   resetPreview();
   el.overlay.hidden = false;
@@ -132,7 +137,7 @@ function gatherOpts(preview) {
     note: el.note.value,
     mapStyle: el.mapStyle.value,
     orientation: orient,
-    includeQr: el.qr.checked,
+    includeQr: el.qr.checked && !el.qr.disabled,
     includeElevation: el.elev.checked,
     includeSpeed: !!el.speed?.checked && !el.speed.disabled,
     includeHr: !!el.hr?.checked && !el.hr.disabled,
