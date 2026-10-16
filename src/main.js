@@ -20,6 +20,7 @@ import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin } from "./ui/garmin.js";
+import { initRoutePdfModal, openRoutePdfModal } from "./ui/routePdfModal.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -692,6 +693,10 @@ initStats({
   onLoadRoute:    (id, isSample, name, target) => loadRouteFromLibrary(id, isSample, name, target),
 });
 
+initRoutePdfModal({
+  getDefaultMapStyle: () => localStorage.getItem("route4meMapStyle") || "standard",
+});
+
 window.lucide?.createIcons();
 updateThemeIcon();
 document.querySelector("#themeToggle")?.addEventListener("click", toggleTheme);
@@ -702,6 +707,16 @@ syncSidebarStyleBtn(savedMapStyle);
 syncFileStyleBtn(savedMapStyle);
 mapAdapter.setMapStyle(savedMapStyle);
 checkForUpdate(); // GitHub release ellenőrzés – oldalbetöltéskor
+
+// Mély-link: ?route=<id> → útvonal betöltése tervezésre (PDF QR-kódból nyitható)
+try {
+  const routeParam = new URLSearchParams(location.search).get("route");
+  if (routeParam) {
+    loadRouteFromLibrary(routeParam, false, "", "plan")
+      .catch((err) => console.warn("Mély-link betöltés sikertelen:", err));
+  }
+} catch (_) {}
+
 // Verzió megjelenítése a sidebarban (src/version.js-ből)
 const appVersionEl = document.querySelector("#appVersion");
 if (appVersionEl) appVersionEl.textContent = APP_VERSION;
@@ -2495,6 +2510,38 @@ elements.exportConfirm?.addEventListener("click", () => {
   downloadGpx(filename, content);
   elements.exportOverlay.hidden = true;
 });
+
+// ── PDF letöltés gomb (nyomtatható útvonallap – beállító + előnézet modal) ─────
+document.querySelector("#exportPdf")?.addEventListener("click", () => {
+  if (!activeGeometry || activeGeometry.length < 2) { showToast("Előbb tervezz egy útvonalat."); return; }
+  const { name, filename, distanceKm, ascentMeters, durationMin } = buildExportPayload();
+  const state = store.getState();
+  const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
+  const waypoints = (state.waypoints || [])
+    .map(wp => ({ lat: wp.lat, lng: wp.lng, name: wp.name || wp.label || "" }))
+    .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  elements.exportOverlay.hidden = true;
+  openRoutePdfModal({
+    title: name || "Útvonalterv",
+    date: "",
+    distanceKm: distanceKm ?? 0,
+    ascentM: ascentMeters || 0,
+    descentM: descentMeters,
+    durationText: durationMin != null ? fmtMinutesHuman(durationMin) : "",
+    avgSpeedKmh: 0,
+    points: activeGeometry,
+    geometry: activeGeometry,
+    waypoints,
+    shareUrl: location.origin,
+    filename: (filename?.replace(/\.gpx$/i, "")) || name || "utvonalterv",
+  });
+});
+
+function fmtMinutesHuman(min) {
+  const m = Math.round(min);
+  const h = Math.floor(m / 60), r = m % 60;
+  return h > 0 ? `${h}:${String(r).padStart(2, "0")}` : `${r} perc`;
+}
 
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {

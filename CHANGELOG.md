@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.4.0 – 2026-10-16 – PDF útvonallap export
+
+### Nyomtatható PDF útvonallap
+
+- Új funkció: egy útvonalból **nyomtatható, egy kattintással letölthető PDF lap** készíthető (A4 álló vagy fekvő).
+- Elérhető **két helyről**: a Könyvtárban a kártya „PDF" gombja, a Tervezőben az export ablak „PDF letöltés" gombja – mindkettő a beállító + előnézet ablakot nyitja.
+- A lap tartalma: fejléc (logó + márkanév + útvonalnév + dátum), **valódi térkép** a route-tal (saját Web-Mercator csempe-összeállítás, 5 km-es jelölők, start/cél), stat-sor (táv · emelkedés · becsült idő · süllyedés), **szintprofil**, **burkolat-bontás**, **pontok listája**, **megjegyzés** és **QR-kód**.
+
+### Beállító + előnézet ablak
+
+- **Térképstílus**: Standard / Világos / Domborzat / Műhold (alapból az appban kiválasztott).
+- **Tájolás**: álló vagy fekvő (fekvőben kétoszlopos, nagyobb térkép).
+- **Kapcsolók**: szintprofil, burkolat-bontás, pontok listája, QR-kód.
+- Szerkeszthető **cím**, **fájlnév** és szabad **megjegyzés** mező.
+- **„Előnézet frissítése"** gomb – a kész lap a böngésző PDF-nézőjében jelenik meg letöltés előtt.
+
+### Technikai részletek
+
+- A térkép CORS-barát csempékből (OSM / Esri) épül, saját vetítéssel – nyomtatva is éles.
+- **Roboto Unicode betűtípus beágyazva** a PDF-be, így a magyar ő/ű és az ékezetek hibátlanul jelennek meg (a jsPDF beépített Helvetica ezt nem tudta).
+- jsPDF és a QR-könyvtár CDN-ről, igény szerint (lazy) töltődik.
+- A burkolat-elemzés (Overpass) **12 mp időkorláttal** fut; ha lassú, anélkül készül el a lap.
+- QR mély-link: a mentett útvonal `?route=<id>` címmel telefonról megnyitható.
+
+### Verzió
+
+- v1.3.5 → v1.4.0
+
+---
+
 ## v0.85 – 2026-05-23 – Útirány-nyilak, szélelemzés finomítások
 
 ### Útirány-nyilak a térképen

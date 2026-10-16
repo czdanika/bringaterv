@@ -1552,9 +1552,94 @@
             <i data-lucide="download" aria-hidden="true"></i>
             GPX letöltés
           </button>
+          <button id="exportPdf" class="export-confirm-btn export-confirm-btn--secondary" type="button" title="Nyomtatható útvonallap letöltése PDF-ben">
+            <i data-lucide="file-text" aria-hidden="true"></i>
+            PDF letöltés
+          </button>
           <button id="exportSaveToLibrary" class="export-confirm-btn export-confirm-btn--primary" type="button">
             <i data-lucide="save" aria-hidden="true"></i>
             Mentés a könyvtárba
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PDF útvonallap beállító + előnézet modal ───────────────────────── -->
+    <div id="pdfOverlay" class="shortcut-overlay" hidden>
+      <div class="pdf-panel">
+        <div class="export-header">
+          <h3>PDF útvonallap</h3>
+          <button id="pdfClose" class="shortcut-close" type="button" title="Bezárás">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="pdf-body">
+          <div class="pdf-options">
+            <div class="export-field">
+              <label class="export-label" for="pdfTitle">Cím</label>
+              <input id="pdfTitle" class="export-input" type="text" placeholder="Útvonal neve" autocomplete="off">
+            </div>
+            <div class="pdf-field-row">
+              <div class="export-field">
+                <label class="export-label" for="pdfMapStyle">Térképstílus</label>
+                <select id="pdfMapStyle" class="export-input">
+                  <option value="standard">Standard (részletes)</option>
+                  <option value="light">Világos / letisztult</option>
+                  <option value="topo">Domborzat (túra)</option>
+                  <option value="satellite">Műhold</option>
+                </select>
+              </div>
+              <div class="export-field">
+                <label class="export-label">Tájolás</label>
+                <div class="pdf-orient-group">
+                  <label class="pdf-orient-btn"><input type="radio" name="pdfOrient" value="portrait" checked><span>Álló</span></label>
+                  <label class="pdf-orient-btn"><input type="radio" name="pdfOrient" value="landscape"><span>Fekvő</span></label>
+                </div>
+              </div>
+            </div>
+            <div class="export-field">
+              <label class="export-label">Tartalom</label>
+              <div class="pdf-toggles">
+                <label class="pdf-toggle"><input id="pdfElev" type="checkbox" checked><span>Szintprofil</span></label>
+                <label class="pdf-toggle"><input id="pdfSurface" type="checkbox" checked><span>Burkolat</span></label>
+                <label class="pdf-toggle"><input id="pdfWaypoints" type="checkbox"><span>Pontok listája</span></label>
+                <label class="pdf-toggle"><input id="pdfQr" type="checkbox" checked><span>QR-kód</span></label>
+              </div>
+            </div>
+            <div class="export-field">
+              <label class="export-label" for="pdfNote">Megjegyzés <span class="export-optional">(opcionális)</span></label>
+              <textarea id="pdfNote" class="export-textarea" rows="2" placeholder="Rövid megjegyzés az útvonalról…"></textarea>
+            </div>
+            <div class="export-field">
+              <label class="export-label" for="pdfFilename">Fájlnév</label>
+              <div class="export-filename-wrap">
+                <input id="pdfFilename" class="export-input" type="text" autocomplete="off" spellcheck="false">
+                <span class="export-ext">.pdf</span>
+              </div>
+            </div>
+          </div>
+          <div class="pdf-preview">
+            <div class="pdf-preview-stage">
+              <iframe id="pdfPreviewFrame" title="PDF előnézet" hidden></iframe>
+              <div id="pdfPreviewEmpty" class="pdf-preview-empty">
+                <i data-lucide="file-text" aria-hidden="true"></i>
+                <p>Kattints az <strong>Előnézet frissítése</strong> gombra a lap megtekintéséhez.</p>
+              </div>
+              <div id="pdfPreviewLoading" class="pdf-preview-loading" hidden>
+                <span class="pdf-spinner"></span>
+                <span id="pdfPreviewStatus">Előnézet készítése…</span>
+              </div>
+            </div>
+            <button id="pdfPreviewBtn" class="export-confirm-btn export-confirm-btn--secondary" type="button">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              Előnézet frissítése
+            </button>
+          </div>
+        </div>
+        <div class="export-footer">
+          <button id="pdfDownload" class="export-confirm-btn export-confirm-btn--primary" type="button">
+            <i data-lucide="download" aria-hidden="true"></i>
+            PDF letöltés
           </button>
         </div>
       </div>

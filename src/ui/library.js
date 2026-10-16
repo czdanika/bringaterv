@@ -10,6 +10,8 @@
  *                 getStravaStatus, libraryData, libraryFilter, DIST_MAX, DUR_MAX });
  */
 
+import { openRoutePdfModal } from "./routePdfModal.js";
+
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
 let _openStravaImportModal, _processImportedFile, _refreshStravaStatus, _getStravaStatus;
@@ -419,6 +421,7 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#007CC3;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">G</span>${route.garmin_course_id ? '✓ Feltöltve – újraküldés' : 'Küldés Garminra'}</button>` : ''}
           ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">↗ Garmin course</a>` : ''}
           <button class="library-card-btn" data-action="share">Megosztó kép</button>
+          <button class="library-card-btn" data-action="pdf" title="Nyomtatható útvonallap letöltése PDF-ben">PDF</button>
           ${!isSample ? `<button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>` : ''}
           ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
           ${!isSample ? '<button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>' : ''}
@@ -525,6 +528,45 @@ function buildLibraryExpandRow(route, category, isSample) {
             });
           } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
           finally { btn.disabled = false; btn.textContent = "Megosztó kép"; }
+        } else if (act === "pdf") {
+          btn.disabled = true; btn.textContent = "Betöltés…";
+          try {
+            const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
+            const xml = new DOMParser().parseFromString(gpxText, "application/xml");
+            const nodes = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")];
+            const geometry = nodes.map(n => {
+              const eleN = n.getElementsByTagNameNS("*", "ele")[0];
+              return {
+                lat: parseFloat(n.getAttribute("lat")),
+                lng: parseFloat(n.getAttribute("lon")),
+                ele: eleN ? parseFloat(eleN.textContent) : null,
+              };
+            }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+            // Nevesített pontok (wpt / rtept) – ha nincs legalább 2, a start/cél geometria
+            const named = [...xml.getElementsByTagNameNS("*", "wpt"), ...xml.getElementsByTagNameNS("*", "rtept")]
+              .map(n => ({
+                lat: parseFloat(n.getAttribute("lat")),
+                lng: parseFloat(n.getAttribute("lon")),
+                name: n.getElementsByTagNameNS("*", "name")[0]?.textContent?.trim() || "",
+              }))
+              .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+            const waypoints = named.length >= 2 ? named
+              : (geometry.length >= 2 ? [geometry[0], geometry[geometry.length - 1]] : []);
+            const distKm = route.distance ?? 0, durMin = route.duration ?? null;
+            openRoutePdfModal({
+              title: route.name || "Útvonalterv",
+              date: route.date ? new Date(route.date).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "",
+              distanceKm: distKm,
+              ascentM: route.elevation ?? 0,
+              descentM: null,
+              durationText: durMin != null ? _fmtMin(durMin * 60 * 1000) : "",
+              avgSpeedKmh: (durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0,
+              points: geometry, geometry, waypoints,
+              shareUrl: isSample ? location.origin : `${location.origin}/?route=${route.id}`,
+              filename: route.name || "utvonalterv",
+            });
+          } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
+          finally { btn.disabled = false; btn.textContent = "PDF"; }
         } else if (act === "delete") {
           if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
           await _api.deleteRoute(route.id);
