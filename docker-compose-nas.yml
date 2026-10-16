@@ -18,6 +18,9 @@ services:
       - "8088:80"             # bal: külső port – változtasd meg, ha kell
     environment:
       LOGIN_ENABLED: true     # false → nem kér jelszót (házon belüli hálózaton)
+      # Publikus megosztási (QR) alap-URL, pl. https://bringaterv.example.hu
+      # Üresen a böngésző aktuális címét használja (felülírható: Beállítások → Megosztás)
+      SHARE_BASE_URL: ""
     depends_on:
       - routes-api
     networks:
@@ -31,6 +34,7 @@ services:
     environment:
       SAMPLES_DIR:     /samples           # beépített minták (image-be égetve)
       DB_PATH:         /data/bringaterv.db
+      PUBLIC_SHARE_ENABLED: "true"     # false → a publikus nézőoldal (QR-link) kikapcsolva
       MULTI_DATA_DIR:  /data/users        # per-user GPX könyvtárak
       ADMIN_EMAIL:     bringa             # ← admin belépési azonosító
       ADMIN_PASSWORD:  terv               # ← VÁLTOZTASD MEG!

@@ -19,6 +19,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 /
 ├── index.html              # SPA belépési pont
 ├── login.html              # Bejelentkezési oldal
+├── view.html               # Publikus, csak-olvasható nézőoldal (QR/megosztási link, nincs login)
 ├── docker-compose.yml      # Pi / lokális build
 ├── docker-compose-nas.yml  # NAS / éles (ghcr.io image-ek)
 ├── nginx.conf              # Frontend szerver + /api/ proxy → routes-api:5001
@@ -39,11 +40,13 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_strava.py       # /api/strava/* + /api/admin/strava/config
 │   ├── garmin_service.py   # Garmin helperek (login+MFA, tokenek, testsúly, import, course feltöltés)
 │   ├── api_garmin.py       # /api/garmin/* (status, connect, mfa, weight, activities, import, course)
+│   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
     ├── styles.css          # Teljes CSS
     ├── version.js          # APP_VERSION egyetlen forrás
+    ├── view.js             # Publikus nézőoldal logikája (térkép, stat-kártyák, kapcsolható grafikonok)
     ├── config.js           # Login enabled flag (docker-entrypoint injektálja)
     ├── auth.js             # JWT kezelés, requireAuth, logout
     ├── appSettings.js      # LocalStorage beállítások (getSettings, saveSetting)
@@ -69,6 +72,9 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── search.js       # Nominatim helykeresés (searchPlaces, reverseGeocode)
         ├── elevationProfile.js  # Canvas szintprofil/sebesség/HR/kad/power chart
         ├── shareCard.js    # Canvas megosztó kép generálás (createWorkoutShareCard)
+        ├── shareModal.js   # Könyvtár „Megosztás” ablak (kép, PDF, nyilvános link + csatornák, QR)
+        ├── routePdf.js     # PDF útvonallap (jsPDF, csempékből térkép, grafikonok, Roboto font)
+        ├── routePdfModal.js # PDF beállító + előnézet ablak; resolveShareBase/shareRouteUrl
         ├── statsPanel.js   # Statisztika renderelők: renderStats, renderMonthlyTable
         │                   #   (kalória+Eddington+sport-bontás), renderRecordsFull,
         │                   #   renderEddington (sportonkénti chipek), renderTrainingLoad
@@ -233,6 +239,8 @@ DELETE /api/routes/<id>                 Törlés
 GET    /api/routes/<id>/fit             Eredeti FIT bináris
 GET    /api/samples                     Minta útvonalak lista
 GET    /api/samples/<id>                Minta GPX
+GET    /api/public/route/<id>           Publikus (auth nélküli) útvonal/edzés: meta + GPX
+                                        (PUBLIC_SHARE_ENABLED=false → kikapcsolva)
 GET    /api/user/settings               Felhasználó beállítások
 PUT    /api/user/settings               Beállítások mentése
 GET    /api/user/backup                 ZIP backup letöltés

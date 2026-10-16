@@ -1583,10 +1583,13 @@
               <div class="export-field">
                 <label class="export-label" for="pdfMapStyle">Térképstílus</label>
                 <select id="pdfMapStyle" class="export-input">
-                  <option value="standard">Standard (részletes)</option>
-                  <option value="light">Világos / letisztult</option>
-                  <option value="topo">Domborzat (túra)</option>
+                  <option value="standard">Standard</option>
+                  <option value="cycling">Kerékpár</option>
+                  <option value="topo">Domborzat</option>
                   <option value="satellite">Műhold</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="light">Világos</option>
+                  <option value="dark">Sötét</option>
                 </select>
               </div>
               <div class="export-field">
@@ -1601,6 +1604,10 @@
               <label class="export-label">Tartalom</label>
               <div class="pdf-toggles">
                 <label class="pdf-toggle"><input id="pdfElev" type="checkbox" checked><span>Szintprofil</span></label>
+                <label class="pdf-toggle"><input id="pdfSpeed" type="checkbox" checked><span>Sebesség</span></label>
+                <label class="pdf-toggle"><input id="pdfHr" type="checkbox" checked><span>Pulzus</span></label>
+                <label class="pdf-toggle"><input id="pdfCad" type="checkbox" checked><span>Kadencia</span></label>
+                <label class="pdf-toggle"><input id="pdfPower" type="checkbox"><span>Teljesítmény</span></label>
                 <label class="pdf-toggle"><input id="pdfSurface" type="checkbox" checked><span>Burkolat</span></label>
                 <label class="pdf-toggle"><input id="pdfWaypoints" type="checkbox"><span>Pontok listája</span></label>
                 <label class="pdf-toggle"><input id="pdfQr" type="checkbox" checked><span>QR-kód</span></label>
@@ -1969,6 +1976,24 @@
   </span>
   </label>
   </div>
+  </div>
+  </section>
+
+  <!-- Megosztás / QR -->
+  <section class="settings-section" data-settings-section="sharing">
+  <h4 class="settings-section-title">
+  <i data-lucide="share-2" aria-hidden="true"></i>
+  Megosztás
+  <button class="hint-btn" type="button" data-hint="A PDF-ekbe kerülő QR-kód és a megosztási linkek erre az alap-URL-re mutatnak. Üresen hagyva az éppen használt címet (origin) használja. Publikus domainnél (pl. https://bringaterv.czibolyahome.hu) itt add meg, hogy a QR-t telefonról is el lehessen érni." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+  <label class="settings-field-label" for="shareBaseInput">Megosztási / QR alap-URL</label>
+  <input id="shareBaseInput" class="export-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+         placeholder="https://bringaterv.czibolyahome.hu">
+  <p class="settings-field-hint">Üresen hagyva az aktuális címet használja. A QR-kódok a <code>/view.html?route=…</code> publikus nézőoldalra mutatnak.</p>
   </div>
   </section>
 

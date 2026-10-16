@@ -17,8 +17,8 @@
  */
 
 import { analyzeSurface, MODE_LABELS } from "../map/surfaceAnalysis.js";
-import { SEGMENT_COLORS } from "../map/mapAdapter.js";
-import { buildElevationData } from "./elevationProfile.js";
+import { SEGMENT_COLORS, getTileLayerDef } from "../map/mapAdapter.js";
+import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData } from "./elevationProfile.js";
 
 const NAVY = "#2d4a5a";
 const ACCENT = "#e8461e";
@@ -26,26 +26,20 @@ const INK = "#1f2a30";
 const MUTED = "#7a8891";
 const TILE = 256;
 
-const TILE_STYLES = {
-  standard: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    subdomains: ["a", "b", "c"], maxZoom: 18, veil: 0.12,
-  },
-  light: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-    overlay: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
-    subdomains: [], maxZoom: 16, veil: 0,
-  },
-  topo: {
-    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    subdomains: ["a", "b", "c"], maxZoom: 16, veil: 0.08,
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    overlay: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-    subdomains: [], maxZoom: 18, veil: 0,
-  },
-};
+// Térképstílusok: ugyanazok a csempe-definíciók, mint az appban (mapAdapter).
+// A „veil" enyhe fehér fátyol a részletgazdag rétegeken, hogy a route kiemelkedjen.
+const VEIL = { standard: 0.12, cycling: 0.1, topo: 0.08 };
+function tileDefFor(style) {
+  const d = getTileLayerDef(style);
+  const opts = d.options || {};
+  return {
+    url: d.url,
+    subdomains: d.url.includes("{s}") ? (opts.subdomains ? [...opts.subdomains] : ["a", "b", "c"]) : [],
+    maxZoom: Math.min(opts.maxNativeZoom || opts.maxZoom || 18, 18),
+    overlay: d.overlay?.url || null,
+    veil: VEIL[style] || 0,
+  };
+}
 
 // ── CDN lazy-load ──────────────────────────────────────────────────────────
 
@@ -67,7 +61,7 @@ async function ensureJsPDF() {
   return window.jspdf.jsPDF;
 }
 
-async function ensureQR() {
+export async function ensureQR() {
   if (window.qrcode) return window.qrcode;
   await loadScriptOnce("https://unpkg.com/qrcode-generator@1.4.4/qrcode.js");
   if (!window.qrcode) throw new Error("QR könyvtár nem elérhető.");
@@ -152,7 +146,7 @@ function withTimeout(promise, ms) {
 // ── Térkép-canvas összerakása csempékből ───────────────────────────────────
 
 async function buildMapCanvas(points, style, { width, height, pad = 44, routeColor = ACCENT, includeKm = true } = {}) {
-  const def = TILE_STYLES[style] || TILE_STYLES.standard;
+  const def = tileDefFor(style);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width);
   canvas.height = Math.round(height);
@@ -251,20 +245,37 @@ function drawKmMarkers(ctx, geo, pts) {
 
 // ── Szintprofil canvas ───────────────────────────────────────────────────────
 
-function buildElevationCanvas(elevData, { width = 1600, height = 300 } = {}) {
+function buildElevationCanvas(elevData, opts = {}) {
+  return buildProfileCanvas(elevData, { rgb: [5, 150, 105], ...opts });
+}
+
+// Sebesség: 0-tól induló tengely, kék szín
+function buildSpeedCanvas(speedData, opts = {}) {
+  return buildProfileCanvas(speedData, { rgb: [25, 118, 210], fromZero: true, ...opts });
+}
+
+// Általános távolság-alapú profil-grafikon (szint, sebesség, …)
+function buildProfileCanvas(rawData, { width = 1600, height = 300, rgb = [232, 70, 30], fromZero = false } = {}) {
   const canvas = document.createElement("canvas");
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d");
-  const data = (elevData || []).filter((d) => d.value != null);
+  const data = (rawData || []).filter((d) => d.value != null && Number.isFinite(d.value));
   if (data.length < 2) return null;
+  const [r, g, b] = rgb;
+  // Fehér háttér → JPEG-ként ágyazható (a színátmenetes PNG nagyon nagy lenne)
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, width, height);
 
   const padL = 56, padR = 16, padT = 16, padB = 34;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const dists = data.map((d) => d.dist), vals = data.map((d) => d.value);
   const dMin = Math.min(...dists), dMax = Math.max(...dists);
   let vMin = Math.min(...vals), vMax = Math.max(...vals);
-  if (vMax - vMin < 10) { vMax += 5; vMin -= 5; }
-  const p = (vMax - vMin) * 0.12; vMin -= p; vMax += p;
+  if (fromZero) {
+    vMin = 0; vMax = vMax * 1.1 || 1;
+  } else {
+    if (vMax - vMin < 10) { vMax += 5; vMin -= 5; }
+    const p = (vMax - vMin) * 0.12; vMin -= p; vMax += p;
+  }
   const sx = (d) => padL + ((d - dMin) / (dMax - dMin || 1)) * plotW;
   const sy = (v) => padT + plotH - ((v - vMin) / (vMax - vMin || 1)) * plotH;
 
@@ -284,13 +295,13 @@ function buildElevationCanvas(elevData, { width = 1600, height = 300 } = {}) {
   ctx.lineTo(sx(data[0].dist), padT + plotH);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
-  grad.addColorStop(0, "rgba(232,70,30,0.30)");
-  grad.addColorStop(1, "rgba(232,70,30,0.02)");
+  grad.addColorStop(0, `rgba(${r},${g},${b},0.30)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0.02)`);
   ctx.fillStyle = grad; ctx.fill();
 
   ctx.beginPath();
   data.forEach((d, i) => (i === 0 ? ctx.moveTo(sx(d.dist), sy(d.value)) : ctx.lineTo(sx(d.dist), sy(d.value))));
-  ctx.strokeStyle = ACCENT; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.stroke();
 
   ctx.fillStyle = MUTED; ctx.textAlign = "center"; ctx.textBaseline = "top";
   const totalKm = dMax / 1000;
@@ -311,7 +322,7 @@ function surfaceBreakdown(segments) {
     .map((m) => ({ mode: m, km: by[m], pct: (by[m] / total) * 100 }));
 }
 
-function buildQrCanvas(text, qrcode, { size = 320 } = {}) {
+export function buildQrCanvas(text, qrcode, { size = 320 } = {}) {
   const qr = qrcode(0, "M"); qr.addData(text); qr.make();
   const n = qr.getModuleCount();
   const canvas = document.createElement("canvas");
@@ -332,26 +343,38 @@ function fmt(v, d = 1) {
   return Number(v || 0).toLocaleString("hu-HU", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
-function drawStats(pdf, x, y, w, o) {
-  const cells = [
-    [fmt(o.distanceKm, 1), "KM · TÁV"],
-    [`${Math.round(o.ascentM || 0)} m`, "EMELKEDÉS"],
-    [o.durationText || "—", "BECSÜLT IDŐ"],
-    [o.avgSpeedKmh ? fmt(o.avgSpeedKmh, 1) : (o.descentM != null ? `${Math.round(o.descentM)} m` : "—"),
-      o.avgSpeedKmh ? "KM/H ÁTLAG" : "SÜLLYEDÉS"],
-  ];
-  const twoRow = w < 150;
-  const cols = twoRow ? 2 : 4;
-  const cw = w / cols, rh = 20;
+function drawCells(pdf, x, y, w, cells, { cols, valSize, rh = 20 }) {
+  const cw = w / cols;
   cells.forEach(([val, label], i) => {
     const col = i % cols, row = Math.floor(i / cols);
     const cx = x + cw * col + cw / 2, cy = y + rh * row;
-    pdf.setFont(FONT, "bold").setFontSize(twoRow ? 15 : 17).setTextColor(...hexToRgb(NAVY));
+    pdf.setFont(FONT, "bold").setFontSize(valSize).setTextColor(...hexToRgb(NAVY));
     pdf.text(String(val), cx, cy + 7, { align: "center" });
     pdf.setFont(FONT, "normal").setFontSize(7.5).setTextColor(...hexToRgb(MUTED));
     pdf.text(label, cx, cy + 12.5, { align: "center" });
   });
-  return twoRow ? rh * 2 : rh;
+  return rh * Math.ceil(cells.length / cols);
+}
+
+function drawStats(pdf, x, y, w, o) {
+  const cells = [
+    [fmt(o.distanceKm, 1), "KM · TÁV"],
+    [`${Math.round(o.ascentM || 0)} m`, "EMELKEDÉS"],
+    [o.durationText || "—", o.isWorkout ? "IDŐ" : "BECSÜLT IDŐ"],
+    [o.avgSpeedKmh ? fmt(o.avgSpeedKmh, 1) : (o.descentM != null ? `${Math.round(o.descentM)} m` : "—"),
+      o.avgSpeedKmh ? "KM/H ÁTLAG" : "SÜLLYEDÉS"],
+  ];
+  const narrow = w < 150;
+  return drawCells(pdf, x, y, w, cells, { cols: narrow ? 2 : 4, valSize: narrow ? 15 : 17 });
+}
+
+// Edzés-adatok második sora (max seb., pulzus, kadencia, teljesítmény, kcal)
+function drawExtraStats(pdf, x, y, w, extra) {
+  const narrow = w < 150;
+  const cols = narrow ? 3 : Math.min(extra.length, 6);
+  pdf.setDrawColor(228, 232, 234); pdf.setLineWidth(0.3);
+  pdf.line(x, y - 2, x + w, y - 2);
+  return drawCells(pdf, x, y, w, extra, { cols, valSize: narrow ? 12 : 14, rh: 18 });
 }
 
 function drawTitleRow(pdf, x, y, w, label) {
@@ -428,6 +451,11 @@ export async function exportRoutePdf(o) {
   const mapStyle = o.mapStyle || "standard";
   const incQr = o.includeQr !== false;
   const incElev = o.includeElevation !== false;
+  const incSpeed = o.includeSpeed !== false;
+  const incHr = o.includeHr !== false;
+  const incCad = o.includeCadence !== false;
+  const incPower = o.includePower === true;
+  const hasData = (arr) => arr.some((d) => d.value != null);
   const incSurface = o.includeSurface !== false;
   const incWp = o.includeWaypoints === true && Array.isArray(o.waypoints) && o.waypoints.length >= 2;
   const note = (o.note || "").trim();
@@ -447,14 +475,36 @@ export async function exportRoutePdf(o) {
   const bodyTop = M + headerH + 5;
 
   // Térkép doboz méret (mm) – ehhez igazítjuk a canvas aspect-et
-  let mapBox, rightX, rightW, colY;
+  // Hány grafikon lesz? (a térkép méretezéséhez kell előre)
+  const nCharts = [
+    incElev && hasData(buildElevationData(geometry)), incSpeed && hasData(buildSpeedData(geometry)),
+    incHr && hasData(buildHrData(geometry)), incCad && hasData(buildCadData(geometry)),
+    incPower && hasData(buildPowerData(geometry)),
+  ].filter(Boolean).length;
+  const CHART_GAP = 6;
+  const chartGeom = (w, cols, maxH) => {
+    const cw = (w - CHART_GAP * (cols - 1)) / cols;
+    const eh = Math.min(cw * 300 / 1600, maxH);
+    return { cw, eh, rowH: 2.5 + eh + 5, rows: Math.ceil(nCharts / cols) };
+  };
+
+  let mapBox, rightX, rightW, colY, landCharts = null;
   if (landscape) {
     rightW = 92; const gap = 6;
-    mapBox = { x: M, y: bodyTop, w: CW - rightW - gap, h: footerTopY - bodyTop - 2 };
+    const leftW = CW - rightW - gap;
+    const fullH = footerTopY - bodyTop - 2;
+    // Fekvő: a grafikonok a térkép alá kerülnek (2 oszlop), a jobb oszlop a statoké
+    if (nCharts) {
+      const g = chartGeom(leftW, nCharts >= 2 ? 2 : 1, 22);
+      landCharts = { cols: nCharts >= 2 ? 2 : 1, h: g.rows * g.rowH };
+    }
+    mapBox = { x: M, y: bodyTop, w: leftW, h: fullH - (landCharts ? landCharts.h + 3 : 0) };
     rightX = M + mapBox.w + gap; rightW = CW - mapBox.w - gap; colY = bodyTop;
   } else {
     // álló: a térkép magassága csökken, ha sok extra blokk van
-    const extras = (incElev ? 1 : 0) + (incSurface ? 1 : 0) + (incWp ? 1 : 0) + (note ? 1 : 0);
+    const chartRows = nCharts >= 3 ? Math.ceil(nCharts / 2) : nCharts;
+    const extras = chartRows + (incSurface ? 1 : 0) + (incWp ? 1 : 0) + (note ? 1 : 0)
+      + (o.extraStats?.length ? 2 : 0);
     const mapH = Math.max(80, 118 - extras * 9);
     mapBox = { x: M, y: bodyTop, w: CW, h: mapH };
   }
@@ -466,6 +516,14 @@ export async function exportRoutePdf(o) {
 
   const elevData = incElev ? buildElevationData(geometry) : [];
   const elevCanvas = elevData.length ? buildElevationCanvas(elevData) : null;
+  const speedData = incSpeed ? buildSpeedData(geometry) : [];
+  const speedCanvas = speedData.length ? buildSpeedCanvas(speedData) : null;
+  const hrData = incHr ? buildHrData(geometry) : [];
+  const hrCanvas = hasData(hrData) ? buildProfileCanvas(hrData, { rgb: [220, 38, 38] }) : null;
+  const cadData = incCad ? buildCadData(geometry) : [];
+  const cadCanvas = hasData(cadData) ? buildProfileCanvas(cadData, { rgb: [147, 51, 234], fromZero: true }) : null;
+  const powData = incPower ? buildPowerData(geometry) : [];
+  const powCanvas = hasData(powData) ? buildProfileCanvas(powData, { rgb: [217, 119, 6], fromZero: true }) : null;
 
   let surface = null;
   if (incSurface && geometry.length >= 2) {
@@ -514,14 +572,37 @@ export async function exportRoutePdf(o) {
   pdf.roundedRect(mapBox.x, mapBox.y, mapBox.w, mapBox.h, 2, 2, "S");
 
   // ── Blokkok ──
+  const charts = [[elevCanvas, "Szintprofil (m)"], [speedCanvas, "Sebesség (km/h)"], [hrCanvas, "Pulzus (bpm)"],
+    [cadCanvas, "Kadencia (rpm)"], [powCanvas, "Teljesítmény (W)"]].filter(([c]) => c);
+
+  // Grafikonok rácsban: cols oszlop, soronként cím + kép
+  const drawChartsGrid = (x, y, w, cols, maxH) => {
+    const cw = (w - CHART_GAP * (cols - 1)) / cols;
+    let yy = y;
+    for (let i = 0; i < charts.length; i += cols) {
+      let rowH = 0;
+      charts.slice(i, i + cols).forEach(([cv, label], j) => {
+        const cx = x + j * (cw + CHART_GAP);
+        drawTitleRow(pdf, cx, yy, cw, label);
+        const eh = Math.min((cw * cv.height) / cv.width, maxH);
+        try { pdf.addImage(cv.toDataURL("image/jpeg", 0.88), "JPEG", cx, yy + 2.5, cw, eh); } catch (_) {}
+        rowH = Math.max(rowH, 2.5 + eh);
+      });
+      yy += rowH + 5;
+    }
+    return yy - y;
+  };
+
   const placeBlocks = (bx, by, bw2, isCol) => {
     let yy = by;
     yy += drawStats(pdf, bx, yy, bw2, o) + (isCol ? 5 : 6);
-    if (elevCanvas) {
-      yy += drawTitleRow(pdf, bx, yy, bw2, "Szintprofil");
-      const eh = Math.min((bw2 * elevCanvas.height) / elevCanvas.width, isCol ? 26 : 30);
-      try { pdf.addImage(elevCanvas.toDataURL("image/png"), "PNG", bx, yy, bw2, eh); } catch (_) {}
-      yy += eh + 6;
+    if (Array.isArray(o.extraStats) && o.extraStats.length) {
+      yy += drawExtraStats(pdf, bx, yy, bw2, o.extraStats) + (isCol ? 4 : 5);
+    }
+    // Álló lapon a grafikonok itt jönnek (3+ esetén 2 oszlopban); fekvőn a térkép alatt
+    if (!isCol && charts.length) {
+      const cols = charts.length >= 3 ? 2 : 1;
+      yy += drawChartsGrid(bx, yy, bw2, cols, cols === 2 ? 22 : (charts.length === 2 ? 24 : 30)) + 1;
     }
     if (surface && surface.length) yy += drawSurface(pdf, bx, yy, bw2, surface) + 3;
     if (incWp) yy += drawWaypoints(pdf, bx, yy, bw2, o.waypoints, isCol ? 8 : 12) + 3;
@@ -531,21 +612,33 @@ export async function exportRoutePdf(o) {
 
   if (landscape) {
     placeBlocks(rightX, colY, rightW, true);
+    if (landCharts) drawChartsGrid(M, mapBox.y + mapBox.h + 5, mapBox.w, landCharts.cols, 22);
   } else {
     placeBlocks(M, mapBox.y + mapBox.h + 6, CW, false);
   }
 
   // ── QR + lábléc ──
   if (qrCanvas) {
-    const qs = 24, qx = PW - M - qs, qy = footerTopY - qs - 3;
+    const qs = 24, qx = PW - M - qs, qy = footerTopY - qs - 8;
     try { pdf.addImage(qrCanvas.toDataURL("image/png"), "PNG", qx, qy, qs, qs); } catch (_) {}
+    // A QR-kép is kattintható (PDF-nézőben)
+    try { pdf.link(qx, qy, qs, qs, { url: o.shareUrl }); } catch (_) {}
     pdf.setFont(FONT, "normal").setFontSize(7).setTextColor(...hexToRgb(MUTED));
     pdf.text("Olvasd be\ntelefonnal", qx - 2, qy + qs / 2 - 2, { align: "right" });
+
+    // Link a QR alatt – jobbra igazítva, kattintható
+    const shown = o.shareUrl.replace(/^https?:\/\//, "");
+    let fs = 7;
+    pdf.setFont(FONT, "normal").setFontSize(fs);
+    while (pdf.getTextWidth(shown) > CW * 0.6 && fs > 5) pdf.setFontSize(--fs);
+    const lw = pdf.getTextWidth(shown);
+    pdf.setTextColor(...hexToRgb(ACCENT));
+    pdf.textWithLink(shown, PW - M - lw, qy + qs + 3.5, { url: o.shareUrl });
   }
   pdf.setDrawColor(228, 232, 234); pdf.setLineWidth(0.3);
   pdf.line(M, footerTopY, PW - M, footerTopY);
   pdf.setFont(FONT, "bold").setFontSize(9).setTextColor(...hexToRgb(NAVY));
-  pdf.text("bringaterv.hu", M, footerTopY + 5);
+  pdf.text("Bringaterv", M, footerTopY + 5);
   pdf.setFont(FONT, "normal").setFontSize(7.5).setTextColor(...hexToRgb(MUTED));
   pdf.text(`Készült: ${new Date().toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" })}`,
     M, footerTopY + 9.5);

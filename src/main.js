@@ -20,7 +20,7 @@ import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin } from "./ui/garmin.js";
-import { initRoutePdfModal, openRoutePdfModal } from "./ui/routePdfModal.js";
+import { initRoutePdfModal, openRoutePdfModal, resolveShareBase } from "./ui/routePdfModal.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -696,6 +696,20 @@ initStats({
 initRoutePdfModal({
   getDefaultMapStyle: () => localStorage.getItem("route4meMapStyle") || "standard",
 });
+
+// Megosztási / QR alap-URL mező (Beállítások → Megosztás)
+const shareBaseInput = document.querySelector("#shareBaseInput");
+if (shareBaseInput) {
+  try { shareBaseInput.value = localStorage.getItem("bringaterv-share-base") || ""; } catch (_) {}
+  shareBaseInput.addEventListener("change", () => {
+    const v = shareBaseInput.value.trim().replace(/\/+$/, "");
+    try {
+      if (v) localStorage.setItem("bringaterv-share-base", v);
+      else localStorage.removeItem("bringaterv-share-base");
+    } catch (_) {}
+    shareBaseInput.value = v;
+  });
+}
 
 window.lucide?.createIcons();
 updateThemeIcon();
@@ -2532,7 +2546,7 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
     points: activeGeometry,
     geometry: activeGeometry,
     waypoints,
-    shareUrl: location.origin,
+    shareUrl: resolveShareBase(),
     filename: (filename?.replace(/\.gpx$/i, "")) || name || "utvonalterv",
   });
 });

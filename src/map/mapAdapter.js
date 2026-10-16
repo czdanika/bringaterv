@@ -1189,6 +1189,11 @@ export function straightLineRoute(waypoints) {
   };
 }
 
+/** Csempe-réteg definíció egy térképstílushoz (pl. a publikus nézőoldalnak). */
+export function getTileLayerDef(style) {
+  return tileLayers[style] ?? tileLayers.standard;
+}
+
 export function haversineDistance(points) {
   return points.slice(1).reduce((total, point, index) => {
     const previous = points[index];

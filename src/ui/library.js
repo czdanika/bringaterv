@@ -10,7 +10,9 @@
  *                 getStravaStatus, libraryData, libraryFilter, DIST_MAX, DUR_MAX });
  */
 
-import { openRoutePdfModal } from "./routePdfModal.js";
+import { openRoutePdfModal, resolveShareBase, shareRouteUrl } from "./routePdfModal.js";
+import { importGpx } from "../gpx/gpx.js";
+import { openShareModal } from "./shareModal.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -420,8 +422,7 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">↗ Stravan</a>` : ''}
           ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#007CC3;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">G</span>${route.garmin_course_id ? '✓ Feltöltve – újraküldés' : 'Küldés Garminra'}</button>` : ''}
           ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">↗ Garmin course</a>` : ''}
-          <button class="library-card-btn" data-action="share">Megosztó kép</button>
-          <button class="library-card-btn" data-action="pdf" title="Nyomtatható útvonallap letöltése PDF-ben">PDF</button>
+          <button class="library-card-btn" data-action="share-menu" title="Megosztó kép, PDF útvonallap, nyilvános link">Megosztás</button>
           ${!isSample ? `<button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>` : ''}
           ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
           ${!isSample ? '<button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>' : ''}
@@ -429,12 +430,18 @@ function buildLibraryExpandRow(route, category, isSample) {
       </div>
     </div>`;
 
-  td.querySelectorAll("[data-action]").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const act = btn.dataset.action;
+  // Egy művelet futtatása – a gombok és a Megosztás-ablak is ezt hívja
+  async function runAction(act, btn) {
+      const origLabel = btn.textContent;
       try {
-        if (act === "load-file" || act === "load-plan") {
+        if (act === "share-menu") {
+          openShareModal({
+            title: route.name || "Útvonal",
+            url: isSample ? null : shareRouteUrl(route.id),
+            onImage: () => runAction("share", btn),
+            onPdf:   () => runAction("pdf", btn),
+          });
+        } else if (act === "load-file" || act === "load-plan") {
           await _loadRoute(route.id, isSample, route.name, act === "load-plan" ? "plan" : "file");
         } else if (act === "download-gpx") {
           const gpx = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
@@ -527,14 +534,18 @@ function buildLibraryExpandRow(route, category, isSample) {
               elevationM: route.elevation ?? 0, points: simPts,
             });
           } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
-          finally { btn.disabled = false; btn.textContent = "Megosztó kép"; }
+          finally { btn.disabled = false; btn.textContent = origLabel; }
         } else if (act === "pdf") {
           btn.disabled = true; btn.textContent = "Betöltés…";
           try {
             const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
             const xml = new DOMParser().parseFromString(gpxText, "application/xml");
             const nodes = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")];
-            const geometry = nodes.map(n => {
+            // Teljes feldolgozás (idő → sebesség, pulzus, kadencia) az importGpx-szel;
+            // hiba esetén egyszerű lat/lng/ele parsolás.
+            let parsedGeo = null;
+            try { parsedGeo = (await importGpx(new Blob([gpxText]))).geometry; } catch (_) {}
+            const geometry = parsedGeo?.length ? parsedGeo : nodes.map(n => {
               const eleN = n.getElementsByTagNameNS("*", "ele")[0];
               return {
                 lat: parseFloat(n.getAttribute("lat")),
@@ -553,20 +564,35 @@ function buildLibraryExpandRow(route, category, isSample) {
             const waypoints = named.length >= 2 ? named
               : (geometry.length >= 2 ? [geometry[0], geometry[geometry.length - 1]] : []);
             const distKm = route.distance ?? 0, durMin = route.duration ?? null;
+            const isWorkout = route.type === "workout";
+            const num = (v) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+            const fmt1 = (v) => v.toLocaleString("hu-HU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const extraStats = [];
+            if (isWorkout) {
+              if (num(route.max_speed_kmh))  extraStats.push([fmt1(route.max_speed_kmh), "KM/H MAX"]);
+              if (num(route.avg_heartrate))  extraStats.push([`${Math.round(route.avg_heartrate)}`, "ÁTL. PULZUS"]);
+              if (num(route.max_heartrate))  extraStats.push([`${Math.round(route.max_heartrate)}`, "MAX PULZUS"]);
+              if (num(route.avg_cadence))    extraStats.push([`${Math.round(route.avg_cadence)}`, "KADENCIA"]);
+              if (num(route.avg_watts))      extraStats.push([`${Math.round(route.avg_watts)} W`, "ÁTL. TELJ."]);
+              if (num(route.calories))       extraStats.push([`${Math.round(route.calories)}`, "KCAL"]);
+            }
+            const dateSrc = route.start_time || route.date;
             openRoutePdfModal({
               title: route.name || "Útvonalterv",
-              date: route.date ? new Date(route.date).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "",
+              date: dateSrc ? new Date(dateSrc).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "",
               distanceKm: distKm,
               ascentM: route.elevation ?? 0,
               descentM: null,
               durationText: durMin != null ? _fmtMin(durMin * 60 * 1000) : "",
-              avgSpeedKmh: (durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0,
+              avgSpeedKmh: num(route.avg_speed_kmh)
+                ?? ((durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0),
+              isWorkout, extraStats,
               points: geometry, geometry, waypoints,
-              shareUrl: isSample ? location.origin : `${location.origin}/?route=${route.id}`,
+              shareUrl: isSample ? resolveShareBase() : shareRouteUrl(route.id),
               filename: route.name || "utvonalterv",
             });
           } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
-          finally { btn.disabled = false; btn.textContent = "PDF"; }
+          finally { btn.disabled = false; btn.textContent = origLabel; }
         } else if (act === "delete") {
           if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
           await _api.deleteRoute(route.id);
@@ -577,6 +603,12 @@ function buildLibraryExpandRow(route, category, isSample) {
           _toast(`„${route.name}" törölve`);
         }
       } catch (err) { console.error("Library action error:", err); _toast("Művelet sikertelen."); }
+  }
+
+  td.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      runAction(btn.dataset.action, btn);
     });
   });
   tr.append(td);

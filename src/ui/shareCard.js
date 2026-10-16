@@ -430,7 +430,7 @@ function drawStatBar(ctx, c, s, rect, stats) {
   ctx.font = `400 ${9 * s}px ${FONT}`;
   ctx.textAlign = "center";
   ctx.letterSpacing = `${0.05 * 9 * s}px`;
-  ctx.fillText("bringaterv.hu", rect.w / 2, rect.y + rect.h - 8 * s);
+  ctx.fillText("Bringaterv", rect.w / 2, rect.y + rect.h - 8 * s);
   ctx.letterSpacing = "0px";
 }
 

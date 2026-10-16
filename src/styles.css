@@ -1040,17 +1040,17 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  background: var(--surface-2, #f3f4f6);
+  background: var(--panel-strong);
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-2);
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
 }
-.file-style-btn:hover { background: var(--surface-3, #e5e7eb); }
-.file-style-btn svg { width: 12px; height: 12px; color: var(--text-3); flex-shrink: 0; }
+.file-style-btn:hover { background: var(--accent-soft); }
+.file-style-btn svg { width: 12px; height: 12px; color: var(--muted); flex-shrink: 0; }
 .file-style-btn i[data-lucide] { width: 12px; height: 12px; }
 .file-name {
   font-size: 13px;
@@ -6060,4 +6060,59 @@ body.is-drag-over::after {
   .pdf-body { flex-direction: column; }
   .pdf-options { flex: none; }
   .pdf-preview-stage { min-height: 320px; }
+}
+
+/* ── Beállítások: megosztási URL mező ───────────────────────────────────── */
+.settings-field-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+.settings-field-hint { font-size: 11.5px; color: var(--muted); margin: 6px 0 0; line-height: 1.45; }
+.settings-field-hint code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+#shareBaseInput { width: 100%; }
+.pdf-toggle.is-disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Megosztás ablak (könyvtár) ─────────────────────────────────────────── */
+.share-panel { width: min(560px, 94vw); max-height: 92vh; display: flex; flex-direction: column; }
+.share-body { padding: 4px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.share-route-name { font-weight: 700; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.share-option { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); cursor: pointer; font: inherit; }
+.share-option:hover { border-color: var(--brand); background: var(--brand-soft); }
+.share-option-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  background: var(--brand-soft); color: var(--brand); }
+.share-option-icon svg { width: 20px; height: 20px; }
+.share-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.share-option-text strong { font-size: 13.5px; }
+.share-option-text small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.share-option-chev { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
+.share-section-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.share-link-block { border-top: 1px solid var(--line); padding-top: 14px; }
+.share-link-row { display: flex; gap: 12px; align-items: flex-start; }
+.share-qr { flex-shrink: 0; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.share-qr-canvas { width: 100%; height: 100%; display: block; }
+.share-link-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.share-link-input-row { display: flex; gap: 6px; }
+.share-link-input { flex: 1; min-width: 0; font-size: 12.5px; }
+.share-copy-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 8px; border: 0;
+  background: var(--accent-strong); color: var(--bg); font: 600 12.5px/1 inherit; cursor: pointer; white-space: nowrap; }
+.share-copy-btn svg { width: 14px; height: 14px; }
+.share-hint { font-size: 11.5px; color: var(--muted); }
+.share-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; line-height: 1.4; padding: 8px 10px;
+  border-radius: 8px; background: rgba(217,119,6,.10); color: var(--text); border: 1px solid rgba(217,119,6,.35); }
+.share-warn svg { width: 14px; height: 14px; color: #d97706; flex-shrink: 0; margin-top: 1px; }
+.share-targets { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 12px; }
+.share-target { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); text-decoration: none; font: 600 11.5px/1.2 inherit; cursor: pointer; }
+.share-target:hover { background: var(--panel-strong); }
+.share-target-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--panel-strong); color: var(--brand-c, var(--text)); }
+.share-target-icon svg { width: 18px; height: 18px; }
+.share-target.is-native .share-target-icon { background: var(--brand); color: #fff; }
+.share-no-link { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+#shareOverlay { position: fixed; z-index: 3000; }
+@media (max-width: 520px) {
+  .share-options { grid-template-columns: 1fr; }
+  .share-qr { width: 76px; height: 76px; }
+  .share-targets { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .share-target { padding: 8px 2px; font-size: 10.5px; gap: 5px; }
+  .share-target-icon { width: 30px; height: 30px; }
 }

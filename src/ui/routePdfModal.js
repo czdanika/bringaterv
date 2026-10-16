@@ -11,6 +11,24 @@
  */
 
 import { exportRoutePdf } from "./routePdf.js";
+import { config } from "../config.js";
+
+/**
+ * Publikus megosztási alap-URL feloldása.
+ * Sorrend: Beállítások mező (localStorage) → config.shareBaseUrl (env) → origin.
+ */
+export function resolveShareBase() {
+  let base = "";
+  try { base = (localStorage.getItem("bringaterv-share-base") || "").trim(); } catch (_) {}
+  if (!base) base = (config && config.shareBaseUrl) || "";
+  if (!base) base = location.origin;
+  return base.replace(/\/+$/, "");
+}
+
+/** Publikus nézőoldal URL-je egy mentett útvonal/edzés id-jéhez. */
+export function shareRouteUrl(id) {
+  return `${resolveShareBase()}/view.html?route=${encodeURIComponent(id)}`;
+}
 
 let _ctx = null;
 let _getDefaultMapStyle = () => "standard";
@@ -31,6 +49,10 @@ export function initRoutePdfModal({ getDefaultMapStyle } = {}) {
   el.filename  = document.querySelector("#pdfFilename");
   el.qr        = document.querySelector("#pdfQr");
   el.elev      = document.querySelector("#pdfElev");
+  el.speed     = document.querySelector("#pdfSpeed");
+  el.hr        = document.querySelector("#pdfHr");
+  el.cad       = document.querySelector("#pdfCad");
+  el.power     = document.querySelector("#pdfPower");
   el.surface   = document.querySelector("#pdfSurface");
   el.waypoints = document.querySelector("#pdfWaypoints");
   el.frame     = document.querySelector("#pdfPreviewFrame");
@@ -65,6 +87,19 @@ export function openRoutePdfModal(context) {
   el.waypoints.checked = false;
   el.waypoints.disabled = !hasWp;
   el.waypoints.closest(".pdf-toggle")?.classList.toggle("is-disabled", !hasWp);
+  // Mért adatok (letekert edzés): csak akkor aktív a kapcsoló, ha van adat
+  const geo = _ctx.geometry || [];
+  const setToggle = (input, field, defaultOn) => {
+    if (!input) return;
+    const has = geo.some((p) => p[field] != null);
+    input.checked = has && defaultOn;
+    input.disabled = !has;
+    input.closest(".pdf-toggle")?.classList.toggle("is-disabled", !has);
+  };
+  setToggle(el.speed, "speed", true);
+  setToggle(el.hr, "hr", true);
+  setToggle(el.cad, "cad", true);
+  setToggle(el.power, "power", false);
 
   resetPreview();
   el.overlay.hidden = false;
@@ -72,7 +107,7 @@ export function openRoutePdfModal(context) {
 }
 
 function normalizeStyle(s) {
-  return ["standard", "light", "topo", "satellite"].includes(s) ? s : "standard";
+  return ["standard", "cycling", "topo", "satellite", "hybrid", "light", "dark"].includes(s) ? s : "standard";
 }
 
 function closeModal() {
@@ -99,6 +134,10 @@ function gatherOpts(preview) {
     orientation: orient,
     includeQr: el.qr.checked,
     includeElevation: el.elev.checked,
+    includeSpeed: !!el.speed?.checked && !el.speed.disabled,
+    includeHr: !!el.hr?.checked && !el.hr.disabled,
+    includeCadence: !!el.cad?.checked && !el.cad.disabled,
+    includePower: !!el.power?.checked && !el.power.disabled,
     includeSurface: el.surface.checked,
     includeWaypoints: el.waypoints.checked && !el.waypoints.disabled,
     preview,

@@ -1,5 +1,47 @@
 # Changelog
 
+## v1.5.0 – 2026-10-16 – Megosztás: nyilvános nézőoldal, link, edzésadatok a PDF-ben
+
+### Megosztás ablak (Könyvtár)
+
+- A kártya „Megosztó kép” és „PDF” gombja helyett egyetlen **„Megosztás”** gomb, ami közös ablakot nyit: megosztó kép, PDF útvonallap, nyilvános link.
+- A link mellett **QR-kód** és **Másolás** gomb, alatta megosztási csatornák: natív megosztás (iOS/macOS/Android – Üzenetek, AirDrop stb.), Facebook, WhatsApp, Telegram, X, e-mail; telefonon Messenger és SMS is.
+- Figyelmeztet, ha a link helyi hálózati címre (pl. 192.168…) mutat, és nem lesz elérhető mobilnetről.
+
+### Nyilvános, csak-olvasható nézőoldal (`view.html`)
+
+- A QR-kód és a megosztási link ide mutat: belépés nélkül megtekinthető, szerkeszteni nem lehet.
+- A fő app elrendezése: fejléc téma-váltóval, adatlap sport-ikonnal, dátummal és stat-kártyákkal (időtartam, mozgási idő, emelkedő/ereszkedő, sebesség, pulzus, kadencia, teljesítmény, kalória).
+- **Térkép** külön kártyán; a jobb felső sarokban térképstílus-választó (az app 7 stílusa) és „teljes útvonal” gomb.
+- **Grafikonok** (szintprofil, sebesség, pulzus, kadencia, teljesítmény), ki-be kapcsolhatók; egérrel/ujjal végighúzva szinkronizált jelölő minden grafikonon és a térképen.
+- Mobilon egymás alatt: térkép → adatlap → grafikonok.
+- Új backend végpont: `GET /api/public/route/<id>` (auth nélkül, a könyvtár `index.json`-jából, a régi DB tartalékként). Kikapcsolható: `PUBLIC_SHARE_ENABLED=false`.
+
+### Megosztási domain beállítása
+
+- A QR/link alap-URL-je állítható: **Beállítások → Megosztás** mező, vagy `SHARE_BASE_URL` környezeti változó. Üresen a böngésző aktuális címét használja (lokális Docker-használatnál is működik).
+
+### PDF útvonallap
+
+- A QR-kód alatt a **link is megjelenik**; PDF-nézőben a szöveg és a QR-kép is kattintható.
+- Edzésnél **második stat-sor**: max sebesség, átlag/max pulzus, kadencia, átlagteljesítmény, kalória; „Becsült idő” helyett „Idő”.
+- Új grafikonok: **sebesség, pulzus, kadencia, teljesítmény** (kapcsolókkal); 3+ grafikonnál rácsban, fekvő lapon a térkép alatt.
+- A PDF-ben is mind a **7 térképstílus** választható (az app saját csempe-definícióiból).
+- Kisebb fájlméret: a grafikonok JPEG-ként kerülnek be (~8 MB → ~0,8 MB).
+
+### Javítások
+
+- A sötét módban láthatatlan térképstílus-gomb felirata (fő app is).
+- HTML-oldalak gyorsítótárazása: `Cache-Control: no-cache` + a nézőoldal JS cache-bustingja – deploy után nem keveredik régi oldal új scripttel.
+- A szintprofil színe smaragdzöld (eddig összekeverhető volt a pulzussal).
+- A `bringaterv.hu` domain említése eltávolítva (PDF lábléc, megosztó kép).
+
+### Verzió
+
+- v1.4.0 → v1.5.0
+
+---
+
 ## v1.4.0 – 2026-10-16 – PDF útvonallap export
 
 ### Nyomtatható PDF útvonallap
