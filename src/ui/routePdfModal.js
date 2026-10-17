@@ -99,7 +99,7 @@ export function openRoutePdfModal(context) {
   setToggle(el.speed, "speed", true);
   setToggle(el.hr, "hr", true);
   setToggle(el.cad, "cad", true);
-  setToggle(el.power, "power", false);
+  setToggle(el.power, "power", true);   // minden mért adat alapból bekerül, ami van
   // QR csak valódi (mentett) linkhez
   const hasUrl = !!_ctx.shareUrl;
   el.qr.checked = hasUrl;

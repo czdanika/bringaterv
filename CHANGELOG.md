@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.7.1 – 2026-10-17 – Javítások: értesítések, mobil ablakok, beállítások
+
+### Értesítések
+- Engedélyezéskor a service worker szükség esetén elindul (időkorláttal); ha egy lépés elakad, konkrét hibaüzenet jelenik meg (eddig csendben megállt, és nem jött létre feliratkozás).
+- Diagnosztika sor: engedély · service worker · feliratkozás · telepített app / böngésző.
+- „Engedély megvan, de még nincs feliratkozva” állapot külön jelezve; az Engedélyezés pótolja.
+- **Próbaértesítés 5 mp késleltetéssel** visszaszámlálással – közben be lehet zárni az appot (a szerver küldi).
+
+### Mobil
+- Könyvtár → Import menü nem lóg ki a képernyőből (a gomb bal széléhez igazodik).
+- Felugró ablakok (Strava import, Megosztás, Beállítások) a ténylegesen látható magassághoz és a notch / home-csík sávokhoz igazodnak – iPhone-on nem lógnak ki az alsó gombok.
+
+### Beállítások
+- Alapból minden szakasz csukva (eddig egy régi, rögzített lista miatt az újabb szakaszok nyitva jelentek meg); csak a kinyitottakat jegyzi meg.
+
+### Megosztás
+- Nyilvános nézőoldal: a kadencia és a teljesítmény diagramja is alapból látszik, ha van adat. PDF: a teljesítmény is alapból bekerül.
+
+### Verzió
+- v1.7.0 → v1.7.1
+
+---
+
 ## v1.7.0 – 2026-10-17 – Telepíthető app (iPhone / iPad), automatikus Strava import, értesítések
 
 ### Telepíthető app (PWA)

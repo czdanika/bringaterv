@@ -397,7 +397,7 @@ export const routesApi = {
     unsubscribe(endpoint) {
       return fetchJson(`${BASE}/notify/unsubscribe`, { method: "POST", body: JSON.stringify({ endpoint }) });
     },
-    test() { return fetchJson(`${BASE}/notify/test`, { method: "POST" }); },
+    test(delay = 0) { return fetchJson(`${BASE}/notify/test`, { method: "POST", body: JSON.stringify({ delay }) }); },
   },
 
   strava: {

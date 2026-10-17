@@ -60,6 +60,27 @@ def notify_unsubscribe():
 @bp.route("/api/notify/test", methods=["POST"])
 @require_auth
 def notify_test():
-    n = notify.send(g.user["id"], "test", "Bringaterv – próbaértesítés",
+    """Próbaértesítés. `delay` (mp, max 30): a szerver késleltetve küldi, hogy közben
+    be lehessen zárni az appot (zárt / háttérben lévő appnál látszik igazán)."""
+    import threading
+    import time
+    body = request.get_json(silent=True) or {}
+    try:
+        delay = max(0, min(30, int(body.get("delay", 0))))
+    except (TypeError, ValueError):
+        delay = 0
+    uid = g.user["id"]
+    devices = len(notify.load(uid).get("subscriptions") or [])
+
+    def _send():
+        if delay:
+            time.sleep(delay)
+        notify.send(uid, "test", "Bringaterv – próbaértesítés",
                     "Ha ezt látod, az értesítések működnek. 🚴", force=True)
-    return jsonify({"sent": n})
+
+    if delay:
+        threading.Thread(target=_send, daemon=True).start()
+        return jsonify({"scheduled": True, "delay": delay, "devices": devices})
+    return jsonify({"sent": notify.send(uid, "test", "Bringaterv – próbaértesítés",
+                                        "Ha ezt látod, az értesítések működnek. 🚴", force=True),
+                    "devices": devices})

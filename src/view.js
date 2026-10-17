@@ -241,10 +241,11 @@ const CHARTS = [
   { key: "elev",  label: "Szintprofil",  unit: "m",    rgb: [5, 150, 105],  build: buildElevationData, fromZero: false, dec: 0, def: true },
   { key: "speed", label: "Sebesség",     unit: "km/h", rgb: [25, 118, 210], build: buildSpeedData,     fromZero: true,  dec: 1, def: true },
   { key: "hr",    label: "Pulzus",       unit: "bpm",  rgb: [220, 38, 38],  build: buildHrData,        fromZero: false, dec: 0, def: true },
-  { key: "cad",   label: "Kadencia",     unit: "rpm",  rgb: [147, 51, 234], build: buildCadData,       fromZero: true,  dec: 0, def: false },
-  { key: "power", label: "Teljesítmény", unit: "W",    rgb: [217, 119, 6],  build: buildPowerData,     fromZero: true,  dec: 0, def: false },
+  { key: "cad",   label: "Kadencia",     unit: "rpm",  rgb: [147, 51, 234], build: buildCadData,       fromZero: true,  dec: 0, def: true },
+  { key: "power", label: "Teljesítmény", unit: "W",    rgb: [217, 119, 6],  build: buildPowerData,     fromZero: true,  dec: 0, def: true },
 ];
-const CHART_PREF_KEY = "bringaterv-view-charts";
+// v2: a kadencia és a teljesítmény is alapból látszik (régi mentett választás érvénytelen)
+const CHART_PREF_KEY = "bringaterv-view-charts-v2";
 let _charts = [];
 
 function loadChartPrefs() {

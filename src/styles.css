@@ -2178,6 +2178,7 @@ body.is-drag-over::after {
   width: 480px;
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5755,6 +5756,7 @@ body.is-drag-over::after {
   width: 700px;
   max-width: 95vw;
   max-height: 90vh;
+  max-height: 90dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 12px 40px rgba(0,0,0,0.4);
@@ -6150,6 +6152,7 @@ body.is-drag-over::after {
   border-radius: 14px;
   width: min(960px, 94vw);
   max-height: 92vh;
+  max-height: 92dvh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 60px rgba(0,0,0,.35);
@@ -6215,7 +6218,7 @@ body.is-drag-over::after {
 .pdf-toggle.is-disabled { opacity: .45; cursor: not-allowed; }
 
 /* ── Megosztás ablak (könyvtár) ─────────────────────────────────────────── */
-.share-panel { width: min(560px, 94vw); max-height: 92vh; display: flex; flex-direction: column; }
+.share-panel { width: min(560px, 94vw); max-height: 92vh; max-height: 92dvh; display: flex; flex-direction: column; }
 .share-body { padding: 4px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .share-route-name { font-weight: 700; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -6477,3 +6480,16 @@ body.is-drag-over::after {
 .notify-events-title { margin-top: 14px; }
 .notify-events .notify-event-row { padding: 6px 0; }
 .notify-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.notify-diag { margin: 6px 0 0; font-size: 11px; opacity: .8; }
+
+/* ── Mobil: felugró ablakok és menük ne lógjanak ki ─────────────────────────── */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Import menü: a gomb bal széléhez igazítva (jobbra igazítva balra kilógott) */
+  .library-import-menu { right: auto; left: 0; max-width: calc(100vw - 24px); }
+  /* Modálok: a ténylegesen látható magasság + notch / home-csík */
+  .strava-import-panel, .share-panel, .settings-panel {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  .strava-import-panel { width: calc(100vw - 16px); max-width: none; }
+  .strava-import-body { padding: 12px 14px; }
+}

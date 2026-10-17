@@ -1721,8 +1721,9 @@ initNotifications({ showToast });
   history.replaceState(null, "", location.pathname);      // a frissítés ne nyissa meg újra
   if (settingsSection) {
     document.querySelector("#settingsButton")?.click();
-    document.querySelector(`[data-settings-section="${CSS.escape(settingsSection)}"]`)
-      ?.scrollIntoView({ block: "start" });
+    const sec = document.querySelector(`[data-settings-section="${CSS.escape(settingsSection)}"]`);
+    sec?.classList.remove("is-collapsed");
+    sec?.scrollIntoView({ block: "start" });
     return;
   }
   try {
@@ -2901,30 +2902,15 @@ document.querySelector('#planWindTimeToggle')?.addEventListener('change', () => 
 
 // ── Beállítások szekciók összecsukása ─────────────────────────────────────────
 (function initSettingsCollapse() {
-  const LS_KEY      = "bringaterv-settings-collapsed";
-  const LS_VER_KEY  = "bringaterv-settings-version";
-  const CURRENT_VER = "8"; // bump ha új szekció kerül az alapból-csukott halmazba
-  const ALL_SECTIONS = ['mapStyle', 'units', 'planningDefaults', 'startView', 'toolbarOrder', 'hrZones'];
+  // Alapból minden szakasz csukva (az újonnan hozzáadottak is) – csak a felhasználó
+  // által kinyitottakat jegyezzük meg. (Korábban egy rögzített lista döntötte el,
+  // mi legyen csukva, így minden később hozzáadott szakasz nyitva maradt.)
+  const LS_KEY = "bringaterv-settings-open";
 
-  function saveCollapsed(set) {
-    localStorage.setItem(LS_KEY, JSON.stringify([...set]));
-  }
-
-  function loadCollapsed() {
-    const saved   = localStorage.getItem(LS_KEY);
-    const version = localStorage.getItem(LS_VER_KEY);
-    // Első látogatás VAGY verzió változás → minden szekció becsukva alapból
-    if (saved === null || version !== CURRENT_VER) {
-      localStorage.setItem(LS_VER_KEY, CURRENT_VER);
-      const defaultSet = new Set(ALL_SECTIONS);
-      saveCollapsed(defaultSet); // ← mentés is, ne csak memóriában legyen
-      return defaultSet;
-    }
-    try { return new Set(JSON.parse(saved) || []); }
-    catch { return new Set(); }
-  }
-
-  const collapsed = loadCollapsed();
+  let open;
+  try { open = new Set(JSON.parse(localStorage.getItem(LS_KEY) || "[]")); }
+  catch { open = new Set(); }
+  const save = () => { try { localStorage.setItem(LS_KEY, JSON.stringify([...open])); } catch {} };
 
   document.querySelectorAll(".settings-section[data-settings-section]").forEach(section => {
     const key = section.dataset.settingsSection;
@@ -2932,17 +2918,19 @@ document.querySelector('#planWindTimeToggle')?.addEventListener('change', () => 
     const body  = section.querySelector(".settings-section-body");
     if (!title || !body) return;
 
-    if (collapsed.has(key)) section.classList.add("is-collapsed");
+    section.classList.toggle("is-collapsed", !open.has(key));
 
     title.addEventListener("click", (e) => {
       // Don't collapse when clicking hint-btn
       if (e.target.closest(".hint-btn")) return;
       const isNowCollapsed = section.classList.toggle("is-collapsed");
-      if (isNowCollapsed) collapsed.add(key);
-      else collapsed.delete(key);
-      saveCollapsed(collapsed);
+      if (isNowCollapsed) open.delete(key);
+      else open.add(key);
+      save();
     });
   });
+  // régi kulcsok takarítása
+  try { localStorage.removeItem("bringaterv-settings-collapsed"); localStorage.removeItem("bringaterv-settings-version"); } catch {}
 })();
 
 function renderSearchResults(places) {
