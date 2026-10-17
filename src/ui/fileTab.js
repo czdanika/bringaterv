@@ -158,7 +158,7 @@ async function saveImportedToLibrary() {
     if (btn) {
       btn.disabled = false;
       const lbl = btn.querySelector("span");
-      if (lbl) lbl.textContent = "Mentés könyvtárba";
+      if (lbl) lbl.textContent = "Mentés";
     }
   }
   return null;
@@ -425,7 +425,7 @@ export function updateFileSaveButtonState() {
   btn.hidden = false;
   btn.disabled = false;
   const lbl = btn.querySelector("span");
-  if (lbl) lbl.textContent = "Mentés könyvtárba";
+  if (lbl) lbl.textContent = "Mentés";
 }
 
 // ── GPX / FIT import ──────────────────────────────────────────────────────────

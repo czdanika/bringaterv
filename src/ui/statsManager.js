@@ -10,9 +10,10 @@
  */
 
 import {
-  renderStats, renderMonthlyTable, renderRecordsFull,
+  renderStats, renderMonthlyTable,
   renderEddington, renderTrainingLoad,
 } from './statsPanel.js';
+import { renderRecordsView } from './recordsView.js';
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api           = null;
@@ -50,12 +51,12 @@ export function switchStatsView(view) {
   const periodSection = document.getElementById("statsFilterPeriodSection");
   if (periodSection) periodSection.hidden = view !== "overview";
   const sportSection  = document.getElementById("statsFilterSportSection");
-  if (sportSection)  sportSection.hidden  = ["eddington","training","heatmap"].includes(view);
+  if (sportSection)  sportSection.hidden  = ["records","eddington","training","heatmap"].includes(view);
 
   const all = _allStatsRoutes();
   if (view === "overview")  renderStats(all, { period: _statsPeriod, sport: _statsSport });
   if (view === "monthly")   renderMonthlyTable(all, { sport: _statsSport });
-  if (view === "records")   renderRecordsFull(all);
+  if (view === "records")   renderRecordsView(all, { api: _api, sport: _statsSport });
   if (view === "eddington") renderEddington(all);
   if (view === "training")  renderTrainingLoad(all, { months: _trainingRange });
   if (view === "heatmap")   showHeatmap();

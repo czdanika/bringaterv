@@ -885,7 +885,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     // fitView csak explicit kérésre (pl. library betöltés), mode-váltáskor NEM
     if (fitView && fullGeometry.length > 1) {
       const bounds = L.latLngBounds(fullGeometry.map((p) => [p.lat, p.lng]));
-      map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+      map.fitBounds(bounds, fitOptions());
     }
   }
 
@@ -906,7 +906,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     renderOverlapHighlight(geometry);
     if (geometry.length > 1) {
-      map.fitBounds(routeLayer.getBounds(), { padding: [44, 44], maxZoom: 15 });
+      map.fitBounds(routeLayer.getBounds(), fitOptions());
     }
   }
 
@@ -1020,7 +1020,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     invalidateSize: () => map.invalidateSize({ pan: false }),
     fitRoute: () => {
       if (routeLayer.getLatLngs().length > 1) {
-        map.fitBounds(routeLayer.getBounds(), { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(routeLayer.getBounds(), fitOptions());
       }
     },
     focusWaypoint: (lat, lng) => map.setView([lat, lng], Math.max(map.getZoom(), 15)),
@@ -1030,7 +1030,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       renderColoredRoute(geometry);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(bounds, fitOptions());
       }
     },
     clearColoredRoute,
@@ -1039,7 +1039,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       renderHrRoute(geometry, colorFn);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(bounds, fitOptions());
       }
     },
     recolorHrRoute: (geometry, colorFn) => {
@@ -1052,7 +1052,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       renderCadRoute(geometry);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(bounds, fitOptions());
       }
     },
     clearCadRoute,
@@ -1061,7 +1061,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       renderGradeRoute(geometry);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(bounds, fitOptions());
       }
     },
     clearGradeRoute,
@@ -1070,7 +1070,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       renderPowerRoute(geometry);
       if (geometry.length > 1) {
         const bounds = L.latLngBounds(geometry.map(p => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+        map.fitBounds(bounds, fitOptions());
       }
     },
     clearPowerRoute,
@@ -1188,6 +1188,17 @@ export function straightLineRoute(waypoints) {
     geometry: waypoints.map(({ lat, lng }) => ({ lat, lng })),
     distanceMeters: haversineDistance(waypoints),
   };
+}
+
+/** Útvonal-illesztés paddingje: mobilon a felhúzható panel takarja a térkép
+ *  alját, ezért ott annak magasságát alul hozzáadjuk. */
+function fitOptions() {
+  const inner = document.querySelector(".sidebar-inner");
+  if (matchMedia("(max-width: 768px)").matches && inner) {
+    const sheet = inner.getBoundingClientRect().height || 0;
+    return { paddingTopLeft: [32, 64], paddingBottomRight: [32, sheet + 32], maxZoom: 15 };
+  }
+  return { padding: [44, 44], maxZoom: 15 };
 }
 
 /** Csempe-réteg definíció egy térképstílushoz (pl. a publikus nézőoldalnak). */

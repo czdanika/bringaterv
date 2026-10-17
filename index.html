@@ -2,14 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Bringaterv</title>
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <link rel="icon" type="image/png" sizes="48x48" href="./src/assets/logo.png">
     <link rel="apple-touch-icon" href="./src/assets/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -89,6 +89,7 @@
               <div class="option-row">
                 <span class="option-label-wrap">
                   <span class="option-label">Tervezési mód</span>
+                  <button class="hint-btn" type="button" data-hint-title="Tervezési mód" data-hint="Milyen úton tervezzen az útvonaltervező. Aszfalt: kerékpárutak és szilárd burkolatú utak. Gravel: földutakat, murvát is használ. MTB: erdei ösvények, terep. Túra: gyalogos útvonalak. A mód az útvonal vonalvezetését és a becsült időt is befolyásolja. Egy-egy szakasz módját az útvonalpont melletti színes pötty megnyomásával külön is átállíthatod." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                 </span>
                 <div class="route-mode-picker-wrap">
                   <button id="routeModePicker" class="sidebar-style-btn" type="button" title="Tervezési mód váltása">
@@ -189,7 +190,7 @@
             <!-- Útvonal -->
             <section class="sidebar-section route-section">
               <div class="sidebar-section-header">
-                <h2 class="sidebar-section-title" data-i18n="sections.route">Útvonal</h2>
+                <h2 class="sidebar-section-title"><span data-i18n="sections.route">Útvonal</span><button class="hint-btn" type="button" data-hint-title="Útvonal" data-hint="Pontot a térképre kattintva vagy a keresőből adhatsz hozzá. A pontok sorrendjét a bal oldali fogantyúval húzva módosíthatod, a színes pötty az adott szakasz tervezési módja. Alul a teljes táv, a becsült idő és a szintemelkedés látható." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button></h2>
                 <button id="clearRoute" class="icon-button" type="button"
                   title="Útvonal törlése" aria-label="Útvonal törlése"
                   data-i18n-title="actions.clear" data-i18n-aria-label="actions.clear">
@@ -238,6 +239,7 @@
 <!-- Szintadat alapú időbecslés kapcsoló -->
               <div class="plan-elev-toggle-row">
                 <span class="plan-elev-toggle-label">Szintadat az időbecsléshez</span>
+                <button class="hint-btn" type="button" data-hint-title="Szintadat az időbecsléshez" data-hint="Bekapcsolva a becsült idő számításánál figyelembe veszi az emelkedőket (lassítanak) és a lejtőket (gyorsítanak). Kikapcsolva csak a táv és az átlagsebesség számít. Az alapértéket a Beállítások menüben adhatod meg." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                 <label class="toggle-switch" title="Emelkedő és süllyedő figyelembevétele a becsült időnél">
                   <input id="planElevTimeToggle" type="checkbox" checked>
                   <span class="toggle-track"></span>
@@ -246,6 +248,7 @@
               <!-- Szélhatás alapú időbecslés kapcsoló -->
               <div class="plan-elev-toggle-row" id="planWindTimeRow" hidden>
                 <span class="plan-elev-toggle-label">Szélhatás az időbecsléshez</span>
+                <button class="hint-btn" type="button" data-hint-title="Szélhatás az időbecsléshez" data-hint="Ha lefuttattad a szélelemzést, a becsült időbe beszámítja a szembeszél lassító és a hátszél gyorsító hatását is." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                 <label class="toggle-switch" title="A szembeszél / hátszél figyelembevétele a becsült időnél (Open-Meteo szélelemzés alapján).">
                   <input id="planWindTimeToggle" type="checkbox">
                   <span class="toggle-track"></span>
@@ -259,6 +262,7 @@
                     <span class="speed-legend-title">Szintprofil</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Szintprofil" data-hint="Az útvonal emelkedőit és lejtőit mutatja: a térképen a meredekség szerint színezi a szakaszokat (zöld = sík, piros = meredek). A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="gradeLegendChartBtnPlan" class="grade-chart-btn" type="button" title="Szintprofil diagram megjelenítése">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="3 17 8 12 13 15 18 7 21 10"/>
@@ -291,6 +295,7 @@
                     <span class="speed-legend-title">Szélelemzés</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Szélelemzés" data-hint="A tervezett indulási idő és sebesség alapján az Open-Meteo előrejelzéséből kiszámolja, hol lesz szembeszél, oldalszél vagy hátszél. A színek a szél hatását mutatják az útvonal mentén. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="windChartBtnPlan" class="grade-chart-btn" type="button" title="Részletes szélelemzés panel megnyitása – statisztika, szegmenslista, időjárás">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <path d="M9.59 4.59A2 2 0 1 1 11 8H2"/>
@@ -443,6 +448,7 @@
                     <span class="speed-legend-title">Sebesség térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Sebesség térkép" data-hint="Az edzés sebességét színezi az útvonalon: hol mentél gyorsan és hol lassan. A sávhatárok a Beállítások → Adatzónák alatt módosíthatók. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="speedChartBtn" class="grade-chart-btn" type="button" title="Sebességdiagram">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -473,6 +479,7 @@
                     <span class="speed-legend-title">Kadencia térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Kadencia térkép" data-hint="A pedálfordulatszámot (fordulat/perc) színezi az útvonalon – csak ha az eszköz rögzített kadenciát. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="cadChartBtn" class="grade-chart-btn" type="button" title="Kadenciadiagram">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="3 17 8 12 13 15 18 7 21 10"/>
@@ -502,6 +509,7 @@
                     <span class="speed-legend-title">Pulzuselemzés</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Pulzuselemzés" data-hint="A pulzust színezi az útvonalon, és megmutatja, mennyi időt töltöttél az egyes pulzuszónákban. A zónák a Beállítások → Elemzési beállítások alatt állíthatók (max és nyugalmi pulzus). A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="hrChartBtn" class="grade-chart-btn" type="button" title="Pulzusdiagram">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -525,6 +533,7 @@
                     <span class="speed-legend-title">Teljesítmény térkép</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Teljesítmény térkép" data-hint="A teljesítményt (watt) színezi az útvonalon – csak wattmérővel rögzített edzésnél érhető el. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="powerChartBtn" class="grade-chart-btn" type="button" title="Teljesítménydiagram">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -555,6 +564,7 @@
                     <span class="speed-legend-title">Szintprofil</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
+                  <button class="hint-btn" type="button" data-hint-title="Szintprofil" data-hint="Az útvonal emelkedőit és lejtőit mutatja: a térképen a meredekség szerint színezi a szakaszokat (zöld = sík, piros = meredek). A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                   <button id="gradeLegendChartBtn" class="grade-chart-btn" type="button" title="Szintprofil diagram megjelenítése">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
                       <polyline points="3 17 8 12 13 15 18 7 21 10"/>
@@ -591,17 +601,17 @@
                   <i data-lucide="download" aria-hidden="true"></i>
                   <span data-i18n="actions.export">GPX mentése</span>
                 </button>
-                <button id="fileSaveToLibraryButton" class="file-action-btn file-action-btn--save" type="button">
+                <button id="fileSaveToLibraryButton" class="file-action-btn file-action-btn--save" type="button" title="Mentés a könyvtárba (Edzések közé)">
                   <i data-lucide="save" aria-hidden="true"></i>
-                  <span>Mentés könyvtárba</span>
+                  <span>Mentés</span>
                 </button>
                 <button id="fileShareButton" class="file-action-btn file-action-btn--share" type="button">
                   <i data-lucide="share-2" aria-hidden="true"></i>
                   <span>Megosztás</span>
                 </button>
-                <button id="fileClearButton" class="file-action-btn file-action-btn--danger" type="button">
+                <button id="fileClearButton" class="file-action-btn file-action-btn--danger" type="button" title="A betöltött útvonal bezárása (a könyvtárból nem törli)">
                   <i data-lucide="trash-2" aria-hidden="true"></i>
-                  <span data-i18n="actions.clear">Törlés</span>
+                  <span>Törlés</span>
                 </button>
               </div>
             </div>
@@ -2409,6 +2419,7 @@
     <div class="settings-section-body">
       <div class="plan-elev-toggle-row" style="margin:0">
         <span class="plan-elev-toggle-label">Útirány-nyilak megjelenítése</span>
+                <button class="hint-btn" type="button" data-hint-title="Útirány-nyilak" data-hint="Kis nyilakat rajzol az útvonalra, amelyek a haladási irányt mutatják – hasznos körútnál vagy oda-vissza szakaszoknál." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
         <label class="toggle-switch" title="Útirány-nyilak be/ki – a tervezett és betöltött útvonalakon is működik.">
           <input id="directionArrowsToggle" type="checkbox">
           <span class="toggle-track"></span>

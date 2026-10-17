@@ -22,6 +22,7 @@ import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus
 import { initGarmin } from "./ui/garmin.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
+import { initMobileShell } from "./ui/mobileShell.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -40,7 +41,7 @@ import {
 } from "./ui/fileTab.js";
 // Kalóriaszámítás modul (calories.js) – elérhető, de a UI-on jelenleg nincs használva.
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
-import { renderStats, renderMonthlyTable, renderRecordsFull, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
+import { renderStats, renderMonthlyTable, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
 import { initStats, loadAndRenderStats, switchStatsView } from "./ui/statsManager.js";
 import { num, dur } from "./format.js";
 import {
@@ -666,6 +667,8 @@ initStats({
   getLibraryData: () => _libraryData,
   onLoadRoute:    (id, isSample, name, target) => loadRouteFromLibrary(id, isSample, name, target),
 });
+
+initMobileShell();
 
 initRoutePdfModal({
   getDefaultMapStyle: () => localStorage.getItem("route4meMapStyle") || "standard",
@@ -1483,10 +1486,22 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
   if (localStorage.getItem("bringaterv-toolbar-collapsed") === "1")
     toolbar.classList.add("is-collapsed");
 
+  const isMobileLayout = () => matchMedia("(max-width: 768px)").matches;
+  // Mobil nézetre váltáskor (vagy betöltéskor) a húzásból maradt kézi pozíció törlése
+  const resetPos = () => {
+    if (!isMobileLayout()) return;
+    ["left", "top", "bottom", "transform"].forEach((p) => toolbar.style.removeProperty(p));
+    delete toolbar.dataset.dragged;
+  };
+  resetPos();
+  matchMedia("(max-width: 768px)").addEventListener?.("change", resetPos);
+
   // --- Drag + click szétválasztás ---
   const DRAG_THRESHOLD = 5; // px – ennél kisebb mozgás = kattintás
   let pointerStartX, pointerStartY, startLeft, startTop;
   let didDrag = false;
+  let movedNoDrag = false;   // mobilon elhúzott ujj ≠ koppintás
+  let lastTouchEnd = 0;      // érintés után a böngésző utánzott egéreseményeit kiszűrjük
 
   function getMapWrap() { return document.querySelector(".map-wrap"); }
 
@@ -1507,16 +1522,22 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
     startLeft = tR.left - mwR.left;
     startTop  = tR.top  - mwR.top;
     didDrag   = false;
-    // CSS centering → JS positioning átváltás előkészítése
-    toolbar.style.transform = "none";
-    toolbar.style.bottom    = "auto";
-    toolbar.dataset.dragged = "1";
+    movedNoDrag = false;
+    // A pozicionálást csak valódi húzáskor írjuk át (ld. onPointerMove) –
+    // sima koppintásnál az eszköztár a helyén marad.
   }
 
   function onPointerMove(clientX, clientY) {
     const dx = clientX - pointerStartX;
     const dy = clientY - pointerStartY;
     if (!didDrag && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    // Mobilon az eszköztár a panel fölé van rögzítve – ott nem mozgatható
+    if (isMobileLayout()) { movedNoDrag = true; return; }
+    if (!didDrag) {
+      // CSS centering → JS positioning átváltás (csak a húzás kezdetén)
+      toolbar.style.transform = "none";
+      toolbar.style.bottom    = "auto";
+    }
     didDrag = true;
     dragHandle.style.cursor = "grabbing";
     applyPos(startLeft + dx, startTop + dy);
@@ -1524,7 +1545,7 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
 
   function onPointerUp() {
     dragHandle.style.cursor = "";
-    if (!didDrag) {
+    if (!didDrag && !movedNoDrag) {
       // kattintás → összecsukás toggle
       const collapsed = toolbar.classList.toggle("is-collapsed");
       localStorage.setItem("bringaterv-toolbar-collapsed", collapsed ? "1" : "0");
@@ -1534,7 +1555,10 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
   }
 
   // Mouse events
-  dragHandle.addEventListener("mousedown", (e) => { e.preventDefault(); onPointerDown(e.clientX, e.clientY); });
+  dragHandle.addEventListener("mousedown", (e) => {
+    if (Date.now() - lastTouchEnd < 800) return;   // érintés utáni „szellem” egérkattintás
+    e.preventDefault(); onPointerDown(e.clientX, e.clientY);
+  });
   document.addEventListener("mousemove",  (e) => { if (pointerStartX !== undefined) onPointerMove(e.clientX, e.clientY); });
   document.addEventListener("mouseup",    () => { if (pointerStartX !== undefined) { onPointerUp(); pointerStartX = undefined; } });
 
@@ -1548,7 +1572,7 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
     const t = e.touches[0]; onPointerMove(t.clientX, t.clientY);
   }, { passive: false });
   document.addEventListener("touchend", () => {
-    if (pointerStartX !== undefined) { onPointerUp(); pointerStartX = undefined; }
+    if (pointerStartX !== undefined) { lastTouchEnd = Date.now(); onPointerUp(); pointerStartX = undefined; }
   });
 
   // Pozíció NEM mentődik/töltődik vissza – mindig CSS alapértelmezés (center-bottom)
@@ -1834,15 +1858,17 @@ function clearAllRouteState() {
   closeElevationPanel();
 }
 
-elements.clearRoute.addEventListener("click", () => {
+// Tervezés: útvonal törlése (oldalsáv és eszköztár kuka) – megerősítéssel
+function confirmClearPlannedRoute() {
+  const n = store.getState().waypoints?.length || 0;
+  if (n === 0) return;
+  if (!confirm(`Törlöd a tervezett útvonalat (${n} pont)?\n\nA nem mentett változtatások elvesznek; a könyvtárba mentett útvonalakat nem érinti.`)) return;
   clearAllRouteState();
   showToast(i18n.t("route.cleared"));
-});
+}
 
-elements.resetRouteButton.addEventListener("click", () => {
-  clearAllRouteState();
-  showToast(i18n.t("route.cleared"));
-});
+elements.clearRoute.addEventListener("click", confirmClearPlannedRoute);
+elements.resetRouteButton.addEventListener("click", confirmClearPlannedRoute);
 
 elements.undoButton.addEventListener("click", () => store.undo());
 elements.redoButton.addEventListener("click", () => store.redo());
@@ -2575,6 +2601,11 @@ document.querySelectorAll(".speed-legend-expand").forEach((btn) => {
 });
 
 document.querySelector("#fileClearButton")?.addEventListener("click", () => {
+  const name = getImportedFileName() || "a betöltött útvonal";
+  const msg = getLoadedLibraryRouteId()
+    ? `Bezárod: „${name}"?\n\nA könyvtárban megmarad, onnan bármikor újra megnyithatod.`
+    : `Bezárod: „${name}"?\n\nEz az útvonal még nincs a könyvtárba mentve – bezárás után csak a fájl újbóli betöltésével érhető el.`;
+  if (!confirm(msg)) return;
   clearAllRouteState();
   // Maradunk az Elemzés nézetben, nem váltunk Tervezésre
 });
@@ -2763,16 +2794,28 @@ document.querySelector('#planWindTimeToggle')?.addEventListener('change', () => 
   renderSidebar(store.getState());
 });
 // ── Hint tooltips ─────────────────────────────────────────
+// Az „i” gombok magyarázata. Koppintásra/kattintásra nyílik-zárul (telefonon is),
+// egérrel rámutatva is megjelenik. Opcionális cím: data-hint-title.
 (function setupHintTooltips() {
   const tooltip = document.getElementById("hintTooltip");
   if (!tooltip) return;
-
-  let activeBtn = null;
+  const canHover = matchMedia("(hover: hover)").matches;
+  let activeBtn = null, pinned = false;
 
   function showTooltip(btn) {
     const text = btn.dataset.hint;
     if (!text) return;
-    tooltip.textContent = text;
+    tooltip.replaceChildren();
+    const title = btn.dataset.hintTitle;
+    if (title) {
+      const t = document.createElement("strong");
+      t.className = "hint-tooltip-title";
+      t.textContent = title;
+      tooltip.appendChild(t);
+    }
+    const body = document.createElement("span");
+    body.textContent = text;
+    tooltip.appendChild(body);
     tooltip.hidden = false;
     activeBtn = btn;
     positionTooltip(btn);
@@ -2780,41 +2823,47 @@ document.querySelector('#planWindTimeToggle')?.addEventListener('change', () => 
 
   function positionTooltip(btn) {
     const rect = btn.getBoundingClientRect();
-    const tw = 240;
+    const tw = Math.min(300, window.innerWidth - 16);
     const gap = 8;
     let left = rect.left + rect.width / 2 - tw / 2;
-    let top = rect.top - gap;
-
-    // clamp horizontally
     left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-
-    // decide above or below
+    tooltip.style.width = tw + "px";
     tooltip.style.maxWidth = tw + "px";
     tooltip.style.left = left + "px";
-
-    // first render above, then check if it fits
-    tooltip.style.top = (top - tooltip.offsetHeight) + "px";
-    if (rect.top - tooltip.offsetHeight - gap < 8) {
-      // show below
-      tooltip.style.top = (rect.bottom + gap) + "px";
-    }
+    // alapból fölé; ha nem fér ki, alá
+    tooltip.style.top = (rect.top - gap - tooltip.offsetHeight) + "px";
+    if (rect.top - tooltip.offsetHeight - gap < 8) tooltip.style.top = (rect.bottom + gap) + "px";
   }
 
   function hideTooltip() {
     tooltip.hidden = true;
     activeBtn = null;
+    pinned = false;
   }
 
-  document.addEventListener("mouseover", (e) => {
-    const btn = e.target.closest(".hint-btn, .hint-target");
-    if (btn && btn !== activeBtn) showTooltip(btn);
-  });
+  if (canHover) {
+    document.addEventListener("mouseover", (e) => {
+      const btn = e.target.closest(".hint-btn, .hint-target");
+      if (btn && btn !== activeBtn && !pinned) showTooltip(btn);
+    });
+    document.addEventListener("mouseout", (e) => {
+      if (!pinned && e.target.closest(".hint-btn, .hint-target")) hideTooltip();
+    });
+  }
 
-  document.addEventListener("mouseout", (e) => {
-    if (e.target.closest(".hint-btn, .hint-target")) hideTooltip();
+  // Koppintás / kattintás: az „i” nyit-zár, máshova kattintva bezárul
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".hint-btn");
+    if (btn) {
+      e.preventDefault();
+      if (activeBtn === btn && pinned) { hideTooltip(); return; }
+      showTooltip(btn);
+      pinned = true;
+      return;
+    }
+    if (!tooltip.hidden) hideTooltip();
   });
-
-  document.addEventListener("click", hideTooltip);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTooltip(); });
   document.addEventListener("scroll", () => {
     if (activeBtn) positionTooltip(activeBtn);
   }, true);

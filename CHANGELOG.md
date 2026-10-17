@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.6.0 – 2026-10-17 – Mobil nézet, személyes rekordok
+
+### Mobil elrendezés
+- Telefonon (768 px alatt) saját elrendezés: teljes képernyős térkép, alsó navigációs sáv (Tervezés · Elemzés · Könyvtár · Statok), az oldalsáv tartalma alulról felhúzható panelben (4 magasság, húzással vagy koppintással).
+- Tervezés telefonon is: keresés, útvonalpontok, eszköztár a panel fölött; a térkép az útvonal illesztésénél figyelembe veszi a panelt.
+- Könyvtár lista nézet mobilon: második sor (táv · idő · szint), lenyitható részletek.
+- Elemzés üres állapot: azonnal látható betöltés gomb.
+- Javítva: az eszköztár „pontok” fogantyújára koppintva eltűnt az eszköztár.
+
+### Személyes rekordok (új oldal)
+- Kerékpár / Futás / Gyalog fülek, időszakválasztó (Összes · 1 év · 6 hónap · 12 hét · 4 hét).
+- **Kiemelt rekordok**: leghosszabb táv, legtöbb szint, leghosszabb edzés, legjobb átlagsebesség/tempó, legnagyobb sebesség, leghosszabb mászás, legtöbb kalória – mindegyiknél az előző rekord és fejlődési mini grafikon.
+- **Legjobb idők távokra** (5 / 10 / 20 / … km, futásnál 400 m – maraton): a GPS-adatból számolva, akkor is, ha a táv egy hosszabb edzés közepén volt; előző rekord, javulás, fejlődési görbe.
+- **Csúcsértékek**: legmagasabb átlagpulzus és -teljesítmény 5 mp – 60 perc ablakokra.
+- Új API: `GET /api/records` – edzésenként egyszer számol, cache-eli; sok új edzésnél részletekben.
+
+### Megjelenés
+- Inter betűtípus ténylegesen betöltve (eddig a rendszerbetű látszott), táblázatos számok.
+- Új közös mini grafikon komponens (`src/ui/sparkline.js`): oszlopos és lépcsős változat.
+- Súgó („i”) gombok: koppintásra nyíló, címmel ellátott magyarázó doboz; új súgók a tervezési módhoz, a szintadat/szélhatás időbecsléshez, az összes grafikon-fejléchez és az útirány-nyilakhoz.
+- Igazítások: keresőmező, útvonalpontok és stat-kártyák egy vonalban; szekciócímek „i”-je a sorok oszlopában.
+- Elemzés fül gombjai egységesek (azonos méret, „Tervezés ez alapján” kiemelve, páratlan gomb teljes szélességben).
+
+### Biztonság
+- Megerősítés kérése az útvonal törlésekor (Tervezés: oldalsáv és eszköztár kuka; Elemzés: Törlés).
+
+### Verzió
+- v1.5.2 → v1.6.0
+
+---
+
 ## v1.5.2 – 2026-10-17 – Egységes megjelenés
 
 ### Színek és stílus

@@ -33,6 +33,7 @@ import api_auth
 import api_backup
 import api_garmin
 import api_public
+import api_records
 import api_routes
 import api_samples
 import api_strava
@@ -54,6 +55,7 @@ app.register_blueprint(api_backup.bp)
 app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)
 app.register_blueprint(api_public.bp)
+app.register_blueprint(api_records.bp)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

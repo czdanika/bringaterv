@@ -693,7 +693,11 @@ export function buildLibraryListRow({ route, category, isSample }) {
       <span class="lib-date-main">${dateStr.split(' ')[0] ?? dateStr}</span>
       ${dateStr.includes(' ') ? `<span class="lib-date-time">${dateStr.split(' ').slice(1).join(' ')}</span>` : ''}
     </td>
-    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span></td>
+    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span><span class="lib-row-sub">${[
+      route.distance != null ? num(route.distance, 1) + " km" : "",
+      route.duration != null ? libraryFormatDuration(route.duration) : "",
+      route.elevation ? int(route.elevation) + " m" : "",
+    ].filter(Boolean).join(" · ")}</span></td>
     <td class="lib-col-num lib-col-dur">${route.duration != null ? libraryFormatDuration(route.duration) : "—"}</td>
     <td class="lib-col-num lib-col-dist">${route.distance != null ? num(route.distance, 1) + " km" : "—"}</td>
     <td class="lib-col-num lib-col-elev">${route.elevation != null ? route.elevation + " m" : "—"}</td>

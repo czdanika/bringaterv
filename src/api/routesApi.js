@@ -107,6 +107,15 @@ export const routesApi = {
   },
 
   /**
+   * Edzésenkénti rekordadatok (legjobb idők távokra, csúcspulzus/-watt, mászás).
+   * A szerver cache-el; sok új edzésnél részletekben számol (`pending` > 0 → újrakérés).
+   * @returns {Promise<{ items: Array<{id, efforts, peaks, climb}>, pending: number }>}
+   */
+  getRecords() {
+    return fetchJson(`${BASE}/records`);
+  },
+
+  /**
    * Új útvonal mentése a szerverre.
    *
    * @param {{

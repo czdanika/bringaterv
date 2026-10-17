@@ -453,50 +453,6 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
   }
 }
 
-// ── Teljes személyes rekordok nézet ──────────────────────────────────────────
-export function renderRecordsFull(allRoutes) {
-  const el = document.getElementById('statsRecordsFull');
-  if (!el) return;
-
-  const base      = allRoutes.filter(r => r.date);
-  const withDist  = base.filter(r => (r.distance  || 0) > 0);
-  const withElev  = base.filter(r => (r.elevation || 0) > 0);
-  const withDur   = base.filter(r => (r.duration  || 0) > 0);
-  const withSpeed = base.filter(r => {
-    const d = r.distance || 0, t = r.duration || 0;
-    if (d <= 0 || t < 5) return false;
-    return (d / (t / 60)) <= 120;
-  });
-
-  const bestDist  = withDist.length  ? withDist.reduce((a, b)  => b.distance > a.distance   ? b : a) : null;
-  const bestElev  = withElev.length  ? withElev.reduce((a, b)  => b.elevation > a.elevation  ? b : a) : null;
-  const bestDur   = withDur.length   ? withDur.reduce((a, b)   => b.duration > a.duration   ? b : a) : null;
-  const bestSpeed = withSpeed.length ? withSpeed.reduce((a, b) =>
-    (b.distance / b.duration) > (a.distance / a.duration) ? b : a) : null;
-
-  const fmtDate = r => r?.date ? new Date(r.date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
-
-  const records = [
-    { label: 'Leghosszabb táv',       val: bestDist  ? `${num(bestDist.distance, 1)} km`                                   : '—', route: bestDist,  date: fmtDate(bestDist) },
-    { label: 'Legtöbb szint',          val: bestElev  ? `${Math.round(bestElev.elevation).toLocaleString('hu-HU')} m`          : '—', route: bestElev,  date: fmtDate(bestElev) },
-    { label: 'Leghosszabb edzés',      val: bestDur   ? fmtMin(bestDur.duration)                                               : '—', route: bestDur,   date: fmtDate(bestDur) },
-    { label: 'Legjobb átlagsebesség',  val: bestSpeed ? `${num((bestSpeed.distance / (bestSpeed.duration / 60)), 1)} km/h`  : '—', route: bestSpeed, date: fmtDate(bestSpeed) },
-  ];
-
-  el.innerHTML = records.map(r => {
-    const hasRoute = r.route?.id;
-    return `
-    <div class="stats-record-full-card ${hasRoute ? 'stats-record-clickable' : ''}"
-         ${hasRoute ? `data-record-route-id="${r.route.id}" data-record-route-name="${(r.route.name || '').replace(/"/g, '&quot;')}"` : ''}>
-      <div class="stats-record-full-val">${r.val}</div>
-      <div class="stats-record-full-label">${r.label}</div>
-      ${r.route?.name ? `<div class="stats-record-full-name" title="${r.route.name}">${r.route.name}</div>` : ''}
-      ${r.date ? `<div class="stats-record-full-date">${r.date}</div>` : ''}
-      ${hasRoute ? `<div class="stats-record-open-hint">Megnyitás elemzéshez →</div>` : ''}
-    </div>`;
-  }).join('');
-}
-
 // ── Eddington-szám ────────────────────────────────────────────────────────────
 
 function calcEddington(routes) {
