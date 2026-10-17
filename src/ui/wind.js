@@ -11,6 +11,7 @@
  */
 
 import { analyzeWind, defaultAvgSpeed, WIND_COLORS, WIND_LABELS } from '../wind/windService.js';
+import { num } from "../format.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _mapAdapter, _onRenderSidebar, _getActiveGeometry, _getStore;
@@ -106,8 +107,8 @@ function setBothStatus(text) {
 // ── Szél eredmény megjelenítése ───────────────────────────────────────────────
 export function renderWindResult(result) {
   const { stats, segments, coverage } = result;
-  const km = (n) => `${n.toFixed(1)} km`;
-  const pct = (n) => `${n.toFixed(0)}%`;
+  const km = (n) => `${num(n, 1)} km`;
+  const pct = (n) => `${num(n, 0)}%`;
 
   _el.windStats.hidden = false;
   _el.windStats.innerHTML = `
@@ -125,19 +126,19 @@ export function renderWindResult(result) {
     </div>
     <div class="wind-stat">
       <span class="wind-stat-label">Átlag szél</span>
-      <span class="wind-stat-value">${stats.avgWindSpeed.toFixed(1)} <small>km/h</small></span>
+      <span class="wind-stat-value">${num(stats.avgWindSpeed, 1)} <small>km/h</small></span>
     </div>
     <div class="wind-stat">
       <span class="wind-stat-label">Hőmérséklet</span>
-      <span class="wind-stat-value">${stats.avgTemperature != null ? stats.avgTemperature.toFixed(1) : "—"} <small>°C</small></span>
+      <span class="wind-stat-value">${stats.avgTemperature != null ? num(stats.avgTemperature, 1) : "—"} <small>°C</small></span>
     </div>
     <div class="wind-stat">
       <span class="wind-stat-label">Csapadék (max)</span>
-      <span class="wind-stat-value">${stats.maxPrecipitation != null ? stats.maxPrecipitation.toFixed(0) : "—"} <small>%</small></span>
+      <span class="wind-stat-value">${stats.maxPrecipitation != null ? num(stats.maxPrecipitation, 0) : "—"} <small>%</small></span>
     </div>
     <div class="wind-stat">
       <span class="wind-stat-label">Felhőzet</span>
-      <span class="wind-stat-value">${stats.avgCloudcover != null ? stats.avgCloudcover.toFixed(0) : "—"} <small>%</small></span>
+      <span class="wind-stat-value">${stats.avgCloudcover != null ? num(stats.avgCloudcover, 0) : "—"} <small>%</small></span>
     </div>`;
 
   _el.windBar.hidden = false;
@@ -146,7 +147,7 @@ export function renderWindResult(result) {
     const w = (seg.distanceKm / totalKm) * 100;
     const color = WIND_COLORS[seg.wind.mode] ?? "#888";
     return `<div class="wind-bar-seg" style="width:${w.toFixed(2)}%;background:${color}"
-      title="${WIND_LABELS[seg.wind.mode]} – ${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km, ${seg.wind.speed.toFixed(1)} km/h"></div>`;
+      title="${WIND_LABELS[seg.wind.mode]} – ${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km, ${num(seg.wind.speed, 1)} km/h"></div>`;
   }).join("");
 
   _el.windSegments.hidden = false;
@@ -154,9 +155,9 @@ export function renderWindResult(result) {
     const color = WIND_COLORS[seg.wind.mode] ?? "#888";
     return `<div class="wind-segment-row">
       <div class="wind-segment-dot" style="background:${color}"></div>
-      <div>${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km <span style="color:var(--muted)">· ${WIND_LABELS[seg.wind.mode]}</span></div>
+      <div>${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km <span style="color:var(--muted)">· ${WIND_LABELS[seg.wind.mode]}</span></div>
       <span class="wind-segment-arrow" title="szél felé fúj">${windArrow(seg.wind.direction)}</span>
-      <span class="wind-segment-speed">${seg.wind.speed.toFixed(1)} km/h</span>
+      <span class="wind-segment-speed">${num(seg.wind.speed, 1)} km/h</span>
       <span class="wind-segment-time">${fmtHour(seg.arrivalTime)}</span>
     </div>`;
   }).join("");
@@ -169,10 +170,10 @@ export function renderWindResult(result) {
   if (_el.windQuickStats) {
     _el.windQuickStats.hidden = false;
     _el.windQuickStats.innerHTML = `
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#22C55E"></span><span class="wind-quick-stat-val">${stats.tailPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EAB308"></span><span class="wind-quick-stat-val">${stats.crossPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EF4444"></span><span class="wind-quick-stat-val">${stats.headPct.toFixed(0)}%</span></span>
-      <span class="wind-quick-stat" title="átlag szélerősség"><span class="wind-quick-stat-val">${stats.avgWindSpeed.toFixed(0)} km/h</span></span>
+      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#22C55E"></span><span class="wind-quick-stat-val">${num(stats.tailPct, 0)}%</span></span>
+      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EAB308"></span><span class="wind-quick-stat-val">${num(stats.crossPct, 0)}%</span></span>
+      <span class="wind-quick-stat"><span class="wind-quick-stat-dot" style="background:#EF4444"></span><span class="wind-quick-stat-val">${num(stats.headPct, 0)}%</span></span>
+      <span class="wind-quick-stat" title="átlag szélerősség"><span class="wind-quick-stat-val">${num(stats.avgWindSpeed, 0)} km/h</span></span>
     `;
   }
   const windTimeRow = document.querySelector('#planWindTimeRow');

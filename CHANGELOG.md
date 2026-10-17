@@ -1,5 +1,34 @@
 # Changelog
 
+## v1.5.2 – 2026-10-17 – Egységes megjelenés
+
+### Színek és stílus
+- Egyetlen márka-narancs (a logóé) mindenhol; sötét módban világosabb árnyalat. A Strava-elemek a saját színükön maradnak.
+- Javítva: négy alap színváltozó hiányzott (`--border`, `--text-muted`, `--panel`, `--fg`) – kb. 100 helyen nem látszott keret vagy halvány szín.
+- Stílus nélküli gombok pótolva (könyvtár-kártya ikon-gombok, lista-fejléc rendezés); a kék hover-szín megszűnt.
+- Egységes gombnyelv: semleges másodlagos gombok, csak a veszélyes művelet piros (Elemzés fül, könyvtár).
+- Egységes chipek: mindenhol fekete aktív állapot (sötét módban világos), azonos méret.
+- Lekerekítés- és betűméret-skála egyszerűsítve.
+
+### Számok és időtartamok
+- Új közös formázó (`src/format.js`): magyar tizedesvessző (48,7 km), egységes időtartam (2 ó 20 p) – könyvtár, Elemzés, Statok, PDF, megosztó kép, szélelemzés.
+- A PDF-ben a 46 perc nem jelenik meg többé „46:00”-ként.
+
+### Könyvtár és Statok
+- A kinyitott sor átrendezve: előnézet, fejléc (sport · dátum), a teljes szélességet kitöltő stat-kártyák, kétrészes gombsor.
+- Statok rekord-kártyái a stat-kártyák stílusában.
+- Magyar feliratok: „Terhelés”, „Eszköztár sorrend”, „Megnyitás Stravában”, nyers „workout” helyett „Edzés · Kerékpár”.
+
+### Igazítások
+- A beállítás-sorok „i” ikonjai egy oszlopban, a stat-kártyák a sorokkal egy vonalban.
+- Ha a mozgási idő kerekítve megegyezik az időtartammal, csak egy kártya jelenik meg.
+- A Beállítások példa-domainje általános (`bringaterv.example.hu`).
+
+### Verzió
+- v1.5.1 → v1.5.2
+
+---
+
 ## v1.5.1 – 2026-10-16 – Megosztás mindenhol, térképstílus a térképen
 
 ### Megosztás

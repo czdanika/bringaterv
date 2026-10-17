@@ -7,6 +7,7 @@
 
 import { estimateKcal } from '../calories.js';
 import { getCyclistProfile } from './settings.js';
+import { num, dur } from "../format.js";
 
 const MONTHS_HU = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
 const MONTHS_LONG = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
@@ -36,17 +37,12 @@ function cssVar(name) {
 }
 
 function fmtKm(km) {
-  if (km >= 1000) return (km / 1000).toFixed(1).replace('.', ',') + ' e km';
+  if (km >= 1000) return num(km / 1000, 1) + ' e km';
   return Math.round(km).toLocaleString('hu-HU') + ' km';
 }
 
 function fmtMin(min) {
-  if (!min || min < 1) return '—';
-  const h = Math.floor(min / 60);
-  const m = Math.round(min % 60);
-  if (h === 0) return `${m}p`;
-  if (m === 0) return `${h}ó`;
-  return `${h}ó ${m}p`;
+  return dur(min);
 }
 
 /** Hosszú forma: "2 nap 4 óra 37 perc" / "17 óra 56 perc" / "53 perc" */
@@ -149,7 +145,7 @@ function roundFill(ctx, x, y, w, h, r) {
   ctx.fill();
 }
 
-function drawBarChart(canvas, bars, { unit = '', color = '#fc4c02', height = 180 } = {}) {
+function drawBarChart(canvas, bars, { unit = '', color = '#e8461e', height = 180 } = {}) {
   const DPR = window.devicePixelRatio || 1;
   const W   = canvas.offsetWidth || 400;
   const H   = height;
@@ -191,7 +187,7 @@ function drawBarChart(canvas, bars, { unit = '', color = '#fc4c02', height = 180
     ctx.stroke();
     if (frac > 0) {
       const val = maxVal * frac;
-      const label = val >= 1000 ? (val / 1000).toFixed(1) + 'e' : Math.round(val) + unit;
+      const label = val >= 1000 ? num((val / 1000), 1) + 'e' : Math.round(val) + unit;
       ctx.fillStyle    = textColor;
       ctx.font         = '9px system-ui, sans-serif';
       ctx.textAlign    = 'right';
@@ -323,10 +319,10 @@ export function renderStats(allRoutes, { period = 'year', sport = 'all' } = {}) 
     }) : null;
 
     const records = [
-      { label: 'Leghosszabb táv',       val: bestDist  ? `${bestDist.distance.toFixed(1)} km`                                 : '—', route: bestDist },
+      { label: 'Leghosszabb táv',       val: bestDist  ? `${num(bestDist.distance, 1)} km`                                 : '—', route: bestDist },
       { label: 'Legtöbb szint',          val: bestElev  ? `${Math.round(bestElev.elevation).toLocaleString('hu-HU')} m`        : '—', route: bestElev },
       { label: 'Leghosszabb edzés',      val: bestDur   ? fmtMin(bestDur.duration)                                             : '—', route: bestDur  },
-      { label: 'Legjobb átlagsebesség',  val: bestSpeed ? `${(bestSpeed.distance / (bestSpeed.duration / 60)).toFixed(1)} km/h`: '—', route: bestSpeed },
+      { label: 'Legjobb átlagsebesség',  val: bestSpeed ? `${num((bestSpeed.distance / (bestSpeed.duration / 60)), 1)} km/h`: '—', route: bestSpeed },
     ];
 
     recordsEl.innerHTML = records.map(r => {
@@ -335,8 +331,8 @@ export function renderStats(allRoutes, { period = 'year', sport = 'all' } = {}) 
       <div class="stats-record-card ${hasRoute ? 'stats-record-clickable' : ''}"
            ${hasRoute ? `data-record-route-id="${r.route.id}" data-record-route-name="${(r.route.name || '').replace(/"/g, '&quot;')}"` : ''}>
         <div class="stats-record-body">
-          <div class="stats-record-val">${r.val}</div>
           <div class="stats-record-label">${r.label}</div>
+          <div class="stats-record-val">${r.val}</div>
           ${r.route?.name ? `<div class="stats-record-sub" title="${r.route.name}">${r.route.name}</div>` : ''}
         </div>
       </div>`;
@@ -481,10 +477,10 @@ export function renderRecordsFull(allRoutes) {
   const fmtDate = r => r?.date ? new Date(r.date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
   const records = [
-    { label: 'Leghosszabb táv',       val: bestDist  ? `${bestDist.distance.toFixed(1)} km`                                   : '—', route: bestDist,  date: fmtDate(bestDist) },
+    { label: 'Leghosszabb táv',       val: bestDist  ? `${num(bestDist.distance, 1)} km`                                   : '—', route: bestDist,  date: fmtDate(bestDist) },
     { label: 'Legtöbb szint',          val: bestElev  ? `${Math.round(bestElev.elevation).toLocaleString('hu-HU')} m`          : '—', route: bestElev,  date: fmtDate(bestElev) },
     { label: 'Leghosszabb edzés',      val: bestDur   ? fmtMin(bestDur.duration)                                               : '—', route: bestDur,   date: fmtDate(bestDur) },
-    { label: 'Legjobb átlagsebesség',  val: bestSpeed ? `${(bestSpeed.distance / (bestSpeed.duration / 60)).toFixed(1)} km/h`  : '—', route: bestSpeed, date: fmtDate(bestSpeed) },
+    { label: 'Legjobb átlagsebesség',  val: bestSpeed ? `${num((bestSpeed.distance / (bestSpeed.duration / 60)), 1)} km/h`  : '—', route: bestSpeed, date: fmtDate(bestSpeed) },
   ];
 
   el.innerHTML = records.map(r => {
@@ -619,7 +615,7 @@ function drawEddingtonChart(canvas, histogram, E) {
 
   const textColor   = cssVar('--text-muted') || '#888';
   const borderColor = cssVar('--border')     || 'rgba(128,128,128,.15)';
-  const brandColor  = '#fc4c02';
+  const brandColor  = '#e8461e';
 
   // Grid
   [0, 0.5, 1].forEach(f => {
@@ -841,7 +837,7 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
 
   // A:C arány (ATL/CTL)
   const ac = last.ctl > 0 ? Math.round((last.atl / last.ctl) * 100) / 100 : null;
-  setV('trainingAC', ac != null ? ac.toFixed(2) : '—');
+  setV('trainingAC', ac != null ? num(ac, 2) : '—');
   setEl('trainingACColor', e => {
     const color = ac == null ? 'var(--text-muted)'
       : ac > 1.5  ? '#EF4444'
@@ -868,7 +864,7 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
   const avg7 = loads7.reduce((a, b) => a + b, 0) / loads7.length;
   const std7 = Math.sqrt(loads7.reduce((s, l) => s + (l - avg7) ** 2, 0) / loads7.length);
   const monotony = std7 > 0 ? Math.round((avg7 / std7) * 100) / 100 : 0;
-  setV('trainingMonotony', monotony.toFixed(2));
+  setV('trainingMonotony', num(monotony, 2));
   setEl('trainingMonotonyColor', e => {
     e.style.color = monotony > 2 ? '#EF4444' : monotony > 1.5 ? '#F97316' : '#22C55E';
   });
@@ -912,7 +908,7 @@ export function renderTrainingLoad(routes, { months = 6 } = {}) {
   }
   if (tsbCanvas) {
     drawLineChart(tsbCanvas, [
-      { data: data.map(d => ({ date: d.date, v: d.tsb })), color: '#fc4c02', fill: true },
+      { data: data.map(d => ({ date: d.date, v: d.tsb })), color: '#e8461e', fill: true },
     ], {
       height: 160,
       refLines: [
@@ -960,7 +956,7 @@ function drawDailyLoadBars(canvas, data) {
     if (!d.load) return;
     const x  = PAD.left + (i / data.length) * iW;
     const bH = Math.max(1, (d.load / maxLoad) * iH);
-    ctx.fillStyle = '#fc4c02cc';
+    ctx.fillStyle = '#e8461ecc';
     ctx.fillRect(x - barW / 2, PAD.top + iH - bH, barW, bH);
   });
 
@@ -1045,13 +1041,13 @@ export function renderHeatmapCanvas(canvas, tracks) {
 
   renderTracks.forEach(pts => {
     if (pts.length < 2) return;
-    ctx.strokeStyle = 'rgba(252,76,2,0.12)';
+    ctx.strokeStyle = 'rgba(232,70,30,0.12)';
     ctx.lineWidth = 3;
     ctx.beginPath();
     pts.forEach(([lat, lng], i) => { const x = toX(lng), y = toY(lat); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(252,76,2,0.55)';
+    ctx.strokeStyle = 'rgba(232,70,30,0.55)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
     pts.forEach(([lat, lng], i) => { const x = toX(lng), y = toY(lat); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });

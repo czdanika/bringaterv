@@ -1,3 +1,4 @@
+import { num } from "../format.js";
 /**
  * Bringaterv – Workout Share Card Generator
  * ==========================================
@@ -507,5 +508,5 @@ function fitCentered(ctx, text, x, y, maxWidth, baseSize) {
 }
 
 function formatNumber(value, decimals = 1) {
-  return Number(value || 0).toFixed(decimals);
+  return num(value || 0, decimals);
 }

@@ -14,6 +14,7 @@
 import { routesApi } from '../api/routesApi.js';
 import { createToast } from './dom.js';
 import { loadRouteLibrary } from './library.js';
+import { num } from "../format.js";
 
 // ── Saját toast (nem injektált) ───────────────────────────────────────────────
 let _showToast = () => {};
@@ -145,7 +146,7 @@ async function loadGarminWeight() {
     return;
   }
   const dateStr = w.date ? new Date(w.date).toLocaleDateString("hu-HU") : "—";
-  const fat = w.body_fat ? ` · testzsír ${w.body_fat.toFixed(1)}%` : "";
+  const fat = w.body_fat ? ` · testzsír ${num(w.body_fat, 1)}%` : "";
   row.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span>⚖️ Legutóbbi mérés: <strong>${w.weight_kg} kg</strong> (${dateStr})${fat}</span>
@@ -350,7 +351,7 @@ function renderGarminActivityList() {
   listEl.innerHTML = "";
   for (const a of _garminActivities) {
     const date = a.start_date ? new Date(a.start_date).toLocaleDateString("hu-HU", { month:"2-digit", day:"2-digit" }) : "—";
-    const distKm = a.distance_m ? (a.distance_m / 1000).toFixed(1) : "—";
+    const distKm = a.distance_m ? num((a.distance_m / 1000), 1) : "—";
     const movMin = a.moving_time_s ? Math.round(a.moving_time_s / 60) : "—";
     const st = a.duplicate_status;
     const isNew      = st === "new";

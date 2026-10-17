@@ -42,6 +42,7 @@ import {
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { renderStats, renderMonthlyTable, renderRecordsFull, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
 import { initStats, loadAndRenderStats, switchStatsView } from "./ui/statsManager.js";
+import { num, dur } from "./format.js";
 import {
   initLibrary, loadRouteLibrary, renderLibraryGrid, setLibraryViewMode, setLibraryListSort,
   buildLibraryListRow, createLibraryCard, openLibraryEditModal, toggleLibraryRowExpand,
@@ -623,7 +624,7 @@ const mapAdapter = createMapAdapter({
     } else {
       bar.hidden = false;
       elements.measureTotal.textContent = totalMeters >= 1000
-        ? `${(totalMeters / 1000).toFixed(2)} km`
+        ? `${num(totalMeters / 1000, 2)} km`
         : `${Math.round(totalMeters)} m`;
       elements.measurePointCount.textContent = `${pointCount} pont`;
     }
@@ -731,7 +732,7 @@ function makeHoverHandler(unit) {
       mapAdapter.setElevationMarker(pt.lat, pt.lng);
       if (elements.elevationTooltip) elements.elevationTooltip.hidden = false;
       if (elements.elevationTooltipDist) {
-        elements.elevationTooltipDist.innerHTML = `<b>${(pt.dist / 1000).toFixed(2)} km</b>`;
+        elements.elevationTooltipDist.innerHTML = `<b>${num(pt.dist / 1000, 2)} km</b>`;
       }
       if (elements.elevationTooltipEle) {
         const icons = { m: "⛰", "km/h": "🚴", bpm: "❤️" };
@@ -997,7 +998,7 @@ function chartConfig(type) {
     sectionEl: elements.chartElevation,
     chartInst: elevationChart,
     build: () => buildElevationData(activeGeometry),
-    opts:  buildOpts("#fc4c02", "m", (_v, pt) => gradeColorForGrade(pt?.grade)),
+    opts:  buildOpts("#e8461e", "m", (_v, pt) => gradeColorForGrade(pt?.grade)),
     btns: [elements.gradeLegendChartBtn, elements.gradeLegendChartBtnPlan],
   };
 }
@@ -2234,7 +2235,7 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
     titleEl.textContent = routeName || "Útvonal betöltése";
 
     // --- statisztikák ---
-    const distKm = distanceMeters > 0 ? (distanceMeters / 1000).toFixed(1) : "—";
+    const distKm = distanceMeters > 0 ? num(distanceMeters / 1000, 1) : "—";
     const ascStr = ascentMeters  > 0 ? `${Math.round(ascentMeters)} m` : "—";
     statsEl.innerHTML = `
       <div class="load-preview-stat">
@@ -2325,7 +2326,7 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
           const pct = (seg.distanceKm / totalDistKm * 100).toFixed(1);
           const color = SEGMENT_COLORS[seg.mode] ?? "#888";
           return `<div class="load-preview-bar-seg" style="width:${pct}%;background:${color}"
-            title="${MODE_LABELS[seg.mode] ?? seg.mode}: ${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km"></div>`;
+            title="${MODE_LABELS[seg.mode] ?? seg.mode}: ${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km"></div>`;
         }).join("");
 
         // ── Összesítés módok szerint ───────────────────────────────────────
@@ -2338,8 +2339,8 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
           <div class="load-preview-analysis-row">
             <div class="load-preview-analysis-dot" style="background:${SEGMENT_COLORS[seg.mode] ?? "#888"}"></div>
             <span class="load-preview-analysis-mode">${MODE_LABELS[seg.mode] ?? seg.mode}</span>
-            <span class="load-preview-analysis-dist">${seg.fromKm.toFixed(1)}–${seg.toKm.toFixed(1)} km</span>
-            <span class="load-preview-analysis-pct">${seg.distanceKm.toFixed(1)} km</span>
+            <span class="load-preview-analysis-dist">${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km</span>
+            <span class="load-preview-analysis-pct">${num(seg.distanceKm, 1)} km</span>
           </div>`).join("");
 
         const insertCount = segments.length - 1; // közbenső waypontok száma
@@ -2497,9 +2498,7 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
 });
 
 function fmtMinutesHuman(min) {
-  const m = Math.round(min);
-  const h = Math.floor(m / 60), r = m % 60;
-  return h > 0 ? `${h}:${String(r).padStart(2, "0")}` : `${r} perc`;
+  return dur(min);
 }
 
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────

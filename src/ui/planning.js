@@ -16,6 +16,7 @@ import { SEGMENT_COLORS } from '../map/mapAdapter.js';
 import { getWindResult, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded } from './wind.js';
 import { defaultAvgSpeed, windTimeMultiplier } from '../wind/windService.js';
 import { formatDistance } from './dom.js';
+import { num, dur } from "../format.js";
 
 // ── Injected deps ─────────────────────────────────────────────────────────────
 let _store, _mapAdapter, _elements, _i18n, _showToast;
@@ -316,9 +317,7 @@ export function renderSidebar(state) {
       }
       const h = Math.floor(mins / 60);
       const m = mins % 60;
-      _elements.estimatedTimeValue.textContent = h > 0
-        ? `${h} ó ${m > 0 ? m + ' p' : ''}`
-        : `${m} p`;
+      _elements.estimatedTimeValue.textContent = dur(h * 60 + m);
     }
   }
 
@@ -497,7 +496,7 @@ export function formatDisplayDistance(meters) {
   if (units === "imperial") {
     const miles = meters / 1609.344;
     if (miles < 0.1) return `${Math.round(meters * 3.28084)} ft`;
-    return `${miles.toFixed(1)} mi`;
+    return `${num(miles, 1)} mi`;
   }
   return formatDistance(meters);
 }

@@ -1,3 +1,4 @@
+import { num } from "../format.js";
 const profileMap = {
   asphalt: "fastbike",
   gravel:  "gravel",
@@ -1213,6 +1214,6 @@ function toRadians(value) {
 
 function formatDist(meters) {
   return meters >= 1000
-    ? `${(meters / 1000).toFixed(2)} km`
+    ? `${num(meters / 1000, 2)} km`
     : `${Math.round(meters)} m`;
 }

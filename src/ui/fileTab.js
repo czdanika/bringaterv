@@ -18,6 +18,7 @@ import { createWorkoutShareCard, downloadShareCard } from './shareCard.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
 import { openRoutePdfModal, shareRouteUrl } from './routePdfModal.js';
+import { num, durMs } from "../format.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _store, _mapAdapter, _api, _elements, _i18n, _showToast, _switchTab;
@@ -217,13 +218,7 @@ export function clearImportedGeometries() {
 
 // ── Segédfüggvények ───────────────────────────────────────────────────────────
 function formatDuration(ms) {
-  if (!ms || ms <= 0) return "";
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  if (h > 0) return `${h} ó ${m > 0 ? m + " p" : ""}`.trim();
-  if (m > 0) return `${m} p ${s > 0 ? s + " mp" : ""}`.trim();
-  return `${s} mp`;
+  return ms > 0 ? durMs(ms) : "";
 }
 
 function arrayBufferToBase64(buf) {
@@ -269,7 +264,9 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   const totalDurStr   = formatDuration(meta.totalDuration);
   const movingDurStr  = formatDuration(meta.movingDuration);
   if (totalDurRow)  { totalDurRow.hidden  = !totalDurStr; if (totalDurStr)  document.querySelector("#fileTotalDur").textContent  = totalDurStr; }
-  if (movingDurRow) { movingDurRow.hidden = !movingDurStr; if (movingDurStr) document.querySelector("#fileMovingDur").textContent = movingDurStr; }
+  // Ha kerekítve megegyezik az időtartammal, a mozgási idő külön kártyája felesleges
+  const showMoving = !!movingDurStr && movingDurStr !== totalDurStr;
+  if (movingDurRow) { movingDurRow.hidden = !showMoving; if (showMoving) document.querySelector("#fileMovingDur").textContent = movingDurStr; }
   document.querySelector("#fileDistance").textContent = _formatDisplayDistance(distanceMeters);
   document.querySelector("#filePoints").textContent = geometry.length.toLocaleString();
 
@@ -288,8 +285,8 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   if (hasSpeed) {
     const avg = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10;
     const max = Math.round(Math.max(...speeds) * 10) / 10;
-    document.querySelector("#fileAvgSpeed").textContent = `${avg} km/h`;
-    document.querySelector("#fileMaxSpeed").textContent = `${max} km/h`;
+    document.querySelector("#fileAvgSpeed").textContent = `${num(avg, 1)} km/h`;
+    document.querySelector("#fileMaxSpeed").textContent = `${num(max, 1)} km/h`;
   }
 
   const hrs = geometry.map(p => p.hr).filter(h => h != null && h > 0);

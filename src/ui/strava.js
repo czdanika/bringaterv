@@ -9,6 +9,7 @@
  */
 
 import { routesApi } from '../api/routesApi.js';
+import { num } from "../format.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _showToast, _loadRouteLibrary;
@@ -314,7 +315,7 @@ function renderStravaActivityList() {
   listEl.innerHTML = "";
   for (const a of _stravaActivities) {
     const date = a.start_date ? new Date(a.start_date).toLocaleDateString("hu-HU", { month:"2-digit", day:"2-digit" }) : "—";
-    const distKm = a.distance_m ? (a.distance_m / 1000).toFixed(1) : "—";
+    const distKm = a.distance_m ? num((a.distance_m / 1000), 1) : "—";
     const movMin = a.moving_time_s ? Math.round(a.moving_time_s / 60) : "—";
     const isNew      = a.duplicate_status === "new";
     const isImported = a.duplicate_status === "already_imported";

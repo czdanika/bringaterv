@@ -1,3 +1,4 @@
+import { num } from "../format.js";
 export function createToast(element) {
   let timeoutId;
   return function showToast(message, duration = 3200) {
@@ -10,5 +11,5 @@ export function createToast(element) {
 
 export function formatDistance(meters) {
   if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  return `${num(meters / 1000, 1)} km`;
 }

@@ -814,7 +814,7 @@ function _initZoneMultiSliders() {
 // ── Chart colors (solid / zone color mode + 4 color pickers) ─────────────────
 export const CHART_COLOR_DEFAULTS = {
   mode:  'solid',
-  ele:   '#fc4c02',
+  ele:   '#e8461e',
   speed: '#3B82F6',
   hr:    '#EF4444',
   cad:   '#A855F7',

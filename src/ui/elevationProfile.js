@@ -1,3 +1,4 @@
+import { num } from "../format.js";
 /**
  * Általános vonaldiagram – szintprofil / sebesség / pulzus
  * Adatformátum: [{ dist, value, lat, lng }]
@@ -105,7 +106,7 @@ function niceRange(min, max) {
  */
 export function initElevationChart(canvas, { onHover, onLeave } = {}) {
   let _data = [];
-  let _opts = { color: "#fc4c02", unit: "m", fillColor: null };
+  let _opts = { color: "#e8461e", unit: "m", fillColor: null };
   let _hoverIdx = -1;
   const PAD = { top: 16, right: 16, bottom: 28, left: 52 };
 
@@ -170,7 +171,7 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
       ctx.fillStyle = mutedColor;
       ctx.font = "11px Inter, sans-serif";
       ctx.textAlign = "center";
-      const lbl = d >= 1000 ? (d / 1000).toFixed(d % 1000 === 0 ? 0 : 1) + " km" : d + " m";
+      const lbl = d >= 1000 ? num(d / 1000, d % 1000 === 0 ? 0 : 1) + " km" : d + " m";
       ctx.fillText(lbl, x, PAD.top + innerH + 18);
     }
 
@@ -256,7 +257,7 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
 
   function hexToRgb(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [252, 76, 2];
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [232, 70, 30];
   }
 
   function getIdxAtX(canvasX) {
@@ -317,7 +318,7 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
   return {
     setData(data, opts = {}) {
       _data = data;
-      _opts = { color: "#fc4c02", unit: "m", ...opts };
+      _opts = { color: "#e8461e", unit: "m", ...opts };
       _hoverIdx = -1;
       resize();
     },

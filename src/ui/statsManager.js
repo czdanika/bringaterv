@@ -187,8 +187,8 @@ function _drawHeatmapTracks() {
   const boundsPts = [];
   for (const t of filtered) {
     if (!t.points || t.points.length < 2) continue;
-    L.polyline(t.points, { color: "#fc4c02", weight: 6, opacity: 0.10, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
-    L.polyline(t.points, { color: "#fc4c02", weight: 2, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
+    L.polyline(t.points, { color: "#e8461e", weight: 6, opacity: 0.10, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
+    L.polyline(t.points, { color: "#e8461e", weight: 2, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_hmLayer);
     const [lat0, lng0] = t.points[0];
     if (Math.abs(lat0 - medLat) <= 5 && Math.abs(lng0 - medLng) <= 5)
       for (const p of t.points) boundsPts.push(p);

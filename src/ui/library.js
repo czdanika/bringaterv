@@ -13,6 +13,7 @@
 import { openRoutePdfModal, resolveShareBase, shareRouteUrl } from "./routePdfModal.js";
 import { importGpx } from "../gpx/gpx.js";
 import { openShareModal } from "./shareModal.js";
+import { num, int, dur, durMs } from "../format.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -138,17 +139,11 @@ export function libraryRouteSource(route, category) {
 }
 
 function libraryFormatDuration(min) {
-  if (min == null) return "—";
-  const h = Math.floor(min / 60), m = min % 60;
-  return h > 0 ? `${h}ó ${m}p` : `${m}p`;
+  return min == null ? "—" : dur(min);
 }
 
 function formatRouteDuration(minutes) {
-  if (minutes == null) return "";
-  const h = Math.floor(minutes / 60), m = minutes % 60;
-  if (h === 0) return `${m} p`;
-  if (m === 0) return `${h} ó`;
-  return `${h} ó ${m} p`;
+  return minutes == null ? "" : dur(minutes);
 }
 
 export function smartDateFormat(isoDate) {
@@ -187,7 +182,7 @@ export function renderRouteSvgMini(points) {
   const toY = lat => SIZE - offY - (lat - minLat) * scale;
   const d = points.map((p, i) => (i === 0 ? 'M' : 'L') + toX(p.lng).toFixed(1) + ',' + toY(p.lat).toFixed(1)).join(' ');
   return `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
-    <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+    <path d="${d}" fill="none" stroke="#e8461e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
   </svg>`;
 }
 
@@ -206,7 +201,7 @@ function renderRouteSvg(points) {
   const toY = lat => SIZE - offY - (lat - minLat) * scale;
   const d = points.map((p, i) => (i === 0 ? 'M' : 'L') + toX(p.lng).toFixed(1) + ',' + toY(p.lat).toFixed(1)).join(' ');
   return `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
-    <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${d}" fill="none" stroke="#e8461e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -244,12 +239,15 @@ function aggregateGpxStats(points) {
 
 function renderExtendedStats(s) {
   if (!s) return "";
+  const card = (label, value) => `<div class="stat-card"><span>${label}</span><strong>${value}</strong></div>`;
   const rows = [];
-  if (s.startTime) rows.push(`<dt>Indulás:</dt><dd>${s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}</dd>`);
-  if (s.avgSpeed != null) rows.push(`<dt>Sebesség (átl/max):</dt><dd>${s.avgSpeed} / ${s.maxSpeed} km/h</dd>`);
-  if (s.avgHr != null)    rows.push(`<dt>Pulzus (átl/max):</dt><dd>${s.avgHr} / ${s.maxHr} bpm</dd>`);
-  if (s.avgCad != null)   rows.push(`<dt>Kadencia (átl):</dt><dd>${s.avgCad} rpm</dd>`);
-  if (s.avgPower != null) rows.push(`<dt>Teljesítmény (átl/max):</dt><dd>${s.avgPower} / ${s.maxPower} W</dd>`);
+  if (s.startTime) rows.push(card("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
+  if (s.avgSpeed != null) rows.push(card("⌀ Sebesség", `${num(s.avgSpeed, 1)} km/h`));
+  if (s.maxSpeed != null) rows.push(card("Max sebesség", `${num(s.maxSpeed, 1)} km/h`));
+  if (s.avgHr != null)    rows.push(card("⌀ Pulzus", `${int(s.avgHr)} bpm`));
+  if (s.maxHr != null)    rows.push(card("Max pulzus", `${int(s.maxHr)} bpm`));
+  if (s.avgCad != null)   rows.push(card("⌀ Kadencia", `${int(s.avgCad)} rpm`));
+  if (s.avgPower != null) rows.push(card("⌀ Teljesítmény (mért)", `${int(s.avgPower)} W`));
   return rows.join("");
 }
 
@@ -390,43 +388,55 @@ function buildLibraryExpandRow(route, category, isSample) {
   const td = document.createElement("td");
   td.colSpan = 10;
   const previewSlot = `<div class="library-expand-preview" id="libExpPreview_${route.id}">…</div>`;
+  // Stat-kártyák (ugyanaz a stílus, mint az Elemzés fülön és a nézőoldalon)
+  const card = (label, value) => `<div class="stat-card"><span>${label}</span><strong>${value}</strong></div>`;
   const stats = [];
-  if (route.distance != null)  stats.push(`<dt>Távolság:</dt><dd>${route.distance.toFixed(1)} km</dd>`);
-  if (route.duration != null)  stats.push(`<dt>Idő:</dt><dd>${libraryFormatDuration(route.duration)}</dd>`);
-  if (route.elevation != null) stats.push(`<dt>Emelkedő:</dt><dd>${route.elevation} m</dd>`);
-  if (route.date)              stats.push(`<dt>Dátum:</dt><dd>${route.date}</dd>`);
-  if (route.type)              stats.push(`<dt>Típus:</dt><dd>${escapeHtml(route.type)}</dd>`);
-  if (route.calories != null)           stats.push(`<dt>Kalória (Strava):</dt><dd>${Math.round(route.calories)} kcal</dd>`);
-  if (route.suffer_score != null)       stats.push(`<dt>Relative Effort:</dt><dd>${Math.round(route.suffer_score)}</dd>`);
-  if (route.weighted_avg_watts != null) stats.push(`<dt>Weighted Avg W (NP):</dt><dd>${Math.round(route.weighted_avg_watts)} W${route.device_watts ? ' ⚡' : ''}</dd>`);
-  else if (route.avg_watts != null)     stats.push(`<dt>Átlag teljesítmény:</dt><dd>${Math.round(route.avg_watts)} W${route.device_watts ? ' ⚡' : ''}</dd>`);
-  if (route.kilojoules != null)         stats.push(`<dt>Mechanikai munka:</dt><dd>${Math.round(route.kilojoules)} kJ</dd>`);
-  if (route.location_city)              stats.push(`<dt>Hely:</dt><dd>${escapeHtml(route.location_city)}${route.location_country ? ', ' + escapeHtml(route.location_country) : ''}</dd>`);
-  if (route.pr_count > 0)               stats.push(`<dt>PR:</dt><dd>${route.pr_count}</dd>`);
+  if (route.distance != null)  stats.push(card("Távolság", `${num(route.distance, 1)} km`));
+  if (route.duration != null)  stats.push(card("Idő", libraryFormatDuration(route.duration)));
+  if (route.elevation != null) stats.push(card("↑ Emelkedő", `${int(route.elevation)} m`));
+  if (route.calories != null)  stats.push(card("Kalória", `${int(route.calories)} kcal`));
+  if (route.suffer_score != null) stats.push(card("Relatív terhelés", int(route.suffer_score)));
+  if (route.weighted_avg_watts != null) stats.push(card("Súlyozott telj. (NP)", `${int(route.weighted_avg_watts)} W`));
+  else if (route.avg_watts != null)     stats.push(card("⌀ Teljesítmény", `${int(route.avg_watts)} W`));
+  if (route.kilojoules != null) stats.push(card("Mechanikai munka", `${int(route.kilojoules)} kJ`));
+  if (route.pr_count > 0)       stats.push(card("Személyes rekord", route.pr_count));
+
+  // Fejléc-sor: sport + teljes dátum (+ hely) – a nyers „workout” helyett
+  const sportLabel = libraryRouteSport(route);
+  const kindLabel  = category === "workout" ? "Edzés" : category === "sample" ? "Minta" : "Útvonal";
+  const dateSrc    = route.start_time || route.date;
+  const dateLabel  = dateSrc ? new Date(dateSrc).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "";
+  const place      = route.location_city ? escapeHtml(route.location_city) + (route.location_country ? ", " + escapeHtml(route.location_country) : "") : "";
+  const metaLine   = [kindLabel + (sportLabel ? " · " + escapeHtml(sportLabel) : ""), dateLabel, place].filter(Boolean).join(" · ");
 
   const isWorkout = category === "workout";
   td.innerHTML = `
     <div class="library-list-expand-inner">
       ${previewSlot}
-      <div>
-        <dl class="library-expand-stats" id="libExpStats_${route.id}">${stats.join("")}</dl>
+      <div class="library-expand-body">
+        <div class="library-expand-meta">${metaLine}</div>
+        <div class="stats-panel library-expand-cards" id="libExpStats_${route.id}">${stats.join("")}</div>
         ${route.description ? `<div class="library-expand-desc">${escapeHtml(route.description)}</div>` : ""}
-        <div class="library-expand-actions">
+      </div>
+      <div class="library-expand-actions">
+        <div class="library-expand-actions-main">
           <button class="library-card-btn library-card-btn--primary" data-action="load-${isWorkout ? "file" : "plan"}">
-            ${isWorkout ? "Betöltés Elemzéshez" : "Betöltés Tervezésre"}
+            ${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre"}
           </button>
-          ${!isWorkout ? '' : '<button class="library-card-btn" data-action="load-plan">Betöltés Tervezésre is</button>'}
+          ${!isWorkout ? '' : '<button class="library-card-btn" data-action="load-plan">Betöltés tervezésre</button>'}
+          <button class="library-card-btn" data-action="share-menu" title="Megosztó kép, PDF útvonallap, nyilvános link">Megosztás</button>
           <button class="library-card-btn" data-action="download-gpx">GPX</button>
           ${route.has_fit ? '<button class="library-card-btn" data-action="download-fit">FIT</button>' : ''}
-          ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh">Frissít Stravából</button>' : ''}
-          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">↗ Stravan</a>` : ''}
-          ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"><span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;background:#007CC3;color:#fff;border-radius:2px;font-size:8px;font-weight:800;margin-right:4px">G</span>${route.garmin_course_id ? '✓ Feltöltve – újraküldés' : 'Küldés Garminra'}</button>` : ''}
-          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">↗ Garmin course</a>` : ''}
-          <button class="library-card-btn" data-action="share-menu" title="Megosztó kép, PDF útvonallap, nyilvános link">Megosztás</button>
-          ${!isSample ? `<button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>` : ''}
-          ${!isSample ? '<button class="library-card-btn" data-action="edit">Szerkesztés</button>' : ''}
-          ${!isSample ? '<button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>' : ''}
+          ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh">Frissítés Stravából</button>' : ''}
+          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">Megnyitás Stravában ↗</a>` : ''}
+          ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)">${route.garmin_course_id ? '✓ Garmin – újraküldés' : 'Küldés Garminra'}</button>` : ''}
+          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">Garmin course ↗</a>` : ''}
         </div>
+        ${!isSample ? `<div class="library-expand-actions-end">
+          <button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>
+          <button class="library-card-btn" data-action="edit">Szerkesztés</button>
+          <button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>
+        </div>` : ''}
       </div>
     </div>`;
 
@@ -616,10 +626,7 @@ function buildLibraryExpandRow(route, category, isSample) {
 }
 
 function _fmtMin(ms) {
-  if (!ms || ms < 1000) return '—';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60;
-  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+  return durMs(ms);
 }
 
 // ── List nézet renderelés ────────────────────────────────────────────────────
@@ -639,7 +646,7 @@ function renderLibraryListView(items, container) {
       <th class="lib-col-num lib-col-dist">${makeThBtn("distance","Táv")}</th>
       <th class="lib-col-num lib-col-elev">Szint</th>
       <th class="lib-col-num lib-col-kcal">${makeThBtn("calories","kcal")}</th>
-      <th class="lib-col-num lib-col-effort">${makeThBtn("effort","Effort")}</th>
+      <th class="lib-col-num lib-col-effort">${makeThBtn("effort","Terhelés")}</th>
       <th class="lib-col-source">Forrás</th>
       <th class="lib-col-chev"></th>
     </tr></thead>
@@ -688,7 +695,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
     </td>
     <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span></td>
     <td class="lib-col-num lib-col-dur">${route.duration != null ? libraryFormatDuration(route.duration) : "—"}</td>
-    <td class="lib-col-num lib-col-dist">${route.distance != null ? route.distance.toFixed(1) + " km" : "—"}</td>
+    <td class="lib-col-num lib-col-dist">${route.distance != null ? num(route.distance, 1) + " km" : "—"}</td>
     <td class="lib-col-num lib-col-elev">${route.elevation != null ? route.elevation + " m" : "—"}</td>
     <td class="lib-col-num lib-col-kcal">${route.calories != null ? Math.round(route.calories) : "—"}</td>
     <td class="lib-col-num lib-col-effort">${effortVal != null ? `<span class="lib-effort-badge">${effortVal}</span>` : "—"}</td>
@@ -720,7 +727,7 @@ export function createLibraryCard(route, category, isSample) {
         <div class="library-card-preview-slot" id="libCardPreview_${route.id}"></div>
       </div>
       <div class="library-card-stats">
-        ${route.distance  != null ? `<span class="lib-chip">${route.distance.toFixed(1)} km</span>` : ""}
+        ${route.distance  != null ? `<span class="lib-chip">${num(route.distance, 1)} km</span>` : ""}
         ${route.duration  != null ? `<span class="lib-chip">${libraryFormatDuration(route.duration)}</span>` : ""}
         ${route.elevation != null ? `<span class="lib-chip">${route.elevation} m</span>` : ""}
       </div>
@@ -837,9 +844,9 @@ export function renderLibraryGrid() {
       : "";
     statsEl.innerHTML =
       `<strong>${filtered.length}</strong> elem` +
-      `<span class="lib-stat-sep">·</span><strong>${totalKm.toFixed(0)}</strong> km` +
-      `<span class="lib-stat-sep">·</span><strong>${h}ó ${m}p</strong>` +
-      `<span class="lib-stat-sep">·</span><strong>${totalElev}</strong> m em.${catLegend}`;
+      `<span class="lib-stat-sep">·</span><strong>${int(totalKm)}</strong> km` +
+      `<span class="lib-stat-sep">·</span><strong>${dur(h * 60 + m)}</strong>` +
+      `<span class="lib-stat-sep">·</span><strong>${int(totalElev)}</strong> m szint${catLegend}`;
   }
 
   document.querySelectorAll(".library-view-btn").forEach(btn =>
@@ -949,7 +956,7 @@ function _registerListeners() {
     fillId: "libraryDurFill", labelId: "libraryDurLabel", maxVal: _DUR_MAX,
     format: (lo, hi, max) => {
       if (lo === 0 && hi === max) return "Bármely";
-      const fmt = m => m < 60 ? `${m} p` : (m % 60 === 0 ? `${m/60} ó` : `${Math.floor(m/60)}ó ${m%60}p`);
+      const fmt = m => dur(m);
       return `${fmt(lo)} – ${hi === max ? fmt(hi) + "+" : fmt(hi)}`;
     },
     onUpdate: (lo, hi) => { _filter.durMin = lo; _filter.durMax = hi; renderLibraryGrid(); },
