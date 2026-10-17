@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.7.3 – 2026-10-17 – Push értesítés javítás
+
+### Értesítések
+- **Javítva:** egyetlen push sem ment ki – a VAPID kapcsolati cím (`sub`) elérési utat tartalmazó https-cím volt, amit a push-könyvtár elutasít. Most `mailto:` cím: `NOTIFY_CONTACT` → `ADMIN_EMAIL` (ha e-mail) → semleges noreply cím. Az Apple push-szervere 201-gyel fogadja.
+
+### Verzió
+- v1.7.2 → v1.7.3
+
+---
+
 ## v1.7.2 – 2026-10-17 – Értesítés-diagnosztika, Strava újraimport
 
 ### Értesítések

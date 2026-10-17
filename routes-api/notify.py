@@ -33,8 +33,27 @@ _DEFAULT_EVENTS = {k: True for k in EVENTS}
 _DATA_ROOT = os.path.dirname(MULTI_DATA_DIR.rstrip("/")) or "/data"
 _VAPID_PRIV = os.path.join(_DATA_ROOT, "vapid_private.pem")
 _VAPID_PUB = os.path.join(_DATA_ROOT, "vapid_public.txt")
-# Az Apple a „sub” mezőben valós mailto: vagy https: címet vár
-_VAPID_SUB = os.environ.get("NOTIFY_CONTACT", "https://github.com/czdanika/bringaterv")
+
+
+def _contact() -> str:
+    """VAPID „sub”: mailto: e-mail cím, vagy https://host (elérési út NÉLKÜL –
+    a py_vapid mást elutasít, és ilyenkor egy push sem megy ki).
+    Sorrend: NOTIFY_CONTACT → ADMIN_EMAIL (ha valódi e-mail) → semleges noreply cím."""
+    import re
+    from config import ADMIN_EMAIL
+    valid = re.compile(r"^(mailto:[^@\s]+@[\w-]+(\.[\w-]+)+|https://[\w-]+(\.[\w-]+)+)$")
+    for cand in (os.environ.get("NOTIFY_CONTACT", "").strip(), (ADMIN_EMAIL or "").strip()):
+        if not cand:
+            continue
+        if "@" in cand and not cand.startswith("mailto:"):
+            cand = "mailto:" + cand
+        cand = cand.rstrip("/")
+        if valid.match(cand):
+            return cand
+    return "mailto:bringaterv@users.noreply.github.com"
+
+
+_VAPID_SUB = _contact()
 _lock = threading.Lock()
 
 

@@ -239,7 +239,7 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088** – belépés az `ADMIN_
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
 | `PUBLIC_SHARE_ENABLED` | routes-api | Nyilvános nézőoldal (megosztott linkek) engedélyezése | `true` |
 | `STRAVA_AUTO_SYNC` | routes-api | Az automatikus Strava import háttérszála (`false` → kikapcsolva) | `true` |
-| `NOTIFY_CONTACT` | routes-api | Kapcsolati cím a push értesítésekhez (VAPID `sub`, `mailto:` vagy `https:`) | a projekt GitHub-címe |
+| `NOTIFY_CONTACT` | routes-api | Kapcsolati e-mail a push értesítésekhez (VAPID `sub`; e-mail cím vagy `https://domain` elérési út nélkül) | az `ADMIN_EMAIL`, ha e-mail cím, különben semleges noreply cím |
 
 #### A `JWT_SECRET` beállítása
 
