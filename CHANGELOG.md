@@ -26,6 +26,17 @@
 ### Biztonság
 - Megerősítés kérése az útvonal törlésekor (Tervezés: oldalsáv és eszköztár kuka; Elemzés: Törlés).
 
+### Javítások
+- Könyvtár rácsnézet: az útvonal-bélyegkép most megjelenik (eddig a kártya DOM-ba kerülése előtt kereste a helyét), a kártya jobb felső sarkában.
+- Színezett útvonal (sebesség / pulzus / kadencia / teljesítmény / lejtő): a rövid színfoltok simítva, folytonos alapvonallal – kevesebb térképréteg, nem szakadozik.
+- Km-jelölők kis nagyításnál ritkítva (5 → 10 / 25 / 50 / 100 km), nem takarják el az útvonalat (telefonon a teljes kör nézetben).
+- Elemzés fejléc: a sporttípus magyarul („Kerékpár” a nyers „cycling” helyett).
+- Mobil könyvtár fejléc: 16 px-es margó, mint a többi elem.
+
+### Dokumentáció
+- README: új képernyőképek (kitalált demóadatokkal), mobil nézet, újdonságok táblázat, `SHARE_BASE_URL` / `PUBLIC_SHARE_ENABLED` leírás.
+- A példa admin belépés (`bringa` / `terv`) helyett semleges minta (`admin` / `ide-ird-a-jelszot`) a README-ben, a compose fájlokban és a DOCS-ban; a `src/config.js` fel nem használt belépési mezői törölve.
+
 ### Verzió
 - v1.5.2 → v1.6.0
 

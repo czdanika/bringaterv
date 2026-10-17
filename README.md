@@ -2,132 +2,148 @@
 
 ![Bringaterv](src/assets/banner.jpg)
 
-**Nyílt forráskódú GPX útvonaltervező és edzésnapló kerékpárosoknak és gyalogosoknak.**
-Böngészőben fut, Docker Compose-zal telepíthető – tervezés, elemzés, könyvtár, valamint **Strava** és **Garmin Connect** szinkron egy helyen.
+**Nyílt forráskódú, saját szerveren futtatható útvonaltervező és edzésnapló kerékpárosoknak, futóknak és túrázóknak.**
+Böngészőben fut – asztali gépen és **telefonon is** –, Docker Compose-zal telepíthető. Tervezés, edzéselemzés, könyvtár, statisztikák és személyes rekordok, **Strava** és **Garmin Connect** szinkron egy helyen, a saját adataid felett.
 
-![Elemzés – egymás alatti diagramok](https://github.com/czdanika/bringaterv/releases/download/v0.11/screen1_small.png)
+> A képernyőképeken szereplő edzések és útvonalak kitalált demóadatok.
 
-![Tervezés – útvonaltervező](https://github.com/czdanika/bringaterv/releases/download/v0.11/screen2_small.png)
+![Tervezés](screenshots/tervezes.jpg)
+
+---
+
+## Képernyőképek
+
+### Elemzés
+Sebesség / pulzus / kadencia / teljesítmény szerint színezett útvonal, egymás alatti diagramok, részletes edzésadatok.
+
+![Elemzés](screenshots/elemzes.jpg)
+
+### Könyvtár
+Tervezett útvonalak és edzések egy helyen – forrás (Saját, Strava, Garmin, FIT) és sport szerinti szűrés, útvonal-bélyegkép, rács- és listanézet.
+
+![Könyvtár](screenshots/konyvtar.jpg)
+
+### Statisztikák
+Havi táv és szintemelkedés, sportág-megoszlás, Eddington-szám, edzésterhelés, hőtérkép.
+
+![Statisztikák](screenshots/statok.jpg)
+
+### Személyes rekordok
+Kiemelt rekordok az előző rekorddal és fejlődési görbével, legjobb idők szabványos távokra, csúcspulzus és -teljesítmény.
+
+![Személyes rekordok](screenshots/rekordok.jpg)
+
+### Mobil nézet
+Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős térkép, alsó navigáció, felhúzható panel – telefonon is lehet tervezni.
+
+![Mobil nézet](screenshots/mobil.jpg)
+
+---
+
+## Újdonságok
+
+| Verzió | Főbb változások |
+|---|---|
+| **v1.6** | 📱 **Mobil nézet** (alsó navigáció, felhúzható panel, tervezés telefonon) · 🏆 **Személyes rekordok** oldal (legjobb idők távokra, csúcsértékek, fejlődési görbék) · Inter betűtípus, súgók a beállítások mellett |
+| **v1.5** | 🔗 **Megosztás**: nyilvános nézőoldal linkkel és QR-kóddal, megosztó kép, PDF egy helyről · edzésadatok (pulzus, kadencia, teljesítmény) a PDF-ben · egységes megjelenés |
+| **v1.4** | 📄 **PDF útvonallap**: nyomtatható oldal térképpel, szintprofillal, adatokkal, útvonalpont-listával és QR-kóddal |
+| **v1.3** | ⌚ **Garmin Connect**: edzés-import, testsúly-szinkron, útvonal küldése Garminra |
+| **v1.0** | 🟠 **Strava** import, megújult könyvtár, kalória- és terhelésbecslés |
+
+A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 ## Funkciók
 
 ### Térképes tervezés
-- Kattintással pontokat helyezhetsz el a térképen
-- 4 tervezési mód: Aszfalt, Gravel, MTB, Túra (gyalogos)
+- Kattintással pontokat helyezhetsz el a térképen, vagy helyet kereshetsz név alapján
+- 4 tervezési mód: Aszfalt, Gravel, MTB, Túra (gyalogos) – szakaszonként eltérő is lehet
 - Útra illesztés BRouter segítségével – ha nem elérhető, egyenes vonalként jelenik meg
-- Vegyes mód: szakaszonként eltérő tervezési mód egy útvonalon belül
-- 7 térképstílus: Standard, Kerékpáros, Műholdas, Hybrid, Domborzat, Világos, Sötét
-- Sötét és világos téma, automatikus rendszerfelismeréssel
-- Waypoint közbeszúrás útvonalra kattintással
-- Visszaút és oda-vissza tervezés
+- Becsült menetidő a szintkülönbség és (szélelemzés után) a szél figyelembevételével
+- Visszaút, oda-vissza és körút tervezés, közbeszúrás az útvonalra kattintással
+- 7 térképstílus (Standard, Kerékpáros, Műholdas, Hybrid, Domborzat, Világos, Sötét), sötét és világos téma
+- Útvonalpontok automatikus elnevezése (Nominatim), húzással átrendezhetők
 
-### Útvonalpontok kezelése
-- Automatikus helynévadás Nominatim reverse geocoding alapján
-- Drag and drop átrendezés
-- Popup szerkesztő: pont neve, megjegyzés, törlés
-- Az utolsó pont mindig célállomásként jelenik meg (sakk-tábla zászló)
-- Marker húzás a térképen – cím automatikusan frissül
+### Edzéselemzés (GPX / FIT)
+- GPX és FIT (Garmin / Wahoo / Bryton / Hammerhead) fájlok importálása, húzd-és-ejtsd bárhonnan
+- Sebesség, pulzus, kadencia és teljesítmény szerint színezett útvonal, lejtőtérkép
+- Szintprofil, sebesség, pulzus, kadencia és teljesítmény diagramok – a diagramon mozgatott egér a térképen is mutatja a pontot
+- Pulzuszóna-elemzés (Karvonen, Max HR %, LTHR, egyedi határok), TRIMP
 
-### GPX és FIT elemzés
-- GPX és FIT (Garmin / Wahoo / Bryton / Hammerhead) fájlok importálása
-- Drag and drop bárhonnan a böngészőablakba
-- Importált GPX-ből automatikusan kiszámított emelkedő és ereszkedő
-- Sebesség, pulzus, kadencia és teljesítmény alapú útvonalszínezés
-- Szintprofil, sebesség, pulzus, kadencia és teljesítmény diagramok
-- Lejtőtérkép (vörös az emelkedő, zöld a süllyedés)
-- Hover tooltip: pillanatnyi sebesség és magasság
+### Könyvtár
+- Tervezett útvonalak és edzések mentése a szerverre, szerkesztés, visszatöltés
+- Forrás szerinti jelölés és szűrés: **Saját**, **Strava**, **Garmin**, **FIT**; sport, táv és időtartam szűrő
+- Rács- és listanézet útvonal-bélyegképpel, lenyitható részletekkel
+- GPX és (ha van) eredeti FIT letöltés; edzésenként állítható, beleszámít-e a statisztikába
+- Beépített minta útvonalak (Balatoni kör, Tisza-tó kör)
 
-### Testreszabható zónák
-- Sebesség, kadencia, teljesítmény zónák multi-sliderrel állíthatók (7 fogópont, 8 zóna)
-- Pulzuszónák négy módszerrel: Karvonen, Max HR százalék, LTHR, vagy Egyedi BPM határok
-- Max HR automatikus számítása Tanaka / Miller / klasszikus 220-kor képlettel, vagy egyedi érték
-- Zónamodell: Friel (aszimmetrikus, Garmin / Strava / TrainingPeaks kompatibilis) vagy egyenlő sávok
-- Egyenlő felosztás gomb minden zónaslideren a gyors reseteléshez
-- Élő frissítés: drag közben a térkép és a jelmagyarázat azonnal újraszíneződik
+### Statisztikák és személyes rekordok
+- Áttekintés: összesítők, havi táv és szint, sportág-megoszlás
+- Havi bontás, **Eddington-szám**, **edzésterhelés** (CTL / ATL / TSB), **hőtérkép** az összes edzésből
+- **Személyes rekordok** sportonként (Kerékpár / Futás / Gyalog) és időszakonként (összes, 1 év, 6 hónap, 12 hét, 4 hét):
+  - kiemelt rekordok – leghosszabb táv, legtöbb szint, leghosszabb edzés, legjobb átlagsebesség, legnagyobb sebesség, leghosszabb mászás, legtöbb kalória – az előző rekorddal és fejlődési görbével
+  - **legjobb idők távokra** (5 / 10 / 20 … 200 km, futásnál 400 m – maraton) a GPS-adatból számolva, akkor is, ha a táv egy hosszabb edzés közepén volt
+  - **csúcsértékek**: legmagasabb átlagpulzus és -teljesítmény 5 mp – 60 perces ablakokra
 
-### Diagram színek
-- Két mód: egyszínű (minden diagramhoz külön szín választható) vagy zónaszín (a vonal szegmensenként a határértékek színeivel rajzolódik)
-- 5 diagram konfigurálható: szintprofil, sebesség, pulzus, kadencia, teljesítmény
+### Megosztás és nyomtatás
+- **Megosztás** ablak: megosztó kép (fotós témával is), PDF útvonallap, nyilvános link
+- **Nyilvános nézőoldal**: a link / QR-kód bejelentkezés nélkül mutatja az útvonalat vagy edzést (szerkeszteni nem lehet); megosztás üzenetben, e-mailben, Facebookon stb.
+- **PDF útvonallap**: térkép (választható stílus), adatok, szintprofil, edzésadatok, útvonalpontok, jegyzet, QR-kód kattintható linkkel
+- A link címe beállítható (`SHARE_BASE_URL`), így helyi Docker-telepítésnél és saját domainnel is jó címre mutat
 
-### Útvonalkönyvtár
-- Mentett útvonalak – tervezett útvonalak elmenthetők a szerverre, szerkeszthetők és visszatölthetők
-- Edzések – elemzett GPX fájlok eredeti adatokkal menthetők, és FIT eredetű importálásnál az eredeti FIT bináris is megőrződik a könyvtárban
-- Minták – beépített minta útvonalak (Balatoni kör 204 km, Tisza-tó kör 90 km)
-- Kártyákon statisztikák: távolság, időtartam, emelkedő, FIT címke ha elérhető
-- GPX és (ha van) FIT letöltés könyvtárból
-- Forrás szerinti szűrés és jelölés a könyvtárban: **Saját**, **Strava**, **Garmin**, **FIT** – színes badge-ekkel
-- Edzésenként állítható, hogy beleszámítson-e a statisztikákba
+### Mobil nézet
+- 768 px alatt saját elrendezés: teljes képernyős térkép, alsó navigációs sáv (Tervezés · Elemzés · Könyvtár · Statok)
+- Az oldalsáv tartalma alulról felhúzható panelben, négy magasságban (húzással vagy koppintással)
+- Telefonon is teljes értékű tervezés: keresés, útvonalpontok, eszköztár, mentés
 
 ### Strava integráció
-- Per-user Strava kapcsolat OAuth-tal: saját Strava app credentials (Client ID + Secret), csak olvasási jogosultság (`activity:read_all`) – a Bringaterv semmit nem ír a Stravára
-- Aktivitások importálása a könyvtárba (a Strava streamekből GPX generálódik, HR / kadencia / teljesítmény adatokkal)
-- Kötegelt import progress-barral, időszak- és darabszám-szűréssel
-- Duplikátum-kezelés: „már importálva" / „korábban törölted" / „hasonló van" jelzés; törölt elem nem kerül újra-importra
-- Importált edzés metaadatainak frissítése Stravából (kalória, Relative Effort, teljesítmény, HR, kadencia, helyszín, stb.)
-- Beállítás: **Beállítások → Strava kapcsolat**
+- Felhasználónkénti Strava kapcsolat OAuth-tal, saját Strava app adatokkal; csak olvasási jog (`activity:read_all`) – a Bringaterv semmit nem ír a Stravára
+- Aktivitások importálása pulzus / kadencia / teljesítmény adatokkal, kötegelve, duplikátum-felismeréssel
+- Importált edzés metaadatainak frissítése (kalória, Relative Effort, teljesítmény, helyszín stb.)
 
 ### Garmin Connect integráció
-- Per-user kapcsolat **email + jelszóval**, kétlépcsős azonosítás (**MFA**) támogatással – a jelszót nem tároljuk, csak a belépési tokent (kb. 1 évig érvényes)
-- **Testsúly-szinkron** az okosmérlegről (súly + testzsír%) → egy gombbal a kerékpáros profilba, ami a szél- és kalóriaszámítás bemenete
-- **Edzés-import**: aktivitás-lista + GPX letöltés a könyvtárba (Garmin forrásszűrő és badge, cross-source duplikáció-jelzés a Strava/FIT elemekhez képest)
-- **Tervezett útvonal → Garmin course**: a könyvtárból „Küldés Garminra" gombbal az útvonal Garmin Connect course-ként feltölthető navigációhoz; tartós „feltöltve" jelzés és közvetlen link a course-ra
-- Önálló, moduláris felépítés (a feature külön be-/kikapcsolható, a `garminconnect` csomag nélkül a többi funkció zavartalanul fut)
-- Beállítás: **Beállítások → Garmin Connect**
-
-### Multi-user és admin panel
-- JWT autentikáció, per-user adatok és beállítások
-- Admin panel felhasználókezelése: létrehozás, szerkesztés, jelszó-reset, kvóták, aktiválás / tiltás
-- Útvonalak adminisztrálása: GPX vagy FIT letöltés, metaadatok inline szerkesztése, törlés, feltöltés admin részéről
-- Per-user beállítások JSON fájlban: `/data/users/<uid>/settings.json` (HR zónák, adatzónák, diagram színek, térképstílus, téma)
-- Minta útvonalak webes admin kezelése: feltöltés, szerkesztés, törlés a "Minta útvonalak" panelből; GPX előelemzés (távolság, emelkedő, Overpass útburkolat-szegmensek) feltöltéskor
-- Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false` szerveren belüli LAN használatra)
+- Belépés e-maillel és jelszóval, kétlépcsős azonosítással (MFA) – a jelszót nem tároljuk, csak a belépési tokent
+- Edzés-import, testsúly-szinkron az okosmérlegről a kerékpáros profilba
+- Tervezett útvonal küldése Garmin Connect course-ként navigációhoz
 
 ### Szélelemzés
-- Open-Meteo alapú szél- és időjárás-elemzés a tervezett útvonalra (7 napos órás bontású előrejelzés, kulcs nélküli ingyenes API)
-- Szegmensenkénti hátszél / oldalszél / szembeszél dekompozíció + statisztika (százalék, km, átlagok)
-- Térképszínezés szélirány szerint, kölcsönösen kizáró a szintprofil-térképszínezéssel
-- Indulási idő picker (max +7 nap), átlagsebesség alapján szegmens-érkezési időre kéri le a szelet
-- Szélhatás az időbecsléshez: kerékpáros profilból (tömeg, CdA, Crr) számolt teljesítmény + Newton-iteráció szegmensenként
+- Open-Meteo alapú szél- és időjárás-előrejelzés a tervezett útvonalra (7 nap, óránként)
+- Szakaszonkénti hátszél / oldalszél / szembeszél, térképszínezés, hatás a becsült menetidőre a kerékpáros profil (tömeg, CdA, Crr) alapján
 
-### Kerékpáros profil
-- Beállítások: kerékpáros és kerékpár tömege, vezetési pozíció (CdA 0.32–0.65)
-- Per-user mentés, használja a szélhatás-számítás
+### Testreszabás
+- Sebesség-, kadencia-, teljesítmény- és pulzuszónák csúszkákkal, élő előnézettel
+- Diagram színek (egyszínű vagy zónaszín), eszköztár sorrend, induló nézet, mértékegység
+- Súgó („i”) gomb a beállítások mellett: koppintásra nyíló magyarázat
 
-### Waypoint szakaszhosszok és km-jelölők
-- Tervezésnél a sidebar waypoint listán megjelennek a szakaszonkénti távolságok
-- Térképen minden 5 kilométernél kis jelölő a km-számmal
-- Beállításokból kapcsolható útirány-nyilak (▲) a route mentén ~1.5 km-enként – hurkos pályánál segít látni a haladási irányt
-
-### Backup és visszaállítás
-- Teljes profil (beállítások + útvonalak + edzések) ZIP archívumba menthető a Beállítások panelből
-- Visszaállítás két módban: **Hozzáadás** (új ID-kkel a meglévők mellé) vagy **Teljes felülírás** (eredeti ID-kkel, törli az aktuális adatokat)
-- Admin felületről bármely felhasználó profilja menthető és visszaállítható
+### Több felhasználó, admin, mentés
+- JWT autentikáció, felhasználónkénti adatok és beállítások
+- Admin panel: felhasználók, kvóták, útvonalak, minta útvonalak kezelése
+- Teljes profil mentése és visszaállítása ZIP-ben (Beállítások és admin felület)
+- Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false`) otthoni hálózaton
 
 ---
 
 ## Architektúra
 
 ```
-Böngésző
+Böngésző (asztali / mobil)
     │
-    ├── / (statikus frontend)
-    │       nginx konténer
+    ├── /            statikus frontend, /view.html nyilvános nézőoldal
+    │                nginx konténer
     │
-    └── /api/ (REST API proxy)
-            nginx → routes-api konténer (Flask)
-                         │
-                    routes-data volume (/data)
-                    ├── bringaterv.db   ← SQLite (felhasználók, munkamenetek)
-                    └── users/          ← per-user GPX könyvtárak
+    └── /api/        REST API proxy
+                     nginx → routes-api konténer (Flask)
+                              │
+                         routes-data volume (/data)
+                         ├── bringaterv.db   ← SQLite (felhasználók, munkamenetek)
+                         └── users/          ← felhasználónkénti GPX / FIT könyvtárak
 ```
 
-Két Docker konténer fut:
 | Konténer | Kép | Feladat |
 |---|---|---|
 | `bringaterv` | `ghcr.io/czdanika/bringaterv:latest` | nginx – statikus frontend |
-| `routes-api` | `ghcr.io/czdanika/bringaterv-api:latest` | Flask REST API – JWT auth, per-user GPX tárolás |
+| `routes-api` | `ghcr.io/czdanika/bringaterv-api:latest` | Flask REST API – JWT auth, GPX tárolás, rekordszámítás |
 
 A `routes-api` konténer kívülről **nem érhető el** – csak az nginx-en keresztül, belső hálózaton kommunikál.
 
@@ -150,6 +166,7 @@ services:
       - "8088:80"
     environment:
       LOGIN_ENABLED: true
+      SHARE_BASE_URL: ""                  # pl. https://bringaterv.example.hu (üresen: a böngésző címe)
     depends_on:
       - routes-api
     networks:
@@ -162,9 +179,10 @@ services:
       SAMPLES_DIR:     /samples
       DB_PATH:         /data/bringaterv.db
       MULTI_DATA_DIR:  /data/users
-      ADMIN_EMAIL:     bringa           # ← admin belépési email/felhasználónév
-      ADMIN_PASSWORD:  terv             # ← admin jelszó (változtasd meg!)
-      JWT_SECRET:      valtozd_meg      # ← kötelező megváltoztatni élesben!
+      PUBLIC_SHARE_ENABLED: "true"        # false → nyilvános nézőoldal kikapcsolva
+      ADMIN_EMAIL:     admin              # ← admin belépési név / e-mail
+      ADMIN_PASSWORD:  ide-ird-a-jelszot  # ← saját, erős jelszót adj meg!
+      JWT_SECRET:      valtozd_meg        # ← kötelező megváltoztatni élesben!
     volumes:
       - routes-data:/data
     networks:
@@ -181,78 +199,58 @@ networks:
 
 5. Kattints a **Deploy the stack** gombra
 
-Az alkalmazás elérhető: **http://[szerver-ip]:8088**
+Az alkalmazás elérhető: **http://[szerver-ip]:8088** – belépés az `ADMIN_EMAIL` / `ADMIN_PASSWORD` párossal.
+
+> Az admin felhasználó az **első indításkor** jön létre ezekből az értékekből. Később a jelszó az admin felületen módosítható; a változók átírása a már létező felhasználót nem változtatja meg.
 
 ### 2. Környezeti változók
 
 | Változó | Konténer | Leírás | Alapértelmezett |
 |---|---|---|---|
 | `LOGIN_ENABLED` | bringaterv | Bejelentkezés be/ki | `true` |
-| `ADMIN_EMAIL` | routes-api | Admin felhasználónév / email | `bringa` |
-| `ADMIN_PASSWORD` | routes-api | Admin jelszó | `terv` |
+| `SHARE_BASE_URL` | bringaterv | A megosztott linkek / QR-kódok alap-címe (pl. saját domain). Üresen a böngésző aktuális címe; a Beállításokban felülírható | – |
+| `ADMIN_EMAIL` | routes-api | Az első admin felhasználóneve / e-mail címe | `admin@bringaterv.local` |
+| `ADMIN_PASSWORD` | routes-api | Az első admin jelszava – **saját értéket adj meg!** | – |
 | `JWT_SECRET` | routes-api | JWT aláíró kulcs – **élesben kötelező megváltoztatni!** | `change-me-please` |
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
+| `PUBLIC_SHARE_ENABLED` | routes-api | Nyilvános nézőoldal (megosztott linkek) engedélyezése | `true` |
 
 #### A `JWT_SECRET` beállítása
 
 A bejelentkezési tokenek aláírására szolgál. Aki ismeri, érvényes tokent tud hamisítani bármely felhasználó (akár az admin) nevében, ezért éles üzemben **kötelező** sajátra cserélni.
 
-- **Formátum:** hexadecimális string (csak `0–9` és `a–f`), így nincs benne speciális karakter, ami a docker-compose YAML-ben gondot okozna.
-- **Hossz:** legalább 32 byte = 64 hex karakter (256 bit). Az algoritmus HS256 (HMAC-SHA256), ehhez ez az ajánlott kulcsméret.
+- **Formátum:** hexadecimális string (csak `0–9` és `a–f`), így nincs benne speciális karakter, ami a YAML-ben gondot okozna.
+- **Hossz:** legalább 32 byte = 64 hex karakter (256 bit), a HS256 algoritmushoz ajánlott kulcsméret.
 - **Generálás:**
 
 ```bash
 openssl rand -hex 32
 ```
 
-**Példa egy generált értékre** (ne ezt használd – generálj sajátot):
-
-```
-JWT_SECRET=ed07db6c05dc7384047806ae33942d9a9dba203475784855a89b39cefeae84b5
-```
-
-> A `JWT_SECRET` megváltoztatásakor minden korábban kiadott token érvénytelenné válik, így minden felhasználónak újra be kell jelentkeznie.
+> A `JWT_SECRET` megváltoztatásakor minden korábban kiadott token érvénytelenné válik, így mindenkinek újra be kell jelentkeznie.
 
 ### 3. Frissítés új verzióra
 
-Ha új verzió jelent meg:
-
 1. Portainer → **Stacks** → `bringaterv`
-2. Kattints a **Pull and redeploy** gombra
+2. **Pull and redeploy**
 
-> **Figyelem:** A `routes-data` volume megmarad frissítéskor – a mentett útvonalak, edzések és felhasználói adatok nem vesznek el.
+> A `routes-data` volume frissítéskor megmarad – a mentett útvonalak, edzések és felhasználói adatok nem vesznek el.
 
 ### 4. Hibaelhárítás – mentés nem működik
 
-Ha az alkalmazásba be tudsz lépni, de az útvonalak / edzések mentése „Nem sikerült menteni" hibával meghiúsul:
+**a) Elérhető-e az API?** Böngészőben: `http://[szerver-ip]:8088/api/health` → helyes válasz: `{"ok": true}`
 
-**a) Ellenőrizd, hogy az API elérhető-e:**
+**b) API napló:** Portainer → Containers → `bringaterv_routes-api_1` → Logs – keress `PermissionError`, `OSError` vagy `500` sort.
 
-Böngészőben nyisd meg: `http://[szerver-ip]:8088/api/health`
-
-Helyes válasz: `{"ok": true}`
-
-**b) Nézd meg az API naplóját Portainerben:**
-
-Portainer → Containers → `bringaterv_routes-api_1` → Logs
-
-Keress `PermissionError`, `OSError` vagy `500` sort.
-
-**c) Teszteld az írási jogot:**
-
-Portainer → Containers → `bringaterv_routes-api_1` → Console → Exec
+**c) Írási jog:** Portainer → Containers → `bringaterv_routes-api_1` → Console → Exec
 
 ```bash
 touch /data/users/test.txt && echo "ÍRHATÓ" || echo "NEM ÍRHATÓ"
 ```
 
-Ha `NEM ÍRHATÓ`, a volume nem írható a konténer számára. Megoldás: Portainer → Volumes → töröld a `bringaterv_routes-data` volume-ot, majd deployold újra a stacket. (Csak akkor, ha még nincs benne fontos adat – friss telepítésnél ez biztonságos.)
+Ha `NEM ÍRHATÓ`: Portainer → Volumes → töröld a `bringaterv_routes-data` volume-ot, majd deployold újra a stacket (csak friss telepítésnél, ha még nincs benne fontos adat).
 
-**d) Frissítsd az image-et:**
-
-Portainer → Stacks → `bringaterv` → Editor → alul: **Pull and redeploy**
-
-Ha a Pull and redeploy nem érhető el, manuálisan:
+**d) Image frissítése kézzel:**
 
 ```bash
 docker pull ghcr.io/czdanika/bringaterv-api:latest
@@ -265,23 +263,19 @@ Majd Portainer → Stacks → `bringaterv` → Stop → Start.
 
 ## NAS / parancssoros telepítés
 
-Ha nincs Portainer, a NAS-on SSH-n keresztül:
-
 ```bash
-# 1. Mappát létrehozni
 mkdir -p /volume1/docker/bringaterv
 cd /volume1/docker/bringaterv
 
-# 2. docker-compose.yml letöltése a GitHub-ról
 curl -o docker-compose.yml \
   "https://raw.githubusercontent.com/czdanika/bringaterv/main/docker-compose-nas.yml"
 
-# 3. Indítás (a volume és hálózat automatikusan létrejön)
+# Indítás előtt írd át a fájlban az ADMIN_PASSWORD és JWT_SECRET értékét!
 docker compose pull
 docker compose up -d
 ```
 
-### Frissítés
+Frissítés:
 
 ```bash
 cd /volume1/docker/bringaterv
@@ -295,90 +289,24 @@ docker compose up -d
 
 Bármilyen Linux gépen (Ubuntu, Debian, Raspberry Pi OS) működik, ahol fut a Docker.
 
-### 1. Docker telepítése (ha még nincs)
-
 ```bash
+# Docker telepítése (ha még nincs)
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 newgrp docker
-```
 
-### 2. Bringaterv telepítése
-
-```bash
-mkdir -p ~/bringaterv
-cd ~/bringaterv
-
+# Bringaterv
+mkdir -p ~/bringaterv && cd ~/bringaterv
 curl -o docker-compose.yml \
   "https://raw.githubusercontent.com/czdanika/bringaterv/main/docker-compose-nas.yml"
-
+# Indítás előtt írd át a fájlban az ADMIN_PASSWORD és JWT_SECRET értékét!
 docker compose pull
 docker compose up -d
 ```
 
-Az alkalmazás elérhető: **http://[eszköz-ip]:8088**
+Az alkalmazás elérhető: **http://[eszköz-ip]:8088** (Raspberry Pi-n az IP: `hostname -I`).
 
-> Raspberry Pi-n az IP-cím lekérdezése: `hostname -I`
-
-### 3. Környezeti változók (opcionális)
-
-A letöltött `docker-compose.yml` tartalma — itt módosítható a jelszó és a port:
-
-```yaml
-services:
-  bringaterv:
-    image: ghcr.io/czdanika/bringaterv:latest
-    ports:
-      - "8088:80"       # bal oldal: külső port (ezt változtasd, ha kell)
-    environment:
-      LOGIN_ENABLED: true
-    depends_on:
-      - routes-api
-    networks:
-      - bringaterv-net
-    restart: unless-stopped
-
-  routes-api:
-    image: ghcr.io/czdanika/bringaterv-api:latest
-    environment:
-      SAMPLES_DIR:    /samples
-      DB_PATH:        /data/bringaterv.db
-      MULTI_DATA_DIR: /data/users
-      ADMIN_EMAIL:    bringa            # ← admin felhasználónév
-      ADMIN_PASSWORD: terv              # ← ezt érdemes megváltoztatni!
-      JWT_SECRET:     valtozd_meg       # ← kötelező megváltoztatni élesben!
-    volumes:
-      - routes-data:/data
-    networks:
-      - bringaterv-net
-    restart: unless-stopped
-
-volumes:
-  routes-data:
-
-networks:
-  bringaterv-net:
-    driver: bridge
-```
-
-### 4. Automatikus indítás (rendszerindításkor)
-
-A `restart: unless-stopped` alapból be van kapcsolva a compose fájlban, így újraindítás után automatikusan elindul.
-
-Ellenőrzés:
-```bash
-docker compose ps
-```
-
-### 5. Frissítés
-
-```bash
-cd ~/bringaterv
-docker compose pull
-docker compose up -d
-```
-
-> **Adatok megmaradnak** – a `routes-data` Docker volume frissítéskor nem törlődik.
+A `restart: unless-stopped` miatt újraindítás után automatikusan elindul. Frissítés: `docker compose pull && docker compose up -d` – az adatok a `routes-data` volume-ban megmaradnak.
 
 ---
 

@@ -433,8 +433,8 @@ services:
       SAMPLES_DIR:     /samples
       DB_PATH:         /data/bringaterv.db
       MULTI_DATA_DIR:  /data/users
-      ADMIN_EMAIL:     ${ADMIN_EMAIL:-${LOGIN_USER:-bringa}}
-      ADMIN_PASSWORD:  ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-terv}}
+      ADMIN_EMAIL:     ${ADMIN_EMAIL:-${LOGIN_USER:-admin}}
+      ADMIN_PASSWORD:  ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-ide-ird-a-jelszot}}
       JWT_SECRET:      ${JWT_SECRET:-change-me-please}
       JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-30}
     volumes:
@@ -459,8 +459,8 @@ networks:
 | `SAMPLES_DIR` | routes-api | Minta útvonalak mappája | `/samples` |
 | `DB_PATH` | routes-api | SQLite DB elérési út | `/data/bringaterv.db` |
 | `MULTI_DATA_DIR` | routes-api | Per-user GPX mappák | `/data/users` |
-| `ADMIN_EMAIL` | routes-api | Első admin email/username | `bringa` |
-| `ADMIN_PASSWORD` | routes-api | Első admin jelszó | `terv` |
+| `ADMIN_EMAIL` | routes-api | Első admin email/username | `admin` |
+| `ADMIN_PASSWORD` | routes-api | Első admin jelszó | `ide-ird-a-jelszot` |
 | `JWT_SECRET` | routes-api | JWT aláíró kulcs | `change-me-please` |
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartam napban | `30` |
 
@@ -554,7 +554,7 @@ curl http://192.168.0.136:8088/api/health
 # Login teszt
 curl -s -X POST http://192.168.0.136:8088/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"bringa","password":"terv"}'
+  -d '{"email":"admin","password":"ide-ird-a-jelszot"}'
 ```
 
 ### GitHub Actions

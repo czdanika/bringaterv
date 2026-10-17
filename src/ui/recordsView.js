@@ -194,7 +194,7 @@ function recordCard(label, prog, fmt, { lowerIsBetter = false, extra = "" } = {}
     <div class="rec-card stats-record-clickable"${routeAttrs(cur.route)}>
       <div class="rec-card-top">
         <div class="rec-card-label">${label}</div>
-        ${prog.length > 1 ? sparkStep(prog.map((p) => ({ x: p.t, y: p.value })), { lowerIsBetter }) : ""}
+        ${prog.length > 1 ? sparkStep(prog.map((p) => ({ x: p.t, y: p.value })), { lowerIsBetter, width: 60, height: 22 }) : ""}
       </div>
       <div class="rec-card-val">${fmt(cur.value)}</div>
       ${extra}

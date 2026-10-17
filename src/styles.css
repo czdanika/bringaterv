@@ -1356,6 +1356,7 @@ body.is-drag-over::after {
 }
 .rec-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 26px; }
 .rec-card-label {
+  flex: 1; min-width: 0;
   font-size: 11px; font-weight: 700; color: var(--muted);
   text-transform: uppercase; letter-spacing: .05em;
 }
@@ -5527,7 +5528,7 @@ body.is-drag-over::after {
 /* Mobil finomítások a library-listáé */
 @media (max-width: 720px) {
   .library-main-header {
-    padding: 8px 12px;
+    padding: 8px 16px;
     gap: 8px;
   }
   .library-main-stats {
@@ -5987,9 +5988,9 @@ body.is-drag-over::after {
   background: transparent;
   border: none;
 }
-.library-card-name {
-  padding-right: 70px; /* helyet hagy a preview/badge-nek */
-}
+/* Kártya fejléc: név + dátum balra, útvonal-bélyegkép jobbra */
+.library-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.library-card-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
 /* Import dropdown – z-index fix: a sticky table header ne takarja */
 .library-import-wrap {

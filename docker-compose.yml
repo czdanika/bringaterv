@@ -45,8 +45,8 @@ services:
       DB_PATH:        /data/bringaterv.db     # SQLite adatbázis
       MULTI_DATA_DIR: /data/users             # per-user mappák
       PUBLIC_SHARE_ENABLED: ${PUBLIC_SHARE_ENABLED:-true}   # false → publikus nézőoldal ki
-      ADMIN_EMAIL:    ${ADMIN_EMAIL:-${LOGIN_USER:-bringa}}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-terv}}
+      ADMIN_EMAIL:    ${ADMIN_EMAIL:-${LOGIN_USER:-admin}}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-ide-ird-a-jelszot}}
       JWT_SECRET:     ${JWT_SECRET:-change-me-please}
       JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-30}
     volumes:

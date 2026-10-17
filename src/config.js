@@ -4,8 +4,6 @@
 
 export const config = {
   login: true,
-  user: "bringa",
-  password: "terv",
   // Publikus megosztási (QR) alap-URL. Üresen hagyva a böngésző origin-jét
   // használjuk. Pl. "https://bringaterv.example.hu".
   shareBaseUrl: "",

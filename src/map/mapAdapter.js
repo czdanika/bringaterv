@@ -559,11 +559,37 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     directionArrowGroup.clearLayers();
   }
 
-  // 5 km-es jelölők
+  // 5 km-es jelölők – kis nagyításnál ritkítva (10 / 25 / 50 / 100 km), hogy ne
+  // takarják el az útvonalat (telefonon a teljes kör nézetben egymásra csúsztak)
   const kmMarkerGroup = L.layerGroup().addTo(map);
+  let kmMarkers = [];          // [{ km, marker }]
+  const KM_STEPS = [5, 10, 25, 50, 100];
+  const KM_MIN_PX = 36;
+
+  function declutterKmMarkers() {
+    if (!kmMarkers.length) return;
+    const pts = kmMarkers.map((m) => map.latLngToLayerPoint(m.marker.getLatLng()));
+    let step = KM_STEPS[KM_STEPS.length - 1];
+    for (const st of KM_STEPS) {
+      let prev = null, ok = true;
+      for (let i = 0; i < kmMarkers.length; i++) {
+        if (kmMarkers[i].km % st) continue;
+        if (prev && prev.distanceTo(pts[i]) < KM_MIN_PX) { ok = false; break; }
+        prev = pts[i];
+      }
+      if (ok) { step = st; break; }
+    }
+    kmMarkers.forEach(({ km, marker }) => {
+      const show = km % step === 0;
+      if (show && !kmMarkerGroup.hasLayer(marker)) kmMarkerGroup.addLayer(marker);
+      if (!show && kmMarkerGroup.hasLayer(marker)) kmMarkerGroup.removeLayer(marker);
+    });
+  }
+  map.on("zoomend", declutterKmMarkers);
 
   function renderKmMarkers(geometry, intervalKm = 5) {
     kmMarkerGroup.clearLayers();
+    kmMarkers = [];
     if (!geometry || geometry.length < 2) return;
     const intervalM = intervalKm * 1000;
     let cumM = 0;
@@ -582,7 +608,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         const lat = a.lat + t * (b.lat - a.lat);
         const lng = a.lng + t * (b.lng - a.lng);
         const km = nextMarker / 1000;
-        L.marker([lat, lng], {
+        const m = L.marker([lat, lng], {
           icon: L.divIcon({
             className: "km-marker-outer",
             html: `<div class="km-marker">${km}</div>`,
@@ -591,14 +617,17 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
           }),
           interactive: false,
           keyboard: false,
-        }).addTo(kmMarkerGroup);
+        });
+        kmMarkers.push({ km, marker: m });
         nextMarker += intervalM;
       }
     }
+    declutterKmMarkers();
   }
 
   function clearKmMarkers() {
     kmMarkerGroup.clearLayers();
+    kmMarkers = [];
   }
 
   // Wind-colored route
@@ -667,19 +696,36 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     return '#14532D';                   // nagyon meredek süllyedő
   }
 
+  // Színezett útvonal: azonos színű futamok egy-egy vonalban.
+  // – A rövid (MIN_RUN pontnál rövidebb) színfoltok felveszik az előző színt –
+  //   zajos adatnál különben pontonként vált a szín, és kis nagyításnál a
+  //   pixelnél rövidebb darabok eltűnnek (telefonon a teljes kör nézetben).
+  // – Alá egy folytonos alapvonal kerül, így az útvonal sosem szakad meg.
+  const MIN_RUN = 6;
   function renderSegments(group, geometry, valueFn, fallback) {
     group.clearLayers();
+    if (!geometry || geometry.length < 2) return;
+    const colors = geometry.map((p, i) => (i === 0 ? null : valueFn(p) ?? fallback));
+    colors[0] = colors[1];
+    // futamok simítása
+    let runStart = 0;
+    for (let i = 1; i <= colors.length; i++) {
+      if (i === colors.length || colors[i] !== colors[runStart]) {
+        if (i - runStart < MIN_RUN && runStart > 0) {
+          for (let k = runStart; k < i; k++) colors[k] = colors[runStart - 1];
+        }
+        runStart = i;
+      }
+    }
+    const latlngs = geometry.map(p => [p.lat, p.lng]);
+    L.polyline(latlngs, { color: colors[0] || fallback, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false })
+      .addTo(group);
     let segStart = 0;
-    let currentColor = valueFn(geometry[1]) ?? fallback;
-
-    for (let i = 2; i <= geometry.length; i++) {
-      const color = i < geometry.length ? (valueFn(geometry[i]) ?? fallback) : null;
-      if (color !== currentColor || i === geometry.length) {
-        const seg = geometry.slice(segStart, i).map(p => [p.lat, p.lng]);
-        L.polyline(seg, { color: currentColor, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" })
+    for (let i = 1; i <= geometry.length; i++) {
+      if (i === geometry.length || colors[i] !== colors[segStart]) {
+        L.polyline(latlngs.slice(Math.max(0, segStart - 1), i), { color: colors[segStart], weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round" })
           .addTo(group);
-        segStart = i - 1;
-        currentColor = color;
+        segStart = i;
       }
     }
   }

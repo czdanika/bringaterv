@@ -232,6 +232,20 @@ function arrayBufferToBase64(buf) {
 }
 
 // ── Fájl fül megjelenítése ────────────────────────────────────────────────────
+/** GPX <type> / Strava sporttípus → magyar felirat (ismeretlennél az eredeti) */
+function sportTypeLabel(t) {
+  const k = String(t).toLowerCase();
+  if (/(e-?bike|ebike)/.test(k)) return "E-bike";
+  if (/(gravel)/.test(k)) return "Gravel";
+  if (/(mtb|mountain)/.test(k)) return "MTB";
+  if (/(cycl|ride|bik)/.test(k)) return "Kerékpár";
+  if (/(run)/.test(k)) return "Futás";
+  if (/(hik)/.test(k)) return "Túra";
+  if (/(walk)/.test(k)) return "Gyaloglás";
+  if (/(swim)/.test(k)) return "Úszás";
+  return t;
+}
+
 export function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {}, isFit = false }) {
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
@@ -249,7 +263,7 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   const hasMeta  = meta.name || meta.type || meta.desc || meta.startTime;
   if (metaBlock) metaBlock.hidden = !hasMeta;
   if (nameRow)  { nameRow.hidden  = !meta.name; if (meta.name)  document.querySelector("#fileMetaName").textContent = meta.name; }
-  if (typeRow)  { typeRow.hidden  = !meta.type; if (meta.type)  document.querySelector("#fileMetaType").textContent = meta.type; }
+  if (typeRow)  { typeRow.hidden  = !meta.type; if (meta.type)  document.querySelector("#fileMetaType").textContent = sportTypeLabel(meta.type); }
   if (descRow)  { descRow.hidden  = !meta.desc; if (meta.desc)  document.querySelector("#fileMetaDesc").textContent = meta.desc; }
   if (startRow && meta.startTime) {
     const d = new Date(meta.startTime);

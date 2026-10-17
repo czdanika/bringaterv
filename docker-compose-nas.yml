@@ -36,8 +36,8 @@ services:
       DB_PATH:         /data/bringaterv.db
       PUBLIC_SHARE_ENABLED: "true"     # false → a publikus nézőoldal (QR-link) kikapcsolva
       MULTI_DATA_DIR:  /data/users        # per-user GPX könyvtárak
-      ADMIN_EMAIL:     bringa             # ← admin belépési azonosító
-      ADMIN_PASSWORD:  terv               # ← VÁLTOZTASD MEG!
+      ADMIN_EMAIL:     admin              # ← admin belépési azonosító
+      ADMIN_PASSWORD:  ide-ird-a-jelszot  # ← VÁLTOZTASD MEG!
       JWT_SECRET:      valtozd_meg        # ← KÖTELEZŐ MEGVÁLTOZTATNI!
       JWT_EXPIRY_DAYS: 30                 # token élettartama napban
     volumes:

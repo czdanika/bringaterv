@@ -294,8 +294,9 @@ export async function loadAndRenderExpandPreview(routeId) {
   } catch { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Hiba</span>'; }
 }
 
-export async function loadCardPreview(routeId, isSample) {
-  const slot = document.getElementById(`libCardPreview_${routeId}`);
+export async function loadCardPreview(routeId, isSample, slotEl = null) {
+  // A kártya ilyenkor még nincs a DOM-ban → a hívó átadhatja a slot elemet
+  const slot = slotEl || document.getElementById(`libCardPreview_${routeId}`);
   if (!slot) return;
   const cached = _geomCache.get(routeId);
   if (cached) { slot.innerHTML = renderRouteSvgMini(cached.points || cached); return; }
@@ -728,7 +729,7 @@ export function createLibraryCard(route, category, isSample) {
           <span class="library-card-name">${escapeHtml(route.name ?? "")}</span>
           <span class="library-card-date">${smartDateTimeFormat(route)}</span>
         </div>
-        <div class="library-card-preview-slot" id="libCardPreview_${route.id}"></div>
+        <div class="library-card-preview library-card-preview-slot" id="libCardPreview_${route.id}"></div>
       </div>
       <div class="library-card-stats">
         ${route.distance  != null ? `<span class="lib-chip">${num(route.distance, 1)} km</span>` : ""}
@@ -747,7 +748,7 @@ export function createLibraryCard(route, category, isSample) {
     </div>`;
 
   // Lazy preview
-  loadCardPreview(route.id, isSample);
+  loadCardPreview(route.id, isSample, card.querySelector(".library-card-preview-slot"));
 
   // Kártya kattintás → betöltés
   card.addEventListener("click", (e) => {
