@@ -57,7 +57,23 @@ async function diagnostics() {
     parts.push("feliratkozás: " + (sub ? (_cfg?.this_device ? "rendben" : "csak az eszközön") : "nincs"));
   } catch { parts.push("service worker: –"); }
   parts.push(isStandalone() ? "telepített app" : "böngészőben");
-  return parts.join(" · ");
+  const lines = [parts.join(" · ")];
+
+  const hhmm = (t) => new Date(t).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // Szerver oldal: az utolsó küldés eredménye (a push-szolgáltató – pl. Apple – válasza)
+  const ls = _cfg?.last_send;
+  if (ls?.results?.length) {
+    const res = ls.results.map((r) => `${r.host.replace(/^web\.push\./, "")}: ${r.ok ? `${r.status} OK` : `${r.status ?? "hiba"} ${r.reason || ""}`}`).join(", ");
+    lines.push(`utolsó küldés ${hhmm(ls.at)} → ${res}`);
+  } else if (ls) {
+    lines.push(`utolsó küldés ${hhmm(ls.at)} → nem volt feliratkozott eszköz`);
+  }
+  // Eszköz oldal: mikor érkezett utoljára push (a service worker jegyzi fel)
+  try {
+    const hit = await (await caches.open("bringaterv-meta")).match("/__last_push");
+    lines.push(hit ? `utolsó fogadott értesítés ezen az eszközön: ${hhmm(Number(await hit.text()))}` : "ezen az eszközön még nem érkezett értesítés");
+  } catch { /* nincs cache API */ }
+  return lines.join("\n");
 }
 
 async function refresh() {
@@ -201,7 +217,7 @@ export function initNotifications({ showToast } = {}) {
         await new Promise((r) => setTimeout(r, 1000));
       }
       btn.textContent = "Elküldve ✓";
-      setTimeout(() => { btn.textContent = "Próbaértesítés"; btn.disabled = false; }, 2500);
+      setTimeout(() => { btn.textContent = "Próbaértesítés"; btn.disabled = false; refresh(); }, 3000);
     } catch (err) {
       btn.disabled = false;
       btn.textContent = "Próbaértesítés";

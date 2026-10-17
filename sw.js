@@ -12,14 +12,14 @@
  * deploy-nál változik – így nem gyűlnek a régi példányok).
  */
 
-const CACHE = "bringaterv-shell-v2";
+const CACHE = "bringaterv-shell-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     for (const key of await caches.keys()) {
-      if (key !== CACHE) await caches.delete(key);
+      if (key !== CACHE && key !== "bringaterv-meta") await caches.delete(key);
     }
     await self.clients.claim();
   })());
@@ -59,13 +59,17 @@ self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data?.text() }; }
   const title = data.title || "Bringaterv";
-  event.waitUntil(self.registration.showNotification(title, {
+  // Diagnosztikához: mikor érkezett utoljára push (Beállítások → Értesítések kiírja)
+  const mark = caches.open("bringaterv-meta")
+    .then((c) => c.put("/__last_push", new Response(String(Date.now()))))
+    .catch(() => {});
+  event.waitUntil(mark.then(() => self.registration.showNotification(title, {
     body: data.body || "",
     icon: "src/assets/icons/icon-192.png",
     badge: "src/assets/icons/icon-192.png",
     tag: data.tag || undefined,
     data: { url: data.url || "./index.html" },
-  }));
+  })));
 });
 
 // Koppintás: a már nyitott ablakot hozzuk előre (és oda navigálunk), különben új ablak

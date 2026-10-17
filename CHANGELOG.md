@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.7.2 – 2026-10-17 – Értesítés-diagnosztika, Strava újraimport
+
+### Értesítések
+- A szerver eltárolja az **utolsó push-küldés eredményét** (a push-szolgáltató – pl. Apple – válaszkódját és okát), a Beállítások → Értesítések diagnosztika sora kiírja.
+- A service worker feljegyzi, mikor **érkezett** utoljára értesítés az eszközre – így látszik, hogy a küldés vagy a kézbesítés akad el.
+- A naplóban a sikeres küldés is megjelenik (`Push elküldve (host → kód)`).
+
+### Strava
+- Törölt, majd kézzel újraimportált Strava-edzés lekerül a tiltólistáról.
+
+### Verzió
+- v1.7.1 → v1.7.2
+
+---
+
 ## v1.7.1 – 2026-10-17 – Javítások: értesítések, mobil ablakok, beállítások
 
 ### Értesítések

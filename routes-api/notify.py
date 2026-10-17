@@ -76,6 +76,7 @@ def load(user_id: str) -> dict:
             stored = json.load(f) or {}
         data["events"].update({k: bool(v) for k, v in (stored.get("events") or {}).items() if k in EVENTS})
         data["subscriptions"] = stored.get("subscriptions") or []
+        data["last_send"] = stored.get("last_send")
     except (OSError, json.JSONDecodeError):
         pass
     return data
@@ -133,26 +134,41 @@ def send(user_id: str, event: str, title: str, body: str, url: str = "./index.ht
     vapid_public_key()   # biztosan létezzen a kulcs
     payload = json.dumps({"title": title, "body": body, "url": url, "tag": tag or event},
                          ensure_ascii=False)
-    ok, dead = 0, []
+    from urllib.parse import urlparse
+    ok, dead, results = 0, [], []
     for sub in data["subscriptions"]:
+        host = urlparse(sub["endpoint"]).netloc
         try:
-            webpush(subscription_info={"endpoint": sub["endpoint"], "keys": sub["keys"]},
-                    data=payload, vapid_private_key=_VAPID_PRIV,
-                    vapid_claims={"sub": _VAPID_SUB}, ttl=24 * 3600, timeout=15)
+            resp = webpush(subscription_info={"endpoint": sub["endpoint"], "keys": sub["keys"]},
+                           data=payload, vapid_private_key=_VAPID_PRIV,
+                           vapid_claims={"sub": _VAPID_SUB}, ttl=24 * 3600, timeout=15)
+            code = getattr(resp, "status_code", 201)
+            results.append({"host": host, "status": code, "ok": True})
+            log.info("Push elküldve (%s → %s)", host, code)
             ok += 1
         except WebPushException as exc:
             status = getattr(exc.response, "status_code", None)
+            reason = ""
+            try:
+                reason = (exc.response.text or "")[:160]
+            except Exception:
+                pass
+            results.append({"host": host, "status": status, "ok": False, "reason": reason or str(exc)[:160]})
             if status in (404, 410):          # az eszköz leiratkozott / lejárt
                 dead.append(sub["endpoint"])
             else:
-                log.warning("Push hiba (%s): %s", status, str(exc)[:200])
+                log.warning("Push hiba (%s %s): %s", host, status, reason or str(exc)[:200])
         except Exception as exc:              # hálózati hiba – a többi eszköz menjen
-            log.warning("Push hiba: %s", exc)
-    if dead:
-        with _lock:
-            d = load(user_id)
+            results.append({"host": host, "status": None, "ok": False, "reason": str(exc)[:160]})
+            log.warning("Push hiba (%s): %s", host, exc)
+    # Az utolsó küldés eredménye a kliens diagnosztikájához (Beállítások → Értesítések)
+    with _lock:
+        d = load(user_id)
+        if dead:
             d["subscriptions"] = [s for s in d["subscriptions"] if s.get("endpoint") not in dead]
-            save(user_id, d)
+        d["last_send"] = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                          "event": event, "results": results}
+        save(user_id, d)
     return ok
 
 

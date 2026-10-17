@@ -451,6 +451,7 @@ def strava_import(activity_id: int):
 
     try:
         new_entry = import_strava_activity(user_id, activity_id, token, idx, idx_path)
+        _remove_from_deny(user_id, activity_id)   # szándékos újraimport → már nem „törölt”
     except StravaImportError as exc:
         if exc.status == 422:
             return jsonify({"ok": False, "error": exc.message}), 422
@@ -576,19 +577,23 @@ def strava_refresh(route_id: str):
 @require_auth
 def strava_deny_remove(strava_id: int):
     """Eltávolít egy strava_id-t a deny-listből (re-import újra lehetségessé válik)."""
-    path = _user_strava_deny_path(g.user["id"])
-    if not os.path.isfile(path):
-        return jsonify({"ok": True, "removed": False})
+    return jsonify({"ok": True, "removed": _remove_from_deny(g.user["id"], strava_id)})
+
+
+def _remove_from_deny(user_id: str, strava_id: int) -> bool:
+    """strava_id törlése a tiltólistáról (kézi újraimportnál is)."""
+    path = _user_strava_deny_path(user_id)
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f) or {}
     except (OSError, json.JSONDecodeError):
-        return jsonify({"ok": True, "removed": False})
+        return False
     removed = data.get("deleted_at", {}).pop(str(strava_id), None) is not None
-    with open(path + ".tmp", "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(path + ".tmp", path)
-    return jsonify({"ok": True, "removed": removed})
+    if removed:
+        with open(path + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(path + ".tmp", path)
+    return removed
 
 
 @bp.route("/api/strava/disconnect", methods=["DELETE"])

@@ -16,6 +16,7 @@ def _public(data: dict, endpoint: str | None = None) -> dict:
         "event_labels": notify.EVENTS,
         "devices": len(subs),
         "this_device": bool(endpoint and any(s.get("endpoint") == endpoint for s in subs)),
+        "last_send": data.get("last_send"),
     }
 
 

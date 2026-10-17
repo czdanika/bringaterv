@@ -6493,3 +6493,4 @@ body.is-drag-over::after {
   .strava-import-panel { width: calc(100vw - 16px); max-width: none; }
   .strava-import-body { padding: 12px 14px; }
 }
+.notify-diag { white-space: pre-line; }
