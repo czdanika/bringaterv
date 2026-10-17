@@ -9,7 +9,9 @@
  * – fülváltáskor alapállás: térképes fülön „peek”, Könyvtár/Statok „mini”.
  */
 
-const MQ = matchMedia("(max-width: 768px)");
+import { mobileMQ } from "../layout.js";
+
+const MQ = mobileMQ;
 const ORDER = ["mini", "peek", "half", "full"];
 
 let _shell = null, _inner = null;
@@ -60,8 +62,7 @@ export function setSheet(state) {
 /** Az állások magassága px-ben (a CSS-sel azonos képletek). */
 function heights() {
   const vh = window.innerHeight;
-  const cs = getComputedStyle(_shell);
-  const top = parseFloat(cs.getPropertyValue("--top-h")) || 48;
+  const top = document.querySelector(".topnav")?.getBoundingClientRect().height || 48;   // notch-csal együtt
   const nav = document.querySelector(".app-rail")?.getBoundingClientRect().height || 58;
   return { mini: 64, peek: vh * 0.34, half: vh * 0.58, full: vh - top - nav - 12 };
 }

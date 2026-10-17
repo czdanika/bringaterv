@@ -37,6 +37,21 @@ from utils import _load_index, _now_dt, _safe_id, _save_index
 bp = Blueprint("api_strava", __name__)
 
 
+# Nem útvonal-alapú (GPS nélküli) Strava aktivitás-típusok – ezeket nem listázzuk
+# és nem importáljuk, mert nincs térképük (pl. konditermi „Workout”, súlyzós edzés, jóga).
+NON_GPS_TYPES = {
+    "workout", "weighttraining", "yoga", "crossfit", "elliptical",
+    "stairstepper", "pilates", "rockclimbing", "hiit", "swim",
+    "virtualrun", "velomobile",
+}
+
+
+def is_gps_activity(a: dict) -> bool:
+    sport_t  = (a.get("sport_type") or a.get("type") or "").lower()
+    polyline = (a.get("map") or {}).get("summary_polyline")
+    return sport_t not in NON_GPS_TYPES and bool(polyline or (a.get("distance") or 0) > 0)
+
+
 # ── User-facing endpoint-ok ───────────────────────────────────────────────────
 
 @bp.route("/api/strava/status", methods=["GET"])
@@ -229,22 +244,11 @@ def strava_activities():
     by_strava  = {r.get("strava_id"): r for r in idx if r.get("strava_id")}
     deny_list  = _load_strava_deny_list(g.user["id"])
 
-    # Nem útvonal-alapú (GPS nélküli) Strava aktivitás-típusok – ezeket nem listázzuk,
-    # mert nincs térképük/útvonaluk (pl. konditermi "Workout", súlyzós edzés, jóga).
-    NON_GPS_TYPES = {
-        "workout", "weighttraining", "yoga", "crossfit", "elliptical",
-        "stairstepper", "pilates", "rockclimbing", "hiit", "swim",
-        "virtualrun", "velomobile",
-    }
-
     items = []
     for a in data:
         sid = a.get("id")
         # Kihagyjuk a nem-térképes edzéseket (típus-alapon VAGY ha nincs se GPS-track, se táv)
-        sport_t  = (a.get("sport_type") or a.get("type") or "").lower()
-        polyline = (a.get("map") or {}).get("summary_polyline")
-        dist_m   = a.get("distance") or 0
-        if sport_t in NON_GPS_TYPES or (not polyline and dist_m <= 0):
+        if not is_gps_activity(a):
             continue
         dup_local   = by_strava.get(sid)
         dup_deleted = sid in deny_list
@@ -307,22 +311,19 @@ def _find_manual_match(idx: list, strava_activity: dict) -> dict | None:
     return None
 
 
-@bp.route("/api/strava/import/<int:activity_id>", methods=["POST"])
-@require_auth
-def strava_import(activity_id: int):
-    """Egy Strava activity-t letölt + GPX-szé konvertál + ment a könyvtárba."""
-    token = _ensure_strava_token(g.user["id"])
-    if not token:
-        abort(401, description="Nincs csatlakozva Stravához.")
-    user_id    = g.user["id"]
-    routes_dir = _user_routes_dir(user_id)
-    idx_path   = os.path.join(routes_dir, "index.json")
-    idx        = _load_index(idx_path)
+class StravaImportError(Exception):
+    """Strava import hiba – HTTP státusz + magyar üzenet (a végpont abort-tá alakítja)."""
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
 
-    # Duplikálás check – ha már megvan, skip
-    if any(r.get("strava_id") == activity_id for r in idx):
-        return jsonify({"ok": True, "skipped": True, "reason": "already_imported"})
 
+def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list, idx_path: str) -> dict:
+    """Egy Strava activity letöltése, GPX-szé alakítása és mentése a könyvtárba.
+    A kézi import végpont és az automatikus szinkron (strava_sync.py) is ezt használja.
+    Visszaadja az új index-bejegyzést; hiba esetén StravaImportError."""
+    routes_dir = os.path.dirname(idx_path)
     # Activity meta
     try:
         ar = requests.get(f"{STRAVA_API_BASE}/activities/{activity_id}",
@@ -331,12 +332,12 @@ def strava_import(activity_id: int):
                           timeout=20)
         if ar.status_code == 401:
             _delete_user_strava(user_id)
-            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
+            raise StravaImportError(401, "A Strava kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
         if ar.status_code != 200:
-            abort(502, description=f"Strava activity hiba ({ar.status_code}).")
+            raise StravaImportError(502, f"Strava activity hiba ({ar.status_code}).")
         activity = ar.json()
     except requests.RequestException as exc:
-        abort(502, description=f"Strava activity lekérdezés sikertelen: {exc}")
+        raise StravaImportError(502, f"Strava activity lekérdezés sikertelen: {exc}")
 
     # Streams (latlng, altitude, time, heartrate, cadence, watts)
     try:
@@ -346,16 +347,16 @@ def strava_import(activity_id: int):
                           timeout=30)
         if sr.status_code == 401:
             _delete_user_strava(user_id)
-            abort(401, description="A Strava kapcsolat érvénytelenné vált. Csatlakozz újra.")
+            raise StravaImportError(401, "A Strava kapcsolat érvénytelenné vált. Csatlakozz újra.")
         if sr.status_code != 200:
-            abort(502, description=f"Strava streams hiba ({sr.status_code}). Lehet, hogy nincs GPS adat?")
+            raise StravaImportError(502, f"Strava streams hiba ({sr.status_code}). Lehet, hogy nincs GPS adat?")
         streams = sr.json()
     except requests.RequestException as exc:
-        abort(502, description=f"Strava streams lekérdezés sikertelen: {exc}")
+        raise StravaImportError(502, f"Strava streams lekérdezés sikertelen: {exc}")
 
     latlng = streams.get("latlng", {}).get("data", [])
     if not latlng:
-        return jsonify({"ok": False, "error": "Nincs GPS adat ehhez az activity-hez (talán beltéri vagy trainer)."}), 422
+        raise StravaImportError(422, "Nincs GPS adat ehhez az activity-hez (talán beltéri vagy trainer).")
 
     altitude = streams.get("altitude", {}).get("data", []) or [None] * len(latlng)
     times    = streams.get("time", {}).get("data", []) or [None] * len(latlng)
@@ -429,7 +430,68 @@ def strava_import(activity_id: int):
     idx.append(new_entry)
     _save_index(idx, idx_path)
 
+    return new_entry
+
+
+@bp.route("/api/strava/import/<int:activity_id>", methods=["POST"])
+@require_auth
+def strava_import(activity_id: int):
+    """Egy Strava activity-t letölt + GPX-szé konvertál + ment a könyvtárba."""
+    token = _ensure_strava_token(g.user["id"])
+    if not token:
+        abort(401, description="Nincs csatlakozva Stravához.")
+    user_id    = g.user["id"]
+    routes_dir = _user_routes_dir(user_id)
+    idx_path   = os.path.join(routes_dir, "index.json")
+    idx        = _load_index(idx_path)
+
+    # Duplikálás check – ha már megvan, skip
+    if any(r.get("strava_id") == activity_id for r in idx):
+        return jsonify({"ok": True, "skipped": True, "reason": "already_imported"})
+
+    try:
+        new_entry = import_strava_activity(user_id, activity_id, token, idx, idx_path)
+    except StravaImportError as exc:
+        if exc.status == 422:
+            return jsonify({"ok": False, "error": exc.message}), 422
+        abort(exc.status, description=exc.message)
     return jsonify({"ok": True, "skipped": False, "entry": new_entry})
+
+
+@bp.route("/api/strava/auto-sync", methods=["GET"])
+@require_auth
+def strava_auto_sync_get():
+    """Automatikus import állapota (kapcsoló, időköz, utolsó ellenőrzés eredménye)."""
+    from strava_sync import INTERVALS, load_sync
+    data = load_sync(g.user["id"])
+    data["intervals"] = list(INTERVALS)
+    return jsonify(data)
+
+
+@bp.route("/api/strava/auto-sync", methods=["PUT"])
+@require_auth
+def strava_auto_sync_set():
+    from strava_sync import INTERVALS, update_settings
+    body = request.get_json(silent=True) or {}
+    try:
+        interval = int(body.get("interval_min", 15))
+    except (TypeError, ValueError):
+        interval = 15
+    sports = body.get("sports")
+    data = update_settings(g.user["id"], bool(body.get("enabled")), interval,
+                           sports if isinstance(sports, list) else None)
+    data["intervals"] = list(INTERVALS)
+    return jsonify(data)
+
+
+@bp.route("/api/strava/auto-sync/run", methods=["POST"])
+@require_auth
+def strava_auto_sync_run():
+    """Azonnali ellenőrzés (a „Most” gomb) – ugyanaz, mint egy ütemezett kör."""
+    from strava_sync import INTERVALS, sync_user
+    data = sync_user(g.user["id"])
+    data["intervals"] = list(INTERVALS)
+    return jsonify(data)
 
 
 @bp.route("/api/strava/refresh/<route_id>", methods=["POST"])

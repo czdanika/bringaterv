@@ -32,6 +32,7 @@ import api_admin
 import api_auth
 import api_backup
 import api_garmin
+import api_notify
 import api_public
 import api_records
 import api_routes
@@ -56,6 +57,11 @@ app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)
 app.register_blueprint(api_public.bp)
 app.register_blueprint(api_records.bp)
+app.register_blueprint(api_notify.bp)
+
+# Automatikus Strava import – háttérszál (több worker közül csak egy dolgozik)
+from strava_sync import start_scheduler  # noqa: E402
+start_scheduler()
 
 
 # ══════════════════════════════════════════════════════════════════════════════

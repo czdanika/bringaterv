@@ -87,9 +87,11 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
 /* ── App shell ─────────────────────────────────────── */
 .app-shell {
   display: grid;
-  grid-template-rows: 56px 1fr;
+  /* PWA / iPad: a notch / állapotsor alatti sáv (env() = 0, ha nincs ilyen) */
+  grid-template-rows: calc(56px + env(safe-area-inset-top)) 1fr;
   grid-template-columns: 320px 1fr;
   height: 100vh;
+  height: 100dvh;   /* iPad/iPhone Safari: a látható magasság (eszköztár nélkül) */
   min-height: 620px;
   transition: grid-template-columns 200ms ease;
 }
@@ -104,7 +106,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
   background: var(--sidebar-bg);
   border-bottom: 1px solid var(--line);
   z-index: 620;
@@ -276,7 +278,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 0;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   background: var(--panel);
   border-right: 1px solid var(--line);
 }
@@ -367,6 +369,7 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);   /* iPad home-csík */
 }
 
 /* Sections */
@@ -1928,7 +1931,7 @@ body.is-drag-over::after {
 /* ── Floating map toolbar ───────────────────────────── */
 .map-toolbar {
   position: absolute;
-  bottom: 32px;
+  bottom: calc(32px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 600;
@@ -1940,6 +1943,20 @@ body.is-drag-over::after {
   border-radius: 14px;
   box-shadow: 0 4px 20px rgba(0,0,0,.18);
   user-select: none;
+  /* Keskeny térképen (pl. iPad állóban az oldalsáv mellett) ne lógjon ki:
+     két sorba tördelődik (görgetés helyett – az levágná a felugró menüket) */
+  width: max-content;            /* a left:50% miatt különben fél szélességnél tördelne */
+  max-width: calc(100% - 24px);
+}
+/* A gombok a fogantyú mellett tördelődnek, ha nem férnek el (görgetés helyett –
+   az levágná a felugró menüket) */
+.map-toolbar > .toolbar-content { flex-wrap: wrap; justify-content: center; min-width: 0; }
+/* Keskeny asztali elrendezés (iPad álló): kicsit kisebb gombok, hogy egy sorba férjen */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .map-toolbar .toolbar-btn { height: 34px; min-width: 30px; padding: 0 4px; }
+  .map-toolbar, .map-toolbar > .toolbar-content { gap: 1px; }
+  /* a nagyítás-gombok az eszköztár fölé, hogy ne fedjék egymást */
+  .map-wrap .leaflet-bottom.leaflet-right { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 /* Ha JS beállított pozíciót, a CSS-es centrálás ne ütközzön */
 .map-toolbar[data-dragged] {
@@ -6281,9 +6298,9 @@ body.is-drag-over::after {
    ════════════════════════════════════════════════════════════════════════ */
 .sheet-handle { display: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
   .app-shell {
-    --top-h: 48px;
+    --top-h: calc(48px + env(safe-area-inset-top));
     --nav-h: calc(58px + env(safe-area-inset-bottom));
     --sheet-h: 30dvh;
     display: block;
@@ -6299,7 +6316,7 @@ body.is-drag-over::after {
   .app-shell.is-sheet-dragging .sidebar-inner { transition: none; }
 
   /* Fejléc: keskeny, szlogen és oldalsáv-elrejtő nélkül */
-  .topnav { position: fixed; top: 0; left: 0; right: 0; height: var(--top-h); padding: 0 12px; z-index: 900; }
+  .topnav { position: fixed; top: 0; left: 0; right: 0; height: var(--top-h); padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); z-index: 900; }
   .topnav-logo { width: 32px; height: 32px; }
   .topnav-name { font-size: 18px; }
   .topnav-slogan, #navToggle { display: none; }
@@ -6348,10 +6365,11 @@ body.is-drag-over::after {
   /* Térkép-elemek a panel fölött */
   .map-toolbar {
     left: 8px; right: 8px; transform: none; bottom: calc(var(--sheet-h) + 8px);
-    max-width: none; overflow-x: auto; justify-content: flex-start;
+    width: auto; max-width: none; overflow-x: auto; justify-content: flex-start;
     scrollbar-width: none; transition: bottom .25s cubic-bezier(.4,0,.2,1);
   }
   .map-toolbar::-webkit-scrollbar { display: none; }
+  .map-toolbar > .toolbar-content { flex-wrap: nowrap; }
   .map-toolbar.is-collapsed { right: auto; }   /* összecsukva csak a fogantyú */
   .app-shell[data-sheet="full"] .map-toolbar { display: none !important; }
   .elevation-panel { bottom: var(--sheet-h); max-height: 45dvh; }
@@ -6385,7 +6403,7 @@ body.is-drag-over::after {
 
 /* Mobil: az Elemzés üres állapota kompakt, rögtön látható betöltés-gomb
    (asztalon 60vh magas, középre igazított – a panelből kilógna) */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
   #appShell .file-empty-state {
     min-height: 0;
     gap: 6px;
@@ -6399,3 +6417,63 @@ body.is-drag-over::after {
   #appShell .file-empty-state svg { width: 26px; height: 26px; opacity: 0.6; color: var(--brand); }
   #appShell .file-empty-hint { font-size: 12px; }
 }
+
+/* ── PWA / iPad: home-csík és érintés ──────────────────────────────────────── */
+/* Asztali (iPad) elrendezésben a térkép alsó elemei ne kerüljenek a home-csík alá */
+.map-wrap .leaflet-bottom { bottom: env(safe-area-inset-bottom); }
+.map-wrap .leaflet-right  { right: env(safe-area-inset-right); }
+/* Érintőképernyőn (iPad) nagyobb célterületek a menüben és a sávban */
+@media (pointer: coarse) {
+  .dropdown-item { min-height: 44px; }
+  .rail-tab { min-height: 48px; }
+  .topnav-icon-btn { min-width: 40px; min-height: 40px; }
+}
+
+/* ── Strava: automatikus import blokk az import ablak tetején ──────────────── */
+.strava-auto {
+  margin: 0 0 14px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--panel-strong);
+}
+.strava-auto-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.strava-auto-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.strava-auto-text strong { font-size: 14px; color: var(--text); }
+.strava-auto-text span { font-size: 12px; color: var(--muted); }
+.strava-auto-opts { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.strava-auto-opts .strava-import-control { flex-direction: row; align-items: center; gap: 10px; }
+.strava-auto-sports { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.strava-auto-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); margin-right: 4px; }
+.strava-auto-chip { position: relative; cursor: pointer; }
+.strava-auto-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.strava-auto-chip span {
+  display: inline-block; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel-bg);
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.strava-auto-chip input:checked + span { background: #FC4C02; border-color: #FC4C02; color: #fff; }
+.strava-auto-chip input:focus-visible + span { outline: 2px solid #FC4C02; outline-offset: 2px; }
+.strava-auto-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.strava-auto-status { font-size: 12px; color: var(--muted); }
+.strava-auto-status.is-error { color: var(--danger); }
+.file-stats > .stat-card--wide { grid-column: 1 / -1; }
+
+/* ── Beállítások → Értesítések ─────────────────────────────────────────────── */
+.notify-device {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel-strong);
+}
+.notify-device-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notify-device-text strong { font-size: 13px; color: var(--text); }
+.notify-device-text span { font-size: 12px; color: var(--muted); }
+.notify-btn {
+  flex-shrink: 0; height: 34px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.notify-btn:hover { background: var(--panel-strong); }
+.notify-btn--primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.notify-btn--primary:hover { background: var(--brand); filter: brightness(.95); }
+.notify-btn:disabled { opacity: .6; cursor: default; }
+.notify-events-title { margin-top: 14px; }
+.notify-events .notify-event-row { padding: 6px 0; }
+.notify-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }

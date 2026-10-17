@@ -1,0 +1,72 @@
+/* ── Bringaterv – „Telepítés appként” sáv és útmutató (index + login) ──────── */
+.install-banner {
+  position: fixed; z-index: 3000;
+  left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 12px;
+  max-width: 520px; margin: 0 auto; padding: 10px 10px 10px 12px;
+  background: var(--panel-bg, #fff); color: var(--text, #111);
+  border: 1px solid var(--line, #e5e5e5); border-radius: 16px;
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  animation: install-in .25s ease-out;
+}
+/* Mobil elrendezésben az alsó navigációs sáv fölé */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .app-shell ~ .install-banner, body:has(.app-shell) .install-banner {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+}
+@keyframes install-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.install-banner-icon { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+.install-banner-text { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: 12px; line-height: 1.35; color: var(--muted, #777); }
+.install-banner-text strong { font-size: 14px; color: var(--text, #111); }
+.install-banner-btn {
+  flex-shrink: 0; height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--brand, #e8461e); color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.install-banner-close {
+  flex-shrink: 0; width: 32px; height: 32px; border: 0; background: none;
+  color: var(--muted, #777); font-size: 22px; line-height: 1; cursor: pointer;
+}
+
+.install-guide-overlay {
+  position: fixed; inset: 0; z-index: 3100;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  background: rgba(0,0,0,.4);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+@media (min-width: 600px) { .install-guide-overlay { align-items: center; } }
+.install-guide {
+  width: 100%; max-width: 420px; padding: 18px;
+  background: var(--panel-bg, #fff); color: var(--text, #111);
+  border-radius: 18px; box-shadow: 0 16px 48px rgba(0,0,0,.25);
+}
+.install-guide-head { display: flex; align-items: center; gap: 12px; }
+.install-guide-head img { border-radius: 11px; flex-shrink: 0; }
+.install-guide-head div { flex: 1; min-width: 0; }
+.install-guide-head h3 { margin: 0; font-size: 17px; }
+.install-guide-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted, #777); }
+.install-guide-close {
+  align-self: flex-start; width: 32px; height: 32px; border: 1px solid var(--line, #e5e5e5);
+  border-radius: 8px; background: none; color: var(--text, #111); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.install-guide-steps { margin: 16px 0 0; padding: 0; list-style: none; counter-reset: st; display: flex; flex-direction: column; gap: 12px; }
+.install-guide-steps li {
+  counter-increment: st; position: relative; padding-left: 38px; font-size: 14px; line-height: 1.45;
+}
+.install-guide-steps li::before {
+  content: counter(st); position: absolute; left: 0; top: -1px;
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-soft, rgba(232,70,30,.1)); color: var(--brand, #e8461e); font-weight: 800; font-size: 13px;
+}
+.install-guide-steps svg { vertical-align: -3px; color: #0a84ff; }
+.install-guide-note {
+  margin: 14px 0 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--panel-strong, #f0f0f0); font-size: 12px; line-height: 1.45; color: var(--muted, #777);
+}
+.install-guide-ok {
+  width: 100%; height: 42px; margin-top: 14px; border: 0; border-radius: 12px;
+  background: var(--brand, #e8461e); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}

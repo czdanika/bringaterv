@@ -44,6 +44,7 @@ Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős té
 
 | Verzió | Főbb változások |
 |---|---|
+| **v1.7** | 📲 **Telepíthető app** iPhone-ra / iPadre / Androidra (App Store nélkül) · 🔄 **automatikus Strava import** · 🔔 **push értesítés** új edzésről és új rekordról · iPad-elrendezés |
 | **v1.6** | 📱 **Mobil nézet** (alsó navigáció, felhúzható panel, tervezés telefonon) · 🏆 **Személyes rekordok** oldal (legjobb idők távokra, csúcsértékek, fejlődési görbék) · Inter betűtípus, súgók a beállítások mellett |
 | **v1.5** | 🔗 **Megosztás**: nyilvános nézőoldal linkkel és QR-kóddal, megosztó kép, PDF egy helyről · edzésadatok (pulzus, kadencia, teljesítmény) a PDF-ben · egységes megjelenés |
 | **v1.4** | 📄 **PDF útvonallap**: nyomtatható oldal térképpel, szintprofillal, adatokkal, útvonalpont-listával és QR-kóddal |
@@ -92,8 +93,13 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 - **PDF útvonallap**: térkép (választható stílus), adatok, szintprofil, edzésadatok, útvonalpontok, jegyzet, QR-kód kattintható linkkel
 - A link címe beállítható (`SHARE_BASE_URL`), így helyi Docker-telepítésnél és saját domainnel is jó címre mutat
 
+### Telepíthető app (iPhone, iPad, Android)
+- A Bringaterv appként telepíthető, **App Store nélkül** – saját ikon, teljes képernyő, böngészősáv nélkül
+- iPhone / iPad: Safari → **Megosztás** → **Főképernyőhöz adás**; Android / asztali Chrome, Edge: **Telepítés** gomb (☰ menü → „Telepítés appként”)
+- iPaden álló és fekvő helyzetben is, a frissítés automatikus (új verzió telepítése után a következő indításkor)
+
 ### Mobil nézet
-- 768 px alatt saját elrendezés: teljes képernyős térkép, alsó navigációs sáv (Tervezés · Elemzés · Könyvtár · Statok)
+- 768 px alatt (és fekvő telefonon) saját elrendezés: teljes képernyős térkép, alsó navigációs sáv (Tervezés · Elemzés · Könyvtár · Statok)
 - Az oldalsáv tartalma alulról felhúzható panelben, négy magasságban (húzással vagy koppintással)
 - Telefonon is teljes értékű tervezés: keresés, útvonalpontok, eszköztár, mentés
 
@@ -101,6 +107,12 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 - Felhasználónkénti Strava kapcsolat OAuth-tal, saját Strava app adatokkal; csak olvasási jog (`activity:read_all`) – a Bringaterv semmit nem ír a Stravára
 - Aktivitások importálása pulzus / kadencia / teljesítmény adatokkal, kötegelve, duplikátum-felismeréssel
 - Importált edzés metaadatainak frissítése (kalória, Relative Effort, teljesítmény, helyszín stb.)
+- **Automatikus import**: 5 / 15 / 30 percenként vagy óránként a szerver magától behozza az új edzéseket (sportszűrővel, a Strava API-keretét figyelve)
+
+### Értesítések
+- Push értesítés a telefonra / tabletre / gépre: **új edzés importálva**, **új személyes rekord**, **Strava-kapcsolat megszakadt** – koppintásra megnyílik az edzés
+- Beállítások → Értesítések: eszközönkénti engedélyezés, eseménykapcsolók, próbaértesítés
+- Szabványos Web Push, külső szolgáltatás nélkül – **HTTPS kell hozzá**; iPhone-on / iPaden a főképernyőre telepített appból (iOS 16.4+)
 
 ### Garmin Connect integráció
 - Belépés e-maillel és jelszóval, kétlépcsős azonosítással (MFA) – a jelszót nem tároljuk, csak a belépési tokent
@@ -121,6 +133,18 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 - Admin panel: felhasználók, kvóták, útvonalak, minta útvonalak kezelése
 - Teljes profil mentése és visszaállítása ZIP-ben (Beállítások és admin felület)
 - Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false`) otthoni hálózaton
+
+---
+
+## Telepítés telefonra / tabletre
+
+1. Nyisd meg a Bringaterv címét a telefonon – **HTTPS-sel**, ha értesítést is szeretnél (pl. saját domain, Cloudflare Tunnel, reverse proxy).
+2. **iPhone / iPad:** Safari → Megosztás gomb (□↑) → **Főképernyőhöz adás** → Hozzáadás.
+   **Android:** Chrome → ⋮ → **Alkalmazás telepítése** (vagy az app ☰ menüjében: „Telepítés appként”).
+3. Indítsd az új ikonról, és jelentkezz be (az iOS az appot a Safaritól külön kezeli, ezért egyszer újra kell).
+4. Értesítésekhez: ☰ → Beállítások → **Értesítések** → **Engedélyezés**, majd **Próbaértesítés**.
+
+> Sima `http://` címen (pl. helyi hálózati IP) az app is telepíthető, de a push értesítés és a gyorsítótárazás csak HTTPS-en működik.
 
 ---
 
@@ -214,6 +238,8 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088** – belépés az `ADMIN_
 | `JWT_SECRET` | routes-api | JWT aláíró kulcs – **élesben kötelező megváltoztatni!** | `change-me-please` |
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
 | `PUBLIC_SHARE_ENABLED` | routes-api | Nyilvános nézőoldal (megosztott linkek) engedélyezése | `true` |
+| `STRAVA_AUTO_SYNC` | routes-api | Az automatikus Strava import háttérszála (`false` → kikapcsolva) | `true` |
+| `NOTIFY_CONTACT` | routes-api | Kapcsolati cím a push értesítésekhez (VAPID `sub`, `mailto:` vagy `https:`) | a projekt GitHub-címe |
 
 #### A `JWT_SECRET` beállítása
 

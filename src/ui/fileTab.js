@@ -18,7 +18,9 @@ import { createWorkoutShareCard, downloadShareCard } from './shareCard.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
 import { openRoutePdfModal, shareRouteUrl } from './routePdfModal.js';
-import { num, durMs } from "../format.js";
+import { num, int, durMs } from "../format.js";
+import { estimateKcal } from "../calories.js";
+import { getCyclistProfile } from "./settings.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _store, _mapAdapter, _api, _elements, _i18n, _showToast, _switchTab;
@@ -361,6 +363,36 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
 
   const powerLegendEl = document.querySelector("#powerLegend");
   if (powerLegendEl) powerLegendEl.hidden = !hasPower;
+
+  // Kalória: a könyvtári (Strava) érték, különben becslés a kerékpáros profilból
+  // (táv, idő, szint – csak kerékpáros edzésnél, a becslő arra készült)
+  {
+    const row = document.querySelector("#fileKcalRow");
+    let kcal = Number(meta.calories) || 0, estimated = false;
+    const durMsVal = meta.movingDuration || meta.totalDuration || 0;
+    const isBike = !meta.type || /cycl|ride|bik|gravel|mtb/i.test(meta.type);
+    if (!kcal && isBike && durMsVal > 0 && distanceMeters > 0) {
+      try {
+        kcal = estimateKcal(distanceMeters / 1000, durMsVal / 3600000, ascentMeters || 0, getCyclistProfile()).kcal;
+        estimated = true;
+      } catch { kcal = 0; }
+    }
+    if (row) {
+      row.hidden = !(kcal > 0);
+      if (kcal > 0) {
+        document.querySelector("#fileKcal").textContent = `${int(kcal)} kcal`;
+        document.querySelector("#fileKcalLabel").textContent = estimated ? "Kalória (becsült)" : "Kalória";
+        row.title = estimated ? "Becslés a táv, az idő, a szintemelkedés és a kerékpáros profil (Beállítások) alapján" : "";
+      }
+    }
+  }
+  // Páratlan számú kártyánál az utolsó kitölti a sort (ne maradjon üres hely)
+  {
+    const cards = [...document.querySelectorAll(".file-stats > .stat-card")];
+    cards.forEach(c => c.classList.remove("stat-card--wide"));
+    const visible = cards.filter(c => !c.hidden);
+    if (visible.length % 2 === 1) visible[visible.length - 1].classList.add("stat-card--wide");
+  }
 
   // Share card adatok összegyűjtése
   {

@@ -56,8 +56,114 @@ export function initStrava({ showToast, loadRouteLibrary }) {
     }
   });
 
+  // Automatikus import
+  document.querySelector("#stravaAutoToggle")?.addEventListener("change", saveAutoSync);
+  document.querySelector("#stravaAutoInterval")?.addEventListener("change", saveAutoSync);
+  document.querySelectorAll("#stravaAuto .strava-auto-chip input").forEach((cb) =>
+    cb.addEventListener("change", saveAutoSync));
+  document.querySelector("#stravaAutoRunBtn")?.addEventListener("click", runAutoSyncNow);
+
   // Inicializáció
   refreshStravaStatus();
+  startAutoSyncWatcher();
+}
+
+// ── Automatikus import (háttér-szinkron) ─────────────────────────────────────
+// A szerver adott időközönként maga importál; a kliens csak figyeli az állapotot,
+// és ha új edzés jött, frissíti a könyvtárat + szól egy toasttal.
+let _autoSync = null;
+let _autoSeenTotal = null;
+let _autoWatchTimer = null;
+
+function fmtAgo(iso) {
+  if (!iso) return "még nem volt ellenőrzés";
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "most ellenőrizve";
+  if (min < 60) return `${min} perce ellenőrizve`;
+  return `${new Date(iso).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}-kor ellenőrizve`;
+}
+
+function renderAutoSync() {
+  const d = _autoSync;
+  if (!d) return;
+  const toggle = document.querySelector("#stravaAutoToggle");
+  if (toggle) toggle.checked = !!d.enabled;
+  const opts = document.querySelector("#stravaAutoOpts");
+  if (opts) opts.hidden = !d.enabled;
+  const sel = document.querySelector("#stravaAutoInterval");
+  if (sel) sel.value = String(d.interval_min || 15);
+  document.querySelectorAll("#stravaAuto .strava-auto-chip input").forEach((cb) => {
+    cb.checked = (d.sports || []).includes(cb.value);
+  });
+  const st = document.querySelector("#stravaAutoStatus");
+  if (st) {
+    let txt = fmtAgo(d.last_check);
+    if (d.last_error) txt += ` · ⚠️ ${d.last_error}`;
+    else if (d.last_check) txt += d.last_imported ? ` · ${d.last_imported} új edzés importálva` : " · nincs új edzés";
+    st.textContent = txt;
+    st.classList.toggle("is-error", !!d.last_error);
+  }
+}
+
+async function loadAutoSync() {
+  try {
+    _autoSync = await routesApi.strava.autoSync.get();
+    if (_autoSeenTotal === null) _autoSeenTotal = _autoSync.total_imported || 0;
+    renderAutoSync();
+  } catch { /* nincs Strava-kapcsolat / régi szerver */ }
+}
+
+async function saveAutoSync() {
+  const enabled = !!document.querySelector("#stravaAutoToggle")?.checked;
+  const interval_min = Number(document.querySelector("#stravaAutoInterval")?.value || 15);
+  const sports = [...document.querySelectorAll("#stravaAuto .strava-auto-chip input:checked")].map((cb) => cb.value);
+  try {
+    _autoSync = await routesApi.strava.autoSync.save({ enabled, interval_min, sports });
+    renderAutoSync();
+    startAutoSyncWatcher();
+    if (enabled) _showToast?.(`Automatikus Strava import: ${interval_min < 60 ? interval_min + " percenként" : "óránként"}`);
+  } catch (err) {
+    _showToast?.("Nem sikerült menteni: " + err.message);
+  }
+}
+
+async function runAutoSyncNow() {
+  const btn = document.querySelector("#stravaAutoRunBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Ellenőrzés…"; }
+  try {
+    _autoSync = await routesApi.strava.autoSync.runNow();
+    renderAutoSync();
+    await checkAutoSyncNews();
+  } catch (err) {
+    _showToast?.("Ellenőrzés sikertelen: " + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Ellenőrzés most"; }
+  }
+}
+
+/** Ha a szerver új edzést importált azóta, hogy utoljára néztük: könyvtár frissítés + toast */
+async function checkAutoSyncNews() {
+  const total = _autoSync?.total_imported || 0;
+  if (_autoSeenTotal !== null && total > _autoSeenTotal) {
+    const n = total - _autoSeenTotal;
+    const names = (_autoSync.last_names || []).slice(-n).join(", ");
+    _showToast?.(`${n} új Strava-edzés a könyvtárban${names ? ": " + names : ""}`);
+    await _loadRouteLibrary?.();
+  }
+  _autoSeenTotal = total;
+}
+
+function startAutoSyncWatcher() {
+  clearInterval(_autoWatchTimer);
+  loadAutoSync().then(() => {
+    if (!_autoSync?.enabled) return;
+    // A kliens 2 percenként néz rá az állapotra (ez nem Strava-hívás, csak a saját szerver)
+    _autoWatchTimer = setInterval(async () => {
+      if (document.hidden) return;
+      await loadAutoSync();
+      await checkAutoSyncNews();
+    }, 120000);
+  });
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -238,6 +344,7 @@ async function stravaDisconnect() {
 
 // ── Strava import modal ───────────────────────────────────────────────────────
 export function openStravaImportModal() {
+  loadAutoSync();
   const overlay = document.querySelector("#stravaImportOverlay");
   if (!overlay) return;
   overlay.hidden = false;

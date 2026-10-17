@@ -383,6 +383,23 @@ export const routesApi = {
   },
 
   // Strava (user-szintű)
+  // Push értesítések (notify.py)
+  notify: {
+    config(endpoint = "") {
+      return fetchJson(`${BASE}/notify/config${endpoint ? "?endpoint=" + encodeURIComponent(endpoint) : ""}`);
+    },
+    setEvents(events) {
+      return fetchJson(`${BASE}/notify/events`, { method: "PUT", body: JSON.stringify({ events }) });
+    },
+    subscribe(subscription) {
+      return fetchJson(`${BASE}/notify/subscribe`, { method: "POST", body: JSON.stringify({ subscription }) });
+    },
+    unsubscribe(endpoint) {
+      return fetchJson(`${BASE}/notify/unsubscribe`, { method: "POST", body: JSON.stringify({ endpoint }) });
+    },
+    test() { return fetchJson(`${BASE}/notify/test`, { method: "POST" }); },
+  },
+
   strava: {
     status()      { return fetchJson(`${BASE}/strava/status`); },
     connect()     { return fetchJson(`${BASE}/strava/connect`); },
@@ -404,6 +421,17 @@ export const routesApi = {
     },
     refreshActivity(routeId) {
       return fetchJson(`${BASE}/strava/refresh/${encodeURIComponent(routeId)}`, { method: "POST" });
+    },
+    // Automatikus import (háttér-szinkron): állapot, beállítás, azonnali ellenőrzés
+    autoSync: {
+      get()  { return fetchJson(`${BASE}/strava/auto-sync`); },
+      save({ enabled, interval_min, sports }) {
+        return fetchJson(`${BASE}/strava/auto-sync`, {
+          method: "PUT",
+          body: JSON.stringify({ enabled, interval_min, sports }),
+        });
+      },
+      runNow() { return fetchJson(`${BASE}/strava/auto-sync/run`, { method: "POST" }); },
     },
     async removeFromDenyList(id) {
       const res = await fetch(`${BASE}/strava/deny-list/${id}`, {

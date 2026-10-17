@@ -6,7 +6,15 @@
     <title>Bringaterv</title>
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <link rel="icon" type="image/png" sizes="48x48" href="./src/assets/logo.png">
-    <link rel="apple-touch-icon" href="./src/assets/logo.png">
+    <!-- PWA: telepíthető app (iPhone / iPad: Megosztás → Főképernyőhöz adás) -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Bringaterv">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+    <link rel="apple-touch-icon" href="./src/assets/icons/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,6 +25,7 @@
       crossorigin=""
     >
     <link rel="stylesheet" href="./src/styles.css">
+    <link rel="stylesheet" href="./src/install.css">
     <script src="./src/version.js"></script>
   </head>
   <body>
@@ -438,6 +447,10 @@
                 <div class="stat-card" id="fileMaxPowerRow" hidden>
                   <span>Max teljesítmény</span>
                   <strong id="fileMaxPower">—</strong>
+                </div>
+                <div class="stat-card" id="fileKcalRow" hidden>
+                  <span id="fileKcalLabel">Kalória</span>
+                  <strong id="fileKcal">—</strong>
                 </div>
               </div>
 
@@ -1670,6 +1683,41 @@
         </button>
       </div>
       <div class="strava-import-body">
+        <!-- Automatikus import (háttér-szinkron) -->
+        <section class="strava-auto" id="stravaAuto">
+          <div class="strava-auto-row">
+            <div class="strava-auto-text">
+              <strong>Automatikus import</strong>
+              <span>Az új Strava-edzések maguktól bekerülnek a könyvtárba.</span>
+            </div>
+            <label class="toggle-switch" title="Automatikus import be/ki">
+              <input id="stravaAutoToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="strava-auto-opts" id="stravaAutoOpts" hidden>
+            <label class="strava-import-control">
+              <span>Ellenőrzés</span>
+              <select id="stravaAutoInterval">
+                <option value="5">5 percenként</option>
+                <option value="15" selected>15 percenként</option>
+                <option value="30">30 percenként</option>
+                <option value="60">óránként</option>
+              </select>
+            </label>
+            <div class="strava-auto-sports" role="group" aria-label="Importálandó sportok">
+              <span class="strava-auto-label">Sportok <button class="hint-btn" type="button" data-hint-title="Importálandó sportok" data-hint="Csak a kijelölt sportok edzései kerülnek be automatikusan. Ha egyiket sem jelölöd ki, minden térképes (GPS-es) edzés bekerül. A beltéri, GPS nélküli edzéseket (pl. súlyzós, jóga) sosem importáljuk." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button></span>
+              <label class="strava-auto-chip"><input type="checkbox" value="cycling"><span>Kerékpár</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="running"><span>Futás</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="walking"><span>Séta</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="hiking"><span>Túra</span></label>
+            </div>
+            <div class="strava-auto-foot">
+              <span id="stravaAutoStatus" class="strava-auto-status"></span>
+              <button id="stravaAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
+            </div>
+          </div>
+        </section>
         <div class="strava-import-controls">
           <label class="strava-import-control">
             <span>Időszak</span>
@@ -1734,6 +1782,41 @@
         </button>
       </div>
       <div class="strava-import-body">
+        <!-- Automatikus import (háttér-szinkron) -->
+        <section class="strava-auto" id="stravaAuto">
+          <div class="strava-auto-row">
+            <div class="strava-auto-text">
+              <strong>Automatikus import</strong>
+              <span>Az új Strava-edzések maguktól bekerülnek a könyvtárba.</span>
+            </div>
+            <label class="toggle-switch" title="Automatikus import be/ki">
+              <input id="stravaAutoToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="strava-auto-opts" id="stravaAutoOpts" hidden>
+            <label class="strava-import-control">
+              <span>Ellenőrzés</span>
+              <select id="stravaAutoInterval">
+                <option value="5">5 percenként</option>
+                <option value="15" selected>15 percenként</option>
+                <option value="30">30 percenként</option>
+                <option value="60">óránként</option>
+              </select>
+            </label>
+            <div class="strava-auto-sports" role="group" aria-label="Importálandó sportok">
+              <span class="strava-auto-label">Sportok <button class="hint-btn" type="button" data-hint-title="Importálandó sportok" data-hint="Csak a kijelölt sportok edzései kerülnek be automatikusan. Ha egyiket sem jelölöd ki, minden térképes (GPS-es) edzés bekerül. A beltéri, GPS nélküli edzéseket (pl. súlyzós, jóga) sosem importáljuk." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button></span>
+              <label class="strava-auto-chip"><input type="checkbox" value="cycling"><span>Kerékpár</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="running"><span>Futás</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="walking"><span>Séta</span></label>
+              <label class="strava-auto-chip"><input type="checkbox" value="hiking"><span>Túra</span></label>
+            </div>
+            <div class="strava-auto-foot">
+              <span id="stravaAutoStatus" class="strava-auto-status"></span>
+              <button id="stravaAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
+            </div>
+          </div>
+        </section>
         <div class="strava-import-controls">
           <label class="strava-import-control">
             <span>Időszak</span>
@@ -1804,6 +1887,10 @@
     <button class="dropdown-item" id="settingsButton" type="button">
       <i data-lucide="settings" aria-hidden="true"></i>
       <span data-i18n="nav.settings">Beállítások</span>
+    </button>
+    <button class="dropdown-item" id="installAppButton" type="button" hidden>
+      <i data-lucide="smartphone" aria-hidden="true"></i>
+      <span>Telepítés appként</span>
     </button>
     <a class="dropdown-item" id="privacyButton" href="./privacy.html" target="_blank" rel="noopener">
       <i data-lucide="shield-check" aria-hidden="true"></i>
@@ -1926,6 +2013,35 @@
   <input id="shareBaseInput" class="export-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
          placeholder="https://bringaterv.example.hu">
   <p class="settings-field-hint">Üresen hagyva az aktuális címet használja. A QR-kódok a <code>/view.html?route=…</code> publikus nézőoldalra mutatnak.</p>
+  </div>
+  </section>
+
+  <!-- Értesítések (push) -->
+  <section class="settings-section" data-settings-section="notifications">
+  <h4 class="settings-section-title">
+  <i data-lucide="bell" aria-hidden="true"></i>
+  Értesítések
+  <button class="hint-btn" type="button" data-hint-title="Értesítések" data-hint="Push értesítés a telefonodra / tabletedre / gépedre, ha például automatikusan bekerült egy új Strava-edzés, vagy új személyes rekordot értél el. Minden eszközön külön kell engedélyezni. iPhone-on és iPaden csak a főképernyőre telepített appból működik (Megosztás → Főképernyőhöz adás), és HTTPS-kapcsolat kell hozzá." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+    <div class="notify-device">
+      <div class="notify-device-text">
+        <strong>Ezen az eszközön</strong>
+        <span id="notifyDeviceStatus">Ellenőrzés…</span>
+      </div>
+      <button id="notifyEnableBtn" class="notify-btn notify-btn--primary" type="button" hidden>Engedélyezés</button>
+      <button id="notifyDisableBtn" class="notify-btn" type="button" hidden>Kikapcsolás</button>
+    </div>
+    <p id="notifyNote" class="settings-field-hint" hidden></p>
+    <div class="settings-field-label notify-events-title">Miről kérsz értesítést?</div>
+    <div id="notifyEvents" class="notify-events"></div>
+    <div class="notify-foot">
+      <span id="notifyDevices" class="settings-field-hint"></span>
+      <button id="notifyTestBtn" class="notify-btn" type="button">Próbaértesítés</button>
+    </div>
   </div>
   </section>
 

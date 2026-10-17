@@ -1,4 +1,5 @@
 import { num } from "../format.js";
+import { isMobileLayout } from "../layout.js";
 const profileMap = {
   asphalt: "fastbike",
   gravel:  "gravel",
@@ -1240,7 +1241,7 @@ export function straightLineRoute(waypoints) {
  *  alját, ezért ott annak magasságát alul hozzáadjuk. */
 function fitOptions() {
   const inner = document.querySelector(".sidebar-inner");
-  if (matchMedia("(max-width: 768px)").matches && inner) {
+  if (isMobileLayout() && inner) {
     const sheet = inner.getBoundingClientRect().height || 0;
     return { paddingTopLeft: [32, 64], paddingBottomRight: [32, sheet + 32], maxZoom: 15 };
   }

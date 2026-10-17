@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.7.0 – 2026-10-17 – Telepíthető app (iPhone / iPad), automatikus Strava import, értesítések
+
+### Telepíthető app (PWA)
+- A Bringaterv **appként telepíthető** – App Store nélkül: iPhone / iPad: Safari → Megosztás → Főképernyőhöz adás; Android / asztali Chrome / Edge: „Telepítés” gomb.
+- Saját app-ikon a logóból, teljes képernyős futás, manifest + service worker („hálózat először” – deploy után azonnal az új verzió fut, offline legalább a felület betölt).
+- **„Telepítés appként”** menüpont és egyszer felugró tipp-sáv telefonon/tableten, iOS-en lépésenkénti útmutatóval.
+- Biztonságos sávok (notch, home-csík), `100dvh` magasság.
+
+### iPad és fekvő telefon
+- iPad állóban és fekvőben az asztali elrendezés; álló iPaden tömörebb, egysoros eszköztár, a nagyítás-gombok fölötte.
+- iPad mini álló és **fekvő telefon**: telefonos elrendezés (eddig a fekvő telefon asztali nézetet kapott görgetéssel).
+- Érintőképernyőn nagyobb menü- és sávgombok.
+- Javítva: keskeny térképen az eszköztár becsúszott az oldalsáv alá.
+
+### Automatikus Strava import
+- Könyvtár → Import → Strava: **Automatikus import** kapcsoló, időköz (5 / 15 / 30 perc, óránként), sportszűrő (Kerékpár / Futás / Séta / Túra), „Ellenőrzés most”, állapotsor.
+- A szerver a háttérben importál (akkor is, ha nincs nyitva az app); a nyitott app frissíti a könyvtárat és szól.
+- Strava API-keret figyelése (80% fölött kihagyja a kört), tiltólista és GPS nélküli edzések kihagyása, körönként max. 10 import.
+- Több gunicorn worker mellett fájlzár biztosítja, hogy csak egy ütemező fusson. Kikapcsolható: `STRAVA_AUTO_SYNC=false`.
+
+### Értesítések (push)
+- Beállítások → **Értesítések**: eszközönkénti engedélyezés, próbaértesítés, eseménykapcsolók.
+- Események: **új edzés importálva**, **új személyes rekord** (pl. „30 km: 1:24:36 (−5:09)”), **Strava-kapcsolat megszakadt**. Koppintásra az edzés megnyílik az Elemzésben.
+- Szabványos Web Push (VAPID kulcs az első indításkor generálódik a `/data` volume-ba). HTTPS kell; iOS-en a főképernyőre telepített appból (iOS 16.4+).
+- Új függőség: `pywebpush`.
+
+### Elemzés
+- Új **Kalória** kártya (Stravából, vagy becslés a kerékpáros profilból); páratlan kártyaszámnál az utolsó kitölti a sort.
+
+### Verzió
+- v1.6.0 → v1.7.0
+
+---
+
 ## v1.6.0 – 2026-10-17 – Mobil nézet, személyes rekordok
 
 ### Mobil elrendezés

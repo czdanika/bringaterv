@@ -23,6 +23,8 @@ import { initGarmin } from "./ui/garmin.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
+import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js";
+import { initNotifications } from "./ui/notifications.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -50,6 +52,7 @@ import {
   loadAndRenderExpandPreview, loadCardPreview, renderRouteSvgMini, escapeHtml,
   libraryRouteSportKey, libraryRouteSource, smartDateFormat,
 } from "./ui/library.js";
+import { isMobileLayout as isMobileLayoutMQ, mobileMQ } from "./layout.js";
 
 requireAuth();
 
@@ -669,6 +672,8 @@ initStats({
 });
 
 initMobileShell();
+initInstallPrompt({ menuItem: document.getElementById("installAppButton") });
+registerServiceWorker();
 
 initRoutePdfModal({
   getDefaultMapStyle: () => localStorage.getItem("route4meMapStyle") || "standard",
@@ -1486,7 +1491,7 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
   if (localStorage.getItem("bringaterv-toolbar-collapsed") === "1")
     toolbar.classList.add("is-collapsed");
 
-  const isMobileLayout = () => matchMedia("(max-width: 768px)").matches;
+  const isMobileLayout = isMobileLayoutMQ;
   // Mobil nézetre váltáskor (vagy betöltéskor) a húzásból maradt kézi pozíció törlése
   const resetPos = () => {
     if (!isMobileLayout()) return;
@@ -1494,7 +1499,7 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
     delete toolbar.dataset.dragged;
   };
   resetPos();
-  matchMedia("(max-width: 768px)").addEventListener?.("change", resetPos);
+  mobileMQ.addEventListener?.("change", resetPos);
 
   // --- Drag + click szétválasztás ---
   const DRAG_THRESHOLD = 5; // px – ennél kisebb mozgás = kattintás
@@ -1705,6 +1710,29 @@ if (isAdmin()) {
 
 // ── Strava ───────────────────────────────────────────────────────────────────
 initStrava({ showToast, loadRouteLibrary });
+
+// ── Értesítések (push) + mélylinkek az értesítésekből ─────────────────────────
+initNotifications({ showToast });
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const openId = params.get("open");
+  const settingsSection = params.get("settings");
+  if (!openId && !settingsSection) return;
+  history.replaceState(null, "", location.pathname);      // a frissítés ne nyissa meg újra
+  if (settingsSection) {
+    document.querySelector("#settingsButton")?.click();
+    document.querySelector(`[data-settings-section="${CSS.escape(settingsSection)}"]`)
+      ?.scrollIntoView({ block: "start" });
+    return;
+  }
+  try {
+    await loadRouteLibrary();
+    const entry = [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === openId);
+    if (entry) await loadRouteFromLibrary(entry.id, false, entry.name || "", entry.type === "workout" ? "file" : "plan");
+  } catch (err) {
+    console.warn("Mélylink megnyitása sikertelen:", err);
+  }
+})();
 
 // ── Garmin ───────────────────────────────────────────────────────────────────
 // A Strava-val azonos minta: main.js-ből inicializálva (a korábbi önálló
@@ -2733,7 +2761,9 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       geometry: imported.geometry,
       distanceMeters, ascentMeters, descentMeters,
       speedColored: hasSpeed,
-      meta: imported.meta ?? {},
+      // a könyvtári bejegyzés kalóriája (pl. Stravából) – ha nincs, a fül becsül
+      meta: { ...(imported.meta ?? {}),
+              calories: [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id)?.calories },
     });
     switchTab("file");
     setTimeout(() => mapAdapter.fitRoute(), 50);

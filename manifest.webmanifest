@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Bringaterv",
+  "short_name": "Bringaterv",
+  "description": "Útvonaltervező és edzésnapló kerékpárosoknak, futóknak és túrázóknak – saját szerveren.",
+  "lang": "hu",
+  "dir": "ltr",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f2e9",
+  "theme_color": "#f5f5f5",
+  "categories": ["sports", "health", "navigation", "travel"],
+  "icons": [
+    { "src": "src/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "src/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "src/assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
