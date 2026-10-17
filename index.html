@@ -1712,6 +1712,24 @@
               <label class="strava-auto-chip"><input type="checkbox" value="walking"><span>Séta</span></label>
               <label class="strava-auto-chip"><input type="checkbox" value="hiking"><span>Túra</span></label>
             </div>
+            <div class="strava-auto-webhook">
+              <div class="strava-auto-text">
+                <span class="strava-auto-label">Azonnali import (webhook)
+                  <button class="hint-btn" type="button" data-hint-title="Azonnali import (webhook)" data-hint="Bekapcsolva a Strava maga szól a Bringatervnek, amikor új edzést töltesz fel – néhány másodpercen belül bekerül a könyvtárba, és jön az értesítés. Az időközös ellenőrzés tartalékként tovább fut. Feltétel: nyilvános HTTPS-cím (saját domain). Egy Strava apphoz csak egy webhook tartozhat – ha ugyanazt az appot több szerveren is használod, csak az egyiken kapcsold be. Cloudflare alatt a „Bot Fight Mode” blokkolhatja a Strava kéréseit." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                </span>
+                <span id="stravaWebhookStatus" class="strava-auto-status"></span>
+              </div>
+              <button id="stravaWebhookBtn" class="strava-list-btn" type="button">Bekapcsolás</button>
+            </div>
+            <div class="strava-auto-reimport">
+              <span class="strava-auto-label">Törölt edzések visszatöltése
+                <button class="hint-btn" type="button" data-hint-title="Törölt edzések visszatöltése" data-hint="Kikapcsolva (alapállapot) a könyvtárból törölt Stravás edzést a szinkron nem hozza vissza – így amit törölsz, az törölve marad. Bekapcsolva a szinkron a következő körben újra letölti a törölt edzést (az elmúlt 7 nap edzései közül). Régebbi törölt edzést a kézi importtal hozhatsz vissza." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+              </span>
+              <label class="toggle-switch" title="Törölt edzések automatikus visszatöltése be/ki">
+                <input id="stravaAutoReimport" type="checkbox">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
             <div class="strava-auto-foot">
               <span id="stravaAutoStatus" class="strava-auto-status"></span>
               <button id="stravaAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
@@ -1811,6 +1829,24 @@
               <label class="strava-auto-chip"><input type="checkbox" value="walking"><span>Séta</span></label>
               <label class="strava-auto-chip"><input type="checkbox" value="hiking"><span>Túra</span></label>
             </div>
+            <div class="strava-auto-webhook">
+              <div class="strava-auto-text">
+                <span class="strava-auto-label">Azonnali import (webhook)
+                  <button class="hint-btn" type="button" data-hint-title="Azonnali import (webhook)" data-hint="Bekapcsolva a Strava maga szól a Bringatervnek, amikor új edzést töltesz fel – néhány másodpercen belül bekerül a könyvtárba, és jön az értesítés. Az időközös ellenőrzés tartalékként tovább fut. Feltétel: nyilvános HTTPS-cím (saját domain). Egy Strava apphoz csak egy webhook tartozhat – ha ugyanazt az appot több szerveren is használod, csak az egyiken kapcsold be. Cloudflare alatt a „Bot Fight Mode” blokkolhatja a Strava kéréseit." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                </span>
+                <span id="stravaWebhookStatus" class="strava-auto-status"></span>
+              </div>
+              <button id="stravaWebhookBtn" class="strava-list-btn" type="button">Bekapcsolás</button>
+            </div>
+            <div class="strava-auto-reimport">
+              <span class="strava-auto-label">Törölt edzések visszatöltése
+                <button class="hint-btn" type="button" data-hint-title="Törölt edzések visszatöltése" data-hint="Kikapcsolva (alapállapot) a könyvtárból törölt Stravás edzést a szinkron nem hozza vissza – így amit törölsz, az törölve marad. Bekapcsolva a szinkron a következő körben újra letölti a törölt edzést (az elmúlt 7 nap edzései közül). Régebbi törölt edzést a kézi importtal hozhatsz vissza." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+              </span>
+              <label class="toggle-switch" title="Törölt edzések automatikus visszatöltése be/ki">
+                <input id="stravaAutoReimport" type="checkbox">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
             <div class="strava-auto-foot">
               <span id="stravaAutoStatus" class="strava-auto-status"></span>
               <button id="stravaAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
@@ -1892,6 +1928,10 @@
       <i data-lucide="smartphone" aria-hidden="true"></i>
       <span>Telepítés appként</span>
     </button>
+    <a class="dropdown-item" id="helpButton" href="./help.html">
+      <i data-lucide="book-open" aria-hidden="true"></i>
+      <span>Súgó és kézikönyv</span>
+    </a>
     <a class="dropdown-item" id="privacyButton" href="./privacy.html" target="_blank" rel="noopener">
       <i data-lucide="shield-check" aria-hidden="true"></i>
       <span>Adatkezelés</span>

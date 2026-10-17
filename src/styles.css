@@ -6494,3 +6494,28 @@ body.is-drag-over::after {
   .strava-import-body { padding: 12px 14px; }
 }
 .notify-diag { white-space: pre-line; }
+
+/* ── Jelmagyarázat a térképen (fő app + nyilvános nézőoldal) ───────────────── */
+.map-legend {
+  background: var(--panel-bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
+  font: 11px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 2px 10px rgba(0,0,0,.14); max-width: 220px;
+}
+.map-legend-title { font-weight: 700; margin-bottom: 3px; }
+.map-legend-row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.map-legend-row span { width: 14px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+/* Fő app: a térkép bal felső sarkában (alul a diagramok / mobilon a panel takarná) */
+.map-legend--app {
+  position: absolute; z-index: 500; left: 12px; top: 12px;
+  cursor: pointer; user-select: none;
+}
+.map-legend--app.is-collapsed .map-legend-row { display: none; }
+.map-legend--app.is-collapsed .map-legend-title { margin: 0; }
+.map-legend--app.is-collapsed .map-legend-title::after { content: " ▸"; color: var(--muted); }
+
+/* A ☰ menü link-elemei (Súgó, Adatkezelés, Felhasználók) ne legyenek aláhúzva */
+a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoration: none; color: var(--text); }
+.strava-auto-reimport { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.strava-auto-webhook { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.strava-auto-webhook .strava-auto-text { gap: 2px; }

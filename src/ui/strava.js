@@ -62,6 +62,8 @@ export function initStrava({ showToast, loadRouteLibrary }) {
   document.querySelectorAll("#stravaAuto .strava-auto-chip input").forEach((cb) =>
     cb.addEventListener("change", saveAutoSync));
   document.querySelector("#stravaAutoRunBtn")?.addEventListener("click", runAutoSyncNow);
+  document.querySelector("#stravaAutoReimport")?.addEventListener("change", saveAutoSync);
+  document.querySelector("#stravaWebhookBtn")?.addEventListener("click", toggleWebhook);
 
   // Inicializáció
   refreshStravaStatus();
@@ -95,6 +97,9 @@ function renderAutoSync() {
   document.querySelectorAll("#stravaAuto .strava-auto-chip input").forEach((cb) => {
     cb.checked = (d.sports || []).includes(cb.value);
   });
+  const re = document.querySelector("#stravaAutoReimport");
+  if (re) re.checked = !!d.reimport_deleted;
+  renderWebhook(d.webhook || {});
   const st = document.querySelector("#stravaAutoStatus");
   if (st) {
     let txt = fmtAgo(d.last_check);
@@ -102,6 +107,47 @@ function renderAutoSync() {
     else if (d.last_check) txt += d.last_imported ? ` · ${d.last_imported} új edzés importálva` : " · nincs új edzés";
     st.textContent = txt;
     st.classList.toggle("is-error", !!d.last_error);
+  }
+}
+
+function renderWebhook(w) {
+  const st = document.querySelector("#stravaWebhookStatus");
+  const btn = document.querySelector("#stravaWebhookBtn");
+  if (!st || !btn) return;
+  btn.textContent = w.enabled ? "Kikapcsolás" : "Bekapcsolás";
+  btn.dataset.on = w.enabled ? "1" : "";
+  if (!w.enabled) {
+    st.textContent = location.protocol === "https:" ? "kikapcsolva – az új edzések az ellenőrzési időközzel jönnek"
+                                                    : "csak HTTPS-címen érhető el";
+  } else {
+    st.textContent = "bekapcsolva" + (w.last_event_at ? ` · utolsó esemény: ${fmtAgo(w.last_event_at).replace(" ellenőrizve", "")}` : " · még nem jött esemény");
+  }
+}
+
+async function toggleWebhook() {
+  const btn = document.querySelector("#stravaWebhookBtn");
+  btn.disabled = true;
+  try {
+    if (btn.dataset.on) {
+      await routesApi.strava.webhook.disable();
+      _showToast?.("Strava webhook kikapcsolva");
+    } else {
+      btn.textContent = "Bekapcsolás…";
+      try {
+        await routesApi.strava.webhook.enable(location.origin);
+      } catch (err) {
+        if (err.status !== 409) throw err;
+        const other = err.body?.other_callback || "egy másik cím";
+        if (!confirm(`Ehhez a Strava apphoz már tartozik webhook:\n${other}\n\nÁthelyezzem ide? (A másik szerver ezután nem kap azonnali értesítést.)`)) return;
+        await routesApi.strava.webhook.enable(location.origin, true);
+      }
+      _showToast?.("Strava webhook bekapcsolva – az új edzések azonnal érkeznek");
+    }
+  } catch (err) {
+    _showToast?.("Webhook: " + err.message, 6000);
+  } finally {
+    btn.disabled = false;
+    await loadAutoSync();
   }
 }
 
@@ -117,8 +163,9 @@ async function saveAutoSync() {
   const enabled = !!document.querySelector("#stravaAutoToggle")?.checked;
   const interval_min = Number(document.querySelector("#stravaAutoInterval")?.value || 15);
   const sports = [...document.querySelectorAll("#stravaAuto .strava-auto-chip input:checked")].map((cb) => cb.value);
+  const reimport_deleted = !!document.querySelector("#stravaAutoReimport")?.checked;
   try {
-    _autoSync = await routesApi.strava.autoSync.save({ enabled, interval_min, sports });
+    _autoSync = await routesApi.strava.autoSync.save({ enabled, interval_min, sports, reimport_deleted });
     renderAutoSync();
     startAutoSyncWatcher();
     if (enabled) _showToast?.(`Automatikus Strava import: ${interval_min < 60 ? interval_min + " percenként" : "óránként"}`);

@@ -477,6 +477,11 @@ export function updateFileSaveButtonState() {
 // ── GPX / FIT import ──────────────────────────────────────────────────────────
 export async function processImportedFile(file) {
   if (!file) return;
+  // iOS-en a fájlválasztó szűrő nélkül nyílik (ld. installPrompt / main) → itt ellenőrzünk
+  if (!/\.(gpx|fit)$/i.test(file.name)) {
+    _showToast?.(`„${file.name}” nem GPX vagy FIT fájl – csak .gpx és .fit tölthető be.`);
+    return;
+  }
   const isFit = /\.fit$/i.test(file.name);
   let gpxText;
   let fitBuffer = null;

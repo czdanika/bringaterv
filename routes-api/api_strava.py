@@ -459,14 +459,22 @@ def strava_import(activity_id: int):
     return jsonify({"ok": True, "skipped": False, "entry": new_entry})
 
 
+def _auto_sync_public(data: dict) -> dict:
+    """Az automatikus import állapota a kliensnek – a webhook titkos tokenje nélkül."""
+    from strava_sync import INTERVALS
+    from strava_webhook import status as webhook_status
+    out = {k: v for k, v in data.items() if k != "webhook"}
+    out["intervals"] = list(INTERVALS)
+    out["webhook"] = webhook_status(g.user["id"])
+    return out
+
+
 @bp.route("/api/strava/auto-sync", methods=["GET"])
 @require_auth
 def strava_auto_sync_get():
     """Automatikus import állapota (kapcsoló, időköz, utolsó ellenőrzés eredménye)."""
-    from strava_sync import INTERVALS, load_sync
-    data = load_sync(g.user["id"])
-    data["intervals"] = list(INTERVALS)
-    return jsonify(data)
+    from strava_sync import load_sync
+    return jsonify(_auto_sync_public(load_sync(g.user["id"])))
 
 
 @bp.route("/api/strava/auto-sync", methods=["PUT"])
@@ -479,10 +487,11 @@ def strava_auto_sync_set():
     except (TypeError, ValueError):
         interval = 15
     sports = body.get("sports")
+    reimport = body.get("reimport_deleted")
     data = update_settings(g.user["id"], bool(body.get("enabled")), interval,
-                           sports if isinstance(sports, list) else None)
-    data["intervals"] = list(INTERVALS)
-    return jsonify(data)
+                           sports if isinstance(sports, list) else None,
+                           bool(reimport) if reimport is not None else None)
+    return jsonify(_auto_sync_public(data))
 
 
 @bp.route("/api/strava/auto-sync/run", methods=["POST"])
@@ -491,8 +500,54 @@ def strava_auto_sync_run():
     """Azonnali ellenőrzés (a „Most” gomb) – ugyanaz, mint egy ütemezett kör."""
     from strava_sync import INTERVALS, sync_user
     data = sync_user(g.user["id"])
-    data["intervals"] = list(INTERVALS)
-    return jsonify(data)
+    return jsonify(_auto_sync_public(data))
+
+
+# ── Webhook (azonnali import) ─────────────────────────────────────────────────
+
+@bp.route("/api/strava/webhook/<user_id>", methods=["GET"])
+def strava_webhook_validate(user_id: str):
+    """PUBLIC – a Strava feliratkozás-ellenőrzése (hub.challenge visszaadása)."""
+    import re
+    from strava_webhook import validate
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", user_id):
+        abort(404)
+    challenge = validate(user_id, request.args)
+    if challenge is None:
+        abort(403)
+    return jsonify({"hub.challenge": challenge})
+
+
+@bp.route("/api/strava/webhook/<user_id>", methods=["POST"])
+def strava_webhook_event(user_id: str):
+    """PUBLIC – Strava esemény. Azonnal 200, a feldolgozás háttérszálon."""
+    import re
+    from strava_webhook import accept_event
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", user_id):
+        abort(404)
+    ev = request.get_json(silent=True) or {}
+    if not accept_event(user_id, ev):
+        log.info("Strava webhook: ismeretlen / nem egyező esemény (%s)", user_id)
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/strava/webhook-config", methods=["POST"])
+@require_auth
+def strava_webhook_enable():
+    """Webhook bekapcsolása. body: {base_url, force?} – base_url = a kliens location.origin-je."""
+    from strava_webhook import WebhookError, enable
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(enable(g.user["id"], body.get("base_url") or "", bool(body.get("force"))))
+    except WebhookError as exc:
+        return jsonify({"error": exc.message, **exc.extra}), exc.status
+
+
+@bp.route("/api/strava/webhook-config", methods=["DELETE"])
+@require_auth
+def strava_webhook_disable():
+    from strava_webhook import disable
+    return jsonify(disable(g.user["id"]))
 
 
 @bp.route("/api/strava/refresh/<route_id>", methods=["POST"])

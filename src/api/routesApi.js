@@ -425,13 +425,27 @@ export const routesApi = {
     // Automatikus import (háttér-szinkron): állapot, beállítás, azonnali ellenőrzés
     autoSync: {
       get()  { return fetchJson(`${BASE}/strava/auto-sync`); },
-      save({ enabled, interval_min, sports }) {
+      save({ enabled, interval_min, sports, reimport_deleted }) {
         return fetchJson(`${BASE}/strava/auto-sync`, {
           method: "PUT",
-          body: JSON.stringify({ enabled, interval_min, sports }),
+          body: JSON.stringify({ enabled, interval_min, sports, reimport_deleted }),
         });
       },
       runNow() { return fetchJson(`${BASE}/strava/auto-sync/run`, { method: "POST" }); },
+    },
+    // Webhook (azonnali import): a Strava maga szól az új edzésről
+    webhook: {
+      async enable(base_url, force = false) {
+        const res = await fetch(`${BASE}/strava/webhook-config`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ base_url, force }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) { const e = new Error(body.error || `HTTP ${res.status}`); e.status = res.status; e.body = body; throw e; }
+        return body;
+      },
+      disable() { return fetchJson(`${BASE}/strava/webhook-config`, { method: "DELETE" }); },
     },
     async removeFromDenyList(id) {
       const res = await fetch(`${BASE}/strava/deny-list/${id}`, {

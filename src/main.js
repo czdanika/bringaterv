@@ -23,8 +23,9 @@ import { initGarmin } from "./ui/garmin.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
-import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js";
+import { initInstallPrompt, registerServiceWorker, isIOS } from "./ui/installPrompt.js";
 import { initNotifications } from "./ui/notifications.js";
+import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -673,6 +674,12 @@ initStats({
 
 initMobileShell();
 initInstallPrompt({ menuItem: document.getElementById("installAppButton") });
+// iOS fájlválasztó: az ismeretlen „.fit” kiterjesztést az accept-szűrő miatt
+// kiválaszthatatlanná (szürkévé) teszi → iOS-en szűrő nélkül nyitjuk, az
+// ellenőrzést a processImportedFile végzi.
+if (isIOS()) {
+  ["#gpxInput", "#libraryImportFileInput"].forEach((sel) => document.querySelector(sel)?.removeAttribute("accept"));
+}
 registerServiceWorker();
 
 initRoutePdfModal({
@@ -925,6 +932,7 @@ function applyRouteLayer(type) {
       // Sima útvonal
       if (activeGeometry.length > 1) mapAdapter.renderRoute(activeGeometry, store.getState().mode);
   }
+  setTimeout(refreshMapLegend, 0);   // jelmagyarázat a térképen
 }
 
 // Toggle event handlerek — kizárólagos logika
@@ -1713,6 +1721,7 @@ initStrava({ showToast, loadRouteLibrary });
 
 // ── Értesítések (push) + mélylinkek az értesítésekből ─────────────────────────
 initNotifications({ showToast });
+initMapLegend();
 (async () => {
   const params = new URLSearchParams(location.search);
   const openId = params.get("open");

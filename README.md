@@ -44,6 +44,7 @@ Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős té
 
 | Verzió | Főbb változások |
 |---|---|
+| **v1.8** | 📖 **Súgó és kézikönyv** az appban · 🗺️ jelmagyarázat a térképen, színezés a megosztott nézetben · ⚡ **Strava webhook** (azonnali import) · törölt edzések visszatöltése |
 | **v1.7** | 📲 **Telepíthető app** iPhone-ra / iPadre / Androidra (App Store nélkül) · 🔄 **automatikus Strava import** · 🔔 **push értesítés** új edzésről és új rekordról · iPad-elrendezés |
 | **v1.6** | 📱 **Mobil nézet** (alsó navigáció, felhúzható panel, tervezés telefonon) · 🏆 **Személyes rekordok** oldal (legjobb idők távokra, csúcsértékek, fejlődési görbék) · Inter betűtípus, súgók a beállítások mellett |
 | **v1.5** | 🔗 **Megosztás**: nyilvános nézőoldal linkkel és QR-kóddal, megosztó kép, PDF egy helyről · edzésadatok (pulzus, kadencia, teljesítmény) a PDF-ben · egységes megjelenés |
@@ -107,7 +108,8 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 - Felhasználónkénti Strava kapcsolat OAuth-tal, saját Strava app adatokkal; csak olvasási jog (`activity:read_all`) – a Bringaterv semmit nem ír a Stravára
 - Aktivitások importálása pulzus / kadencia / teljesítmény adatokkal, kötegelve, duplikátum-felismeréssel
 - Importált edzés metaadatainak frissítése (kalória, Relative Effort, teljesítmény, helyszín stb.)
-- **Automatikus import**: 5 / 15 / 30 percenként vagy óránként a szerver magától behozza az új edzéseket (sportszűrővel, a Strava API-keretét figyelve)
+- **Automatikus import**: 5 / 15 / 30 percenként vagy óránként a szerver magától behozza az új edzéseket (sportszűrővel, a Strava API-keretét figyelve; kérésre a törölt edzéseket is visszatölti)
+- **Azonnali import (webhook)**: nyilvános HTTPS-címnél a Strava maga szól az új edzésről – másodperceken belül a könyvtárban (egy Strava apphoz egy webhook tartozhat)
 
 ### Értesítések
 - Push értesítés a telefonra / tabletre / gépre: **új edzés importálva**, **új személyes rekord**, **Strava-kapcsolat megszakadt** – koppintásra megnyílik az edzés
@@ -122,6 +124,9 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 ### Szélelemzés
 - Open-Meteo alapú szél- és időjárás-előrejelzés a tervezett útvonalra (7 nap, óránként)
 - Szakaszonkénti hátszél / oldalszél / szembeszél, térképszínezés, hatás a becsült menetidőre a kerékpáros profil (tömeg, CdA, Crr) alapján
+
+### Súgó és kézikönyv
+- Az appban (☰ → Súgó és kézikönyv) menüpontonként leírja a működést: tervezési módok, elemzés, rekordok, Strava-beállítás, pulzuszóna-képletek, beállítások – kereshetően, telefonon is
 
 ### Testreszabás
 - Sebesség-, kadencia-, teljesítmény- és pulzuszónák csúszkákkal, élő előnézettel

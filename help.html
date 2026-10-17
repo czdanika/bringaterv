@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bringaterv – Súgó és kézikönyv</title>
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="apple-touch-icon" href="./src/assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // A fő app témáját követjük (route4meTheme), különben a rendszerét
+    try {
+      const t = localStorage.getItem("route4meTheme");
+      if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+    } catch (_) {}
+  </script>
+  <style>
+    :root {
+      --bg: #ffffff; --panel: #f5f5f5; --panel-strong: #ececec; --text: #161616; --muted: #6b6b6b;
+      --line: #e5e5e5; --brand: #e8461e; --brand-soft: rgba(232,70,30,.10); --code: #f0f0f0;
+      --ok: #16a34a; --warn: #b45309;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f0f0f; --panel: #1a1a1a; --panel-strong: #252525; --text: #f0f0f0; --muted: #9a9a9a;
+        --line: #333; --brand: #ff6a3d; --brand-soft: rgba(255,106,61,.14); --code: #222; color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0f0f0f; --panel: #1a1a1a; --panel-strong: #252525; --text: #f0f0f0; --muted: #9a9a9a;
+      --line: #333; --brand: #ff6a3d; --brand-soft: rgba(255,106,61,.14); --code: #222; color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(72px + env(safe-area-inset-top)); }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 15px/1.65 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-text-size-adjust: 100%;
+    }
+    a { color: var(--brand); }
+    code, kbd { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code); padding: 1px 6px; border-radius: 5px; }
+    kbd { border: 1px solid var(--line); border-bottom-width: 2px; }
+
+    /* Fejléc */
+    .h-top {
+      position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px;
+      padding: calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+      background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    .h-back { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text);
+      font-weight: 600; font-size: 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); white-space: nowrap; }
+    .h-brand { font: 900 20px Montserrat, sans-serif; letter-spacing: -.02em; white-space: nowrap; }
+    .h-brand span { color: var(--brand); }
+    .h-title { color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .h-search { margin-left: auto; width: min(320px, 40vw); height: 36px; padding: 0 12px; border: 1px solid var(--line);
+      border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
+
+    /* Elrendezés */
+    .h-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; max-width: 1180px; margin: 0 auto;
+      padding: 24px max(16px, env(safe-area-inset-right)) 80px max(16px, env(safe-area-inset-left)); }
+    .h-toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow: auto; font-size: 14px; }
+    .h-toc summary { display: none; }
+    .h-toc ol { list-style: none; margin: 0; padding: 0; }
+    .h-toc li a { display: block; padding: 5px 10px; border-radius: 7px; text-decoration: none; color: var(--text); }
+    .h-toc li a:hover { background: var(--panel-strong); }
+    .h-toc li a.is-active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+    .h-toc li.sub a { padding-left: 24px; color: var(--muted); font-size: 13px; }
+
+    main { min-width: 0; }
+    section { padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+    section:last-of-type { border-bottom: 0; }
+    h1 { font-size: 28px; line-height: 1.25; margin: 0 0 6px; letter-spacing: -.02em; }
+    h2 { font-size: 22px; margin: 0 0 10px; letter-spacing: -.01em; }
+    h3 { font-size: 16px; margin: 22px 0 6px; }
+    p { margin: 8px 0; }
+    ul, ol { padding-left: 22px; margin: 8px 0; }
+    li { margin: 3px 0; }
+    .lead { color: var(--muted); font-size: 16px; margin-bottom: 24px; }
+    .tip, .warn { padding: 10px 14px; border-radius: 10px; margin: 12px 0; font-size: 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); }
+    .warn { border-left-color: var(--warn); background: rgba(180,83,9,.08); }
+    .tip b:first-child, .warn b:first-child { display: block; margin-bottom: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; display: block; overflow-x: auto; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { background: var(--panel); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+    .path { font-weight: 600; white-space: nowrap; }
+    .none { display: none; padding: 24px; text-align: center; color: var(--muted); }
+    mark { background: rgba(250,204,21,.45); color: inherit; border-radius: 3px; }
+
+    /* Mobil */
+    @media (max-width: 860px) {
+      .h-layout { grid-template-columns: 1fr; gap: 12px; padding-top: 12px; }
+      .h-title { display: none; }
+      .h-search { width: auto; flex: 1; min-width: 0; }
+      .h-brand { display: none; }
+      .h-toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+      .h-toc summary { display: block; padding: 12px 14px; font-weight: 700; cursor: pointer; list-style: none; }
+      .h-toc summary::after { content: " ▾"; color: var(--muted); }
+      .h-toc[open] summary::after { content: " ▴"; }
+      .h-toc ol { padding: 0 6px 10px; }
+      h1 { font-size: 24px; }
+      body { font-size: 15.5px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="h-top">
+    <a class="h-back" href="./index.html" aria-label="Vissza az alkalmazáshoz">← Vissza</a>
+    <div class="h-brand">Bringa<span>terv</span></div>
+    <div class="h-title">Súgó és kézikönyv</div>
+    <input class="h-search" id="hSearch" type="search" placeholder="Keresés a súgóban…" aria-label="Keresés a súgóban" autocomplete="off">
+  </header>
+
+  <div class="h-layout">
+    <details class="h-toc" id="hToc" open>
+      <summary>Tartalom</summary>
+      <ol id="hTocList"></ol>
+    </details>
+
+    <main id="hMain">
+      <h1>Súgó és kézikönyv</h1>
+      <p class="lead">A Bringaterv útvonaltervező és edzésnapló kerékpárosoknak, futóknak és túrázóknak – saját szerveren. Ez a leírás menüpontonként végigvezet a funkciókon. A keresővel bármire rákereshetsz.</p>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="attekintes">
+        <h2>Áttekintés – a felület</h2>
+        <p>Az alkalmazás négy fő részből áll, amelyek között a bal oldali sávval (telefonon az alsó navigációval) válthatsz:</p>
+        <table>
+          <tr><th>Fül</th><th>Mire való?</th></tr>
+          <tr><td class="path">Tervezés</td><td>Új útvonal tervezése a térképen: pontok, tervezési módok, becsült idő, szint- és szélelemzés, mentés.</td></tr>
+          <tr><td class="path">Elemzés</td><td>Egy rögzített edzés (GPX / FIT) részletes elemzése: adatok, színezett térkép, diagramok, pulzuszónák.</td></tr>
+          <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin), megosztás.</td></tr>
+          <tr><td class="path">Statok</td><td>Összesítők, havi statisztika, személyes rekordok, Eddington-szám, edzésterhelés, hőtérkép.</td></tr>
+        </table>
+        <p>A jobb felső sarokban a <b>☀ / ☾</b> gomb a világos/sötét témát váltja, a <b>☰</b> menüben érhető el a Beállítások, az Egérműveletek és billentyűparancsok, a Telepítés appként, ez a súgó, az Adatkezelés és a Kijelentkezés (adminnak a Felhasználók is).</p>
+        <h3>Súgó („i”) gombok</h3>
+        <p>A legtöbb beállítás és szakasz mellett van egy kis <b>ⓘ</b> gomb. Koppints rá: rövid magyarázat nyílik az adott funkcióról. Újabb koppintás, a dobozon kívüli koppintás vagy az <kbd>Esc</kbd> bezárja.</p>
+        <h3>Mobil nézet</h3>
+        <p>Telefonon (és fekvő telefonon) saját elrendezés jelenik meg: teljes képernyős térkép, alul a négy fül, a panel tartalma pedig alulról felhúzható. A panel tetején lévő fogantyúval négy magasság között válthatsz (koppintással léptet, húzással szabadon állítható). iPaden álló és fekvő helyzetben az asztali elrendezés látszik.</p>
+      </section>
+
+      <section id="telepites">
+        <h2>Telepítés appként (iPhone, iPad, Android)</h2>
+        <p>A Bringaterv App Store nélkül, appként telepíthető: saját ikonja lesz, teljes képernyőn, böngészősáv nélkül fut, és frissítéskor magától az új verziót tölti be.</p>
+        <h3>iPhone / iPad</h3>
+        <ol>
+          <li>Nyisd meg a Bringaterv címét <b>Safariban</b>.</li>
+          <li>Koppints a <b>Megosztás</b> gombra (négyzet felfelé mutató nyíllal) – iPhone-on alul középen, iPaden a címsor jobb oldalán.</li>
+          <li>Válaszd a <b>Főképernyőhöz adás</b> pontot, majd <b>Hozzáadás</b>.</li>
+          <li>Indítsd az új ikonról, és jelentkezz be (az app a Safaritól külön tárolja az adatait, ezért egyszer újra kell).</li>
+        </ol>
+        <h3>Android / asztali Chrome, Edge</h3>
+        <p>☰ menü → <b>Telepítés appként</b> (vagy a böngésző menüjében: <i>Alkalmazás telepítése</i>).</p>
+        <div class="tip"><b>Tipp</b>Push értesítéshez és a gyors induláshoz HTTPS-címen (saját domain) kell használni az appot. Sima helyi <code>http://</code> címen is telepíthető, de értesítést nem tud kapni.</div>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="tervezes">
+        <h2>Tervezés</h2>
+        <h3 id="tervezes-pontok">Pontok hozzáadása</h3>
+        <ul>
+          <li><b>Kattints (koppints) a térképre</b> – új útvonalpont kerül az útvonal végére. Az útvonal automatikusan utakon vezet a pontok között.</li>
+          <li><b>Hely keresése</b> – írj be egy település- vagy utcanevet, és válassz a találatok közül.</li>
+          <li><b>Saját hely</b> (célkereszt gomb a kereső mellett) – a telefonod / géped helyzetéhez ugrik.</li>
+          <li><b>Közbeszúrás</b> – kattints magára az útvonal vonalára: oda kerül egy új pont a két meglévő közé.</li>
+          <li><b>Pont mozgatása</b> – húzd a jelölőt a térképen; a neve automatikusan frissül.</li>
+        </ul>
+        <h3>Az útvonalpontok listája</h3>
+        <ul>
+          <li>A pontokat a bal oldali fogantyúval (<b>⋮⋮</b>) húzva rendezheted át.</li>
+          <li>A <b>×</b> törli a pontot. A térképen a jelölőre kattintva felugró ablakban átnevezheted, megjegyzést írhatsz hozzá, vagy törölheted.</li>
+          <li>A pontok között a szakasz hossza látszik; a <b>színes pötty</b> az adott szakasz tervezési módja – rákattintva szakaszonként átállíthatod.</li>
+          <li>Az utolsó pont célzászlóval (sakktábla) jelenik meg.</li>
+          <li>Alul a teljes <b>táv</b>, a <b>becsült idő</b>, az <b>emelkedő</b> és az <b>ereszkedő</b> látható.</li>
+        </ul>
+
+        <h3 id="tervezesi-modok">Tervezési módok (útvonaltípusok)</h3>
+        <p>A tervezési mód határozza meg, milyen utakon vezet az útvonal, és milyen alapsebességgel számol a becsült idő. Az útvonaltervezést a <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> végzi (OpenStreetMap-adatok alapján).</p>
+        <table>
+          <tr><th>Mód</th><th>Mit keres?</th><th>Alapsebesség</th></tr>
+          <tr><td class="path">Aszfalt</td><td>Kerékpárutak és szilárd burkolatú utak, gyors haladás (BRouter „fastbike” profil).</td><td>22 km/h</td></tr>
+          <tr><td class="path">Gravel</td><td>Földutak, murva, mezőgazdasági utak is.</td><td>18 km/h</td></tr>
+          <tr><td class="path">MTB</td><td>Erdei ösvények, terep.</td><td>12 km/h</td></tr>
+          <tr><td class="path">Túra</td><td>Gyalogos útvonalak, turistautak („trekking” profil).</td><td>5 km/h</td></tr>
+        </table>
+        <p><b>Vegyes mód:</b> egy útvonalon belül szakaszonként más-más mód is lehet – a pontlistában a szakasz melletti színes pöttyre koppintva állítható. A térképen a szakaszok a módjuk színével jelennek meg.</p>
+        <p>Az alapsebességek a <span class="path">Beállítások → Tervezési beállítások</span> alatt módosíthatók.</p>
+
+        <h3>Útvonal beállításai (oldalsáv)</h3>
+        <table>
+          <tr><th>Kapcsoló</th><th>Hatás</th></tr>
+          <tr><td class="path">Útra illesztés</td><td>Bekapcsolva a pontokat utakon köti össze; kikapcsolva légvonalban (pl. úttalan terepen).</td></tr>
+          <tr><td class="path">Szakasz információk</td><td>A szakaszok részletes adatait (táv, szint) mutatja a térkép alatt.</td></tr>
+          <tr><td class="path">GPX köztes pontok</td><td>GPX tervezéshez betöltésekor minden köztes pontot útvonalpontként vesz fel; kikapcsolva csak a kezdő- és végpontot.</td></tr>
+        </table>
+
+        <h3 id="becsult-ido">Becsült idő</h3>
+        <ul>
+          <li>Alapja a táv és a szakasz tervezési módjának alapsebessége.</li>
+          <li><b>Szintadat az időbecsléshez</b> – bekapcsolva az emelkedők lassítanak, a lejtők gyorsítanak (Naismith-szabály szerint).</li>
+          <li><b>Szélhatás az időbecsléshez</b> – ha lefuttattad a szélelemzést, a szembeszél lassító és a hátszél gyorsító hatását is beszámítja (a kerékpáros profil tömege és légellenállása alapján).</li>
+        </ul>
+
+        <h3 id="eszkoztar">Az eszköztár (a térkép alján)</h3>
+        <table>
+          <tr><th>Gomb</th><th>Funkció</th></tr>
+          <tr><td>⋮⋮ fogantyú</td><td>Asztalon húzással áthelyezhető, koppintásra összecsukható.</td></tr>
+          <tr><td>Tervezési mód</td><td>Az új szakaszok alapértelmezett módja (Aszfalt / Gravel / MTB / Túra).</td></tr>
+          <tr><td>Helykeresés</td><td>A kereső megnyitása.</td></tr>
+          <tr><td>Import</td><td>GPX / FIT fájl betöltése.</td></tr>
+          <tr><td>Megfordítás</td><td>Az útvonal irányának megfordítása.</td></tr>
+          <tr><td>Visszaút hozzáadása</td><td>A kezdőpontba vezető visszautat tervez a végére.</td></tr>
+          <tr><td>Oda-vissza útvonal</td><td>Ugyanazon az úton visszafelé is (tükrözött útvonal).</td></tr>
+          <tr><td>Visszavonás / Újra</td><td>Az utolsó módosítások visszavonása / ismétlése.</td></tr>
+          <tr><td>Törlés</td><td>Az egész tervezett útvonal törlése (megerősítést kér).</td></tr>
+          <tr><td>Szintprofil</td><td>A szintprofil diagram megnyitása.</td></tr>
+          <tr><td>Szélelemzés</td><td>Szél-előrejelzés az útvonalra (lásd lent).</td></tr>
+          <tr><td>Mentés</td><td>Mentés a könyvtárba, GPX letöltés, megosztás, PDF.</td></tr>
+        </table>
+        <p>Az eszköztár elemeinek sorrendje és láthatósága a <span class="path">Beállítások → Eszköztár sorrend</span> alatt állítható.</p>
+
+        <h3 id="szintprofil">Szintprofil</h3>
+        <p>A diagram az útvonal magasságát mutatja a táv függvényében. A <b>Szintprofil</b> kapcsolóval a térképen a meredekség szerint színeződik az útvonal (zöld = lejtő, szürke = sík, piros = emelkedő); a jelmagyarázat a térkép bal felső sarkában látszik. A diagramon mozgatott egér vagy ujj a térképen is mutatja a pontot.</p>
+
+        <h3 id="szelelemzes">Szélelemzés</h3>
+        <ol>
+          <li>Nyisd meg a szélelemzést (eszköztár vagy az oldalsáv <b>Szélelemzés</b> sora).</li>
+          <li>Add meg az indulás idejét (legfeljebb 7 nappal előre).</li>
+          <li>Az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> előrejelzéséből minden szakaszra kiszámolja, mikor érsz oda, és ott épp honnan fúj a szél.</li>
+        </ol>
+        <p>Eredmény: hátszél / oldalszél / szembeszél arány km-ben és százalékban, szegmenslista, időjárás, és a térképen szél szerinti színezés (zöld = hátszél, sárga = oldalszél, piros = szembeszél). A szélszínezés és a szintprofil-színezés kizárja egymást.</p>
+
+        <h3 id="gpx-tervezeshez">GPX importálása tervezéshez</h3>
+        <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz. Betöltéskor egy előnézet jelenik meg:</p>
+        <ul>
+          <li><b>Szegmensvizsgálat futtatása</b> – az útvonal mentén lekérdezi az OSM útburkolat-adatokat, és szakaszonként automatikusan beállítja a tervezési módot (aszfalt / gravel / MTB).</li>
+          <li><b>Fordulópontok rögzítése</b> – a legfontosabb kanyarokat útvonalpontként rögzíti, hogy módváltáskor az útvonal az eredeti nyomvonalon maradjon (különben rövidebb utat is választhat).</li>
+          <li><b>Betöltés vizsgálat nélkül</b> – gyors betöltés, a beállított móddal.</li>
+        </ul>
+
+        <h3 id="mentes">Mentés, letöltés</h3>
+        <p>A <b>Mentés</b> ablakban: név, típus, leírás → <b>Mentés a könyvtárba</b>; <b>GPX letöltés</b> (fájlnév módosítható); <b>Megosztás</b> (kép, PDF, link – lásd <a href="#megosztas">Megosztás</a>). A könyvtárból az útvonal Garmin Connectre is küldhető navigációhoz.</p>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="elemzes">
+        <h2>Elemzés</h2>
+        <h3>Edzés betöltése</h3>
+        <ul>
+          <li>Az Elemzés fülön a betöltés gombbal, a Könyvtár → <b>Import → GPX / FIT fájlból</b> menüvel, vagy egyszerűen <b>húzd a fájlt</b> bárhová az ablakba (asztalon).</li>
+          <li>Támogatott: <b>GPX</b> és <b>FIT</b> (Garmin, Wahoo, Bryton, Hammerhead, Magene…). FIT esetén az eredeti fájl is megőrződik a könyvtárban.</li>
+          <li>Könyvtárból: kattints egy edzés kártyájára.</li>
+        </ul>
+        <h3>Adatok</h3>
+        <p>Időtartam (és mozgási idő), táv, útvonalpontok, emelkedő / ereszkedő, átlag- és maximális sebesség, pulzus, kadencia, teljesítmény, valamint <b>kalória</b> (Stravából, vagy becslés a kerékpáros profilból – ilyenkor „becsült” a felirat).</p>
+        <h3 id="terkep-szinezes">Térkép színezése</h3>
+        <p>Az oldalsáv soraiban (<b>Sebesség térkép, Kadencia térkép, Pulzuselemzés, Teljesítmény térkép, Szintprofil</b>):</p>
+        <ul>
+          <li>a <b>kapcsoló</b> a térképen az adott adat szerint színezi az útvonalat – egyszerre egy lehet aktív;</li>
+          <li>a <b>diagram gomb</b> megnyitja a grafikont a térkép alján (több is lehet nyitva egymás alatt);</li>
+          <li>a <b>címre</b> kattintva lenyílik a jelmagyarázat; a színsávok a térkép sarkában is megjelennek (koppintásra összecsukható).</li>
+        </ul>
+        <p>A sebesség-, kadencia- és teljesítménysávok a <span class="path">Beállítások → Adatzónák</span> alatt, a pulzuszónák az <span class="path">Elemzési beállítások</span> alatt állíthatók.</p>
+        <h3>Diagramok</h3>
+        <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény. Az egérrel (telefonon az ujjaddal vízszintesen húzva) a diagramon mozogva a térképen is látszik az adott pont és az érték. Függőlegesen húzva továbbra is görgethető az oldal.</p>
+        <h3 id="pulzuselemzes">Pulzuselemzés</h3>
+        <p>Megmutatja, mennyi időt töltöttél az egyes pulzuszónákban (idő és százalék), valamint két terhelésmutatót:</p>
+        <ul>
+          <li><b>TRIMP</b> (Banister) – az edzés időtartamát és intenzitását (a pulzustartalék arányában) együtt súlyozó terhelésszám.</li>
+          <li><b>Edwards-pont</b> – zónánként: perc × zóna sorszáma (Z1 = 1 … Z5 = 5).</li>
+        </ul>
+        <p>A zónák számítási módja: lásd <a href="#pulzus">Pulzuszónák és pulzusszámítás</a>.</p>
+        <h3>Műveletek</h3>
+        <ul>
+          <li><b>Tervezés ez alapján</b> – az edzés nyomvonalából szerkeszthető útvonal lesz a Tervezés fülön.</li>
+          <li><b>GPX export</b>, <b>Mentés</b> a könyvtárba (helyi fájlnál), <b>Megosztás</b>.</li>
+          <li><b>Törlés</b> – bezárja a betöltött edzést (megerősítést kér). A könyvtárból <i>nem</i> törli.</li>
+        </ul>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="konyvtar">
+        <h2>Könyvtár</h2>
+        <ul>
+          <li><b>Rács- és listanézet</b> a jobb felső kapcsolókkal. A rácsnézet kártyáin útvonal-bélyegkép, a listanézetben oszloponként rendezhető táblázat, lenyitható részletekkel.</li>
+          <li><b>Szűrők</b>: típus (Összes / Útvonal / Edzés / Minta), forrás (Saját, Strava, Garmin, FIT), sport (Bringa, Futás, Túra, Gyaloglás, Egyéb), táv és edzésidő csúszkával, keresés névre, rendezés (dátum, név, km, idő).</li>
+          <li><b>Forrásjelölők</b>: SAJÁT (kézzel mentett), STRAVA, GARMIN, FIT.</li>
+          <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
+        </ul>
+        <h3>Egy elem műveletei</h3>
+        <table>
+          <tr><th>Művelet</th><th>Leírás</th></tr>
+          <tr><td>Megnyitás</td><td>Edzés → Elemzés fül; útvonal → Tervezés fül.</td></tr>
+          <tr><td>Szerkesztés</td><td>Név, típus, leírás módosítása.</td></tr>
+          <tr><td>Letöltés</td><td>GPX, és ha van, az eredeti FIT.</td></tr>
+          <tr><td>Megosztás</td><td>Kép, PDF, nyilvános link (lásd <a href="#megosztas">Megosztás</a>).</td></tr>
+          <tr><td>Küldés Garminra</td><td>Tervezett útvonal feltöltése Garmin Connect course-ként navigációhoz.</td></tr>
+          <tr><td>Frissítés Stravából</td><td>Stravás edzés adatainak (kalória, Relative Effort, teljesítmény, helyszín…) újraletöltése.</td></tr>
+          <tr><td>Statisztikába számít</td><td>Ki-be kapcsolható, hogy az edzés beleszámítson-e a Statokba és a rekordokba.</td></tr>
+          <tr><td>Törlés</td><td>Végleges törlés (megerősítést kér). Stravás / Garmines edzés törlés után nem jön vissza automatikusan – kivéve, ha a Strava automatikus importnál bekapcsoltad a <a href="#auto-import">Törölt edzések visszatöltése</a> kapcsolót.</td></tr>
+        </table>
+        <h3>Importálás</h3>
+        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b> (ha a kapcsolat be van állítva).</p>
+      </section>
+
+      <section id="megosztas">
+        <h2>Megosztás</h2>
+        <p>A Megosztás ablak egy helyen kínál mindent (Elemzés, Tervezés → Mentés, Könyvtár):</p>
+        <h3>Megosztó kép</h3>
+        <p>Közösségi médiára szánt kép az útvonallal és a fő adatokkal (táv, idő, átlagsebesség, szint). Téma: <b>Sötét</b>, <b>Világos</b> vagy <b>Fotó</b> (saját háttérkép, mozgatható, nagyítható, elmosható; az útvonal színe, helye és mérete is állítható). Méret: <b>Négyzet</b> vagy <b>Sztori</b>.</p>
+        <h3>PDF útvonallap</h3>
+        <p>Nyomtatható oldal: cím, térkép (választható stílus), álló vagy fekvő tájolás, adatok, és választható tartalom: szintprofil, sebesség, pulzus, kadencia, teljesítmény diagram, burkolat, útvonalpontok listája, QR-kód, saját megjegyzés. Az <b>Előnézet frissítése</b> gombbal megnézheted, majd <b>PDF letöltés</b>.</p>
+        <h3 id="nyilvanos-link">Nyilvános link és QR-kód</h3>
+        <ul>
+          <li>Könyvtárban mentett elemhez <b>nyilvános link</b> készül; ezt bárki megnyithatja bejelentkezés nélkül (csak megtekintés, szerkesztés nem).</li>
+          <li>A nézőoldalon a térkép, az adatok és a grafikonok látszanak; a kapcsolókkal a térképen színezhető az útvonal, a diagram gombokkal a grafikonok mutathatók / rejthetők.</li>
+          <li>Megosztás üzenetben, e-mailben, Facebookon stb., vagy a link másolásával. Mentetlen elemnél a <b>Mentés és link</b> gomb egyszerre ment és linket ad.</li>
+          <li>A link címe a <span class="path">Beállítások → Megosztás</span> alatt (vagy a szerveren a <code>SHARE_BASE_URL</code> változóval) állítható – saját domainnél ide írd a nyilvános címet.</li>
+        </ul>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="statok">
+        <h2>Statisztikák</h2>
+        <table>
+          <tr><th>Nézet</th><th>Tartalom</th></tr>
+          <tr><td class="path">Áttekintés</td><td>Összes km, edzésszám, szintemelkedés, idő; havi km és szint diagram; sportág-megoszlás. Időszak: Idén / 12 hónap / Összes; sportszűrő.</td></tr>
+          <tr><td class="path">Havi statisztikák</td><td>Hónaponkénti táblázat, sportonként lenyitható.</td></tr>
+          <tr><td class="path">Személyes rekordok</td><td>Lásd lent.</td></tr>
+          <tr><td class="path">Eddington-szám</td><td>A legnagyobb E szám, amelyre igaz: legalább E napon tekertél legalább E km-t. Megmutatja, hány nap hiányzik a következőhöz.</td></tr>
+          <tr><td class="path">Edzésterhelés</td><td>CTL (fitnesz, 42 napos átlag), ATL (fáradtság, 7 napos), TSB (forma = CTL − ATL). A napi terhelés az edzésidő percben.</td></tr>
+          <tr><td class="path">Hőtérkép</td><td>Az összes edzésed nyomvonala egy térképen, sportonként szűrhetően.</td></tr>
+        </table>
+        <div class="tip"><b>Mi számít bele?</b>Csak azok az edzések, amelyeknél a könyvtárban be van kapcsolva a „statisztikába számít” – a tervezett útvonalak nem.</div>
+        <h3 id="rekordok">Személyes rekordok</h3>
+        <ul>
+          <li>Fülek: <b>Kerékpár / Futás / Gyalog</b>; időszak: <b>Összes, 1 év, 6 hónap, 12 hét, 4 hét</b>.</li>
+          <li><b>Kiemelt rekordok</b>: leghosszabb táv, legtöbb szint, leghosszabb edzés, legjobb átlagsebesség (futásnál tempó), legnagyobb sebesség, leghosszabb mászás, legtöbb kalória – mindegyiknél az előző rekord és egy fejlődési mini grafikon.</li>
+          <li><b>Legjobb idők távokra</b> (5, 10, 20 … 200 km; futásnál 400 m – maraton): a GPS-adatból számolva, akkor is, ha a táv egy hosszabb edzés közepén volt. Az idő a teljes eltelt idő, a megállásokkal együtt.</li>
+          <li><b>Csúcsértékek</b>: a legmagasabb átlagpulzus és -teljesítmény, amit 5 mp – 60 perc között folyamatosan tartottál.</li>
+          <li>Bármelyik rekordra kattintva az edzés megnyílik az Elemzésben.</li>
+        </ul>
+        <p>Az első megnyitáskor a szerver minden edzést kiszámol (sok edzésnél néhány másodperc) – utána tárolja, és csak az újakat számolja.</p>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="strava">
+        <h2>Strava</h2>
+        <p>A Bringaterv <b>csak olvas</b> a Stravából (<code>activity:read_all</code> jogosultság) – semmit nem ír vissza.</p>
+        <h3 id="strava-beallitas">1. Saját Strava app létrehozása (egyszer, ~1 perc)</h3>
+        <p>A Strava minden alkalmazást korlátoz (alapból 1 sportoló = te magad), ezért mindenkinek saját „Strava app” kell:</p>
+        <ol>
+          <li>Nyisd meg: <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.</li>
+          <li>Töltsd ki a mezőket (az app neve és a weboldal tetszőleges).</li>
+          <li><b>Authorization Callback Domain</b>: a Bringaterv <b>Strava API beállítás</b> ablakában megjelenő cím <i>domain</i> része (<code>http://</code> és elérési út nélkül).</li>
+          <li>Mentés után másold be a <b>Client ID</b>-t és a <b>Client Secret</b>-et (a Secret a „Show” gombbal jelenik meg) a <span class="path">Beállítások → Strava kapcsolat → API beállítás</span> ablakba, és mentsd.</li>
+        </ol>
+        <h3>2. Csatlakozás</h3>
+        <p><span class="path">Beállítások → Strava kapcsolat</span> → <b>Csatlakozás Stravához</b> → a Strava oldalán engedélyezd a hozzáférést.</p>
+        <h3>3. Kézi import</h3>
+        <p><span class="path">Könyvtár → Import → Strava-ból</span>: válaszd ki az időszakot és a darabszámot → <b>Listázás</b>. Az edzések mellett jelölés látszik:</p>
+        <table>
+          <tr><th>Jelölés</th><th>Jelentés</th></tr>
+          <tr><td>Új</td><td>Még nincs a könyvtárban – alapból ki van jelölve.</td></tr>
+          <tr><td>Már megvan</td><td>Már importáltad.</td></tr>
+          <tr><td>Hasonló van</td><td>Van egy kézzel feltöltött edzés ugyanabban az időben, hasonló távval (valószínűleg ugyanaz).</td></tr>
+          <tr><td>Korábban törölted</td><td>Egyszer már importáltad, majd törölted. Kézzel kijelölve újra importálható.</td></tr>
+        </table>
+        <p>A GPS nélküli (beltéri) edzéseket – pl. súlyzós edzés, jóga – nem listázzuk.</p>
+        <h3 id="auto-import">4. Automatikus import</h3>
+        <p>Az import ablak tetején: <b>Automatikus import</b> kapcsoló, <b>ellenőrzési időköz</b> (5 / 15 / 30 perc, óránként) és <b>sportszűrő</b>. A szerver ilyenkor a háttérben – akkor is, ha az app nincs nyitva – behozza az új edzéseket. Az <b>Ellenőrzés most</b> gomb azonnal lefuttat egy kört; az állapotsor mutatja az utolsó ellenőrzést és eredményét.</p>
+        <ul>
+          <li>Bekapcsoláskor az elmúlt 1 nap edzéseitől indul; a régebbieket a kézi import hozza.</li>
+          <li><b>Törölt edzések visszatöltése</b> kapcsoló:
+            <ul>
+              <li><i>Kikapcsolva</i> (alapállapot): a könyvtárból törölt Stravás edzést a szinkron <b>nem</b> hozza vissza – amit törölsz, törölve marad.</li>
+              <li><i>Bekapcsolva</i>: a szinkron a következő körben <b>újra letölti</b> a törölt edzést. Ehhez minden körben az elmúlt 7 nap edzéseit nézi át (ez is csak 1 Strava-kérés); régebbi törölt edzést a kézi importtal hozhatsz vissza.</li>
+            </ul>
+          </li>
+          <li>A Strava API-keretét figyeli (alapból 200 kérés / 15 perc, 2000 / nap): ha 80% fölött van, az adott kört kihagyja. Egy ellenőrzés 1 kérés, egy új edzés 2 – az 5 perces időköz is bőven belefér.</li>
+          <li>Új edzésről és új rekordról értesítést is kaphatsz (lásd <a href="#ertesitesek">Értesítések</a>).</li>
+        </ul>
+        <h3 id="webhook">5. Azonnali import (webhook)</h3>
+        <p>Az Automatikus import blokkban az <b>Azonnali import (webhook)</b> → <b>Bekapcsolás</b>: ezután a Strava maga szól a Bringatervnek, amikor új edzést töltesz fel – néhány másodpercen belül bekerül a könyvtárba, és jön az értesítés (nem kell megvárni az ellenőrzési időközt). Ha a Stravában átnevezel egy edzést, a könyvtárban is frissül a neve.</p>
+        <ul>
+          <li><b>Feltétel:</b> nyilvános HTTPS-cím (saját domain) – a Strava szerverének el kell érnie. Helyi hálózati címen nem működik.</li>
+          <li><b>Egy Strava apphoz egy webhook:</b> ha ugyanazt a Strava appot több szerveren (pl. teszt és éles) használod, csak az egyiken lehet bekapcsolva. Ha máshol már be van kapcsolva, a Bringaterv megkérdezi, áthelyezze-e.</li>
+          <li><b>Cloudflare:</b> a „Bot Fight Mode” blokkolhatja a Strava kéréseit – ha a bekapcsolás hibát jelez, ezt kapcsold ki a domainnél.</li>
+          <li>Az időközös ellenőrzés tartalékként tovább fut (ha egy értesítés elveszne, az is behozza), és a <b>törölt edzések visszatöltése</b> is ezen keresztül működik – a könyvtárbeli törlésről a Strava nem küld értesítést.</li>
+        </ul>
+        <div class="warn"><b>Ha egyszerre több szerveren (pl. teszt és éles) is fut a Bringaterv</b>ugyanazzal a Strava-fiókkal, az automatikus importot csak az egyiken kapcsold be, különben két értesítést kapsz.</div>
+        <h3>Hibák</h3>
+        <ul>
+          <li><b>„A Strava az API-alkalmazásodat inaktívvá tette”</b> – a strava.com/settings/api oldalon nézd meg az app állapotát (lehet, hogy új feltételt kell elfogadni), vagy hozz létre új appot.</li>
+          <li><b>„A Strava kapcsolat érvénytelenné vált”</b> – csatlakozz újra a Beállításokban.</li>
+          <li><b>Rate limit</b> – túl sok kérés ment ki; 15 perc múlva újra működik.</li>
+        </ul>
+      </section>
+
+      <section id="garmin">
+        <h2>Garmin Connect</h2>
+        <ul>
+          <li><b>Csatlakozás</b>: <span class="path">Beállítások → Garmin Connect</span>, Garmin e-mail és jelszó; kétlépcsős azonosítás (MFA) esetén a kódot is kéri. A jelszót nem tároljuk, csak a belépési tokent (kb. 1 évig érvényes).</li>
+          <li><b>Testsúly-szinkron</b>: az okosmérleg legutóbbi mérése (súly, testzsír) egy gombbal átvehető a kerékpáros profilba – ez a szél- és kalóriaszámítás bemenete.</li>
+          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>.</li>
+          <li><b>Útvonal küldése Garminra</b>: a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
+        </ul>
+      </section>
+
+      <section id="ertesitesek">
+        <h2>Értesítések (push)</h2>
+        <p><span class="path">Beállítások → Értesítések</span></p>
+        <ol>
+          <li><b>Ezen az eszközön → Engedélyezés</b> – a rendszer engedélyt kér; minden eszközön (telefon, tablet, gép) külön kell engedélyezni.</li>
+          <li>Válaszd ki, miről kérsz értesítést: <b>új edzés importálva</b>, <b>új személyes rekord</b>, <b>Strava-kapcsolat megszakadt</b>.</li>
+          <li><b>Próbaértesítés</b> – 5 mp múlva érkezik, közben bezárhatod az appot.</li>
+        </ol>
+        <p>Az értesítésre koppintva megnyílik az edzés az Elemzésben.</p>
+        <div class="tip"><b>Feltételek</b>HTTPS-cím kell. iPhone-on és iPaden csak a főképernyőre telepített appból működik (iOS 16.4+). Ha nem jön meg: nézd meg a szakasz alján a diagnosztika sort (engedély, feliratkozás, utolsó küldés eredménye, utolsó fogadott értesítés), és az iOS Beállítások → Értesítések → Bringaterv beállításait, illetve hogy nincs-e bekapcsolva Fókusz mód.</div>
+      </section>
+
+      <!-- ───────────────────────────────────────────────────────────── -->
+      <section id="beallitasok">
+        <h2>Beállítások</h2>
+        <p>☰ menü → <b>Beállítások</b>. A szakaszok alapból csukva vannak, a címükre koppintva nyílnak ki (a kinyitottakat megjegyzi). A beállítások a fiókodhoz mentődnek, így minden eszközön ugyanazok.</p>
+        <table>
+          <tr><th>Szakasz</th><th>Mit állíthatsz?</th></tr>
+          <tr><td class="path">Térképstílus</td><td>Standard, Kerékpár, Domborzat, Műhold, Hybrid, Világos, Sötét. A térkép jobb felső sarkában is váltható.</td></tr>
+          <tr><td class="path">Mértékegység</td><td>Metrikus (km, m) vagy angolszász (mi, ft).</td></tr>
+          <tr><td class="path">Megosztás</td><td>A megosztási linkek és QR-kódok alap-címe (saját domain).</td></tr>
+          <tr><td class="path">Értesítések</td><td>Lásd <a href="#ertesitesek">Értesítések</a>.</td></tr>
+          <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Gyalogos 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
+          <tr><td class="path">Induló nézet</td><td>Hol és milyen nagyításon nyíljon meg a térkép (a mostani nézet vagy GPS szerint).</td></tr>
+          <tr><td class="path">Eszköztár sorrend</td><td>Az eszköztár gombjainak sorrendje (húzással) és elrejtése (👁).</td></tr>
+          <tr><td class="path">Elemzési beállítások</td><td>Személyes adatok és pulzuszónák – lásd <a href="#pulzus">Pulzuszónák</a>.</td></tr>
+          <tr><td class="path">Adatzónák</td><td>Sebesség- (km/h), kadencia- (rpm) és teljesítmény- (W) zónahatárok csúszkákkal; az „Egyenlő felosztás” gomb egyenletesen osztja szét őket. Ezek színezik a térképet és (zónaszín módban) a diagramokat.</td></tr>
+          <tr><td class="path">Diagram színek</td><td><b>Egyszínű</b>: diagramonként saját szín; <b>Zónaszín</b>: a vonal szakaszonként az adatzónák színeivel rajzolódik (Strava / Garmin-szerűen).</td></tr>
+          <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos).</td></tr>
+          <tr><td class="path">Kerékpáros profil</td><td>Saját és kerékpár tömege, vezetési pozíció (légellenállás, CdA: városi 0,65 – aero 0,32). A gördülési ellenállás a tervezési módból jön (aszfalt 0,005, gravel 0,010, MTB 0,018). A szélhatás és a kalóriabecslés használja.</td></tr>
+          <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>
+          <tr><td class="path">Garmin Connect</td><td>Lásd <a href="#garmin">Garmin Connect</a>.</td></tr>
+          <tr><td class="path">Backup és visszaállítás</td><td>Lásd <a href="#mentes-backup">Adatok mentése</a>.</td></tr>
+        </table>
+      </section>
+
+      <section id="pulzus">
+        <h2>Pulzuszónák és pulzusszámítás</h2>
+        <p><span class="path">Beállítások → Elemzési beállítások</span></p>
+        <h3>1. Személyes adatok</h3>
+        <p>Biológiai nem, születési év (ebből az életkor), nyugalmi pulzus (érdemes reggel, ébredés után mérni).</p>
+        <h3>2. Maximális pulzus</h3>
+        <table>
+          <tr><th>Módszer</th><th>Képlet</th><th>Mikor jó?</th></tr>
+          <tr><td class="path">Tanaka</td><td>208 − 0,7 × kor (nőknél Miller: 216 − 1,09 × kor)</td><td>Ajánlott – pontosabb aktív felnőtteknél.</td></tr>
+          <tr><td class="path">220 − kor</td><td>220 − életkor</td><td>Egyszerű közelítés; egyénenként ±10–20 bpm is eltérhet.</td></tr>
+          <tr><td class="path">Egyedi</td><td>saját érték</td><td>Ha ismered a valódit (labor, vagy edzésen mért maximum).</td></tr>
+        </table>
+        <h3>3. Zónaszámítás módszere</h3>
+        <table>
+          <tr><th>Módszer</th><th>Hogyan számol?</th></tr>
+          <tr><td class="path">Karvonen</td><td>A pulzustartalékból: <code>nyugalmi + (max − nyugalmi) × %</code>. Pontosabb, ha ismered a valódi nyugalmi pulzusodat.</td></tr>
+          <tr><td class="path">Max HR %</td><td>A max pulzus fix százaléka: <code>max × %</code>. Egyszerű, nyugalmi pulzus nem kell; a Strava is hasonlóan számol.</td></tr>
+          <tr><td class="path">LTHR</td><td>A laktátküszöb-pulzushoz viszonyít (Joe Friel / WKO módszer, a Magene is ezt használja). A legpontosabb, ha ismered az LTHR-edet (pl. 30 perces maximális tempó utolsó 20 percének átlagpulzusa).</td></tr>
+          <tr><td class="path">Egyedi</td><td>Saját BPM-határok – ha a Stravában / Garminban kézzel állítottad be a zónáidat, itt ugyanazokat használhatod.</td></tr>
+        </table>
+        <h3>4. Zónamodell</h3>
+        <ul>
+          <li><b>Friel</b> (ajánlott) – fiziológiailag pontos, aszimmetrikus sávok (65 / 80 / 89 / 97%); a Garmin, a Strava és a TrainingPeaks is ezt használja.</li>
+          <li><b>Egyenlő sávok</b> – egyszerű 10%-os felosztás (50–100%).</li>
+        </ul>
+        <p>A zónák a pulzuselemzésben, a pulzus szerinti térképszínezésben és a TRIMP / Edwards terhelésmutatókban jelennek meg.</p>
+      </section>
+
+      <section id="billentyuk">
+        <h2>Egérműveletek és billentyűparancsok</h2>
+        <table>
+          <tr><th>Művelet</th><th>Hatás</th></tr>
+          <tr><td>Kattintás a térképen</td><td>Útvonalpont hozzáadása (Tervezés fül).</td></tr>
+          <tr><td>Kattintás az útvonal vonalán</td><td>Pont közbeszúrása.</td></tr>
+          <tr><td>Jelölő húzása</td><td>Pont áthelyezése.</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>I</kbd></td><td>GPX importálása.</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>E</kbd></td><td>Útvonal exportálása.</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>R</kbd></td><td>Útvonal nullázása.</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Felugró ablak / súgó bezárása.</td></tr>
+        </table>
+      </section>
+
+      <section id="mentes-backup">
+        <h2>Adatok mentése, visszaállítás</h2>
+        <ul>
+          <li><span class="path">Beállítások → Backup és visszaállítás → Backup letöltése</span>: egy ZIP a beállításaiddal, mentett útvonalaiddal és edzéseiddel.</li>
+          <li><b>Visszaállítás</b>: válaszd ki a ZIP-et, majd a módot:
+            <ul>
+              <li><b>Hozzáadás</b> – a backup elemei új azonosítóval kerülnek a meglévők mellé; a beállítások nem változnak. Biztonságos.</li>
+              <li><b>Teljes felülírás</b> – előbb mindent töröl, majd az eredeti azonosítókkal állítja vissza. Visszafordíthatatlan!</li>
+            </ul>
+          </li>
+          <li>Admin felhasználó a <b>Felhasználók</b> oldalon bárki profilját mentheti / visszaállíthatja, kezelheti a felhasználókat, kvótákat és a minta-útvonalakat.</li>
+        </ul>
+      </section>
+
+      <section id="gyik">
+        <h2>Gyakori kérdések, hibaelhárítás</h2>
+        <h3>Frissítés után még a régi verzió látszik</h3>
+        <p>Telepített appnál zárd be teljesen (appváltóban felhúzva), és indítsd újra az ikonról. Böngészőben frissítsd az oldalt.</p>
+        <h3>iPhone-on nem tudok FIT fájlt kiválasztani</h3>
+        <p>Frissíts a legújabb verzióra – iOS-en a fájlválasztó már minden fájlt enged, a Bringaterv maga ellenőrzi, hogy GPX vagy FIT-e.</p>
+        <h3>Nem jön értesítés</h3>
+        <p>Lásd az <a href="#ertesitesek">Értesítések</a> fejezet feltételeit és a diagnosztika sort.</p>
+        <h3>A könyvtár „nem érhető el”</h3>
+        <p>A szerver API-ja nem fut vagy nem elérhető – telepített szervernél nézd meg a <code>routes-api</code> konténert (a <code>/api/health</code> címen <code>{"ok": true}</code> a helyes válasz).</p>
+        <h3>Töröltem egy Stravás edzést, vissza tudom hozni?</h3>
+        <p>Igen, kétféleképpen:</p>
+        <ul>
+          <li><b>Kézzel:</b> Import → Strava → Listázás; a „Korábban törölted” jelzésű edzést jelöld ki, és importáld.</li>
+          <li><b>Automatikusan:</b> az Automatikus importnál kapcsold be a <b>Törölt edzések visszatöltése</b> kapcsolót – a következő szinkronkör (az elmúlt 7 napból) visszahozza.</li>
+        </ul>
+        <h3>Miért más a becsült idő, mint a valódi?</h3>
+        <p>A becslés az alapsebességekből, a szintkülönbségből és (ha bekapcsoltad) a szélből számol. A <span class="path">Tervezési beállítások</span> alapsebességeit a saját tempódhoz igazítva pontosabb lesz.</p>
+      </section>
+
+      <p class="none" id="hNone">Nincs találat erre a keresésre.</p>
+      <p style="color:var(--muted);font-size:13px;margin-top:40px">Bringaterv · <a href="./privacy.html">Adatkezelési tájékoztató</a> · <a href="https://github.com/czdanika/bringaterv" target="_blank" rel="noopener">GitHub</a></p>
+    </main>
+  </div>
+
+  <script>
+    // Tartalomjegyzék a fejezetekből (h2) és a fontosabb alfejezetekből (h3[id])
+    const toc = document.getElementById("hTocList");
+    const sections = [...document.querySelectorAll("main section")];
+    for (const sec of sections) {
+      const li = document.createElement("li");
+      li.innerHTML = `<a href="#${sec.id}">${sec.querySelector("h2").textContent}</a>`;
+      toc.appendChild(li);
+      sec.querySelectorAll("h3[id]").forEach((h) => {
+        const s = document.createElement("li");
+        s.className = "sub";
+        s.innerHTML = `<a href="#${h.id}">${h.textContent}</a>`;
+        toc.appendChild(s);
+      });
+    }
+    // Mobilon a tartalomjegyzék csukva indul, és választás után bezárul
+    const tocBox = document.getElementById("hToc");
+    const mq = matchMedia("(max-width: 860px)");
+    if (mq.matches) tocBox.open = false;
+    toc.addEventListener("click", (e) => { if (e.target.closest("a") && mq.matches) tocBox.open = false; });
+
+    // Aktív fejezet kiemelése görgetéskor
+    const links = new Map([...toc.querySelectorAll("a")].map((a) => [a.getAttribute("href").slice(1), a]));
+    const io = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        toc.querySelectorAll("a.is-active").forEach((a) => a.classList.remove("is-active"));
+        links.get(en.target.id)?.classList.add("is-active");
+      }
+    }, { rootMargin: "-80px 0px -70% 0px" });
+    sections.forEach((s) => io.observe(s));
+
+    // Keresés: a nem illeszkedő fejezetek elrejtése + kiemelés
+    const search = document.getElementById("hSearch");
+    const originals = new Map(sections.map((s) => [s, s.innerHTML]));
+    const norm = (t) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    let timer = null;
+    search.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const q = search.value.trim();
+        let shown = 0;
+        for (const sec of sections) {
+          sec.innerHTML = originals.get(sec);
+          if (!q) { sec.hidden = false; shown++; continue; }
+          const hit = norm(sec.textContent).includes(norm(q));
+          sec.hidden = !hit;
+          if (hit) { shown++; highlight(sec, q); }
+        }
+        document.getElementById("hNone").style.display = shown ? "none" : "block";
+        toc.querySelectorAll("li").forEach((li) => {
+          const id = li.querySelector("a").getAttribute("href").slice(1);
+          const sec = document.getElementById(id)?.closest("section");
+          li.hidden = !!(sec && sec.hidden);
+        });
+      }, 150);
+    });
+    function highlight(root, q) {
+      const nq = norm(q);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const hits = [];
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        const i = norm(n.nodeValue).indexOf(nq);
+        if (i >= 0 && n.parentElement.tagName !== "MARK") hits.push([n, i]);
+      }
+      for (const [n, i] of hits) {
+        const r = document.createRange();
+        r.setStart(n, i); r.setEnd(n, i + q.length);
+        const m = document.createElement("mark");
+        try { r.surroundContents(m); } catch (_) {}
+      }
+    }
+  </script>
+</body>
+</html>

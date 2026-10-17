@@ -66,12 +66,19 @@
     .vw-open svg { width: 15px; height: 15px; }
     .vw-note { font-size: 11px; color: var(--muted); text-align: center; }
 
-    .v-chart-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .v-chart-toggles { display: grid; grid-template-columns: 1fr; gap: 6px; }
     .v-toggle-row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: var(--panel-bg);
       border: 1px solid var(--line); border-radius: 8px; cursor: pointer; user-select: none; min-width: 0; }
     .v-toggle-swatch { width: 14px; height: 3px; border-radius: 2px; background: var(--c); flex-shrink: 0; }
     .v-toggle-label { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Grafikon/színezés sorok – az Elemzés fül .speed-legend sorainak mintájára */
+    .v-chart-toggles { gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); overflow: hidden; }
+    .v-legend-row { padding: 8px 12px; }
+    .v-legend-row:last-child { border-bottom: 0; }
+    .v-legend-row .speed-legend-header { margin: 0; }
+    .v-legend-row .speed-legend-title { flex: 1; }
+    .v-legend-spacer { width: 36px; flex-shrink: 0; }
     .v-chart { padding: 4px 0; border-top: 1px solid var(--line); }
     .v-chart:first-child { border-top: 0; }
     .v-chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -138,7 +145,7 @@
         </div>
 
         <div id="v-toggle-wrap" hidden>
-          <div class="vw-section-title" style="margin-bottom:8px">Grafikonok</div>
+          <div class="vw-section-title" style="margin-bottom:8px">Grafikonok és térkép</div>
           <div class="v-chart-toggles" id="v-chart-toggles"></div>
         </div>
 

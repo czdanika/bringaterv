@@ -287,22 +287,31 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
     return closest;
   }
 
-  canvas.addEventListener("mousemove", (e) => {
+  // Egér ÉS ujj: pointer események. Érintésnél a vízszintes húzás „szkennel”
+  // (a térképen mutatja a pontot), a függőleges továbbra is görgeti az oldalt.
+  canvas.style.touchAction = "pan-y";
+  function hoverAt(clientX) {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const scaleX = (canvas.width / dpr) / rect.width;
-    const idx = getIdxAtX((e.clientX - rect.left) * scaleX);
+    const idx = getIdxAtX((clientX - rect.left) * scaleX);
     if (idx < 0) return;
     _hoverIdx = idx;
     draw();
     onHover?.(_data[idx], _opts);
-  });
+  }
+  canvas.addEventListener("pointermove", (e) => hoverAt(e.clientX));
+  canvas.addEventListener("pointerdown", (e) => hoverAt(e.clientX));
 
-  canvas.addEventListener("mouseleave", () => {
+  function clearHover() {
     _hoverIdx = -1;
     draw();
     onLeave?.();
-  });
+  }
+  // Egérnél az elhagyáskor tűnik el; ujjnál a felemeléskor is megmarad a pont,
+  // amíg máshová nem koppintasz (így a térképen megnézhető)
+  canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") clearHover(); });
+  canvas.addEventListener("pointercancel", (e) => { if (e.pointerType !== "mouse") clearHover(); });
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;

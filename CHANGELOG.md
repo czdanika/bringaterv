@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.8.0 – 2026-10-17 – Kézikönyv, jelmagyarázat a térképen, színezés a megosztott nézetben, Strava webhook
+
+### Súgó és kézikönyv
+- Új **☰ → Súgó és kézikönyv** oldal (`help.html`): menüpontonkénti leírás – tervezés és tervezési módok, elemzés, könyvtár, megosztás, statisztikák és rekordok, Strava (app létrehozása, kézi és automatikus import, webhook), Garmin, értesítések, összes beállítás, pulzuszónák és képletek, billentyűparancsok, adatmentés, GYIK.
+- Tartalomjegyzék (mobilon lenyitható), kereső kiemeléssel, fejezetlinkek (pl. `help.html#strava`), világos/sötét téma.
+
+### Térkép és megosztás
+- **Jelmagyarázat a térképen** (Elemzés, Tervezés): a színezett útvonal sávjai a térkép sarkában, a saját zónabeállítások szerint; koppintásra összecsukható.
+- **Nyilvános nézőoldal**: az útvonal a térképen is színezhető (sebesség, pulzus, kadencia, teljesítmény, lejtés) – a sorok és kapcsolók ugyanúgy néznek ki és működnek, mint az Elemzésben (kapcsoló = színezés, diagram gomb = grafikon). Páratlan kártyaszámnál az utolsó kitölti a sort.
+- **Diagramok érintéssel**: ujjal vízszintesen húzva a térképen is mutatja a pontot (eddig csak egérrel).
+
+### Strava
+- **Azonnali import (webhook)**: a Strava maga szól az új edzésről – másodperceken belül importál és értesít; átnevezéskor a könyvtárban is frissül a név. Feltétel: nyilvános HTTPS-cím; egy Strava apphoz egy webhook. Az időközös ellenőrzés tartalékként fut tovább.
+- **Törölt edzések visszatöltése** kapcsoló az automatikus importnál (alapból ki): bekapcsolva a szinkron a könyvtárból törölt edzést újra letölti (az elmúlt 7 napból).
+- Webhook és időközös kör egyszerre sem importálja kétszer ugyanazt (felhasználónkénti zár).
+
+### Mobil / iOS
+- iPhone / iPad fájlválasztó: a FIT fájlok kiválaszthatók (az iOS az ismeretlen kiterjesztést szürkén hagyta); a kiterjesztést az app ellenőrzi.
+- Bejelentkezés álló képernyőn: a kör alakú embléma a kártya fölött (eddig a széles kép közepe, levágva).
+- ☰ menü: a link-menüpontok nincsenek aláhúzva.
+
+### Verzió
+- v1.7.3 → v1.8.0
+
+---
+
 ## v1.7.3 – 2026-10-17 – Push értesítés javítás
 
 ### Értesítések

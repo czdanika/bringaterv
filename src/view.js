@@ -161,6 +161,8 @@ function renderMap(geometry) {
   if (latlngs.length < 2) { map.setView([47.5, 19.05], 7); return; }
 
   const line = L.polyline(latlngs, { color: ACCENT, weight: 5, opacity: 0.9 }).addTo(map);
+  _baseLine = line;
+  _mapGeom = geometry.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   L.circleMarker(latlngs[0], { radius: 7, color: "#fff", weight: 2, fillColor: "#16a34a", fillOpacity: 1 }).addTo(map);
   L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#dc2626", fillOpacity: 1 }).addTo(map);
 
@@ -231,8 +233,9 @@ function renderStats(meta, geometry, gmeta) {
   if (meta.kilojoules) cards.push(["Mechanikai munka", `${Math.round(meta.kilojoules)} kJ`]);
   if (meta.calories) cards.push(["Kalória", `${Math.round(meta.calories)} kcal`]);
 
-  $("v-stats").innerHTML = cards.map(([label, value]) =>
-    `<div class="stat-card"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  // Páratlan számú kártyánál az utolsó kitölti a sort (mint az Elemzés fülön)
+  $("v-stats").innerHTML = cards.map(([label, value], i) =>
+    `<div class="stat-card${cards.length % 2 && i === cards.length - 1 ? " stat-card--wide" : ""}"><span>${label}</span><strong>${value}</strong></div>`).join("");
 }
 
 // ── Szintprofil ──────────────────────────────────────────────────────────────
@@ -272,19 +275,31 @@ function renderCharts(geometry) {
   const toggles = $("v-chart-toggles"), host = $("v-charts");
 
   for (const ch of _charts) {
-    const [r, g, b] = ch.cfg.rgb;
-    // Kapcsoló-sor a stat-kártyák stílusában (szín csak vonalmintaként)
-    const row = document.createElement("label");
-    row.className = "v-toggle-row";
-    row.innerHTML = `<span class="v-toggle-swatch" style="--c:rgb(${r},${g},${b})"></span>`
-      + `<span class="v-toggle-label">${ch.cfg.label}</span>`
-      + `<span class="toggle-switch"><input type="checkbox"${ch.on ? " checked" : ""}><span class="toggle-track"></span></span>`;
-    row.querySelector("input").addEventListener("change", (e) => {
-      ch.on = e.target.checked;
+    // Ugyanaz a sor, mint az Elemzés fülön: cím · diagram gomb · térkép-kapcsoló.
+    // A diagram gomb a grafikont mutatja/rejti, a kapcsoló a térképen színez
+    // (egyszerre egy színezés lehet aktív – mint a fő appban).
+    const colorable = canColor(ch.cfg.key);
+    const row = document.createElement("div");
+    row.className = "speed-legend v-legend-row";
+    row.innerHTML = `<div class="speed-legend-header">`
+      + `<span class="speed-legend-title">${ch.cfg.label}</span>`
+      + `<button type="button" class="grade-chart-btn${ch.on ? " is-active" : ""}" title="${ch.cfg.label} grafikon mutatása / elrejtése" aria-pressed="${ch.on}">${CHART_SVG}</button>`
+      + (colorable
+        ? `<label class="toggle-switch" title="${ch.cfg.label}: útvonal színezése a térképen"><input type="checkbox" data-color-key="${ch.cfg.key}" aria-label="${ch.cfg.label} színezés a térképen"><span class="toggle-track"></span></label>`
+        : `<span class="v-legend-spacer" aria-hidden="true"></span>`)
+      + `</div>`;
+    const chartBtn = row.querySelector(".grade-chart-btn");
+    chartBtn.addEventListener("click", () => {
+      ch.on = !ch.on;
+      chartBtn.classList.toggle("is-active", ch.on);
+      chartBtn.setAttribute("aria-pressed", String(ch.on));
       ch.el.hidden = !ch.on;
       saveChartPrefs();
       updateChartsPanel();
       if (ch.on) drawChart(ch, _hoverDist);
+    });
+    row.querySelector("input[data-color-key]")?.addEventListener("change", (e) => {
+      setColorMode(e.target.checked ? ch.cfg.key : null);
     });
     toggles.appendChild(row);
 
@@ -465,4 +480,117 @@ function escapeHtml(s) {
 function fmtDate(d) {
   try { return new Date(d).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }); }
   catch (_) { return d; }
+}
+
+
+// ── Útvonal színezése a térképen (mint az Elemzés „térkép” kapcsolói) ─────────
+// A néző nem látja a tulajdonos zónabeállításait, ezért a sávhatárok az adott
+// edzés saját eloszlásából jönnek (ötödök); a szintprofil lejtés szerint színez.
+const CHART_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+const PAINT_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17c3-6 6-9 9-9s3 4 6 4 3-3 3-3"/><circle cx="3" cy="17" r="1.5"/><circle cx="21" cy="9" r="1.5"/></svg>';
+const BAND_COLORS = ["#3B82F6", "#22C55E", "#EAB308", "#F97316", "#EF4444"];
+const GRADE_COLORS = ["#15803D", "#4ADE80", "#94A3B8", "#EAB308", "#F97316", "#DC2626"];
+const GRADE_EDGES = [-4, -1, 1, 4, 8];
+const COLOR_FIELDS = { speed: "speed", hr: "hr", cad: "cad", power: "power", elev: null };
+const COLOR_UNITS = { speed: "km/h", hr: "bpm", cad: "rpm", power: "W", elev: "%" };
+
+let _colorKey = null, _colorLayer = null, _colorLegend = null, _baseLine = null, _mapGeom = [];
+
+function canColor(key) {
+  if (!(key in COLOR_FIELDS)) return false;
+  const geo = _mapGeom.length ? _mapGeom : [];
+  if (key === "elev") return geo.filter((p) => Number.isFinite(p.ele)).length > 10;
+  const f = COLOR_FIELDS[key];
+  return geo.filter((p) => Number.isFinite(p[f]) && p[f] > 0).length > 10;
+}
+
+function distM(a, b) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Pontonkénti érték (simítva), lejtésnél ~100 m-es ablakkal */
+function pointValues(key) {
+  const g = _mapGeom;
+  if (key === "elev") {
+    const cum = [0];
+    for (let i = 1; i < g.length; i++) cum.push(cum[i - 1] + distM(g[i - 1], g[i]));
+    return g.map((p, i) => {
+      let j = i;
+      while (j > 0 && cum[i] - cum[j] < 100) j--;
+      const d = cum[i] - cum[j];
+      return d > 20 && Number.isFinite(p.ele) && Number.isFinite(g[j].ele) ? ((p.ele - g[j].ele) / d) * 100 : null;
+    });
+  }
+  const f = COLOR_FIELDS[key];
+  const raw = g.map((p) => (Number.isFinite(p[f]) && p[f] > 0 ? p[f] : null));
+  return raw.map((_, i) => {                       // 7 pontos mozgóátlag a villódzás ellen
+    let sum = 0, n = 0;
+    for (let k = Math.max(0, i - 3); k <= Math.min(raw.length - 1, i + 3); k++) if (raw[k] != null) { sum += raw[k]; n++; }
+    return n ? sum / n : null;
+  });
+}
+
+function quantileEdges(values) {
+  const v = values.filter((x) => x != null).sort((a, b) => a - b);
+  return [0.2, 0.4, 0.6, 0.8].map((q) => v[Math.min(v.length - 1, Math.floor(q * v.length))]);
+}
+
+function bandIndex(val, edges) {
+  let i = 0;
+  while (i < edges.length && val >= edges[i]) i++;
+  return i;
+}
+
+function setColorMode(key) {
+  _colorKey = key;
+  document.querySelectorAll("input[data-color-key]").forEach((cb) => { cb.checked = cb.dataset.colorKey === key; });
+  if (_colorLayer) { _colorLayer.remove(); _colorLayer = null; }
+  if (_colorLegend) { _colorLegend.remove(); _colorLegend = null; }
+  if (!key || !_map) { _baseLine?.setStyle({ opacity: 0.9 }); return; }
+
+  const vals = pointValues(key);
+  const isGrade = key === "elev";
+  const edges = isGrade ? GRADE_EDGES : quantileEdges(vals);
+  const colors = isGrade ? GRADE_COLORS : BAND_COLORS;
+  const idx = vals.map((v) => (v == null ? -1 : bandIndex(v, edges)));
+  // rövid színfoltok simítása (mint a fő appban), hogy ne szakadozzon
+  for (let i = 1, start = 0; i <= idx.length; i++) {
+    if (i === idx.length || idx[i] !== idx[start]) {
+      if (i - start < 6 && start > 0) for (let k = start; k < i; k++) idx[k] = idx[start - 1];
+      start = i;
+    }
+  }
+  _colorLayer = L.layerGroup().addTo(_map);
+  const ll = _mapGeom.map((p) => [p.lat, p.lng]);
+  for (let i = 1, start = 0; i <= ll.length; i++) {
+    if (i === ll.length || idx[i] !== idx[start]) {
+      const c = idx[start] >= 0 ? colors[idx[start]] : "#9CA3AF";
+      L.polyline(ll.slice(Math.max(0, start - 1), i), { color: c, weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_colorLayer);
+      start = i;
+    }
+  }
+  _baseLine?.setStyle({ opacity: 0 });
+  _hoverMarker?.bringToFront?.();
+
+  // jelmagyarázat a térkép bal alsó sarkában
+  const unit = COLOR_UNITS[key];
+  const dec = key === "speed" ? 1 : 0;
+  const f = (x) => (isGrade ? String(Math.round(x)) : x.toFixed(dec).replace(".", ",")).replace("-", "−");
+  const labels = colors.map((_, i) => {
+    if (i === 0) return `< ${f(edges[0])}`;
+    if (i === colors.length - 1) return `${f(edges[i - 1])} felett`;
+    return `${f(edges[i - 1])} – ${f(edges[i])}`;
+  });
+  const label = (_charts.find((c) => c.cfg.key === key)?.cfg.label) || "";
+  _colorLegend = L.control({ position: "bottomleft" });
+  _colorLegend.onAdd = () => {
+    const d = L.DomUtil.create("div", "map-legend");
+    d.innerHTML = `<div class="map-legend-title">${isGrade ? "Lejtés" : label} (${unit})</div>`
+      + colors.map((c, i) => `<div class="map-legend-row"><span style="background:${c}"></span>${labels[i]}</div>`).join("");
+    return d;
+  };
+  _colorLegend.addTo(_map);
 }

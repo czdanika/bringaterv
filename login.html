@@ -43,6 +43,20 @@
       transform: scale(1.04);
     }
 
+    /* Álló képernyőn (telefon, iPad állóban) a széles kép közepe látszana – helyette
+       a kör alakú embléma a kártya fölött, ugyanazzal a sötétített hangulattal */
+    @media (max-aspect-ratio: 4/5) {
+      body { padding-top: calc(5vh + min(52vw, 280px) + 20px + env(safe-area-inset-top)); }
+      .bg {
+        background-color: #f5f2e9;
+        background-image: url('./src/assets/icons/icon-512.png');
+        background-repeat: no-repeat;
+        background-size: min(52vw, 280px);
+        background-position: center calc(5vh + env(safe-area-inset-top));
+        transform: none;
+      }
+    }
+
     .card {
       position: relative;
       z-index: 10;
