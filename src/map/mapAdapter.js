@@ -1066,9 +1066,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     calculateRoute,
     invalidateSize: () => map.invalidateSize({ pan: false }),
     fitRoute: () => {
-      if (routeLayer.getLatLngs().length > 1) {
-        map.fitBounds(routeLayer.getBounds(), fitOptions());
+      // Színezett útvonalnál a sima réteg üres – akkor a színezett csoportokból számolunk
+      let b = routeLayer.getLatLngs().length > 1 ? routeLayer.getBounds() : null;
+      if (!b) {
+        for (const g of [coloredRouteGroup, hrRouteGroup, cadRouteGroup, powerRouteGroup, gradeRouteGroup, windRouteGroup]) {
+          if (!map.hasLayer(g)) continue;
+          g.eachLayer((l) => { if (l.getBounds) b = b ? b.extend(l.getBounds()) : L.latLngBounds(l.getBounds().getSouthWest(), l.getBounds().getNorthEast()); });
+        }
       }
+      if (b && b.isValid()) map.fitBounds(b, fitOptions());
     },
     focusWaypoint: (lat, lng) => map.setView([lat, lng], Math.max(map.getZoom(), 15)),
     renderRoute,
@@ -1240,11 +1246,15 @@ export function straightLineRoute(waypoints) {
 /** Útvonal-illesztés paddingje: mobilon a felhúzható panel takarja a térkép
  *  alját, ezért ott annak magasságát alul hozzáadjuk. */
 function fitOptions() {
+  // A nyitott diagram / szél panel (a térkép alján) is takar – azt is levonjuk
+  const charts = document.getElementById("elevationPanel");
+  const chartsH = charts && !charts.hidden ? charts.getBoundingClientRect().height || 0 : 0;
   const inner = document.querySelector(".sidebar-inner");
   if (isMobileLayout() && inner) {
     const sheet = inner.getBoundingClientRect().height || 0;
-    return { paddingTopLeft: [32, 64], paddingBottomRight: [32, sheet + 32], maxZoom: 15 };
+    return { paddingTopLeft: [32, 64], paddingBottomRight: [32, sheet + chartsH + 32], maxZoom: 15 };
   }
+  if (chartsH) return { paddingTopLeft: [44, 44], paddingBottomRight: [44, chartsH + 44], maxZoom: 15 };
   return { padding: [44, 44], maxZoom: 15 };
 }
 

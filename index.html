@@ -833,7 +833,7 @@
               </button>
             </div>
           </div>
-          <input id="libraryImportFileInput" type="file" accept=".gpx,.fit,application/gpx+xml" hidden>
+          <input id="libraryImportFileInput" type="file" hidden>
         </div>
 
         <div id="libraryGrid" class="library-grid"></div>
@@ -1236,7 +1236,7 @@
           </button>
           </div><!-- /toolbarContent -->
         </div>
-        <input id="gpxInput" type="file" accept=".gpx,.fit,application/gpx+xml" hidden>
+        <input id="gpxInput" type="file" hidden>
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
         <!-- Elevation Profile Panel -->
@@ -1932,20 +1932,29 @@
       <i data-lucide="book-open" aria-hidden="true"></i>
       <span>Súgó és kézikönyv</span>
     </a>
+    <button class="dropdown-item" id="feedbackButton" type="button">
+      <i data-lucide="bug" aria-hidden="true"></i>
+      <span>Hibajelentés, ötlet</span>
+    </button>
+    <button class="dropdown-item" id="aboutButton" type="button">
+      <i data-lucide="info" aria-hidden="true"></i>
+      <span>Névjegy</span>
+    </button>
     <a class="dropdown-item" id="privacyButton" href="./privacy.html" target="_blank" rel="noopener">
       <i data-lucide="shield-check" aria-hidden="true"></i>
       <span>Adatkezelés</span>
     </a>
     <div class="dropdown-divider" id="adminDivider" hidden></div>
-    <a class="dropdown-item" id="adminButton" href="./admin.html" hidden>
-      <i data-lucide="users" aria-hidden="true"></i>
-      <span>Felhasználók</span>
+    <a class="dropdown-item" id="adminButton" href="./admin" hidden>
+      <i data-lucide="shield" aria-hidden="true"></i>
+      <span>Admin felület</span>
     </a>
     <div class="dropdown-divider" id="logoutDivider" hidden></div>
     <button class="dropdown-item dropdown-item--danger" id="logoutButton" type="button" hidden>
       <i data-lucide="log-out" aria-hidden="true"></i>
       <span>Kijelentkezés</span>
     </button>
+    <button class="dropdown-version" id="dropdownVersion" type="button" title="Névjegy"></button>
   </div>
 
 
@@ -1961,6 +1970,48 @@
   </div>
 
   <div class="settings-body">
+
+  <!-- Fiók: e-mail-cím megerősítése, jelszócsere (src/ui/account.js) -->
+  <section class="settings-section" data-settings-section="account" id="accountSection" hidden>
+  <h4 class="settings-section-title">
+  <i data-lucide="user-round" aria-hidden="true"></i>
+  Fiók
+  <button class="hint-btn" type="button" data-hint-title="Fiók" data-hint="Az e-mail-címedre küldjük az elfelejtett jelszó linket. Új vagy módosított címet egy levélben kapott linkkel kell megerősíteni. Jelszócsere után a többi eszközön újra be kell lépni." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+    <div class="account-row"><span class="settings-field-hint">Belépési név</span><b id="accountLogin">–</b></div>
+    <label class="settings-field-label" for="accountEmail">E-mail-cím <span id="accountEmailBadge" class="account-badge"></span></label>
+    <div class="account-inline">
+      <input id="accountEmail" class="export-input" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nev@pelda.hu">
+      <button id="accountEmailSave" class="notify-btn notify-btn--primary" type="button">Mentés</button>
+    </div>
+    <p id="accountEmailHint" class="settings-field-hint"></p>
+    <div id="accountCodeRow" class="account-inline account-code" hidden>
+      <input id="accountCode" class="export-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+             maxlength="6" placeholder="6 számjegyű kód" aria-label="Megerősítő kód">
+      <button id="accountCodeBtn" class="notify-btn notify-btn--primary" type="button">Megerősítés</button>
+    </div>
+    <button id="accountResend" class="notify-btn account-resend" type="button" hidden>Új kód kérése</button>
+
+    <div class="settings-field-label account-pw-title">Jelszó módosítása</div>
+    <input id="accountPwCurrent" class="export-input account-pw" type="password" autocomplete="current-password" placeholder="Jelenlegi jelszó">
+    <input id="accountPwNew" class="export-input account-pw" type="password" autocomplete="new-password" placeholder="Új jelszó (min. 8 karakter)">
+    <input id="accountPwNew2" class="export-input account-pw" type="password" autocomplete="new-password" placeholder="Új jelszó újra">
+    <div class="account-inline account-pw-foot">
+      <span id="accountPwMsg" class="settings-field-hint"></span>
+      <button id="accountPwSave" class="notify-btn notify-btn--primary" type="button">Jelszó módosítása</button>
+    </div>
+
+    <div id="accountDeleteBox" class="account-danger" hidden>
+      <div class="settings-field-label">Fiók törlése</div>
+      <p class="settings-field-hint">A fiókod és minden adatod (útvonalak, edzések, beállítások, Strava-kapcsolat) véglegesen törlődik. Ez nem vonható vissza.</p>
+      <button id="accountDeleteBtn" class="notify-btn account-danger-btn" type="button">Fiók törlése…</button>
+    </div>
+  </div>
+  </section>
 
   <!-- Térképstílus -->
   <section class="settings-section" data-settings-section="mapStyle">

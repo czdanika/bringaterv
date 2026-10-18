@@ -13,6 +13,7 @@ Modulok:
   db.py               SQLite séma, migrációk, user létrehozás
   auth.py             require_auth / require_admin dekorátorok
   api_auth.py         /api/auth/* + /api/user/settings
+  api_account.py      /api/account* (e-mail megerősítés, jelszócsere), /api/auth/forgot|reset
   api_admin.py        /api/admin/users*, /api/admin/stats
   api_routes.py       /api/routes*
   api_samples.py      /api/samples* + /api/admin/samples*
@@ -21,6 +22,8 @@ Modulok:
   api_strava.py       /api/strava/* + /api/admin/strava/config
   garmin_service.py   Garmin helperek (login, MFA state, tokenek, testsúly)
   api_garmin.py       /api/garmin/*
+  api_feedback.py     /api/feedback + /api/admin/feedback*, /api/admin/mail*
+  mailer.py           SMTP e-mail küldés (env: SMTP_*, FEEDBACK_TO)
 """
 
 import os
@@ -28,10 +31,13 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 
+import api_account
 import api_admin
 import api_auth
 import api_backup
+import api_feedback
 import api_garmin
+import api_invite
 import api_notify
 import api_public
 import api_records
@@ -49,6 +55,7 @@ CORS(app)
 os.makedirs(_LEGACY_USER_DIR, exist_ok=True)
 
 app.register_blueprint(api_auth.bp)
+app.register_blueprint(api_account.bp)
 app.register_blueprint(api_admin.bp)
 app.register_blueprint(api_routes.bp)
 app.register_blueprint(api_samples.bp)
@@ -58,6 +65,8 @@ app.register_blueprint(api_garmin.bp)
 app.register_blueprint(api_public.bp)
 app.register_blueprint(api_records.bp)
 app.register_blueprint(api_notify.bp)
+app.register_blueprint(api_invite.bp)
+app.register_blueprint(api_feedback.bp)
 
 # Automatikus Strava import – háttérszál (több worker közül csak egy dolgozik)
 from strava_sync import start_scheduler  # noqa: E402

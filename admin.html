@@ -286,6 +286,97 @@
 
     .loading { text-align: center; padding: 40px; color: var(--muted); }
     .error-state { text-align: center; padding: 40px; color: var(--red); }
+
+    /* ── Fülek, szekciók ───────────────────────────────────────────────── */
+    .admin-tabs { display: flex; gap: 4px; margin: 4px 0 18px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+    .admin-tab { padding: 10px 14px; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
+    .admin-tab:hover { color: var(--text); }
+    a.btn { text-decoration: none; }
+    .tab-count { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+    .fb-mail { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; border: 1px solid var(--border); background: var(--panel); }
+    .fb-mail.is-off { background: #fff7ed; border-color: #fed7aa; }
+    .fb-mail .grow { flex: 1; min-width: 200px; }
+    .fb-filter { display: flex; gap: 4px; }
+    .fb-filter .btn { padding: 5px 10px; font-size: 12px; }
+    .fb-filter .btn.is-on { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .fb-list { display: flex; flex-direction: column; }
+    .fb-item { padding: 14px 20px; border-top: 1px solid var(--border); }
+    .fb-item:first-child { border-top: 0; }
+    .fb-item.is-done { opacity: .65; }
+    .fb-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .fb-title { font-weight: 700; font-size: 14px; flex: 1; min-width: 160px; }
+    .fb-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .fb-desc { margin: 8px 0 0; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+    .fb-tech { margin-top: 8px; font-size: 12px; }
+    .fb-tech summary { cursor: pointer; color: var(--muted); }
+    .fb-tech dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; }
+    .fb-tech dt { color: var(--muted); }
+    .fb-tech dd { margin: 0; word-break: break-word; }
+    .fb-img { display: block; max-width: 100%; max-height: 360px; margin-top: 8px; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in; }
+    .fb-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .fb-actions .btn { padding: 5px 10px; font-size: 12px; }
+    .msg-to { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .msg-to b { color: var(--text); }
+    .msg-tpl-row { display: flex; gap: 8px; }
+    .msg-tpl-row .form-input { flex: 1; min-width: 0; }
+    .msg-tpl-row .btn { white-space: nowrap; padding: 6px 12px; font-size: 13px; }
+    .msg-tpl-row [hidden] { display: none; }
+    @media (max-width: 760px) { .msg-tpl-row { flex-wrap: wrap; } .msg-tpl-row .form-input { flex-basis: 100%; } }
+    .msg-channels { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .msg-channel { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; }
+    .msg-channel input { margin-top: 2px; accent-color: var(--brand); }
+    .msg-channel span { display: flex; flex-direction: column; gap: 2px; }
+    .msg-channel small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .msg-result { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 13px; line-height: 1.5; }
+    @media (max-width: 760px) { .msg-channels { grid-template-columns: 1fr; } }
+    .badge-bug      { background: #fee2e2; color: var(--red); }
+    .badge-idea     { background: #dcfce7; color: var(--green); }
+    .badge-question { background: #dbeafe; color: var(--blue); }
+    .badge-other    { background: #f3f4f6; color: var(--muted); }
+    .badge-account_deleted { background: #fee2e2; color: var(--red); }
+    @media (max-width: 760px) { .fb-item { padding: 12px 14px; } }
+    .admin-help-body { padding: 4px 20px 20px; font-size: 14px; line-height: 1.6; max-width: 820px; }
+    .admin-help-body h3 { font-size: 15px; margin: 22px 0 6px; scroll-margin-top: 80px; }
+    .admin-help-body ul { padding-left: 20px; margin: 6px 0; }
+    .admin-help-body li { margin: 4px 0; }
+    .admin-help-body table { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+    .admin-help-body th, .admin-help-body td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+    .admin-help-body code { font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+    .admin-help-body a { color: var(--brand); }
+    @media (max-width: 760px) { .admin-help-body { padding: 4px 14px 16px; } }
+    .admin-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+    .panel-desc { padding: 0 20px 12px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .badge-readonly { background: #ede9fe; color: #6d28d9; }
+    .btn-danger-ghost { background: none; border: 1px solid #fecaca; color: var(--red); }
+    .btn-danger-ghost:hover { background: #fef2f2; }
+    .danger-note { padding: 10px 12px; border-radius: 8px; background: #fef2f2; color: #7f1d1d; font-size: 13px; line-height: 1.5; }
+    .link-btn { border: 0; background: none; padding: 0; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+    .inv-link-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .inv-link-row .form-input { flex: 1; min-width: 0; font-size: 13px; }
+    .inv-share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .inv-share-grid .btn { justify-content: center; text-decoration: none; }
+    .inv-share-grid [hidden] { display: none; }
+
+    /* ── Mobil: táblázat → kártyák, modálok teljes szélességben ──────────── */
+    .back-link { white-space: nowrap; }
+    @media (max-width: 760px) {
+      .main { padding: 16px 12px 40px; }
+      .topnav-subtitle { display: none; }
+      .stats-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .stat-card { padding: 10px 12px; }
+      .panel-header { flex-wrap: wrap; gap: 10px; }
+      .user-table thead { display: none; }
+      .user-table, .user-table tbody, .user-table tr, .user-table td { display: block; width: 100%; }
+      .user-table tr { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+      .user-table td { padding: 3px 0 !important; border: 0 !important; white-space: normal !important; text-align: left !important; }
+      .user-table td[data-label] { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+      .user-table td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: 12px; }
+      .user-table td:first-child { margin-bottom: 6px; }
+      .user-table .row-actions { justify-content: flex-start !important; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .modal-overlay { padding: 8px; align-items: flex-end; }
+      .modal { max-width: none !important; width: 100% !important; max-height: calc(100dvh - 16px); overflow-y: auto; }
+    }
   </style>
 </head>
 <body>
@@ -300,6 +391,7 @@
       <span class="topnav-subtitle">Admin</span>
     </div>
     <div class="topnav-end">
+      <a href="#help" class="back-link" data-help-jump title="Admin súgó">? Súgó</a>
       <a href="./index.html" class="back-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Vissza az apphoz
@@ -308,8 +400,18 @@
   </header>
 
   <main class="main">
-    <h1 class="page-title">Felhasználók kezelése</h1>
+    <h1 class="page-title">Admin felület</h1>
     <p class="page-desc" id="adminDesc">Töltés…</p>
+
+    <nav class="admin-tabs" role="tablist">
+      <button class="admin-tab is-active" data-section="users" role="tab" type="button">Felhasználók</button>
+      <button class="admin-tab" data-section="invites" role="tab" type="button">Meghívók</button>
+      <button class="admin-tab" data-section="feedback" role="tab" type="button">Visszajelzések <span class="tab-count" id="fbNewCount" hidden></span></button>
+      <button class="admin-tab" data-section="samples" role="tab" type="button">Minta útvonalak</button>
+      <button class="admin-tab" data-section="help" role="tab" type="button">Súgó</button>
+    </nav>
+
+    <section class="admin-section" data-section="users">
 
     <!-- Stat kártyák -->
     <div class="stats-row" id="statsRow" hidden>
@@ -322,11 +424,15 @@
     <div class="panel">
       <div class="panel-header">
         <span class="panel-title">Felhasználók</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-ghost" id="backupBtn" type="button" title="Backup / Restore (hamarosan)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Backup / Restore
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost" id="msgAllBtn" type="button" title="Push és/vagy e-mail minden aktív felhasználónak">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+            Üzenet mindenkinek
           </button>
+          <a class="btn btn-ghost" href="#admin-backup" data-help-jump title="Hogyan működik a backup / visszaállítás">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Backup súgó
+          </a>
           <button class="btn btn-primary" id="createUserBtn" type="button">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Új felhasználó
@@ -338,8 +444,26 @@
       </div>
     </div>
 
+    </section>
+
+    <!-- Meghívók -->
+    <section class="admin-section" data-section="invites" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Meghívók</span>
+          <button class="btn btn-primary" id="createInviteBtn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Új meghívó
+          </button>
+        </div>
+        <p class="panel-desc">Meghívó linkkel bárki regisztrálhat – a saját jelszavát ő adja meg. Küldd el üzenetben, e-mailben vagy QR-kóddal; a link lejár, és visszavonható.</p>
+        <div id="invitesWrap" style="overflow-x:auto"><div class="loading">Betöltés…</div></div>
+      </div>
+    </section>
+
     <!-- Minták panel -->
-    <div class="panel" style="margin-top:24px">
+    <section class="admin-section" data-section="samples" hidden>
+    <div class="panel">
       <div class="panel-header">
         <span class="panel-title">Minta útvonalak</span>
         <button class="btn btn-primary" id="addSampleBtn" type="button">
@@ -351,6 +475,116 @@
         <div class="loading">Betöltés…</div>
       </div>
     </div>
+    </section>
+
+    <!-- Visszajelzések (hibajelentés, ötlet, kérdés) -->
+    <section class="admin-section" data-section="feedback" hidden>
+    <div class="fb-mail" id="fbMail"></div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Visszajelzések</span>
+        <div class="fb-filter" role="group" aria-label="Szűrés">
+          <button class="btn btn-ghost is-on" data-fb-filter="new" type="button">Új</button>
+          <button class="btn btn-ghost" data-fb-filter="done" type="button">Kész</button>
+          <button class="btn btn-ghost" data-fb-filter="all" type="button">Mind</button>
+        </div>
+      </div>
+      <div id="feedbackWrap"><div class="loading">Betöltés…</div></div>
+    </div>
+    </section>
+
+    <!-- Admin súgó (csak itt, a fő súgóban nincs) -->
+    <section class="admin-section" data-section="help" hidden>
+    <div class="panel admin-help">
+      <div class="panel-header"><span class="panel-title">Admin súgó</span></div>
+      <div class="admin-help-body">
+        <p>Csak admin szerepkörrel érhető el: <b>☰ → Admin felület</b>, vagy közvetlenül a <code>/admin</code> címen. Mobilon is használható – a táblázatok kártyákká alakulnak, az ablakok alulról nyílnak.</p>
+
+        <h3 id="admin-felhasznalok">Felhasználók</h3>
+        <ul>
+          <li>Fent összesítő: összes / aktív felhasználó, mai belépések.</li>
+          <li><b>Új felhasználó</b>: felhasználónév vagy e-mail, név, jelszó, szerepkör. Kényelmesebb a <a href="#admin-meghivok" data-help-jump>meghívó</a> – akkor a felhasználó maga adja meg az adatait és a jelszavát.</li>
+          <li><b>Útvonalak</b>: a felhasználó mentett útvonalai és edzései – GPX/FIT letöltés, átnevezés, törlés.</li>
+          <li><b>Szerkeszt</b>: név, belépési név, új jelszó (üresen hagyva nem változik), szerepkör, útvonal- és tárhelykvóta.</li>
+          <li><b>Letiltás / Aktiválás</b>: a letiltott felhasználó nem tud belépni, de az adatai megmaradnak.</li>
+          <li><b>Törlés</b>: a fiók és minden adata (útvonalak, edzések, beállítások, Strava-kapcsolat) végleg törlődik. Megerősítéshez be kell írni a felhasználó e-mail-címét. Saját magadat és az utolsó aktív admint nem lehet törölni. Előtte érdemes backupot letölteni.</li>
+        </ul>
+        <table>
+          <tr><th>Szerepkör</th><th>Jelentés</th></tr>
+          <tr><td>Admin</td><td>Mindenhez hozzáfér, kezeli a felhasználókat, meghívókat, mintákat.</td></tr>
+          <tr><td>Felhasználó</td><td>Saját útvonalak, edzések, beállítások.</td></tr>
+          <tr><td>Csak olvasó</td><td>Előkészített szerepkör – jelenleg még ugyanazt tudja, mint a Felhasználó; a korlátozás egy későbbi verzióban jön.</td></tr>
+        </table>
+
+        <h3 id="admin-uzenet">Üzenet a felhasználóknak</h3>
+        <ul>
+          <li>A felhasználó sorában az <b>Üzenet</b> gombbal neki, a Felhasználók panel tetején az <b>Üzenet mindenkinek</b> gombbal az összes aktív felhasználónak küldhetsz (pl. „Új verzió érhető el”, „Holnap karbantartás”).</li>
+          <li><b>Push értesítés</b>: azokra az eszközökre megy, ahol a felhasználó engedélyezte az értesítéseket (az ablak kiírja, hány ilyen van). A pushban az üzenet eleje (kb. 200 karakter) látszik, koppintásra megnyílik az app.</li>
+          <li><b>E-mail</b>: a felhasználó e-mail-címére, a Bringaterv sablonjával és egy „Bringaterv megnyitása” gombbal. Mindenkinek külön levél megy – a címzettek nem látják egymás címét.</li>
+          <li><b>Sablonok</b>: a Sablon listában kész szövegek vannak (Új verzió érhető el, Frissült a Bringaterv, Aktuális verzió, Javítottuk a jelzett hibát, Tesztelési kérés, Karbantartás, Üdvözlés). A <code>{verzio}</code> helyére magától az aktuális verzió kerül, a „…” helyeket töltsd ki. Kiválasztás után a szöveg szabadon szerkeszthető. A <b>Mentés sablonként</b> gombbal a saját üzeneteidet is elmentheted (ebben a böngészőben tárolódnak).</li>
+          <li>Küldés után az ablak összesíti, hány eszközre és címre ment ki, kinek nincs címe, és ha hiba volt.</li>
+        </ul>
+
+        <h3 id="admin-meghivok">Meghívók</h3>
+        <ul>
+          <li><b>Új meghívó</b>: megjegyzés (csak az adminnak látszik, pl. kinek szól), szerepkör, érvényesség (1–90 nap), hányszor használható (1–50), opcionális útvonal-kvóta.</li>
+          <li>Létrehozás után QR-kód és link jelenik meg: <b>másolás</b>, a telefon <b>megosztás</b> menüje, e-mail, WhatsApp, Messenger.</li>
+          <li>A meghívott a linken regisztrál: név, belépési név, jelszó, és el kell fogadnia az adatkezelési tájékoztatót. A meghívó oldalán nem jelenik meg, ki küldte, és a megjegyzés sem.</li>
+          <li>Állapotok: <b>aktív</b>, <b>felhasznált</b> (elfogyott a használat), <b>lejárt</b>, <b>visszavont</b>. Egy aktív meghívó bármikor <b>visszavonható</b> – utána a link már nem működik.</li>
+          <li>A link a megosztásnál beállított nyilvános címmel készül (ha van), különben az aktuális címmel.</li>
+        </ul>
+
+        <h3 id="admin-backup">Backup és visszaállítás (admin)</h3>
+        <ul>
+          <li>A felhasználó sorában a <b>Backup</b> gomb: ugyanaz a ZIP, amit a felhasználó a saját Beállításaiban is letölthet (lásd <a href="./help.html#mentes-backup" target="_blank" rel="noopener">Adatok mentése</a>).</li>
+          <li>Visszaállításnál bármelyik felhasználó backupja betölthető bármelyik profilba – így lehet pl. adatot költöztetni másik szerverről vagy másik fiókból.</li>
+          <li><b>Hozzáadás</b>: biztonságos, a meglévőt nem bántja, a duplikátumokat kihagyja.</li>
+          <li><b>Teljes felülírás</b>: a régi állapot a szerveren a felhasználó mappájába kerül <code>pre_restore.zip</code> néven (mindig a legutóbbi felülírás előtti állapot). Ha tévedés volt, ezt a fájlt kell visszaállítani.</li>
+          <li>A Strava-kapcsolat (tokenek) nem kerül a mentésbe.</li>
+          <li>A szerver teljes mentése (minden felhasználó és az adatbázis) a Docker-kötet – a <code>data</code> mappa – mentésével oldható meg, pl. a NAS saját mentőfunkciójával.</li>
+          <li>A visszaállítás után a Strava-kapcsolatot a felhasználónak újra kell csatlakoztatnia, ha a profil új.</li>
+        </ul>
+
+        <h3 id="admin-visszajelzesek">Visszajelzések</h3>
+        <ul>
+          <li>A felhasználók a <b>☰ → Hibajelentés, ötlet</b> menüben (vagy a Névjegyből) küldhetnek visszajelzést: típus (Hiba / Ötlet / Kérdés / Egyéb), érintett terület, cím, leírás, opcionálisan képernyőkép és technikai adatok (verzió, böngésző, képernyőméret, nézet).</li>
+          <li>Minden visszajelzés ide kerül; a fülön a szám az újakat mutatja. <b>✓ Kész</b> jelöléssel archiválhatod, <b>Újranyitás</b>sal visszahozhatod. Ha a beküldő e-mail-címmel lép be, <b>Válasz e-mailben</b> gombbal válaszolhatsz.</li>
+          <li>Új visszajelzésnél minden admin push értesítést kap (ha engedélyezte az értesítéseket), és ha be van állítva, e-mail is megy – a képernyőkép csatolmányként, a válaszcím a beküldő.</li>
+          <li>Visszaélés ellen: felhasználónként óránként legfeljebb 10 visszajelzés, a kép legfeljebb 8 MB.</li>
+          <li><b>Fióktörlés</b>: ha egy felhasználó törli a saját fiókját (Beállítások → Fiók → Fiók törlése), itt „Fióktörlés” címkével jelenik meg az oka (pl. „Hiányzik egy funkció”) és a megjegyzése, push és e-mail is jön róla. A technikai adatoknál a regisztráció és az utolsó belépés ideje, a belépések száma látszik.</li>
+        </ul>
+        <p><b>E-mail beállítása</b> – a szerver környezeti változóival (docker-compose / Portainer stack, <code>routes-api</code> szolgáltatás), utána a konténer újraindítása:</p>
+        <table>
+          <tr><th>Változó</th><th>Jelentés</th></tr>
+          <tr><td><code>SMTP_HOST</code></td><td>SMTP szerver, pl. <code>smtp.gmail.com</code></td></tr>
+          <tr><td><code>SMTP_PORT</code></td><td><code>587</code> (STARTTLS, alapértelmezett) vagy <code>465</code> (SSL)</td></tr>
+          <tr><td><code>SMTP_USER</code></td><td>bejelentkezési név (Gmailnél a teljes e-mail-cím)</td></tr>
+          <tr><td><code>SMTP_PASSWORD</code></td><td>jelszó – Gmailnél <b>alkalmazásjelszó</b> (Google-fiók → Biztonság → Kétlépcsős azonosítás → Alkalmazásjelszavak)</td></tr>
+          <tr><td><code>SMTP_FROM</code></td><td>feladó címe (alapból az SMTP_USER)</td></tr>
+          <tr><td><code>FEEDBACK_TO</code></td><td>hova menjenek a visszajelzések, több cím vesszővel (alapból a feladó)</td></tr>
+        </table>
+        <p>A beállítás után a Visszajelzések fül tetején a <b>Teszt e-mail</b> gombbal ellenőrizheted.</p>
+
+        <h3 id="admin-email-megerosites">E-mail-megerősítés, elfelejtett jelszó</h3>
+        <ul>
+          <li>Ha az e-mail küldés be van állítva (lásd <a href="#admin-visszajelzesek" data-help-jump>Visszajelzések</a>), minden <b>nem admin</b> felhasználónak meg kell erősítenie az e-mail-címét: amíg nem teszi, belépés után egy ablak kéri, és az app adatait nem éri el. Az adminokat nem zárja ki, hogy egy rossz beállítás miatt ne zárhasd ki magad.</li>
+          <li>Meghívóval regisztrálni már csak e-mail-címmel lehet (ez lesz a belépési név). A regisztráció után azonnal megy a megerősítő levél egy <b>6 számjegyű kóddal</b> (15 perc, legfeljebb 5 próbálkozás) és egy linkkel (48 óra); a felhasználó az app ablakában írja be a kódot.</li>
+          <li>A Felhasználók listában a ✉️ sor mutatja a címet: ✓ megerősítve, ⏳ vár, vagy nincs megadva. A <b>Szerkeszt</b> ablakban módosíthatod, és kézzel <b>megerősítettnek jelölheted</b> (pl. ha a felhasználó nem kapja meg a levelet).</li>
+          <li><b>Elfelejtett jelszó</b>: a belépő oldalon kérhető; csak megerősített címre (vagy ha a belépési név maga az e-mail-cím) megy ki a 60 percig érvényes, egyszer használható link. Óránként legfeljebb 3 kérés fiókonként. Ha valakinek nincs címe, a <b>Szerkeszt</b> ablakban adj neki új jelszót.</li>
+          <li>Jelszócsere (akár a felhasználó, akár az admin csinálja, akár visszaállító linkkel) után az összes korábbi belépés érvénytelen – a többi eszközön újra be kell lépni.</li>
+        </ul>
+        <p>Kapcsolódó környezeti változók:</p>
+        <table>
+          <tr><th>Változó</th><th>Jelentés</th></tr>
+          <tr><td><code>PUBLIC_URL</code></td><td>a levelekben lévő linkek alapcíme, pl. <code>https://bringaterv.example.hu</code> – erősen ajánlott beállítani</td></tr>
+          <tr><td><code>REQUIRE_EMAIL_VERIFICATION</code></td><td><code>true</code> (alapértelmezett) vagy <code>false</code> – kötelező-e a megerősítés. E-mail küldés nélkül sosem kötelező.</td></tr>
+        </table>
+
+        <h3 id="admin-mintak">Minta útvonalak</h3>
+        <p>Előre feltöltött GPX-ek, amelyeket minden felhasználó lát a mintatárban: feltöltés, név, típus, távolság, idő, emelkedő, leírás – szerkeszthetők és törölhetők.</p>
+      </div>
+    </div>
+    </section>
 
   </main>
 
@@ -363,7 +597,7 @@
       </div>
       <div class="modal-body">
         <p class="form-label">Backup letöltése</p>
-        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">A felhasználó teljes profilját (beállítások, útvonalak, edzések) ZIP archívumba menti.</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">A felhasználó profilját ZIP-be menti: beállítások, értesítési beállítások, mentett útvonalak, edzések. A Strava-kapcsolat (tokenek) nem kerül bele – visszaállítás után újra kell csatlakoztatni.</p>
         <button id="backupDownloadBtn" class="btn btn-primary" type="button" style="margin-bottom:18px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Backup letöltése (.zip)
@@ -372,21 +606,21 @@
         <hr style="border:none;border-top:1px solid var(--border);margin:0 0 18px">
 
         <p class="form-label">Visszaállítás backupból</p>
-        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">ZIP fájl feltöltése a kiválasztott felhasználó profiljába.</p>
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 10px">Bringaterv backup ZIP feltöltése ebbe a profilba (más felhasználó mentése is betölthető, pl. költöztetéskor).</p>
         <input id="backupRestoreFile" type="file" accept=".zip" class="form-input" style="margin-bottom:12px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
             <input type="radio" name="backupRestoreMode" value="merge" checked>
             <div>
               <div style="font-weight:600">Hozzáadás</div>
-              <div style="font-size:11px;color:var(--muted)">Új ID-k, biztonságos</div>
+              <div style="font-size:11px;color:var(--muted)">Ami már megvan, kimarad</div>
             </div>
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
             <input type="radio" name="backupRestoreMode" value="replace">
             <div>
               <div style="font-weight:600">Teljes felülírás</div>
-              <div style="font-size:11px;color:var(--muted)">Óvatosan!</div>
+              <div style="font-size:11px;color:var(--muted)">Előtte automatikus mentés</div>
             </div>
           </label>
         </div>
@@ -503,6 +737,146 @@
     </div>
   </div>
 
+  <!-- Felhasználó törlése -->
+  <div class="modal-overlay" id="deleteModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Felhasználó törlése</span>
+        <button class="modal-close" data-close="deleteModal" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="danger-note">A(z) <b id="delName"></b> fiók <b>véglegesen törlődik</b> minden adatával együtt: útvonalak, edzések, beállítások, Strava- és Garmin-kapcsolat. Ez nem vonható vissza.</p>
+        <p style="font-size:13px;margin:12px 0">Előtte érdemes <button class="link-btn" id="delBackupBtn" type="button">letölteni a profil mentését (ZIP)</button>.</p>
+        <div class="form-group">
+          <label class="form-label">A megerősítéshez írd be: <code id="delEmailHint"></code></label>
+          <input class="form-input" id="delConfirm" type="text" autocomplete="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <p class="form-error" id="delError"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="deleteModal" type="button">Mégse</button>
+        <button class="btn btn-danger" id="delSubmitBtn" type="button" disabled>Végleges törlés</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Új meghívó -->
+  <div class="modal-overlay" id="inviteModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Új meghívó</span>
+        <button class="modal-close" data-close="inviteModal" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Kinek? (megjegyzés, csak neked látszik)</label>
+          <input class="form-input" id="invNote" type="text" placeholder="pl. Péter, edzőtárs" maxlength="200">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Szerepkör</label>
+            <select class="form-input form-select" id="invRole">
+              <option value="user">Felhasználó</option>
+              <option value="readonly">Csak olvasó</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Érvényes</label>
+            <select class="form-input form-select" id="invDays">
+              <option value="1">1 napig</option>
+              <option value="7" selected>7 napig</option>
+              <option value="30">30 napig</option>
+              <option value="90">90 napig</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hányszor használható</label>
+            <select class="form-input form-select" id="invUses">
+              <option value="1" selected>1 fő</option>
+              <option value="5">5 fő</option>
+              <option value="20">20 fő</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Útvonal-kvóta</label>
+            <input class="form-input" id="invQuota" type="number" min="1" placeholder="alapért.: 50">
+          </div>
+        </div>
+        <p class="form-error" id="invError"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="inviteModal" type="button">Mégse</button>
+        <button class="btn btn-primary" id="invSubmitBtn" type="button">Meghívó létrehozása</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Üzenet küldése (push / e-mail) -->
+  <div class="modal-overlay" id="messageModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="msgTitleHead">Üzenet küldése</span>
+        <button class="modal-close" data-close="messageModal" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="msg-to" id="msgTo"></p>
+        <div class="form-group">
+          <label class="form-label" for="msgTemplate">Sablon</label>
+          <div class="msg-tpl-row">
+            <select class="form-input form-select" id="msgTemplate"></select>
+            <button class="btn btn-ghost" id="msgTplSave" type="button" title="A mostani címet és szöveget elmenti saját sablonként">Mentés sablonként</button>
+            <button class="btn btn-danger-ghost" id="msgTplDel" type="button" title="Saját sablon törlése" hidden>Törlés</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="msgTitle">Cím</label>
+          <input class="form-input" id="msgTitle" type="text" maxlength="120" placeholder="pl. Új verzió érhető el">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="msgBody">Üzenet</label>
+          <textarea class="form-input" id="msgBody" rows="5" maxlength="4000" placeholder="Pushban az első kb. 200 karakter látszik, e-mailben a teljes szöveg."></textarea>
+        </div>
+        <div class="msg-channels">
+          <label class="msg-channel"><input type="checkbox" id="msgPush" checked>
+            <span><b>Push értesítés</b><small id="msgPushInfo"></small></span></label>
+          <label class="msg-channel"><input type="checkbox" id="msgEmail">
+            <span><b>E-mail</b><small id="msgEmailInfo"></small></span></label>
+        </div>
+        <p class="form-error" id="msgError"></p>
+        <p class="msg-result" id="msgResult" hidden></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="messageModal" type="button">Bezárás</button>
+        <button class="btn btn-primary" id="msgSendBtn" type="button">Küldés</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meghívó link megosztása -->
+  <div class="modal-overlay" id="inviteLinkModal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Meghívó link</span>
+        <button class="modal-close" data-close="inviteLinkModal" type="button">×</button>
+      </div>
+      <div class="modal-body" style="text-align:center">
+        <canvas id="invQr" width="200" height="200" style="width:200px;height:200px;border-radius:12px;background:#fff;padding:8px"></canvas>
+        <p id="invMeta" style="font-size:12px;color:var(--muted);margin:8px 0 12px"></p>
+        <div class="inv-link-row">
+          <input class="form-input" id="invLink" type="text" readonly>
+          <button class="btn btn-ghost" id="invCopyBtn" type="button">Másolás</button>
+        </div>
+        <div class="inv-share-grid">
+          <button class="btn btn-primary" id="invNativeShare" type="button">Megosztás…</button>
+          <a class="btn btn-ghost" id="invMail" target="_blank" rel="noopener">E-mail</a>
+          <a class="btn btn-ghost" id="invWhatsapp" target="_blank" rel="noopener">WhatsApp</a>
+          <a class="btn btn-ghost" id="invMessenger" target="_blank" rel="noopener">Messenger</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Szerkesztés / jelszócsere modal -->
   <div class="modal-overlay" id="editModal" hidden>
     <div class="modal">
@@ -569,7 +943,8 @@
   </div>
 
   <script type="module">
-    import { requireAdmin } from "./src/auth.js";
+    import { requireAdmin, getUser } from "./src/auth.js";
+    import { config as appConfig } from "./src/config.js";
     import { routesApi } from "./src/api/routesApi.js";
     import { importGpx, calcElevationFromGeometry } from "./src/gpx/gpx.js";
     import { analyzeSurface, MODE_LABELS } from "./src/map/surfaceAnalysis.js";
@@ -577,6 +952,7 @@
     const SEGMENT_COLORS = { asphalt: "#1976d2", gravel: "#F97316", mtb: "#22C55E", hiking: "#A855F7" };
 
     requireAdmin();
+    const _me = getUser();
 
     // ── Stat kártyák ──────────────────────────────────────────────────────────
     async function loadStats() {
@@ -629,16 +1005,20 @@
                   <div>
                     <div class="user-name">${escHtml(u.name)}</div>
                     <div class="user-email">${escHtml(u.email)}</div>
+                    <div class="user-email">${u.contact_email
+                      ? `✉️ ${escHtml(u.contact_email)} ${u.email_verified_at ? `<span style="color:var(--green)" title="Megerősítve">✓</span>` : `<span style="color:var(--yellow)" title="Nincs megerősítve">⏳</span>`}`
+                      : `<span style="color:var(--yellow)">✉️ nincs e-mail-cím</span>`}</div>
                   </div>
                 </td>
-                <td><span class="badge badge-${u.role}">${u.role === "admin" ? "Admin" : "User"}</span></td>
-                <td><span class="badge ${u.active ? "badge-on" : "badge-off"}">${u.active ? "Aktív" : "Tiltott"}</span></td>
-                <td style="white-space:nowrap">${u.stats?.routes ?? 0} / ${u.quota_routes}</td>
-                <td style="white-space:nowrap">${fmtMb(u.stats?.storage_mb ?? 0)} / ${u.quota_mb} MB</td>
-                <td style="white-space:nowrap">${fmtDate(u.last_login_at)}</td>
-                <td style="white-space:nowrap;text-align:center">${u.login_count}</td>
+                <td data-label="Szerepkör"><span class="badge badge-${u.role}">${u.role === "admin" ? "Admin" : u.role === "readonly" ? "Csak olvasó" : "Felhasználó"}</span></td>
+                <td data-label="Státusz"><span class="badge ${u.active ? "badge-on" : "badge-off"}">${u.active ? "Aktív" : "Tiltott"}</span></td>
+                <td data-label="Útvonalak" style="white-space:nowrap">${u.stats?.routes ?? 0} / ${u.quota_routes}</td>
+                <td data-label="Tárolt adat" style="white-space:nowrap">${fmtMb(u.stats?.storage_mb ?? 0)} / ${u.quota_mb} MB</td>
+                <td data-label="Utolsó belépés" style="white-space:nowrap">${fmtDate(u.last_login_at)}</td>
+                <td data-label="Belépések" style="white-space:nowrap">${u.login_count}</td>
                 <td style="white-space:nowrap">
                   <div class="row-actions" style="justify-content:flex-end">
+                    <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="message" data-id="${u.id}" title="Push / e-mail küldése">Üzenet</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">Útvonalak</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="backup" data-id="${u.id}" data-email="${escHtml(u.email)}" title="Profil ZIP letöltése">Backup</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
@@ -646,6 +1026,8 @@
                     <button class="btn ${u.active ? "btn-danger" : "btn-ghost"}" style="padding:5px 10px;font-size:12px" data-action="toggle" data-id="${u.id}" data-active="${u.active}">
                       ${u.active ? "Tiltás" : "Aktivál"}
                     </button>` : ""}
+                    ${u.id !== _me?.id ? `
+                    <button class="btn btn-danger-ghost" style="padding:5px 10px;font-size:12px" data-action="delete" data-id="${u.id}" title="Fiók végleges törlése">Törlés</button>` : ""}
                   </div>
                 </td>
               </tr>
@@ -663,6 +1045,8 @@
           if (action === "toggle") toggleActive(user);
           if (action === "files")  openFilesModal(btn.dataset.id, btn.dataset.name);
           if (action === "backup") openBackupModal(btn.dataset.id, btn.dataset.email);
+          if (action === "delete") openDeleteModal(user);
+          if (action === "message") openMessageModal([user]);
         });
       });
     }
@@ -750,6 +1134,13 @@
           <input class="form-input" id="editEmail" type="text" value="${escHtml(user.email)}">
         </div>
         <div class="form-group">
+          <label class="form-label">Értesítési e-mail-cím <span style="font-weight:400;color:#9ca3af">(elfelejtett jelszó, megerősítés)</span></label>
+          <input class="form-input" id="editContact" type="email" value="${escHtml(user.contact_email || "")}" placeholder="nincs megadva">
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="editVerified" ${user.email_verified_at ? "checked" : ""}> Megerősítettnek jelölöm
+          </label>
+        </div>
+        <div class="form-group">
           <label class="form-label">Új jelszó <span style="font-weight:400;color:#9ca3af">(üresen hagyva nem változik)</span></label>
           <input class="form-input" id="editPassword" type="password" autocomplete="new-password" placeholder="••••••">
         </div>
@@ -790,6 +1181,8 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
           last_name:     document.querySelector("#editLastName").value.trim(),
           email:         document.querySelector("#editEmail").value.trim(),
           ...(pw ? { password: pw } : {}),
+          contact_email: document.querySelector("#editContact").value.trim(),
+          email_verified: document.querySelector("#editVerified").checked,
           role:          document.querySelector("#editRole").value,
           quota_routes:  parseInt(document.querySelector("#editQuotaRoutes").value, 10),
           quota_mb:      parseInt(document.querySelector("#editQuotaMb").value, 10),
@@ -1104,8 +1497,8 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (!file) return;
       const mode = document.querySelector('input[name="backupRestoreMode"]:checked').value;
       const confirmMsg = mode === "replace"
-        ? `Biztosan teljesen felülírod a(z) ${_backupUserEmail} profilját?\n\nA jelenlegi beállításai, útvonalai és edzései TÖRLŐDNEK.\n\nVisszafordíthatatlan!`
-        : `Backup hozzáadása a meglévő tartalom mellé (új ID-kkel)?`;
+        ? `Biztosan teljesen felülírod a(z) ${_backupUserEmail} profilját?\n\nA jelenlegi beállításai, útvonalai és edzései törlődnek, és a backup tartalma kerül a helyükre.\nElőtte automatikus mentés készül a szerveren (pre_restore.zip).`
+        : `Backup hozzáadása a meglévő tartalom mellé?\nAmi már megvan (azonos Strava-edzés vagy azonos név, dátum és táv), kimarad.`;
       if (!confirm(confirmMsg)) return;
 
       const btn = document.querySelector("#backupRestoreBtn");
@@ -1114,7 +1507,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       statusEl.textContent = "Visszaállítás folyamatban…";
       try {
         const result = await routesApi.admin.restoreUserBackup(_backupUserId, file, mode);
-        statusEl.textContent = `Kész: ${result.routes_added} útvonal, ${result.workouts_added} edzés${result.settings_restored ? ", beállítások visszaállítva" : ""}.`;
+        statusEl.textContent = `Kész: ${result.routes_added} útvonal, ${result.workouts_added} edzés${result.skipped ? `, ${result.skipped} már meglévő kihagyva` : ""}${result.settings_restored ? ", beállítások visszaállítva" : ""}.`;
         await loadUsers();
       } catch (err) {
         statusEl.textContent = "Hiba: " + err.message;
@@ -1127,10 +1520,6 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       m.addEventListener("click", e => { if (e.target === m) m.hidden = true; });
     });
 
-    // A panel-fejléc Backup gombja: jelenleg placeholder (későbbi: rendszer-szintű backup)
-    document.querySelector("#backupBtn").addEventListener("click", () => {
-      alert("Rendszer-szintű backup hamarosan. Per-user backup elérhető a felhasználói sorokban.");
-    });
 
     // ── Minták szekció ────────────────────────────────────────────────────────
     const SAMPLE_TYPE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra", cycling: "Kerékpár" };
@@ -1399,10 +1788,413 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
     // (Strava app config: már nem az admin panelben, hanem per-user a Beállításokban)
 
+    // ── Fülek (Felhasználók / Meghívók / Minta útvonalak) ─────────────────────
+    function showSection(name) {
+      document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("is-active", t.dataset.section === name));
+      document.querySelectorAll(".admin-section").forEach(sec => { sec.hidden = sec.dataset.section !== name; });
+      if (name === "invites") loadInvites();
+      if (name === "feedback") loadFeedback();
+      try { history.replaceState(null, "", "#" + name); } catch {}
+    }
+    document.querySelectorAll(".admin-tab").forEach(t => t.addEventListener("click", () => showSection(t.dataset.section)));
+    // Súgó-linkek: a Súgó fülre váltanak, és a kért alfejezethez görgetnek
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a[data-help-jump]");
+      if (!a) return;
+      e.preventDefault();
+      showSection("help");
+      const id = a.getAttribute("href").slice(1);
+      const target = id !== "help" && document.getElementById(id);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.scrollTo({ top: 0 });
+    });
+    document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => {
+      document.getElementById(b.dataset.close).hidden = true;
+    }));
+
+    // ── Felhasználó törlése (e-mail begépelésével megerősítve) ───────────────
+    let _delUser = null;
+    function openDeleteModal(user) {
+      _delUser = user;
+      document.querySelector("#delName").textContent = `${user.name} (${user.email})`;
+      document.querySelector("#delEmailHint").textContent = user.email;
+      const inp = document.querySelector("#delConfirm");
+      inp.value = "";
+      document.querySelector("#delError").textContent = "";
+      document.querySelector("#delSubmitBtn").disabled = true;
+      document.querySelector("#deleteModal").hidden = false;
+      setTimeout(() => inp.focus(), 50);
+    }
+    document.querySelector("#delConfirm").addEventListener("input", (e) => {
+      document.querySelector("#delSubmitBtn").disabled =
+        !_delUser || e.target.value.trim().toLowerCase() !== _delUser.email.toLowerCase();
+    });
+    document.querySelector("#delBackupBtn").addEventListener("click", () => {
+      if (_delUser) openBackupModal(_delUser.id, _delUser.email);
+    });
+    document.querySelector("#delSubmitBtn").addEventListener("click", async () => {
+      const btn = document.querySelector("#delSubmitBtn");
+      btn.disabled = true; btn.textContent = "Törlés…";
+      try {
+        await routesApi.admin.deleteUser(_delUser.id, document.querySelector("#delConfirm").value.trim());
+        document.querySelector("#deleteModal").hidden = true;
+        await Promise.all([loadUsers(), loadStats()]);
+      } catch (e) {
+        document.querySelector("#delError").textContent = e.message;
+      } finally {
+        btn.textContent = "Végleges törlés";
+      }
+    });
+
+    // ── Meghívók ──────────────────────────────────────────────────────────────
+    const INV_STATUS = { active: ["Aktív", "badge-on"], used: ["Felhasználva", "badge-user"], expired: ["Lejárt", "badge-off"], revoked: ["Visszavonva", "badge-off"] };
+    const ROLE_LABEL = { admin: "Admin", user: "Felhasználó", readonly: "Csak olvasó" };
+    function shareBase() {
+      let base = "";
+      try { base = (localStorage.getItem("bringaterv-share-base") || "").trim(); } catch {}
+      if (!base) base = (appConfig && appConfig.shareBaseUrl) || "";
+      return (base || location.origin).replace(/\/+$/, "");
+    }
+    const inviteUrl = (token) => `${shareBase()}/invite?t=${encodeURIComponent(token)}`;
+
+    async function loadInvites() {
+      const wrap = document.querySelector("#invitesWrap");
+      try {
+        const list = await routesApi.admin.listInvites();
+        if (!list.length) { wrap.innerHTML = `<div class="loading">Még nincs meghívó. Az „Új meghívó” gombbal készíthetsz.</div>`; return; }
+        wrap.innerHTML = `<table class="user-table invite-table"><thead><tr>
+            <th>Kinek</th><th>Szerepkör</th><th>Állapot</th><th>Felhasználva</th><th>Lejár</th><th></th></tr></thead><tbody>
+          ${list.map(i => `<tr>
+            <td><div class="user-name">${escHtml(i.note || "—")}</div><div class="user-email">${fmtDate(i.created_at)}</div></td>
+            <td data-label="Szerepkör">${ROLE_LABEL[i.role] || i.role}</td>
+            <td data-label="Állapot"><span class="badge ${INV_STATUS[i.status][1]}">${INV_STATUS[i.status][0]}</span></td>
+            <td data-label="Felhasználva">${i.uses} / ${i.max_uses}${i.used_by ? `<div class="user-email">${escHtml(i.used_by)}</div>` : ""}</td>
+            <td data-label="Lejár" style="white-space:nowrap">${fmtDate(i.expires_at)}</td>
+            <td><div class="row-actions" style="justify-content:flex-end">
+              ${i.status === "active" ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-inv-share="${escHtml(i.token)}">Link</button>
+              <button class="btn btn-danger-ghost" style="padding:5px 10px;font-size:12px" data-inv-revoke="${escHtml(i.token)}">Visszavonás</button>` : ""}
+            </div></td></tr>`).join("")}
+          </tbody></table>`;
+        wrap.querySelectorAll("[data-inv-share]").forEach(b => b.addEventListener("click", () => {
+          openInviteLink(list.find(i => i.token === b.dataset.invShare));
+        }));
+        wrap.querySelectorAll("[data-inv-revoke]").forEach(b => b.addEventListener("click", async () => {
+          if (!confirm("Visszavonod a meghívót? A link ezután nem használható.")) return;
+          await routesApi.admin.revokeInvite(b.dataset.invRevoke);
+          loadInvites();
+        }));
+      } catch (e) {
+        wrap.innerHTML = `<div class="error-state">Hiba: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    // ── Üzenet küldése (push / e-mail) ─────────────────────────────────────────
+    let _msgTargets = null;   // [user, …] vagy "all"
+
+    // Beépített sablonok – {verzio} helyére az aktuális verzió kerül; a szöveg kiválasztás után szerkeszthető
+    const MSG_TEMPLATES = [
+      { id: "new-version", name: "Új verzió érhető el", title: "Új verzió érhető el: {verzio}",
+        body: "Megjelent a Bringaterv {verzio} verziója.\n\nÚjdonságok:\n• …\n• …\n\nHa telepített appként használod, zárd be teljesen (az appváltóban felhúzva), majd nyisd meg újra – így betölt az új verzió. Böngészőben elég frissíteni az oldalt." },
+      { id: "updated", name: "Frissült a Bringaterv", title: "Frissült a Bringaterv",
+        body: "Frissítettük a Bringatervet ({verzio}). A változások már élnek, nincs teendőd.\n\nMi változott:\n• …\n\nHa bármi furcsát tapasztalsz, jelezd a ☰ → Hibajelentés, ötlet menüben." },
+      { id: "current", name: "Aktuális verzió", title: "A Bringaterv aktuális verziója: {verzio}",
+        body: "A Bringaterv jelenlegi verziója: {verzio}.\n\nA verziót a ☰ menü alján, vagy a ☰ → Névjegy ablakban ellenőrizheted. Ha régebbit látsz, zárd be teljesen az appot és nyisd meg újra." },
+      { id: "fixed", name: "Javítottuk a jelzett hibát", title: "Javítottuk a jelzett hibát",
+        body: "Köszönöm a hibajelentést! A hibát javítottuk, a javítás már él ({verzio}).\n\nHa továbbra is tapasztalod, kérlek, jelezd újra." },
+      { id: "test-request", name: "Tesztelési kérés", title: "Kérlek, próbáld ki",
+        body: "Új funkciót tettünk a Bringatervbe, és örülnék, ha kipróbálnád:\n\n…\n\nVéleményt, hibát a ☰ → Hibajelentés, ötlet menüben tudsz küldeni. Köszönöm!" },
+      { id: "maintenance", name: "Karbantartás", title: "Rövid karbantartás",
+        body: "… -án/-én … és … óra között karbantartás miatt a Bringaterv rövid ideig nem lesz elérhető. Az adataid biztonságban vannak.\n\nKöszönöm a türelmet!" },
+      { id: "welcome", name: "Üdvözlés (új tesztelő)", title: "Üdv a Bringaterv tesztelői között!",
+        body: "Köszönöm, hogy csatlakoztál a teszthez! Néhány tipp az induláshoz:\n\n• Telefonon érdemes appként telepíteni (☰ → Telepítés appként).\n• A Strava-edzéseidet a Beállítások → Strava résznél tudod összekötni.\n• A súgó a ☰ → Súgó és kézikönyv menüben van.\n• Hibát, ötletet a ☰ → Hibajelentés, ötlet menüben küldhetsz.\n\nJó tekerést!" },
+    ];
+    const TPL_KEY = "bringaterv-admin-msg-templates";
+    const loadOwnTpl = () => { try { return JSON.parse(localStorage.getItem(TPL_KEY) || "[]"); } catch { return []; } };
+    const saveOwnTpl = (list) => { try { localStorage.setItem(TPL_KEY, JSON.stringify(list)); } catch {} };
+    const fillVersion = (s) => s.replaceAll("{verzio}", window.APP_VERSION || "");
+
+    function renderTemplateSelect(selected = "") {
+      const own = loadOwnTpl();
+      const sel = document.querySelector("#msgTemplate");
+      sel.innerHTML = `<option value="">– Üres üzenet –</option>
+        <optgroup label="Beépített">${MSG_TEMPLATES.map(t => `<option value="b:${t.id}">${escHtml(t.name)}</option>`).join("")}</optgroup>
+        ${own.length ? `<optgroup label="Saját sablonok">${own.map((t, i) => `<option value="o:${i}">${escHtml(t.name)}</option>`).join("")}</optgroup>` : ""}`;
+      sel.value = selected;
+      document.querySelector("#msgTplDel").hidden = !selected.startsWith("o:");
+    }
+    document.querySelector("#msgTemplate").addEventListener("change", (e) => {
+      const v = e.target.value;
+      const titleEl = document.querySelector("#msgTitle"), bodyEl = document.querySelector("#msgBody");
+      document.querySelector("#msgTplDel").hidden = !v.startsWith("o:");
+      if ((titleEl.value || bodyEl.value) && v && !confirm("Lecseréled a mostani címet és szöveget a sablonra?")) {
+        e.target.value = ""; return;
+      }
+      let t = null;
+      if (v.startsWith("b:")) t = MSG_TEMPLATES.find(x => x.id === v.slice(2));
+      if (v.startsWith("o:")) t = loadOwnTpl()[+v.slice(2)];
+      titleEl.value = t ? fillVersion(t.title) : "";
+      bodyEl.value = t ? fillVersion(t.body) : "";
+      // a „…” helyekre ugorjon a kurzor, hogy rögtön ki lehessen tölteni
+      const i = bodyEl.value.indexOf("…");
+      bodyEl.focus();
+      if (i >= 0) bodyEl.setSelectionRange(i, i + 1);
+    });
+    document.querySelector("#msgTplSave").addEventListener("click", () => {
+      const title = document.querySelector("#msgTitle").value.trim(), body = document.querySelector("#msgBody").value.trim();
+      if (!title || !body) { document.querySelector("#msgError").textContent = "Előbb írj címet és szöveget."; return; }
+      const name = prompt("A sablon neve:", title);
+      if (!name) return;
+      const own = loadOwnTpl();
+      own.push({ name: name.trim().slice(0, 60), title, body });
+      saveOwnTpl(own);
+      renderTemplateSelect(`o:${own.length - 1}`);
+    });
+    document.querySelector("#msgTplDel").addEventListener("click", () => {
+      const v = document.querySelector("#msgTemplate").value;
+      if (!v.startsWith("o:") || !confirm("Törlöd ezt a saját sablont?")) return;
+      const own = loadOwnTpl();
+      own.splice(+v.slice(2), 1);
+      saveOwnTpl(own);
+      renderTemplateSelect("");
+    });
+    function openMessageModal(targets) {
+      _msgTargets = targets;
+      const list = targets === "all" ? _users.filter(u => u.active) : targets;
+      const devs = list.reduce((n, u) => n + (u.push_devices || 0), 0);
+      const withPush = list.filter(u => u.push_devices).length;
+      const withMail = list.filter(u => u.contact_email).length;
+      document.querySelector("#msgTitleHead").textContent = targets === "all" ? "Üzenet mindenkinek" : "Üzenet küldése";
+      document.querySelector("#msgTo").innerHTML = targets === "all"
+        ? `Címzettek: <b>minden aktív felhasználó (${list.length} fő)</b>`
+        : `Címzett: <b>${escHtml(list[0].name)}</b> (${escHtml(list[0].email)})`;
+      document.querySelector("#msgPushInfo").textContent = targets === "all"
+        ? `${withPush} felhasználó, ${devs} eszköz`
+        : (devs ? `${devs} eszközön engedélyezve` : "nincs engedélyezett eszköze – nem fog megérkezni");
+      document.querySelector("#msgEmailInfo").textContent = targets === "all"
+        ? `${withMail} felhasználónak van címe`
+        : (list[0].contact_email ? `${list[0].contact_email}${list[0].email_verified_at ? " ✓" : " (nincs megerősítve)"}` : "nincs megadva e-mail-cím");
+      document.querySelector("#msgPush").checked = targets === "all" ? true : !!devs;
+      document.querySelector("#msgEmail").checked = targets !== "all" && !devs && !!list[0].contact_email;
+      ["msgError"].forEach(id => document.getElementById(id).textContent = "");
+      document.querySelector("#msgResult").hidden = true;
+      document.querySelector("#msgSendBtn").disabled = false;
+      document.querySelector("#msgSendBtn").textContent = "Küldés";
+      document.querySelector("#msgTitle").value = "";
+      document.querySelector("#msgBody").value = "";
+      renderTemplateSelect("");
+      document.querySelector("#messageModal").hidden = false;
+      document.querySelector("#msgTitle").focus();
+    }
+    document.querySelector("#msgAllBtn").addEventListener("click", () => openMessageModal("all"));
+    document.querySelector("#msgSendBtn").addEventListener("click", async () => {
+      const err = document.querySelector("#msgError"), out = document.querySelector("#msgResult");
+      const title = document.querySelector("#msgTitle").value.trim(), body = document.querySelector("#msgBody").value.trim();
+      const push = document.querySelector("#msgPush").checked, email = document.querySelector("#msgEmail").checked;
+      err.textContent = ""; out.hidden = true;
+      if (!title || !body) { err.textContent = "Cím és üzenet kötelező."; return; }
+      if (!push && !email) { err.textContent = "Válassz legalább egy csatornát."; return; }
+      if (_msgTargets === "all" && !confirm(`Elküldöd az üzenetet minden aktív felhasználónak?`)) return;
+      const btn = document.querySelector("#msgSendBtn");
+      btn.disabled = true; btn.textContent = "Küldés…";
+      try {
+        const r = await routesApi.admin.sendMessage({
+          user_ids: _msgTargets === "all" ? "all" : _msgTargets.map(u => u.id), title, body, push, email,
+        });
+        const parts = [];
+        if (push) parts.push(`Push: ${r.push_devices} eszközre ment ki (${r.push_users} felhasználó)`);
+        if (email) parts.push(`E-mail: ${r.email_sent} elküldve`
+          + (r.email_missing ? `, ${r.email_missing} főnek nincs címe` : "")
+          + (r.email_failed ? `, ${r.email_failed} hiba (${escHtml(r.errors[0] || "")})` : ""));
+        out.innerHTML = "✓ " + parts.join("<br>");
+        out.hidden = false;
+        btn.textContent = "Elküldve";
+      } catch (e) {
+        err.textContent = e.message;
+        btn.disabled = false; btn.textContent = "Küldés";
+      }
+    });
+
+    // ── Visszajelzések ────────────────────────────────────────────────────────
+    let _fbFilter = "new";
+    let _fbItems = [];
+    document.querySelectorAll("[data-fb-filter]").forEach(b => b.addEventListener("click", () => {
+      _fbFilter = b.dataset.fbFilter;
+      document.querySelectorAll("[data-fb-filter]").forEach(x => x.classList.toggle("is-on", x === b));
+      renderFeedback();
+    }));
+
+    function renderMailStatus(mail) {
+      const box = document.querySelector("#fbMail");
+      box.classList.toggle("is-off", !mail.configured);
+      box.innerHTML = mail.configured
+        ? `<span class="grow">✉️ E-mail értesítés bekapcsolva → <b>${escHtml(mail.to.join(", "))}</b> <span style="color:var(--muted)">(${escHtml(mail.host)}:${mail.port})</span></span>
+           <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" id="fbTestMail" type="button">Teszt e-mail</button>`
+        : `<span class="grow">✉️ Az e-mail küldés nincs beállítva – a visszajelzések csak itt jelennek meg (és push értesítést kapsz). <a href="#admin-visszajelzesek" data-help-jump style="color:var(--brand)">Beállítás</a></span>`;
+      box.querySelector("#fbTestMail")?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = "Küldés…";
+        try { const r = await routesApi.admin.testMail(); alert(`Teszt e-mail elküldve: ${r.to.join(", ")}`); }
+        catch (err) { alert(err.message); }
+        finally { btn.disabled = false; btn.textContent = "Teszt e-mail"; }
+      });
+    }
+
+    async function loadFeedback() {
+      const wrap = document.querySelector("#feedbackWrap");
+      try {
+        const data = await routesApi.admin.listFeedback();
+        _fbItems = data.items;
+        renderMailStatus(data.mail);
+        const n = _fbItems.filter(i => i.status === "new").length;
+        const cnt = document.querySelector("#fbNewCount");
+        cnt.hidden = !n; cnt.textContent = n;
+        renderFeedback();
+      } catch (e) {
+        wrap.innerHTML = `<div class="error-state">Hiba: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderFeedback() {
+      const wrap = document.querySelector("#feedbackWrap");
+      const list = _fbItems.filter(i => _fbFilter === "all" || i.status === _fbFilter);
+      if (!list.length) {
+        wrap.innerHTML = `<div class="loading">${_fbFilter === "new" ? "Nincs új visszajelzés. 🎉" : "Nincs megjeleníthető visszajelzés."}</div>`;
+        return;
+      }
+      wrap.innerHTML = `<div class="fb-list">${list.map(i => `
+        <article class="fb-item ${i.status === "done" ? "is-done" : ""}" data-id="${i.id}">
+          <div class="fb-head">
+            <span class="badge badge-${escHtml(i.category)}">${escHtml(i.category_label)}</span>
+            <span class="fb-title">${escHtml(i.title)}</span>
+          </div>
+          <div class="fb-meta">${escHtml(i.area_label)} · ${escHtml(i.user_name || "")} (${escHtml(i.user_email || "")}) · ${fmtDate(i.created_at)}
+            ${i.emailed ? " · ✉️ elküldve" : (i.mail_error && i.mail_error !== "nincs beállítva" ? ` · <span style="color:var(--red)" title="${escHtml(i.mail_error)}">✉️ e-mail hiba</span>` : "")}</div>
+          <p class="fb-desc">${escHtml(i.description)}</p>
+          ${i.has_image ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;margin-top:8px" data-fb-img="${i.id}" type="button">🖼 Képernyőkép</button>` : ""}
+          ${Object.keys(i.tech || {}).length ? `<details class="fb-tech"><summary>Technikai adatok</summary><dl>
+            ${Object.entries(i.tech).map(([k, v]) => `<dt>${escHtml(k)}</dt><dd>${escHtml(v)}</dd>`).join("")}</dl></details>` : ""}
+          <div class="fb-actions">
+            ${i.status === "new"
+              ? `<button class="btn btn-primary" data-fb-status="done" type="button">✓ Kész</button>`
+              : `<button class="btn btn-ghost" data-fb-status="new" type="button">Újranyitás</button>`}
+            ${i.user_email && i.user_email.includes("@") ? `<a class="btn btn-ghost" href="mailto:${encodeURIComponent(i.user_email)}?subject=${encodeURIComponent("Re: " + i.title)}">Válasz e-mailben</a>` : ""}
+            <button class="btn btn-danger-ghost" data-fb-del type="button">Törlés</button>
+          </div>
+        </article>`).join("")}</div>`;
+    }
+
+    document.querySelector("#feedbackWrap").addEventListener("click", async (e) => {
+      const item = e.target.closest(".fb-item");
+      if (!item) return;
+      const id = item.dataset.id;
+      const imgBtn = e.target.closest("[data-fb-img]");
+      if (imgBtn) {
+        imgBtn.disabled = true;
+        try {
+          const url = URL.createObjectURL(await routesApi.admin.feedbackImage(id));
+          const img = document.createElement("img");
+          img.className = "fb-img"; img.src = url; img.alt = "Képernyőkép";
+          img.addEventListener("click", () => window.open(url, "_blank"));
+          imgBtn.replaceWith(img);
+        } catch (err) { alert("A kép nem tölthető be: " + err.message); imgBtn.disabled = false; }
+        return;
+      }
+      const st = e.target.closest("[data-fb-status]");
+      if (st) {
+        const upd = await routesApi.admin.setFeedbackStatus(id, st.dataset.fbStatus);
+        _fbItems = _fbItems.map(x => x.id === id ? upd : x);
+        const n = _fbItems.filter(i => i.status === "new").length;
+        const cnt = document.querySelector("#fbNewCount");
+        cnt.hidden = !n; cnt.textContent = n;
+        renderFeedback();
+        return;
+      }
+      if (e.target.closest("[data-fb-del]")) {
+        if (!confirm("Végleg törlöd ezt a visszajelzést?")) return;
+        await routesApi.admin.deleteFeedback(id);
+        loadFeedback();
+      }
+    });
+
+    document.querySelector("#createInviteBtn").addEventListener("click", () => {
+      document.querySelector("#invNote").value = "";
+      document.querySelector("#invQuota").value = "";
+      document.querySelector("#invError").textContent = "";
+      document.querySelector("#inviteModal").hidden = false;
+    });
+    document.querySelector("#invSubmitBtn").addEventListener("click", async () => {
+      const btn = document.querySelector("#invSubmitBtn");
+      btn.disabled = true;
+      try {
+        const inv = await routesApi.admin.createInvite({
+          note: document.querySelector("#invNote").value,
+          role: document.querySelector("#invRole").value,
+          days: Number(document.querySelector("#invDays").value),
+          max_uses: Number(document.querySelector("#invUses").value),
+          quota_routes: document.querySelector("#invQuota").value || null,
+        });
+        document.querySelector("#inviteModal").hidden = true;
+        openInviteLink(inv);
+        loadInvites();
+      } catch (e) {
+        document.querySelector("#invError").textContent = e.message;
+      } finally { btn.disabled = false; }
+    });
+
+    async function ensureQrLib() {
+      if (window.qrcode) return window.qrcode;
+      await new Promise((ok, fail) => {
+        const sc = document.createElement("script");
+        sc.src = "https://unpkg.com/qrcode-generator@1.4.4/qrcode.js";
+        sc.onload = ok; sc.onerror = fail; document.head.appendChild(sc);
+      });
+      return window.qrcode;
+    }
+    async function drawQr(canvas, text) {
+      try {
+        const qrcode = await ensureQrLib();
+        const qr = qrcode(0, "M"); qr.addData(text); qr.make();
+        const n = qr.getModuleCount(), size = 200, cell = size / n;
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = "#2d4a5a";
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+          if (qr.isDark(r, c)) ctx.fillRect(Math.floor(c * cell), Math.floor(r * cell), Math.ceil(cell), Math.ceil(cell));
+      } catch { canvas.hidden = true; }
+    }
+
+    function openInviteLink(inv) {
+      if (!inv) return;
+      const url = inviteUrl(inv.token);
+      const text = "Meghívlak a Bringatervbe – útvonaltervezés és edzésnapló. Regisztrálj ezen a linken:";
+      document.querySelector("#invLink").value = url;
+      document.querySelector("#invMeta").textContent =
+        `${ROLE_LABEL[inv.role] || inv.role} · ${inv.max_uses > 1 ? inv.max_uses + " főnek" : "1 főnek"} · lejár: ${fmtDate(inv.expires_at)}`;
+      document.querySelector("#invMail").href = `mailto:?subject=${encodeURIComponent("Meghívó a Bringatervbe")}&body=${encodeURIComponent(text + "\n" + url)}`;
+      document.querySelector("#invWhatsapp").href = `https://wa.me/?text=${encodeURIComponent(text + " " + url)}`;
+      document.querySelector("#invMessenger").href = `fb-messenger://share/?link=${encodeURIComponent(url)}`;
+      const nat = document.querySelector("#invNativeShare");
+      nat.hidden = !navigator.share;
+      nat.onclick = () => navigator.share({ title: "Meghívó a Bringatervbe", text, url }).catch(() => {});
+      const qr = document.querySelector("#invQr"); qr.hidden = false;
+      drawQr(qr, url);
+      document.querySelector("#inviteLinkModal").hidden = false;
+    }
+    document.querySelector("#invCopyBtn").addEventListener("click", async () => {
+      const inp = document.querySelector("#invLink");
+      try { await navigator.clipboard.writeText(inp.value); } catch { inp.select(); document.execCommand("copy"); }
+      const b = document.querySelector("#invCopyBtn"); b.textContent = "Másolva ✓";
+      setTimeout(() => { b.textContent = "Másolás"; }, 1500);
+    });
+
     // ── Init ──────────────────────────────────────────────────────────────────
     loadStats();
     loadUsers();
     loadSamples();
+    const startSection = (location.hash || "").slice(1);
+    loadFeedback();
+    if (["users", "invites", "feedback", "samples", "help"].includes(startSection)) showSection(startSection);
   </script>
 </body>
 </html>

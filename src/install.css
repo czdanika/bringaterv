@@ -70,3 +70,64 @@
   width: 100%; height: 42px; margin-top: 14px; border: 0; border-radius: 12px;
   background: var(--brand, #e8461e); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
 }
+
+/* ── Visszajelzés (☰ → Hibajelentés, ötlet) ───────────────────────────────── */
+.fb-card { display: flex; flex-direction: column; max-width: 480px; padding: 0;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+.fb-card .install-guide-head { padding: 18px 18px 0; }
+.fb-body { padding: 4px 18px 8px; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.fb-label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: var(--muted, #777); }
+.fb-opt { font-weight: 400; }
+.fb-cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.fb-cat input { position: absolute; opacity: 0; pointer-events: none; }
+.fb-cat span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px;
+  border: 1px solid var(--line, #e5e5e5); border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.fb-cat svg { display: block; margin-bottom: 2px; color: var(--muted, #777); }
+.fb-cat input:checked + span svg { color: var(--brand, #ea580c); }
+.fb-cat input:checked + span { border-color: var(--brand, #ea580c); background: var(--brand-soft, rgba(234,88,12,.1)); color: var(--brand, #ea580c); }
+.fb-cat input:focus-visible + span { outline: 2px solid var(--brand, #ea580c); outline-offset: 2px; }
+.fb-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line, #e5e5e5); border-radius: 10px;
+  background: var(--panel-strong, #f6f6f6); color: var(--text, #111); font: inherit; font-size: 16px; }
+.fb-input:focus { outline: 2px solid var(--brand, #ea580c); outline-offset: -1px; }
+.fb-textarea { resize: vertical; min-height: 110px; line-height: 1.45; }
+.fb-file { padding: 8px; font-size: 13px; }
+.fb-check { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; font-size: 13px; }
+.fb-check input { margin-top: 2px; accent-color: var(--brand, #ea580c); }
+.fb-link { border: 0; background: none; padding: 0; color: var(--brand, #ea580c); font: inherit; cursor: pointer; text-decoration: underline; }
+.fb-tech { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0 0; padding: 10px 12px;
+  background: var(--panel-strong, #f6f6f6); border-radius: 10px; font-size: 11px; }
+.fb-tech dt { color: var(--muted, #777); }
+.fb-tech dd { margin: 0; word-break: break-word; }
+.fb-error { margin: 12px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(220,38,38,.1); color: #dc2626; font-size: 13px; }
+.fb-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--line, #e5e5e5); flex-shrink: 0; }
+.fb-btn { padding: 10px 16px; border: 1px solid var(--line, #e5e5e5); border-radius: 10px; background: none; color: var(--text, #111);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.fb-btn--primary { background: var(--brand, #ea580c); border-color: var(--brand, #ea580c); color: #fff; }
+.fb-btn:disabled { opacity: .6; cursor: default; }
+.fb-done { padding: 28px 18px 22px; text-align: center; }
+.fb-done-icon { width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(22,163,74,.12); color: #16a34a; font-size: 28px; font-weight: 800; }
+.fb-done h3 { margin: 0 0 4px; font-size: 18px; }
+.fb-done p { margin: 0 0 18px; color: var(--muted, #777); font-size: 14px; }
+@media (max-width: 420px) { .fb-actions .fb-btn { flex: 1; } }
+
+/* ── Kötelező e-mail-megerősítés záróablaka (src/ui/account.js) ───────────── */
+.email-gate { z-index: 3200; background: rgba(0,0,0,.55); }
+.gate-msg { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted, #777); }
+.gate-msg b { color: var(--text, #111); }
+.gate-actions { flex-wrap: wrap; }
+.gate-actions #gateLogout { margin-right: auto; }
+@media (max-width: 420px) { .gate-actions .fb-btn { flex: 1 1 auto; } .gate-actions #gateDone { flex-basis: 100%; } }
+.gate-code-input { font-size: 26px; font-weight: 700; letter-spacing: .45em; text-align: center; font-variant-numeric: tabular-nums; padding: 10px 8px 10px calc(8px + .45em); }
+
+/* ── Fiók törlése (src/ui/account.js) ─────────────────────────────────────── */
+.del-reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.del-reason input { position: absolute; opacity: 0; pointer-events: none; }
+.del-reason span { display: block; padding: 9px 10px; border: 1px solid var(--line, #e5e5e5); border-radius: 10px; font-size: 13px; cursor: pointer; }
+.del-reason input:checked + span { border-color: var(--brand, #ea580c); background: var(--brand-soft, rgba(234,88,12,.1)); color: var(--brand, #ea580c); font-weight: 600; }
+.del-reason input:focus-visible + span { outline: 2px solid var(--brand, #ea580c); outline-offset: 2px; }
+.del-backup { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+  background: var(--panel-strong, #f6f6f6); font-size: 12px; color: var(--muted, #777); line-height: 1.4; }
+.del-backup .fb-btn { flex-shrink: 0; padding: 7px 12px; font-size: 13px; }
+.del-confirm { background: #dc2626; border-color: #dc2626; color: #fff; }
+@media (max-width: 420px) { .del-reasons { grid-template-columns: 1fr; } .del-backup { flex-direction: column; align-items: stretch; } }

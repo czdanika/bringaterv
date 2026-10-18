@@ -137,7 +137,7 @@
           <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin), megosztás.</td></tr>
           <tr><td class="path">Statok</td><td>Összesítők, havi statisztika, személyes rekordok, Eddington-szám, edzésterhelés, hőtérkép.</td></tr>
         </table>
-        <p>A jobb felső sarokban a <b>☀ / ☾</b> gomb a világos/sötét témát váltja, a <b>☰</b> menüben érhető el a Beállítások, az Egérműveletek és billentyűparancsok, a Telepítés appként, ez a súgó, az Adatkezelés és a Kijelentkezés (adminnak a Felhasználók is).</p>
+        <p>A jobb felső sarokban a <b>☀ / ☾</b> gomb a világos/sötét témát váltja, a <b>☰</b> menüben érhető el a Beállítások, az Egérműveletek és billentyűparancsok, a Telepítés appként, ez a súgó, az Adatkezelés és a Kijelentkezés (adminnak az Admin felület is).</p>
         <h3>Súgó („i”) gombok</h3>
         <p>A legtöbb beállítás és szakasz mellett van egy kis <b>ⓘ</b> gomb. Koppints rá: rövid magyarázat nyílik az adott funkcióról. Újabb koppintás, a dobozon kívüli koppintás vagy az <kbd>Esc</kbd> bezárja.</p>
         <h3>Mobil nézet</h3>
@@ -490,18 +490,43 @@
         </table>
       </section>
 
+      <section id="fiok">
+        <h2>Fiók, e-mail-cím, jelszó</h2>
+        <ul>
+          <li><span class="path">☰ → Beállítások → Fiók</span>: itt látod a belépési neved, itt adhatod meg vagy módosíthatod az e-mail-címed, és itt cserélheted a jelszavad.</li>
+          <li><b>E-mail-cím megerősítése</b>: új vagy módosított címre küldünk egy levelet egy <b>6 számjegyű kóddal</b> – írd be az appban (iPhone-on a billentyűzet fölött fel is ajánlja), és a cím mellett megjelenik a „✓ megerősítve” jelzés. A kód 15 percig érvényes; a levélben lévő linkre kattintva is megerősítheted. Ha nem jön meg, nézd meg a spam mappát, vagy kérj új levelet. Ha a szerveren be van kapcsolva, megerősített cím nélkül nem lehet használni az appot – ilyenkor belépés után egy ablak kéri.</li>
+          <li><b>Jelszócsere</b>: a jelenlegi jelszó és kétszer az új (legalább 8 karakter). Utána a többi eszközön (telefon, tablet) újra be kell lépni.</li>
+          <li><b>Fiók törlése</b>: a Fiók rész alján. Válaszd ki, miért törlöd (és ha szeretnéd, írj megjegyzést – ez a fejlesztőhöz kerül), előtte letöltheted az adataidat egy ZIP-fájlban, majd a jelszavaddal erősítsd meg. A fiók és minden adat (útvonalak, edzések, beállítások, Strava-kapcsolat) véglegesen törlődik. Admin fiók itt nem törölhető.</li>
+          <li><b>Elfelejtett jelszó</b>: a belépő oldalon az <b>Elfelejtetted a jelszavad?</b> linkre kattintva add meg a belépési neved vagy e-mail-címed. A megerősített címedre jön egy link, amivel 60 percen belül új jelszót állíthatsz be. Ha nincs megerősített címed, az admin tud új jelszót adni.</li>
+        </ul>
+      </section>
+
       <section id="mentes-backup">
         <h2>Adatok mentése, visszaállítás</h2>
         <ul>
-          <li><span class="path">Beállítások → Backup és visszaállítás → Backup letöltése</span>: egy ZIP a beállításaiddal, mentett útvonalaiddal és edzéseiddel.</li>
+          <li><span class="path">Beállítások → Backup és visszaállítás → Backup letöltése</span>: egy ZIP a beállításaiddal, értesítési beállításaiddal, mentett útvonalaiddal és edzéseiddel.</li>
+          <li>A <b>Strava-kapcsolat</b> (tokenek, API-kulcs) biztonsági okból nem kerül a mentésbe – visszaállítás után csatlakoztasd újra.</li>
           <li><b>Visszaállítás</b>: válaszd ki a ZIP-et, majd a módot:
             <ul>
-              <li><b>Hozzáadás</b> – a backup elemei új azonosítóval kerülnek a meglévők mellé; a beállítások nem változnak. Biztonságos.</li>
-              <li><b>Teljes felülírás</b> – előbb mindent töröl, majd az eredeti azonosítókkal állítja vissza. Visszafordíthatatlan!</li>
+              <li><b>Hozzáadás</b> – a backup elemei a meglévők mellé kerülnek; ami már megvan (ugyanaz a Strava-edzés, vagy azonos név, dátum és táv), kimarad, így kétszer betöltve sem duplikálódik. A beállítások nem változnak.</li>
+              <li><b>Teljes felülírás</b> – a szerver előbb automatikusan elmenti a jelenlegi állapotot (<code>pre_restore.zip</code>), majd mindent töröl, és a backupot az eredeti azonosítókkal állítja vissza. A beállítások is visszaállnak.</li>
             </ul>
           </li>
-          <li>Admin felhasználó a <b>Felhasználók</b> oldalon bárki profilját mentheti / visszaállíthatja, kezelheti a felhasználókat, kvótákat és a minta-útvonalakat.</li>
+          <li>Csak Bringaterv által készített ZIP fogadható el; a feltöltés legfeljebb 100 MB lehet.</li>
         </ul>
+      </section>
+
+      <section id="visszajelzes">
+        <h2>Hibajelentés, ötlet, kérdés</h2>
+        <p>Ha valami nem működik, furcsán néz ki, vagy van egy ötleted: <span class="path">☰ → Hibajelentés, ötlet</span> (a Névjegyből is elérhető).</p>
+        <ul>
+          <li><b>Típus</b>: Hiba, Ötlet, Kérdés vagy Egyéb.</li>
+          <li><b>Melyik részt érinti</b>: alapból az a nézet, ahol éppen vagy (Tervezés, Elemzés, Könyvtár…).</li>
+          <li><b>Cím és leírás</b>: hibánál a legtöbbet az segít, ha leírod, mit csináltál, mit vártál, és mi történt helyette.</li>
+          <li><b>Képernyőkép</b> (nem kötelező): telefonon a fotók közül is választhatsz.</li>
+          <li><b>Technikai adatok</b>: verzió, böngésző, képernyőméret, aktuális nézet – a „mi ez?” linkre kattintva pontosan látod, mi kerül bele. Ha nem szeretnéd, vedd ki a pipát.</li>
+        </ul>
+        <p>A visszajelzés a fejlesztőhöz kerül; ha e-mail-címmel lépsz be, e-mailben válaszolhat.</p>
       </section>
 
       <section id="gyik">

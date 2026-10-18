@@ -44,6 +44,7 @@ Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős té
 
 | Verzió | Főbb változások |
 |---|---|
+| **v1.9** | 🛡️ **Admin felület** külön címen (mobilon is) · ✉️ **meghívó linkek** QR-kóddal · e-mail: **megerősítés 6 jegyű kóddal**, **elfelejtett jelszó**, üzenet a felhasználóknak · 🐞 **hibajelentés / ötlet** az appból · saját fiók törlése |
 | **v1.8** | 📖 **Súgó és kézikönyv** az appban · 🗺️ jelmagyarázat a térképen, színezés a megosztott nézetben · ⚡ **Strava webhook** (azonnali import) · törölt edzések visszatöltése |
 | **v1.7** | 📲 **Telepíthető app** iPhone-ra / iPadre / Androidra (App Store nélkül) · 🔄 **automatikus Strava import** · 🔔 **push értesítés** új edzésről és új rekordról · iPad-elrendezés |
 | **v1.6** | 📱 **Mobil nézet** (alsó navigáció, felhúzható panel, tervezés telefonon) · 🏆 **Személyes rekordok** oldal (legjobb idők távokra, csúcsértékek, fejlődési görbék) · Inter betűtípus, súgók a beállítások mellett |
@@ -135,7 +136,11 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 
 ### Több felhasználó, admin, mentés
 - JWT autentikáció, felhasználónkénti adatok és beállítások
-- Admin panel: felhasználók, kvóták, útvonalak, minta útvonalak kezelése
+- Admin felület (`/admin`, mobilon is): felhasználók, kvóták, útvonalak, minta útvonalak, felhasználó törlése
+- **Meghívó linkek** QR-kóddal, megosztással (szerepkör, érvényesség, használatszám) – a meghívott maga regisztrál
+- **E-mail** (SMTP, pl. Resend / Brevo / Gmail): e-mail-cím megerősítése 6 jegyű kóddal, elfelejtett jelszó, visszajelzések, üzenet a felhasználóknak (push és/vagy e-mail, sablonokkal)
+- **Hibajelentés, ötlet** az appból (típus, terület, képernyőkép) – az admin felületen és e-mailben
+- Beállítások → Fiók: e-mail-cím, jelszócsere, saját fiók törlése (az ok visszajelzésként az adminhoz kerül)
 - Teljes profil mentése és visszaállítása ZIP-ben (Beállítások és admin felület)
 - Bejelentkezés kikapcsolható (`LOGIN_ENABLED=false`) otthoni hálózaton
 
@@ -212,6 +217,14 @@ services:
       ADMIN_EMAIL:     admin              # ← admin belépési név / e-mail
       ADMIN_PASSWORD:  ide-ird-a-jelszot  # ← saját, erős jelszót adj meg!
       JWT_SECRET:      valtozd_meg        # ← kötelező megváltoztatni élesben!
+      # E-mail (opcionális) – megerősítés, elfelejtett jelszó, visszajelzések
+      PUBLIC_URL:      ""                 # pl. https://bringaterv.example.hu (a levelek linkjeihez)
+      SMTP_HOST:       ""                 # pl. smtp.resend.com
+      SMTP_PORT:       "587"
+      SMTP_USER:       ""
+      SMTP_PASSWORD:   ""
+      SMTP_FROM:       ""                 # pl. noreply@bringaterv.example.hu
+      FEEDBACK_TO:     ""                 # ide jönnek a visszajelzések
     volumes:
       - routes-data:/data
     networks:
@@ -244,6 +257,12 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088** – belépés az `ADMIN_
 | `JWT_EXPIRY_DAYS` | routes-api | Token élettartama napban | `30` |
 | `PUBLIC_SHARE_ENABLED` | routes-api | Nyilvános nézőoldal (megosztott linkek) engedélyezése | `true` |
 | `STRAVA_AUTO_SYNC` | routes-api | Az automatikus Strava import háttérszála (`false` → kikapcsolva) | `true` |
+| `PUBLIC_URL` | routes-api | A levelekben lévő linkek alapcíme (pl. saját domain) – e-mail-küldésnél erősen ajánlott | a kérés címe |
+| `SMTP_HOST` / `SMTP_PORT` | routes-api | SMTP szerver (587 = STARTTLS, 465 = SSL). Üresen nincs e-mail-küldés | – / `587` |
+| `SMTP_USER` / `SMTP_PASSWORD` | routes-api | SMTP belépés (Gmailnél alkalmazásjelszó, Resendnél `resend` + API-kulcs) | – |
+| `SMTP_FROM` | routes-api | Feladó címe | az `SMTP_USER` |
+| `FEEDBACK_TO` | routes-api | A visszajelzések címzettje(i), vesszővel elválasztva | a feladó |
+| `REQUIRE_EMAIL_VERIFICATION` | routes-api | E-mail-küldés mellett kötelező-e a felhasználóknak megerősíteni a címüket | `true` |
 | `NOTIFY_CONTACT` | routes-api | Kapcsolati e-mail a push értesítésekhez (VAPID `sub`; e-mail cím vagy `https://domain` elérési út nélkül) | az `ADMIN_EMAIL`, ha e-mail cím, különben semleges noreply cím |
 
 #### A `JWT_SECRET` beállítása
@@ -259,6 +278,8 @@ openssl rand -hex 32
 ```
 
 > A `JWT_SECRET` megváltoztatásakor minden korábban kiadott token érvénytelenné válik, így mindenkinek újra be kell jelentkeznie.
+>
+> Ha a `JWT_SECRET` nincs megadva, vagy a példaérték maradt benne, a szerver első induláskor magától generál egy erős kulcsot, és eltárolja a `/data/jwt_secret` fájlban.
 
 ### 3. Frissítés új verzióra
 

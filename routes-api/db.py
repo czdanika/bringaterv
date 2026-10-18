@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 10
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -174,6 +174,76 @@ def _db_init_locked() -> None:
                     pass
             conn.execute("PRAGMA user_version = 6")
             log.info("DB migrálva v6-ra (settings → per-user JSON fájlok, %d user)", migrated)
+        if ver < 7:
+            # v7: meghívók (regisztrációs link)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS invites (
+                    token         TEXT    PRIMARY KEY,
+                    created_at    TEXT    NOT NULL,
+                    created_by    TEXT,
+                    expires_at    TEXT,
+                    max_uses      INTEGER NOT NULL DEFAULT 1,
+                    uses          INTEGER NOT NULL DEFAULT 0,
+                    role          TEXT    NOT NULL DEFAULT 'user',
+                    quota_routes  INTEGER,
+                    note          TEXT    NOT NULL DEFAULT '',
+                    revoked       INTEGER NOT NULL DEFAULT 0,
+                    used_by       TEXT    NOT NULL DEFAULT ''
+                )
+            """)
+            conn.execute("PRAGMA user_version = 7")
+            log.info("DB migrálva v7-re (invites tábla)")
+        if ver < 8:
+            # v8: visszajelzések (hibajelentés, ötlet, kérdés)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id          TEXT    PRIMARY KEY,
+                    created_at  TEXT    NOT NULL,
+                    user_id     TEXT,
+                    user_email  TEXT,
+                    user_name   TEXT,
+                    category    TEXT    NOT NULL,
+                    area        TEXT    NOT NULL DEFAULT '',
+                    title       TEXT    NOT NULL,
+                    description TEXT    NOT NULL,
+                    tech        TEXT    NOT NULL DEFAULT '',
+                    attachment  TEXT,
+                    status      TEXT    NOT NULL DEFAULT 'new',
+                    emailed     INTEGER NOT NULL DEFAULT 0,
+                    mail_error  TEXT    NOT NULL DEFAULT ''
+                )
+            """)
+            conn.execute("PRAGMA user_version = 8")
+            log.info("DB migrálva v8-ra (feedback tábla)")
+        if ver < 9:
+            # v9: értesítési e-mail-cím + megerősítés, jelszócsere időpontja,
+            #     egyszer használható e-mailes tokenek (megerősítés, jelszó-visszaállítás)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+            for col in ("contact_email", "email_verified_at", "pw_changed_at"):
+                if col not in cols:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+            # Akinek a belépési neve e-mail-cím, annak ez lesz az értesítési címe (még nem megerősítve)
+            conn.execute("UPDATE users SET contact_email = email WHERE contact_email IS NULL AND email LIKE '%_@_%._%'")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS auth_tokens (
+                    token_hash  TEXT    PRIMARY KEY,
+                    user_id     TEXT    NOT NULL,
+                    kind        TEXT    NOT NULL,
+                    email       TEXT,
+                    created_at  TEXT    NOT NULL,
+                    expires_at  TEXT    NOT NULL,
+                    used_at     TEXT
+                )
+            """)
+            conn.execute("PRAGMA user_version = 9")
+            log.info("DB migrálva v9-re (e-mail megerősítés, jelszó-visszaállítás)")
+        if ver < 10:
+            # v10: 6 számjegyű megerősítő kód – rossz próbálkozások száma
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(auth_tokens)")}
+            if "attempts" not in cols:
+                conn.execute("ALTER TABLE auth_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+            conn.execute("PRAGMA user_version = 10")
+            log.info("DB migrálva v10-re (megerősítő kód)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

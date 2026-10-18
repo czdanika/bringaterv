@@ -1,10 +1,12 @@
 """Bringaterv API – auth dekorátorok (JWT ellenőrzés, admin jogkör)."""
 
+from datetime import datetime, timezone
 from functools import wraps
 
 import jwt as pyjwt
 from flask import abort, g, request
 
+import mailer
 from db import _db
 from security import _decode_token
 
@@ -28,7 +30,21 @@ def require_auth(f):
             ).fetchone()
         if not user:
             abort(401, description="Ismeretlen vagy tiltott felhasználó")
-        g.user = dict(user)
+        user = dict(user)
+        # Jelszócsere előtt kiadott token már nem érvényes (a többi eszköz kilép)
+        if user.get("pw_changed_at"):
+            try:
+                changed = datetime.strptime(user["pw_changed_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                if int(payload.get("iat", 0)) < int(changed.timestamp()):
+                    abort(401, description="A jelszó megváltozott – lépj be újra.")
+            except ValueError:
+                pass
+        # Kötelező e-mail-megerősítés: addig csak a fiók-végpontok érhetők el
+        if (not user.get("email_verified_at") and user.get("role") != "admin"
+                and not request.path.startswith(("/api/account", "/api/auth/"))
+                and mailer.verification_required()):
+            abort(403, description="Erősítsd meg az e-mail-címedet a folytatáshoz.")
+        g.user = user
         return f(*args, **kwargs)
     return wrapper
 

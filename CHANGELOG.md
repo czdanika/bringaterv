@@ -1,5 +1,62 @@
 # Changelog
 
+## v1.9.0 – 2026-10-18 – Admin felület, meghívók, e-mail (megerősítés, elfelejtett jelszó, fióktörlés), visszajelzések
+
+### Fiók, e-mail-megerősítés, elfelejtett jelszó
+- **Elfelejtett jelszó** a belépő oldalon (`/reset`): e-mailben küldött, egyszer használható, 60 percig érvényes link; csak megerősített címre (vagy ha a belépési név maga az e-mail-cím). Óránként legfeljebb 3 kérés fiókonként; a válasz nem árulja el, létezik-e a fiók.
+- **Megerősítés 6 számjegyű kóddal**: a levélben kód (15 perc, max. 5 próbálkozás) és link (48 óra) is van; a kódot az app ablakában kell beírni (iPhone-on a billentyűzet felajánlja, 6 jegynél magától beküldi) – nem kell ablakot váltani.
+- **Kötelező e-mail-megerősítés** (ha a szerveren van e-mail-küldés): a meg nem erősített, nem admin felhasználó belépés után záróablakot lát, a szerver addig csak a fiók-végpontokat szolgálja ki. Megerősítő link (`/verify`): 48 óra, egyszer használható. Kikapcsolható: `REQUIRE_EMAIL_VERIFICATION=false`.
+- **Saját fiók törlése** (Beállítások → Fiók, admin kivételével): ok kiválasztása + megjegyzés, adatmentés letöltése előtte, jelszavas megerősítés; minden adat törlődik (Strava webhook és hozzáférés is). Az ok „Fióktörlés” visszajelzésként az adminhoz kerül (push + e-mail), a felhasználó visszaigazoló levelet kap.
+- **Beállítások → Fiók** (új): belépési név, e-mail-cím állapotjelzéssel (megerősítve / vár / nincs), megerősítő levél újraküldése, saját jelszó cseréje.
+- **Jelszócsere után** (felhasználó, admin vagy visszaállító link) minden korábbi belépés érvénytelen – a többi eszközön újra be kell lépni.
+- Meghívóval csak e-mail-címmel lehet regisztrálni; a megerősítő levél azonnal kimegy.
+- Admin: a felhasználók listájában látszik az e-mail-cím állapota; a Szerkeszt ablakban megadható / kézzel megerősítettnek jelölhető.
+- A tokenekből csak SHA-256 lenyomat kerül az adatbázisba (`auth_tokens` tábla).
+
+### Üzenetek, e-mail megjelenés
+- **Üzenet a felhasználóknak** az admin felületről: push és/vagy e-mail egy felhasználónak (sorában az „Üzenet” gomb) vagy minden aktív felhasználónak („Üzenet mindenkinek”). Az ablak mutatja, hány eszközön van engedélyezett push és kinek van e-mail-címe; küldés után összesít. Mindenki külön levelet kap.
+- **Új, igényes HTML e-mail sablon** minden levélhez (megerősítő kód, új jelszó, visszajelzés, teszt, admin üzenet): beágyazott logó, kártyás elrendezés, nagy kódmező, narancs gomb; a sima szöveges változat is megmarad.
+
+### Hibajelentés, ötlet (visszajelzés)
+- **☰ → Hibajelentés, ötlet** (és a Névjegyből): típus (Hiba / Ötlet / Kérdés / Egyéb), érintett terület (alapból az aktuális nézet), cím, leírás, opcionális képernyőkép (max. 8 MB), technikai adatok (verzió, böngésző, képernyő, nézet – a felhasználó látja és kikapcsolhatja). Mobilon is kényelmes.
+- A visszajelzés az adatbázisba kerül, az adminok push értesítést kapnak, és ha be van állítva, **e-mailben** is megérkezik (kép csatolmányként, válaszcím a beküldő). Felhasználónként óránként max. 10.
+- **Admin → Visszajelzések** fül: új / kész / mind szűrő, számláló a fülön, képernyőkép megtekintése, technikai adatok, „Kész” jelölés, válasz e-mailben, törlés, e-mail-beállítás állapota és **Teszt e-mail** gomb.
+- Új e-mail-küldő modul (SMTP, STARTTLS / SSL), beállítás környezeti változókkal.
+
+### Admin felület
+- Külön címen: **`/admin`**, mobilbarát (a táblázatok kártyákká alakulnak, az ablakok alulról nyílnak); fülek: Felhasználók / Meghívók / Visszajelzések / Minta útvonalak / Súgó.
+- **Felhasználó törlése**: megerősítéshez be kell írni az e-mail-címét; saját magad és az utolsó aktív admin nem törölhető; a Strava-hozzáférés visszavonása és az összes adat törlése.
+- **Meghívók**: szerepkör, érvényesség (1–90 nap), használatszám (1–50), opcionális kvóta; QR-kód, link másolása, megosztás, e-mail, WhatsApp, Messenger; visszavonás. A meghívó oldalán nem jelenik meg a meghívó neve és a megjegyzés.
+- **Regisztráció meghívóval** (`/invite`): az adatkezelési tájékoztató elfogadása kötelező.
+- **Admin súgó** az admin felület saját Súgó fülén (a fő súgóban nincs admin fejezet): felhasználók, szerepkörök, meghívók, visszajelzések és e-mail-beállítás, e-mail-megerősítés, backup.
+
+### Backup / visszaállítás
+- **Javítva:** „Hozzáadás” módban visszatöltött útvonalak nem voltak megnyithatók / törölhetők (érvénytelen azonosítót kaptak).
+- „Hozzáadás” módban a már meglévő elemek kimaradnak (Strava-azonosító, egyébként név + dátum + táv alapján) – kétszer betöltve sem duplikálódik.
+- „Teljes felülírás” előtt automatikus mentés készül a szerveren (`pre_restore.zip`); nem Bringaterv-mentés ZIP-et elutasít (korábban egy rossz ZIP is mindent törölt).
+- A mentés tartalmazza az értesítési beállításokat és a törölt Strava-edzések listáját (a Strava-tokenek szándékosan nem).
+- Visszaállításnál a feltöltési korlát 100 MB (a többi API-hívásnál 10 MB marad).
+
+### Biztonság
+- **Javítva:** ha a `JWT_SECRET` nincs megadva vagy a példaérték maradt, bárki hamisíthatott belépést. Ilyenkor a szerver most első induláskor erős véletlen kulcsot generál és eltárol (`/data/jwt_secret`), a párhuzamosan induló workerek is biztosan ugyanazt olvassák. A kulcscsere egyszeri kiléptetéssel jár.
+
+### Mobil, felület
+- **Névjegy** (☰ → Névjegy, és a menü alján a verziószám): verzió, frissítés-ellenőrzés, futtatási mód, linkek – mobilon is.
+- Mobilon a szél-adat bekapcsolásakor nem tűnik el a térkép (a diagram-panel magassága korlátozott, a térkép újraigazodik).
+- Mentés (export) ablak mobilon: görgethető, a gombok mindig látszanak.
+- **Javítva:** az Elemzésnél a fájlválasztóval (nem húzással) megnyitott FIT fájl nem töltődött be, telefonon sem.
+
+### Konfiguráció (új környezeti változók)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `FEEDBACK_TO` – e-mail-küldés.
+- `PUBLIC_URL` – a levelekben lévő linkek alapcíme (erősen ajánlott).
+- `REQUIRE_EMAIL_VERIFICATION` – kötelező-e az e-mail-megerősítés (alapból igen, ha van e-mail-küldés).
+- Adatbázis-migrációk: v7 (meghívók), v8 (visszajelzések), v9 (e-mail-megerősítés, jelszó-visszaállító tokenek), v10 (megerősítő kód) – induláskor maguktól lefutnak.
+
+### Verzió
+- v1.8.0 → v1.9.0
+
+---
+
 ## v1.8.0 – 2026-10-17 – Kézikönyv, jelmagyarázat a térképen, színezés a megosztott nézetben, Strava webhook
 
 ### Súgó és kézikönyv

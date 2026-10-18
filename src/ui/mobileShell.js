@@ -39,6 +39,26 @@ export function initMobileShell() {
   }).observe(_shell, { attributes: true, attributeFilter: ["class"] });
 
   MQ.addEventListener?.("change", applyDefault);
+
+  // Diagram / szél panel nyitásakor a felhúzható panel a legkisebb állásba megy,
+  // hogy a térkép látsszon a kettő között; bezáráskor visszaáll.
+  const charts = document.getElementById("elevationPanel") || document.querySelector(".elevation-panel");
+  if (charts) {
+    let restore = null;
+    new MutationObserver(() => {
+      if (!MQ.matches) return;
+      const open = !charts.hidden;
+      if (open && restore === null && _shell.dataset.sheet !== "mini") {
+        restore = _shell.dataset.sheet;
+        setSheet("mini");
+      } else if (!open && restore !== null) {
+        setSheet(restore);
+        restore = null;
+      }
+      // az útvonal a látható (panelek közti) részre illeszkedjen – az animáció után
+      if (open) setTimeout(() => window.dispatchEvent(new Event("bringaterv:refit")), 400);
+    }).observe(charts, { attributes: true, attributeFilter: ["hidden"] });
+  }
 }
 
 function modeKey() {

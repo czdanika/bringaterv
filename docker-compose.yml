@@ -49,6 +49,16 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-${LOGIN_PASSWORD:-ide-ird-a-jelszot}}
       JWT_SECRET:     ${JWT_SECRET:-change-me-please}
       JWT_EXPIRY_DAYS: ${JWT_EXPIRY_DAYS:-30}
+
+      # ── E-mail (visszajelzések továbbítása) – üresen: csak az admin felületen ─
+      SMTP_HOST:     ${SMTP_HOST:-}          # pl. smtp.gmail.com
+      SMTP_PORT:     ${SMTP_PORT:-587}       # 587 = STARTTLS, 465 = SSL
+      SMTP_USER:     ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}      # Gmail: alkalmazásjelszó
+      SMTP_FROM:     ${SMTP_FROM:-}          # alapból SMTP_USER
+      FEEDBACK_TO:   ${FEEDBACK_TO:-}        # címzett(ek), vesszővel; alapból a feladó
+      PUBLIC_URL:    ${PUBLIC_URL:-}         # a levelek linkjeinek alapcíme, pl. https://bringaterv.example.hu
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}   # e-mail küldés mellett kötelező a cím megerősítése
     volumes:
       - routes-data:/data    # tartós tároló (routes + db + users)
     networks:

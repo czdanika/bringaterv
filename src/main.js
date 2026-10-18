@@ -23,9 +23,12 @@ import { initGarmin } from "./ui/garmin.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
-import { initInstallPrompt, registerServiceWorker, isIOS } from "./ui/installPrompt.js";
+import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js";
 import { initNotifications } from "./ui/notifications.js";
 import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
+import { initAbout } from "./ui/about.js";
+import { initFeedback } from "./ui/feedback.js";
+import { initAccount } from "./ui/account.js";
 import {
   initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
@@ -84,6 +87,7 @@ async function checkForUpdate() {
     if (!res.ok) return;
     const data = await res.json();
     const latest = data.tag_name;
+    window.__bringatervLatest = { tag: latest, url: data.html_url };   // a Névjegy ablaknak
     if (latest && isNewerVersion(latest, APP_VERSION)) {
       const dot = document.querySelector("#updateDot");
       if (dot) {
@@ -674,12 +678,9 @@ initStats({
 
 initMobileShell();
 initInstallPrompt({ menuItem: document.getElementById("installAppButton") });
-// iOS fájlválasztó: az ismeretlen „.fit” kiterjesztést az accept-szűrő miatt
-// kiválaszthatatlanná (szürkévé) teszi → iOS-en szűrő nélkül nyitjuk, az
-// ellenőrzést a processImportedFile végzi.
-if (isIOS()) {
-  ["#gpxInput", "#libraryImportFileInput"].forEach((sel) => document.querySelector(sel)?.removeAttribute("accept"));
-}
+// A GPX/FIT fájlválasztók szándékosan accept-szűrő NÉLKÜL vannak: a Safari (Mac és
+// iOS) az ismeretlen „.fit” kiterjesztést szürkén, kiválaszthatatlanul hagyja.
+// A kiterjesztést a processImportedFile ellenőrzi.
 registerServiceWorker();
 
 initRoutePdfModal({
@@ -1722,6 +1723,11 @@ initStrava({ showToast, loadRouteLibrary });
 // ── Értesítések (push) + mélylinkek az értesítésekből ─────────────────────────
 initNotifications({ showToast });
 initMapLegend();
+initAbout({ isNewerVersion });
+initFeedback();
+initAccount();
+// Mobilon a diagram / szél panel nyitásakor (mobileShell.js) újraillesztjük az útvonalat
+window.addEventListener("bringaterv:refit", () => mapAdapter.fitRoute?.());
 (async () => {
   const params = new URLSearchParams(location.search);
   const openId = params.get("open");
@@ -2621,7 +2627,8 @@ elements.importButton.addEventListener("click", () => {
     elements.gpxInput.click();
   }
 });
-document.querySelector("#fileEmptyState")?.addEventListener("click", () => elements.gpxInput.click());
+// (#fileEmptyState kattintását a fileTab.js kezeli – itt NE még egyszer, mert a
+//  kétszeri input.click() Safariban összezavarja a fájlválasztót)
 
 /**
  * Egy importálandó fájl (GPX vagy FIT) feldolgozása.

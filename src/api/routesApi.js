@@ -293,6 +293,21 @@ export const routesApi = {
     updateUser(id, data)              { return fetchJson(`${BASE}/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }); },
     resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },
+    deleteUser(id, confirmEmail)      { return fetchJson(`${BASE}/admin/users/${id}`, { method: "DELETE", body: JSON.stringify({ confirm_email: confirmEmail }) }); },
+    listInvites()                     { return fetchJson(`${BASE}/admin/invites`); },
+    createInvite(data)                { return fetchJson(`${BASE}/admin/invites`, { method: "POST", body: JSON.stringify(data) }); },
+    revokeInvite(token)               { return fetchJson(`${BASE}/admin/invites/${encodeURIComponent(token)}`, { method: "DELETE" }); },
+    listFeedback()                    { return fetchJson(`${BASE}/admin/feedback`); },
+    setFeedbackStatus(id, status)     { return fetchJson(`${BASE}/admin/feedback/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }); },
+    deleteFeedback(id)                { return fetchJson(`${BASE}/admin/feedback/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+    async feedbackImage(id) {
+      const res = await fetch(`${BASE}/admin/feedback/${encodeURIComponent(id)}/image`, { headers: authHeaders() });
+      if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.blob();
+    },
+    testMail()                        { return fetchJson(`${BASE}/admin/mail/test`, { method: "POST" }); },
+    sendMessage(data)                 { return fetchJson(`${BASE}/admin/message`, { method: "POST", body: JSON.stringify(data) }); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
     getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },
     async getUserRouteFit(userId, routeId) {
