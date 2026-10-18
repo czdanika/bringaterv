@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bringaterv – útvonaltervezés és edzésnapló</title>
+  <meta name="description" content="Bringaterv: útvonaltervező és edzésnapló kerékpárosoknak, túrázóknak, futóknak. Tervezés szintprofillal és szélelemzéssel, edzéselemzés, Strava- és Garmin-kapcsolat, statisztikák, rekordok – telefonon is.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:title" content="Bringaterv – útvonaltervezés és edzésnapló">
+  <meta property="og:description" content="Tervezz, tekerj, fedezd fel! Útvonaltervezés, edzéselemzés, Strava és Garmin – egy helyen, telefonon is.">
+  <meta property="og:image" content="./src/assets/banner.jpg">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="apple-touch-icon" href="./src/assets/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #fc4c02;
+      --brand-dark: #e04400;
+      --brand-soft: #fff1ea;
+      --text: #1a1d23;
+      --muted: #5f6672;
+      --line: #e6e8ec;
+      --bg: #ffffff;
+      --bg-alt: #f6f7f9;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: Inter, "Segoe UI", system-ui, sans-serif; color: var(--text); background: var(--bg); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: var(--brand); }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+    /* Fejléc */
+    .top { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.88); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); }
+    .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+    .brand img { width: 36px; height: 36px; border-radius: 9px; }
+    .brand span { font: 900 21px Montserrat, sans-serif; letter-spacing: -.02em; }
+    .brand span b { color: var(--brand); font-weight: 900; }
+    .top nav { display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 500; }
+    .top nav a { color: var(--muted); text-decoration: none; }
+    .top nav a:hover { color: var(--text); }
+    .top nav a.btn-primary, .top nav a.btn-primary:hover { color: #fff; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 12px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1.5px solid transparent; transition: background .15s, transform .1s; white-space: nowrap; }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-ghost { border-color: var(--line); color: var(--text); background: #fff; }
+    .btn-ghost:hover { background: var(--bg-alt); }
+    .top .btn { padding: 8px 16px; font-size: 14px; }
+    @media (max-width: 760px) { .top nav a:not(.btn) { display: none; } }
+
+    /* Hero */
+    .hero { padding: 64px 0 40px; background: radial-gradient(1200px 500px at 85% -10%, #ffe6d8 0%, rgba(255,230,216,0) 60%), var(--bg); overflow: hidden; }
+    .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+    .eyebrow { display: inline-block; padding: 5px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-size: 13px; font-weight: 600; }
+    h1 { font: 800 clamp(34px, 5vw, 54px)/1.08 Montserrat, sans-serif; letter-spacing: -.025em; margin: 16px 0 16px; }
+    h1 em { font-style: normal; color: var(--brand); }
+    .lead { font-size: 18px; color: var(--muted); margin: 0 0 26px; max-width: 34em; }
+    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-note { margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .hero-shot { position: relative; }
+    .hero-shot .desk { border-radius: 14px; box-shadow: 0 24px 60px rgba(20,25,40,.18), 0 0 0 1px rgba(0,0,0,.05); }
+    .hero-shot .phone { position: absolute; right: -10px; bottom: -36px; width: 24%; border-radius: 24px; border: 6px solid #111; box-shadow: 0 20px 50px rgba(20,25,40,.3); background: #111; }
+    @media (max-width: 900px) {
+      .hero { padding-top: 40px; }
+      .hero .wrap { grid-template-columns: 1fr; }
+      .hero-shot { margin: 0 6% 40px 0; }
+    }
+
+    /* Szekciók */
+    section { padding: 72px 0; scroll-margin-top: 62px; }
+    section.alt { background: var(--bg-alt); }
+    .sec-head { max-width: 720px; margin: 0 0 36px; }
+    .sec-head.center { margin: 0 auto 40px; text-align: center; }
+    h2 { font: 800 clamp(26px, 3.4vw, 36px)/1.15 Montserrat, sans-serif; letter-spacing: -.02em; margin: 8px 0 12px; }
+    .kicker { color: var(--brand); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+    .sec-head p { color: var(--muted); font-size: 17px; margin: 0; }
+
+    /* Három pillér */
+    .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .pillar { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+    .pillar .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); margin-bottom: 14px; }
+    .pillar h3 { margin: 0 0 8px; font-size: 19px; }
+    .pillar p { margin: 0; color: var(--muted); font-size: 15px; }
+    @media (max-width: 860px) { .pillars { grid-template-columns: 1fr; } }
+
+    /* Funkció-blokk: kép + szöveg */
+    .feature { display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center; }
+    .feature.rev { grid-template-columns: 1.15fr 1fr; }
+    .feature.rev .f-text { order: 2; }
+    .f-shot img { border-radius: 14px; box-shadow: 0 18px 44px rgba(20,25,40,.14), 0 0 0 1px rgba(0,0,0,.05); }
+    .f-text ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 11px; }
+    .f-text li { position: relative; padding-left: 30px; color: var(--text); font-size: 15.5px; }
+    .f-text li::before { content: ""; position: absolute; left: 0; top: 4px; width: 18px; height: 18px; border-radius: 50%;
+      background: var(--brand-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fc4c02' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/12px no-repeat; }
+    .f-text li b { font-weight: 600; }
+    @media (max-width: 900px) {
+      .feature, .feature.rev { grid-template-columns: 1fr; gap: 28px; }
+      .feature.rev .f-text { order: 0; }
+    }
+
+    /* Elemzés-típusok rács */
+    .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 36px; }
+    .chip { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+    .chip h4 { margin: 0 0 4px; font-size: 15px; }
+    .chip p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    /* Mobil */
+    .phones { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: 26px; justify-content: center; }
+    .phones img { border-radius: 30px; border: 7px solid #111; background: #111; box-shadow: 0 22px 50px rgba(20,25,40,.22); }
+    .mobile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    @media (max-width: 900px) { .mobile-grid { grid-template-columns: 1fr; } .phones { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } }
+
+    /* Integrációk, megosztás kártyák */
+    .cards2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    @media (max-width: 860px) { .cards2 { grid-template-columns: 1fr; } }
+
+    /* CTA */
+    .cta { text-align: center; }
+    .cta-box { background: linear-gradient(135deg, #1f2430, #2c3342); color: #fff; border-radius: 24px; padding: 48px 24px; }
+    .cta-box h2 { color: #fff; }
+    .cta-box p { color: rgba(255,255,255,.78); max-width: 36em; margin: 0 auto 24px; font-size: 17px; }
+    .cta-box .btn-ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.35); }
+    .cta-box .btn-ghost:hover { background: rgba(255,255,255,.08); }
+
+    footer { padding: 32px 0 44px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: space-between; align-items: center; }
+    footer nav { display: flex; gap: 18px; }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="#">
+        <img src="./src/assets/icons/icon-192.png" alt="">
+        <span>Bringa<b>terv</b></span>
+      </a>
+      <nav>
+        <a href="#tervezes">Tervezés</a>
+        <a href="#elemzes">Elemzés</a>
+        <a href="#statisztikak">Statisztikák</a>
+        <a href="#mobil">Mobil</a>
+        <a class="btn btn-primary" href="./login.html">Belépés</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">Kerékpárosoknak · túrázóknak · futóknak</span>
+        <h1>Tervezz, tekerj, <em>fedezd fel!</em></h1>
+        <p class="lead">A Bringaterv útvonaltervező és edzésnapló egy helyen: megtervezed a túrát szintprofillal és szélelemzéssel, elküldöd a Garminodra, utána pedig mindent visszanézhetsz – sebesség, pulzus, teljesítmény, rekordok. Gépen és telefonon is.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="./login.html">Belépés</a>
+          <a class="btn btn-ghost" href="#hogyan">Hogyan csatlakozhatok?</a>
+        </div>
+        <p class="hero-note">Ingyenes, reklám nélkül – az adataid nem kerülnek harmadik félhez.</p>
+      </div>
+      <div class="hero-shot">
+        <img class="desk" src="./screenshots/tervezes.jpg" alt="Útvonaltervezés a Bringatervben asztali nézetben" width="1439" height="840">
+        <img class="phone" src="./screenshots/mobil-tervezes.jpg" alt="Útvonaltervezés telefonon" width="780" height="1688" loading="lazy">
+      </div>
+    </div>
+  </div>
+
+  <!-- Három pillér -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="sec-head center">
+        <span class="kicker">Egy helyen minden</span>
+        <h2>Tervezés, tárolás, elemzés</h2>
+        <p>A túra előtt megtervezed, utána visszanézed – menet közben a megszokott GPS-ed (Garmin, Wahoo, Magene…) navigál és rögzít.</p>
+      </div>
+      <div class="pillars">
+        <div class="pillar">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <h3>Tervezés</h3>
+          <p>Kattints a térképre, és az útvonal járható utakon vezet – országúti, gravel, MTB vagy túra profillal. Táv, szint, menetidő azonnal.</p>
+        </div>
+        <div class="pillar">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></div>
+          <h3>Tárolás</h3>
+          <p>Minden tervezett útvonal és edzés a könyvtáradban: kereshető, szűrhető, letölthető. Strava-ból és Garminból magától is bekerül.</p>
+        </div>
+        <div class="pillar">
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+          <h3>Elemzés</h3>
+          <p>Sebesség, pulzus, kadencia, teljesítmény a térképen színezve, pulzuszónák, terhelés, rekordok és statisztikák.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tervezés -->
+  <section id="tervezes">
+    <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Tervezés</span>
+        <h2>Megtervezed, mielőtt nyeregbe pattansz</h2>
+        <p class="sec-sub" style="color:var(--muted)">Pontokat teszel a térképre, a Bringaterv pedig összeköti őket – úgy, ahogy a te bringáddal érdemes menni.</p>
+        <ul>
+          <li><b>Négy tervezési mód:</b> aszfalt, gravel, MTB, túra – akár szakaszonként vegyesen</li>
+          <li><b>Hely keresése, saját helyzet,</b> pontok áthúzása, közbeszúrás, sorrend átrendezése</li>
+          <li><b>Táv, szintemelkedés, becsült menetidő</b> – a szintet is figyelembe véve</li>
+          <li><b>Szintprofil,</b> a térképen lejtés szerint színezve: rögtön látod, hol lesz meredek</li>
+          <li><b>Szélelemzés</b> a tervezett napra: merről fúj, hol lesz szembeszél</li>
+          <li><b>Visszaút a kezdőpontba, oda-vissza útvonal, irány megfordítása</b> egy gombbal</li>
+          <li><b>Küldés Garminra</b> navigációhoz, vagy <b>GPX</b> bármilyen eszközre (Magene, Wahoo, Bryton, Komoot, telefon…)</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/tervezes.jpg" alt="Tervezés asztali nézetben" width="1439" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Elemzés -->
+  <section id="elemzes" class="alt">
+    <div class="wrap">
+      <div class="feature rev">
+        <div class="f-text">
+          <span class="kicker">Elemzés</span>
+          <h2>Minden edzés, minden részlet</h2>
+          <p style="color:var(--muted)">Töltsd be a GPX- vagy FIT-fájlt (Garmin, Magene, Wahoo, Bryton, Hammerhead…), vagy hagyd, hogy a Stravából magától bejöjjön.</p>
+          <ul>
+            <li><b>Színezett útvonal a térképen</b> sebesség, pulzus, kadencia, teljesítmény vagy lejtés szerint</li>
+            <li><b>Grafikonok</b> egymás alatt – végighúzva az ujjad a térképen is mutatja, hol jártál</li>
+            <li><b>Időtartam és mozgási idő,</b> átlag- és maximumértékek, kalória</li>
+          </ul>
+        </div>
+        <div class="f-shot"><img src="./screenshots/elemzes.jpg" alt="Edzéselemzés színezett útvonallal és grafikonokkal" width="1439" height="840" loading="lazy"></div>
+      </div>
+
+      <div class="sec-head" style="margin-top:56px;margin-bottom:0">
+        <h2 style="font-size:24px">Milyen elemzéseket kapsz?</h2>
+      </div>
+      <div class="chips">
+        <div class="chip"><h4>Sebesség</h4><p>Átlag és maximum, színezés a saját sebességsávjaid szerint.</p></div>
+        <div class="chip"><h4>Pulzus és pulzuszónák</h4><p>Mennyi időt töltöttél az egyes zónákban – idő és százalék.</p></div>
+        <div class="chip"><h4>Edzésterhelés (TRIMP)</h4><p>Az időtartamot és az intenzitást együtt súlyozó terhelésmutató.</p></div>
+        <div class="chip"><h4>Kadencia</h4><p>Pedálfordulat a táv mentén, saját sávokkal.</p></div>
+        <div class="chip"><h4>Teljesítmény</h4><p>Wattok a térképen és grafikonon, csúcsteljesítmények 5 mp – 60 perc között.</p></div>
+        <div class="chip"><h4>Szintprofil és lejtés</h4><p>Emelkedő, ereszkedő, a meredek szakaszok kiemelve.</p></div>
+        <div class="chip"><h4>Szélelemzés</h4><p>Szembe- és hátszél a tervezett útvonalon, a valós időjárás alapján.</p></div>
+        <div class="chip"><h4>Kalória</h4><p>A Stravából, vagy becslés a saját kerékpáros profilodból.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Könyvtár -->
+  <section id="konyvtar">
+    <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Tárolás</span>
+        <h2>A könyvtárad: minden útvonal és edzés egy helyen</h2>
+        <ul>
+          <li><b>Kártyás vagy listás nézet,</b> útvonal-bélyegképekkel</li>
+          <li><b>Szűrés és keresés:</b> típus, forrás, sportág, táv, időtartam, név</li>
+          <li><b>Import:</b> GPX / FIT fájlból, Stravából, Garminból – a FIT eredetije is megmarad</li>
+          <li><b>Letöltés</b> GPX-ben vagy eredeti FIT-ben, bármikor</li>
+          <li><b>Teljes mentés</b> egy ZIP-fájlba – az adataid a tieid</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/konyvtar.jpg" alt="Könyvtár kártyás nézetben" width="1439" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Statisztikák és rekordok -->
+  <section id="statisztikak" class="alt">
+    <div class="wrap feature rev">
+      <div class="f-text">
+        <span class="kicker">Statisztikák és rekordok</span>
+        <h2>Lásd, ahogy fejlődsz</h2>
+        <ul>
+          <li><b>Áttekintés:</b> összes km, szint, idő, havi diagramok, sportág-megoszlás</li>
+          <li><b>Havi statisztikák</b> sportáganként</li>
+          <li><b>Személyes rekordok:</b> leghosszabb táv, legtöbb szint, legjobb átlagsebesség… előző rekorddal és fejlődési görbével</li>
+          <li><b>Legjobb idők távokra</b> (5–200 km, futásnál 400 m – maraton) – akkor is, ha egy hosszabb edzés közepén futottad / tekerted</li>
+          <li><b>Eddington-szám</b> – és hány nap hiányzik a következőhöz</li>
+          <li><b>Edzésterhelés:</b> fitnesz, fáradtság, forma (CTL / ATL / TSB)</li>
+          <li><b>Hőtérkép</b> az összes edzésed nyomvonalából</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/rekordok.jpg" alt="Személyes rekordok" width="1439" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Mobil -->
+  <section id="mobil">
+    <div class="wrap mobile-grid">
+      <div class="f-text">
+        <span class="kicker">Telefonon is</span>
+        <h2>Zsebben is ott van – appként telepíthető</h2>
+        <p style="color:var(--muted)">A Bringaterv telefonra szabott felülettel is működik, és App Store nélkül, két koppintással telepíthető a kezdőképernyőre – iPhone-ra, iPadre és Androidra is.</p>
+        <ul>
+          <li><b>Tervezés egy hüvelykujjal:</b> felhúzható panel, alsó navigáció</li>
+          <li><b>Elemzés, könyvtár, statisztikák</b> ugyanúgy, mint gépen</li>
+          <li><b>Push értesítés,</b> ha új edzésed jött a Stravából vagy új rekordot értél el</li>
+          <li><b>Hibajelentés, ötlet</b> közvetlenül az appból – akár képernyőképpel</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <img src="./screenshots/mobil-tervezes.jpg" alt="Tervezés telefonon" width="780" height="1688" loading="lazy">
+        <img src="./screenshots/mobil-szintprofil.jpg" alt="Szintprofil telefonon" width="780" height="1688" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrációk és megosztás -->
+  <section class="alt">
+    <div class="wrap">
+      <div class="sec-head center">
+        <span class="kicker">Kapcsolatok és megosztás</span>
+        <h2>Együttműködik azzal, amit már használsz</h2>
+      </div>
+      <div class="cards2">
+        <div class="pillar">
+          <h3>Strava</h3>
+          <p>Az új edzéseid maguktól bekerülnek – akár azonnal, értesítéssel. A régebbieket is behúzhatod egyszerre. A Bringaterv csak olvas, semmit nem ír vissza.</p>
+        </div>
+        <div class="pillar">
+          <h3>Garmin Connect</h3>
+          <p>Edzés-import, okosmérleg testsúly-szinkron, és a megtervezett útvonal egyenesen az órádra vagy a bringás navidra.</p>
+        </div>
+        <div class="pillar">
+          <h3>Megosztás</h3>
+          <p>Link és QR-kód (a megnézéséhez nem kell regisztrálni), megosztó kép a közösségi médiába, nyomtatható PDF útvonallap térképpel és szintprofillal.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Csatlakozás -->
+  <section id="hogyan" class="cta">
+    <div class="wrap">
+      <div class="cta-box">
+        <h2>Hogyan csatlakozhatok?</h2>
+        <p>A Bringaterv jelenleg meghívásos tesztüzemben fut. Ha kaptál meghívó linket, azzal egy perc alatt regisztrálsz – ha már van fiókod, egyszerűen lépj be.</p>
+        <p data-contact hidden>Szeretnél meghívót, vagy kérdésed van? Írj ide: <a data-contact-link style="color:#fff;font-weight:600"></a></p>
+        <div class="hero-cta" style="justify-content:center">
+          <a class="btn btn-primary" href="./login.html">Belépés</a>
+          <a class="btn btn-ghost" href="./help.html">Súgó és kézikönyv</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 Bringaterv · Térkép: OpenStreetMap közreműködők · Útvonaltervezés: BRouter · Időjárás: Open-Meteo</span>
+      <nav>
+        <a href="./help.html">Súgó</a>
+        <a href="./privacy.html">Adatkezelés</a>
+        <a data-contact data-contact-link hidden>Kapcsolat</a>
+        <a href="./login.html">Belépés</a>
+      </nav>
+    </div>
+  </footer>
+  <script type="module">
+    // Kapcsolati cím a szerver beállításából (CONTACT_EMAIL) – ha nincs, a sorok rejtve maradnak
+    import { config } from "./src/config.js";
+    const mail = (config.contactEmail || "").trim();
+    if (mail) {
+      document.querySelectorAll("[data-contact]").forEach((el) => { el.hidden = false; });
+      document.querySelectorAll("[data-contact-link]").forEach((a) => {
+        a.href = `mailto:${mail}`;
+        if (!a.textContent.trim()) a.textContent = mail;
+      });
+    }
+  </script>
+</body>
+</html>

@@ -6547,11 +6547,16 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   background: var(--panel-strong); border-radius: 10px; font-size: 13px; text-align: left; }
 .about-meta dt { color: var(--muted); }
 .about-meta dd { margin: 0; font-weight: 600; word-break: break-all; }
-.about-links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.about-links { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 12px; }
 .about-links a { padding: 9px 8px; border: 1px solid var(--line); border-radius: 10px; color: var(--text);
   text-decoration: none; font-size: 13px; font-weight: 600; }
 .about-links a:hover { background: var(--panel-strong); }
-.about-foot { margin: 14px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.about-dev { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); text-align: left; }
+.about-dev img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.about-dev div { display: flex; flex-direction: column; line-height: 1.25; }
+.about-dev small { font-size: 11px; color: var(--muted); }
+.about-dev b { font-size: 14px; }
+.about-foot { margin: 10px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
 
 /* ── Mentés (export) ablak: ne lógjon ki – magasság-korlát, görgethető törzs,
    mobilon a gombok egymás alatt (a fő művelet legfelül) ───────────────────── */

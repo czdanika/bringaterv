@@ -26,6 +26,17 @@ def logo_bytes() -> bytes | None:
         return None
 
 
+def _footer_note(no_reply: bool) -> str:
+    if not no_reply:
+        return ""
+    contact = (os.environ.get("CONTACT_EMAIL") or "").strip()
+    if contact:
+        c = html.escape(contact)
+        return (f'<br>Kérdésed van? Válaszolj erre a levélre, vagy írj ide: '
+                f'<a href="mailto:{c}" style="color:#9ca3af;">{c}</a>')
+    return "<br>Ez egy automatikus üzenet, kérjük, ne válaszolj rá."
+
+
 def _p(text: str) -> str:
     """Bekezdés(ek) – a sortörések megmaradnak, a szöveg escape-elve."""
     parts = [html.escape(x).replace("\n", "<br>") for x in str(text).split("\n\n") if x.strip()]
@@ -103,7 +114,7 @@ def render(title: str, intro: str = "", *, code: str | None = None, code_note: s
           </table>
         </td></tr>
         <tr><td align="center" style="padding:16px 8px 0;font-size:12px;line-height:1.5;color:#9ca3af;">
-          Bringaterv · útvonaltervezés és edzésnapló{'<br>Ez egy automatikus üzenet, kérjük, ne válaszolj rá.' if no_reply else ''}
+          Bringaterv · útvonaltervezés és edzésnapló{_footer_note(no_reply)}
         </td></tr>
       </table>
     </td></tr>

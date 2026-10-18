@@ -73,6 +73,9 @@
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.40);
     }
 
+    a.logo-wrap { text-decoration: none; color: inherit; }
+    .about-link { color: #fc4c02; font-weight: 600; text-decoration: none; }
+    .about-link:hover { text-decoration: underline; }
     .logo-wrap {
       display: flex;
       align-items: center;
@@ -209,12 +212,12 @@
   <div class="bg"></div>
 
   <div class="card">
-    <div class="logo-wrap">
+    <a class="logo-wrap" href="./bemutato" title="Mi az a Bringaterv?">
       <img src="./src/assets/logo.png" alt="Bringaterv logó" class="logo-img">
       <span class="logo-text">Bringa<span class="accent">terv</span></span>
-    </div>
+    </a>
 
-    <p class="subtitle">Tervezz, tekerj, fedezd fel!</p>
+    <p class="subtitle">Tervezz, tekerj, fedezd fel! · <a class="about-link" href="./bemutato">Mi ez?</a></p>
 
     <form id="loginForm" novalidate>
       <div class="input-wrap">

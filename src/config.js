@@ -7,4 +7,6 @@ export const config = {
   // Publikus megosztási (QR) alap-URL. Üresen hagyva a böngésző origin-jét
   // használjuk. Pl. "https://bringaterv.example.hu".
   shareBaseUrl: "",
+  // Kapcsolati e-mail-cím (Névjegy, bemutató oldal, adatkezelés). Üresen nem jelenik meg.
+  contactEmail: "",
 };

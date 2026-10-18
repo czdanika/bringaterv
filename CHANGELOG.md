@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.9.1 – 2026-10-18 – Bemutató oldal, kapcsolati cím, egyszerűbb Névjegy
+
+- **Bemutató oldal** (`/bemutato`): mit tud a Bringaterv – tervezés, tárolás, elemzés (milyen elemzések), statisztikák és rekordok, mobil / telepíthető app, Strava, Garmin, megosztás, csatlakozás; asztali és mobilos képernyőképekkel, telefonon is olvasható. Bejelentkezés nélkül elérhető.
+- Belépő oldal: a logó és egy „Mi ez?” link a bemutató oldalra visz.
+- **Névjegy** egyszerűsítve: logó, verzió, Súgó / Hibajelentés / Adatkezelés, a fejlesztő képpel. Kikerült a GitHub-link, a bejelentkezett felhasználó és a szerveradatok; a frissítési állapot csak adminnak látszik.
+- **Push értesítés:** ha a domain mögött kicserélődik a szerver (más VAPID-kulcs), az app engedélyezéskor magától újra feliratkozik (eddig a régi feliratkozás csendben nem működött).
+- **Kapcsolati e-mail-cím** (`CONTACT_EMAIL`, a `bringaterv` és a `routes-api` konténernél): megjelenik a bemutató oldalon, a Névjegyben és az adatkezelési tájékoztatóban; a kimenő levelek láblécében a „ne válaszolj” helyett ez áll, és a válaszok ide mennek (Reply-To).
+- Adatkezelési tájékoztató: a fiók törlése már a felhasználónak is elérhető (Beállítások → Fiók).
+
+### Verzió
+- v1.9.0 → v1.9.1
+
+---
+
 ## v1.9.0 – 2026-10-18 – Admin felület, meghívók, e-mail (megerősítés, elfelejtett jelszó, fióktörlés), visszajelzések
 
 ### Fiók, e-mail-megerősítés, elfelejtett jelszó

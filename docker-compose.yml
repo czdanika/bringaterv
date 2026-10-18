@@ -24,6 +24,8 @@ services:
       LOGIN_ENABLED: ${LOGIN_ENABLED:-true}
       # Publikus megosztási (QR) alap-URL; üresen a böngésző címe
       SHARE_BASE_URL: ${SHARE_BASE_URL:-}
+      # Kapcsolati e-mail (Névjegy, bemutató oldal, adatkezelés); üresen nem jelenik meg
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
     depends_on:
       - routes-api
     networks:
@@ -59,6 +61,7 @@ services:
       FEEDBACK_TO:   ${FEEDBACK_TO:-}        # címzett(ek), vesszővel; alapból a feladó
       PUBLIC_URL:    ${PUBLIC_URL:-}         # a levelek linkjeinek alapcíme, pl. https://bringaterv.example.hu
       REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}   # e-mail küldés mellett kötelező a cím megerősítése
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}      # a levelek láblécében + válaszcím
     volumes:
       - routes-data:/data    # tartós tároló (routes + db + users)
     networks:

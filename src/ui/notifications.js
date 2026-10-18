@@ -163,6 +163,11 @@ async function enable() {
     const key = _cfg?.vapid_public_key || (await routesApi.notify.config()).vapid_public_key;
     step = "feliratkozás";
     let sub = await reg.pushManager.getSubscription();
+    // Más szerver kulcsához tartozó (pl. a domain másik szerverre költözött) feliratkozás: újra kell
+    if (sub && !sameKey(sub.options?.applicationServerKey, b64urlToUint8(key))) {
+      await sub.unsubscribe().catch(() => {});
+      sub = null;
+    }
     if (!sub) {
       sub = await withTimeout(
         reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToUint8(key) }),
@@ -182,6 +187,13 @@ async function enable() {
     if (!$("#notifyNote").textContent.startsWith("Nem sikerült")) return;
     $("#notifyNote").hidden = false;     // a refresh ne tüntesse el a hibát
   }
+}
+
+/** A feliratkozás ugyanahhoz a VAPID-kulcshoz tartozik-e (ha a böngésző nem adja meg, elfogadjuk). */
+function sameKey(buf, want) {
+  if (!buf) return true;
+  const a = new Uint8Array(buf);
+  return a.length === want.length && a.every((v, i) => v === want[i]);
 }
 
 async function disable() {

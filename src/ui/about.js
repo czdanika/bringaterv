@@ -1,13 +1,14 @@
 /**
  * Bringaterv – Névjegy
  * =====================
- * ☰ → Névjegy (és a menü alján a verziószám): embléma, verzió, frissítési
- * állapot (a GitHub legutóbbi kiadásához képest), telepítési mód, linkek.
+ * ☰ → Névjegy (és a menü alján a verziószám): embléma, verzió, linkek
+ * (súgó, hibajelentés, adatkezelés), a fejlesztő.
+ * A frissítési állapot csak adminnak látszik (a felhasználó úgysem tud frissíteni).
  * Mobilon is elérhető – ott az oldalsáv alján lévő verziószám nem látszik.
  */
 
 import { getUser } from "../auth.js";
-import { isStandalone } from "./installPrompt.js";
+import { config } from "../config.js";
 
 let _isNewer = () => false;
 
@@ -16,9 +17,9 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 function updateLine() {
   const cur = window.APP_VERSION || "";
   const latest = window.__bringatervLatest;
-  if (!latest?.tag) return `<span class="about-badge">Frissítés-ellenőrzés nem elérhető</span>`;
+  if (!latest?.tag) return "";
   if (_isNewer(latest.tag, cur)) {
-    return `<a class="about-badge about-badge--new" href="${esc(latest.url || "https://github.com/czdanika/bringaterv/releases")}" target="_blank" rel="noopener">Új verzió érhető el: ${esc(latest.tag)} ↗</a>
+    return `<span class="about-badge about-badge--new">Új verzió érhető el: ${esc(latest.tag)}</span>
       <p class="about-hint">Frissítés: Portainer → Stacks → bringaterv → Pull and redeploy (vagy <code>docker compose pull && docker compose up -d</code>), utána az appot indítsd újra.</p>`;
   }
   return `<span class="about-badge about-badge--ok">✓ Naprakész</span>`;
@@ -40,20 +41,18 @@ function openAbout() {
       <div class="about-name">Bringa<span>terv</span></div>
       <div class="about-slogan">Tervezz, tekerj, fedezd fel!</div>
       <div class="about-version">${esc(window.APP_VERSION || "")}</div>
-      <div class="about-update">${updateLine()}</div>
-      <dl class="about-meta">
-        ${user.name || user.email ? `<dt>Bejelentkezve</dt><dd>${esc(user.name || user.email)}</dd>` : ""}
-        <dt>Futtatás</dt><dd>${isStandalone() ? "Telepített app" : "Böngészőben"}</dd>
-        <dt>Szerver</dt><dd>${esc(location.host)}</dd>
-      </dl>
+      ${user.role === "admin" ? `<div class="about-update">${updateLine()}</div>` : ""}
       <nav class="about-links">
-        <a href="./help.html">📖 Súgó és kézikönyv</a>
-        <a href="#" data-open-feedback>🐞 Hibajelentés, ötlet</a>
-        <a href="https://github.com/czdanika/bringaterv/releases" target="_blank" rel="noopener">✨ Újdonságok</a>
-        <a href="./privacy.html" target="_blank" rel="noopener">🛡️ Adatkezelés</a>
-        <a href="https://github.com/czdanika/bringaterv" target="_blank" rel="noopener">💻 Forráskód (GitHub)</a>
+        <a href="./help.html">Súgó</a>
+        <a href="#" data-open-feedback>Hibajelentés, ötlet</a>
+        <a href="./privacy.html" target="_blank" rel="noopener">Adatkezelés</a>
+        ${config.contactEmail ? `<a href="mailto:${esc(config.contactEmail)}">Kapcsolat: ${esc(config.contactEmail)}</a>` : ""}
       </nav>
-      <p class="about-foot">© Czibolya Dániel 2026 · MIT licenc<br>Térkép: OpenStreetMap közreműködők · Útvonaltervezés: BRouter · Időjárás: Open-Meteo</p>
+      <div class="about-dev">
+        <img src="./src/assets/fejleszto.jpg" alt="" width="44" height="44">
+        <div><small>Fejlesztő</small><b>Czibolya Dániel</b></div>
+      </div>
+      <p class="about-foot">© 2026 Bringaterv<br>Térkép: OpenStreetMap közreműködők · Útvonaltervezés: BRouter · Időjárás: Open-Meteo</p>
     </div>`;
   const close = () => ov.remove();
   ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest(".about-close")) close(); });

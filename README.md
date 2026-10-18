@@ -44,6 +44,7 @@ Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős té
 
 | Verzió | Főbb változások |
 |---|---|
+| **v1.9.1** | 🌐 **Bemutató oldal** (`/bemutato`) – mit tud az app, képernyőképekkel · kapcsolati e-mail-cím (`CONTACT_EMAIL`) · egyszerűbb Névjegy |
 | **v1.9** | 🛡️ **Admin felület** külön címen (mobilon is) · ✉️ **meghívó linkek** QR-kóddal · e-mail: **megerősítés 6 jegyű kóddal**, **elfelejtett jelszó**, üzenet a felhasználóknak · 🐞 **hibajelentés / ötlet** az appból · saját fiók törlése |
 | **v1.8** | 📖 **Súgó és kézikönyv** az appban · 🗺️ jelmagyarázat a térképen, színezés a megosztott nézetben · ⚡ **Strava webhook** (azonnali import) · törölt edzések visszatöltése |
 | **v1.7** | 📲 **Telepíthető app** iPhone-ra / iPadre / Androidra (App Store nélkül) · 🔄 **automatikus Strava import** · 🔔 **push értesítés** új edzésről és új rekordról · iPad-elrendezés |
@@ -262,6 +263,7 @@ Az alkalmazás elérhető: **http://[szerver-ip]:8088** – belépés az `ADMIN_
 | `SMTP_USER` / `SMTP_PASSWORD` | routes-api | SMTP belépés (Gmailnél alkalmazásjelszó, Resendnél `resend` + API-kulcs) | – |
 | `SMTP_FROM` | routes-api | Feladó címe | az `SMTP_USER` |
 | `FEEDBACK_TO` | routes-api | A visszajelzések címzettje(i), vesszővel elválasztva | a feladó |
+| `CONTACT_EMAIL` | bringaterv, routes-api | Kapcsolati e-mail-cím: Névjegy, bemutató oldal, adatkezelés, a levelek lábléce és válaszcíme. Üresen nem jelenik meg | – |
 | `REQUIRE_EMAIL_VERIFICATION` | routes-api | E-mail-küldés mellett kötelező-e a felhasználóknak megerősíteni a címüket | `true` |
 | `NOTIFY_CONTACT` | routes-api | Kapcsolati e-mail a push értesítésekhez (VAPID `sub`; e-mail cím vagy `https://domain` elérési út nélkül) | az `ADMIN_EMAIL`, ha e-mail cím, különben semleges noreply cím |
 

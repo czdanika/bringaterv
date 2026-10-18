@@ -7,6 +7,7 @@ cat > /usr/share/nginx/html/src/config.js << EOF
 export const config = {
   login: ${LOGIN_ENABLED:-true},
   shareBaseUrl: "${SHARE_BASE_URL:-}",
+  contactEmail: "${CONTACT_EMAIL:-}",
 };
 EOF
 

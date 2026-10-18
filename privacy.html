@@ -121,8 +121,11 @@
       <ul>
         <li><strong>Letöltöd:</strong> a teljes adatodat egyetlen kattintással mentheted (Beállítások → Backup).</li>
         <li><strong>Lecsatolod:</strong> a Strava- és Garmin-kapcsolatot bármikor megszüntetheted a Beállításokban.</li>
-        <li><strong>Töröltetheted:</strong> a fiókod és adataid törlését az üzemeltetőtől kérheted.</li>
+        <li><strong>Törölheted:</strong> a fiókodat és minden adatodat magad is törölheted (Beállítások → Fiók → Fiók törlése), vagy kérheted az üzemeltetőtől.</li>
       </ul>
+
+      <h2 data-contact hidden>Kapcsolat</h2>
+      <p data-contact hidden>Kérdéssel, adatkezelési kéréssel ide írhatsz: <a data-contact-link></a></p>
 
       <p class="note">
         Ez a tájékoztató nem minősül jogi tanácsadásnak. Nyilvános, sok felhasználós
@@ -132,5 +135,13 @@
       <a class="back" href="./login.html">← Vissza a bejelentkezéshez</a>
     </div>
   </div>
+  <script type="module">
+    import { config } from "./src/config.js";
+    const mail = (config.contactEmail || "").trim();
+    if (mail) {
+      document.querySelectorAll("[data-contact]").forEach((el) => { el.hidden = false; });
+      document.querySelectorAll("[data-contact-link]").forEach((a) => { a.href = `mailto:${mail}`; a.textContent = mail; });
+    }
+  </script>
 </body>
 </html>

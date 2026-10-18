@@ -10,8 +10,9 @@ környezeti változókkal (docker-compose / Portainer stack):
   SMTP_PASSWORD   jelszó (Gmailnél alkalmazásjelszó)
   SMTP_FROM       feladó (alapért.: SMTP_USER)
   FEEDBACK_TO     címzett(ek), vesszővel elválasztva (alapért.: SMTP_FROM)
-  PUBLIC_URL      a levelekben lévő linkek alapcíme, pl. https://bringaterv.hu
+  PUBLIC_URL      a levelekben lévő linkek alapcíme, pl. https://bringaterv.example.hu
   REQUIRE_EMAIL_VERIFICATION  true (alapért.) | false – kötelező-e megerősíteni az e-mail-címet
+  CONTACT_EMAIL   kapcsolati cím: a levelek láblécében és válaszcímként (Reply-To) jelenik meg
 """
 
 import os
@@ -45,6 +46,11 @@ def status() -> dict:
             "sender": c["sender"], "to": c["to"]}
 
 
+def contact() -> str:
+    """Kapcsolati e-mail-cím (üres, ha nincs beállítva)."""
+    return (os.environ.get("CONTACT_EMAIL") or "").strip()
+
+
 def verification_required() -> bool:
     """Kötelező-e az e-mail-cím megerősítése: csak ha van mivel levelet küldeni."""
     flag = (os.environ.get("REQUIRE_EMAIL_VERIFICATION") or "true").strip().lower()
@@ -64,8 +70,8 @@ def send(subject: str, text: str, reply_to: str | None = None,
     msg["From"] = formataddr(("Bringaterv", c["sender"]))
     msg["To"] = ", ".join(to or c["to"])
     msg["Message-ID"] = make_msgid(domain=c["sender"].split("@")[-1] or "bringaterv")
-    if reply_to:
-        msg["Reply-To"] = reply_to
+    if reply_to or contact():
+        msg["Reply-To"] = reply_to or contact()
     msg.set_content(text)
     if html:
         msg.add_alternative(html, subtype="html")
