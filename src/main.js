@@ -2544,7 +2544,7 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
   // Megosztás ablak: megosztó kép + PDF (mentetlen tervnek még nincs nyilvános linkje)
   const step = Math.max(1, Math.floor(activeGeometry.length / 400));
   const simPts = activeGeometry.filter((_, i) => i % step === 0 || i === activeGeometry.length - 1)
-    .map((p) => ({ lat: p.lat, lng: p.lng }));
+    .map((p) => ({ lat: p.lat, lng: p.lng, ele: p.ele }));
   openShareModal({
     title: name || "Útvonalterv",
     url: null,
@@ -2562,6 +2562,7 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
       distanceKm: distanceKm ?? 0,
       durationText: durationMin != null ? fmtMinutesHuman(durationMin) : "",
       avgSpeedKmh: 0, elevationM: ascentMeters || 0, points: simPts,
+      shareUrl: pdfCtx.shareUrl || null,
     }),
     onPdf: () => openRoutePdfModal(pdfCtx),
   });

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.10.0 – 2026-10-18 – Új megosztó kép és megosztás ablak
+
+- **Új megosztó kép**: valódi térkép (világos / sötét) a nyomvonal alatt, fehér körvonalas narancs útvonal, zöld rajt- és célpont; kis „Bringaterv” jelvény a sarokban a nehéz fejléc helyett; alul adatpanel nagy címmel, dátummal, **szintprofil-csíkkal** és nagy számokkal (táv, idő 1:05 formában, átlag, szint – ami nincs, kimarad). A Fotó téma ugyanezt az elrendezést kapta.
+- **QR-kód a megosztó képen** (kapcsolható): ha az útvonalnak van nyilvános linkje (könyvtárban mentett elem), egy kis QR-kód kerül az adatpanel jobb felső sarkába, ami a nézőoldalra visz.
+- **Megosztás ablak**: a csatornák (Facebook, WhatsApp, Telegram, X, e-mail…) egyforma, egyszínű kör-ikonok kis felirattal (mobilon vízszintesen görgethetők); a „Másolás” gomb és a Megosztó kép / PDF kártyák az app többi gombjához igazodnak.
+- **Megosztó kép ablak**: nagyobb előnézet, szegmentált téma- és méretválasztó, egységes „Letöltés” / „Megosztás” gombok egymás mellett; mobilon alulról nyílik.
+
+### Verzió
+- v1.9.1 → v1.10.0
+
+---
+
 ## v1.9.1 – 2026-10-18 – Bemutató oldal, kapcsolati cím, egyszerűbb Névjegy
 
 - **Bemutató oldal** (`/bemutato`): mit tud a Bringaterv – tervezés, tárolás, elemzés (milyen elemzések), statisztikák és rekordok, mobil / telepíthető app, Strava, Garmin, megosztás, csatlakozás; asztali és mobilos képernyőképekkel, telefonon is olvasható. Bejelentkezés nélkül elérhető.

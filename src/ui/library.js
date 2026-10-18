@@ -531,7 +531,8 @@ function buildLibraryExpandRow(route, category, isSample) {
             const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
             const xml = new DOMParser().parseFromString(gpxText, "application/xml");
             const pts = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")]
-              .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")) }))
+              .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")),
+                           ele: parseFloat(n.getElementsByTagNameNS("*", "ele")[0]?.textContent) }))
               .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
             const step = Math.max(1, Math.floor(pts.length / 400));
             const simPts = []; for (let i = 0; i < pts.length; i += step) simPts.push(pts[i]);
@@ -543,6 +544,7 @@ function buildLibraryExpandRow(route, category, isSample) {
               distanceKm: distKm, durationText: durMin != null ? _fmtMin(durMin * 60 * 1000) : "",
               avgSpeedKmh: (durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0,
               elevationM: route.elevation ?? 0, points: simPts,
+              shareUrl: isSample ? null : shareRouteUrl(route.id),
             });
           } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
           finally { btn.disabled = false; btn.textContent = origLabel; }

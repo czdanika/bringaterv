@@ -6222,50 +6222,57 @@ body.is-drag-over::after {
 .share-body { padding: 4px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .share-route-name { font-weight: 700; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.share-option { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px; border-radius: 12px;
-  border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); cursor: pointer; font: inherit; }
+.share-option { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 12px 12px 14px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); cursor: pointer; font: inherit; transition: border-color .15s, background .15s; }
 .share-option:hover { border-color: var(--brand); background: var(--brand-soft); }
-.share-option-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+.share-option-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
   background: var(--brand-soft); color: var(--brand); }
 .share-option-icon svg { width: 20px; height: 20px; }
 .share-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.share-option-text strong { font-size: 13px; }
-.share-option-text small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.share-option-text strong { font-size: 14px; }
+.share-option-text small { font-size: 12px; color: var(--muted); line-height: 1.35; }
 .share-option-chev { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
-.share-section-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.share-section-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
 .share-link-block { border-top: 1px solid var(--line); padding-top: 14px; }
-.share-link-row { display: flex; gap: 12px; align-items: flex-start; }
-.share-qr { flex-shrink: 0; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
-.share-qr-canvas { width: 100%; height: 100%; display: block; }
+.share-link-row { display: flex; gap: 14px; align-items: flex-start; }
+.share-qr { flex-shrink: 0; width: 92px; height: 92px; padding: 6px; box-sizing: border-box; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff; }
+.share-qr-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
 .share-link-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.share-link-input-row { display: flex; gap: 6px; }
-.share-link-input { flex: 1; min-width: 0; font-size: 12px; }
-.share-copy-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 8px; border: 0;
-  background: var(--accent-strong); color: var(--bg); font: 600 12px/1 inherit; cursor: pointer; white-space: nowrap; }
-.share-copy-btn svg { width: 14px; height: 14px; }
-.share-hint { font-size: 11px; color: var(--muted); }
-.share-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 11px; line-height: 1.4; padding: 8px 10px;
-  border-radius: 8px; background: rgba(217,119,6,.10); color: var(--text); border: 1px solid rgba(217,119,6,.35); }
+.share-link-input-row { display: flex; gap: 8px; }
+.share-link-input { flex: 1; min-width: 0; font-size: 13px; border-radius: 10px !important; }
+.share-copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1; cursor: pointer; white-space: nowrap;
+  transition: background .15s; }
+.share-copy-btn:hover { background: var(--panel-strong); }
+.share-copy-btn:disabled { opacity: .6; cursor: default; }
+.share-copy-btn svg { width: 15px; height: 15px; }
+.share-hint { font-size: 12px; color: var(--muted); }
+.share-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; padding: 8px 10px;
+  border-radius: 10px; background: rgba(217,119,6,.08); color: var(--text); border: 1px solid rgba(217,119,6,.30); }
 .share-warn svg { width: 14px; height: 14px; color: #d97706; flex-shrink: 0; margin-top: 1px; }
-.share-targets { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 12px; }
-.share-target { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 10px;
-  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); text-decoration: none; font: 600 11.5px/1.2 inherit; cursor: pointer; }
-.share-target:hover { background: var(--panel-strong); }
-.share-target-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-  background: var(--panel-strong); color: var(--brand-c, var(--text)); }
-.share-target-icon svg { width: 18px; height: 18px; }
-.share-target.is-native .share-target-icon { background: var(--brand); color: #fff; }
+/* Megosztási célok: egyforma, egyszínű kör-ikonok kis felirattal */
+.share-targets { display: flex; flex-wrap: wrap; gap: 8px 6px; margin-top: 16px; }
+.share-target { flex: 0 0 72px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 2px 0;
+  background: none; border: 0; color: var(--muted); text-decoration: none; font-family: inherit; font-size: 11.5px; font-weight: 500; line-height: 1.2; cursor: pointer; }
+.share-target-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); transition: background .15s, border-color .15s, color .15s; }
+.share-target-icon svg { width: 20px; height: 20px; }
+.share-target:hover { color: var(--text); }
+.share-target:hover .share-target-icon { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+.share-target.is-native .share-target-icon { background: var(--brand); border-color: var(--brand); color: #fff; }
+.share-target.is-native { color: var(--text); font-weight: 600; }
 .share-no-link { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
 #shareOverlay { position: fixed; z-index: 3000; }
 @media (max-width: 520px) {
   .share-options { grid-template-columns: 1fr; }
-  .share-qr { width: 76px; height: 76px; }
-  .share-targets { grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .share-target { padding: 8px 2px; font-size: 11px; gap: 5px; }
-  .share-target-icon { width: 30px; height: 30px; }
+  .share-qr { width: 78px; height: 78px; }
+  .share-targets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 14px -18px 0; padding: 0 18px; }
+  .share-targets::-webkit-scrollbar { display: none; }
+  .share-target { flex: 0 0 64px; }
 }
 .share-no-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.share-save-link-btn { height: 34px; }
+.share-save-link-btn { height: 36px; }
 
 /* ── Térkép jobb felső sarok: teljes útvonal + térképstílus (lebegő) ──────── */
 /* z-index: a térképrétegek és az eszköztár (600) fölött, a modálok (700) alatt */
@@ -6591,3 +6598,69 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 .account-code .export-input { letter-spacing: .25em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .account-danger { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
 .account-danger-btn { margin-top: 8px; color: #dc2626; border-color: rgba(220,38,38,.35); }
+
+/* ── Megosztó kép ablak (index.html #shareCardOverlay) ────────────────────── */
+.sc-overlay { position: fixed; inset: 0; z-index: 1500; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(0,0,0,.55); }
+.sc-overlay[hidden] { display: none; }
+.sc-panel { display: flex; flex-direction: column; width: 100%; max-width: 480px; max-height: calc(100dvh - 40px);
+  background: var(--panel-bg); color: var(--text); border-radius: 18px; box-shadow: 0 16px 48px rgba(0,0,0,.3); overflow: hidden; }
+.sc-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; }
+.sc-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.sc-close { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px;
+  background: none; color: var(--text); cursor: pointer; }
+.sc-close svg { width: 18px; height: 18px; }
+.sc-body { padding: 0 18px 8px; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.sc-preview { display: flex; align-items: center; justify-content: center; padding: 12px; margin-bottom: 14px;
+  background: var(--panel-strong); border-radius: 14px; }
+.sc-preview canvas { display: block; max-width: 100%; max-height: min(46dvh, 380px); border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.14); touch-action: none; }
+.sc-label { display: block; margin: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.sc-input { width: 100%; box-sizing: border-box; padding: 10px 12px; margin-bottom: 14px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel-strong); color: var(--text); font: inherit; font-size: 15px; }
+.sc-input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+.sc-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.sc-field { flex: 1 1 180px; min-width: 0; }
+/* Szegmentált kapcsoló – mint a hibajelentő típusválasztója */
+.sc-seg { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-strong); }
+.sc-seg .share-opt-btn { flex: 1; justify-content: center; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.sc-seg .share-opt-btn:hover { background: transparent; color: var(--text); }
+.sc-seg .share-opt-btn--active, .sc-seg .share-opt-btn--active:hover { background: var(--panel-bg); color: var(--brand);
+  box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.sc-seg--sm .share-opt-btn { padding: 5px 6px; font-size: 12px; }
+.sc-photo { margin-bottom: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.sc-range { display: block; margin: 10px 0; font-size: 12px; color: var(--muted); }
+.sc-range > span { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.sc-range input { width: 100%; accent-color: var(--brand); }
+.sc-sub { margin: 10px 0 5px; font-size: 12px; color: var(--muted); }
+.sc-divider { height: 1px; margin: 12px 0 4px; background: var(--line); }
+.sc-inline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sc-inline--end { justify-content: flex-end; margin-top: 10px; }
+.sc-inline .sc-sub { margin: 10px 0; }
+.sc-color { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; }
+/* Gombok – ugyanolyan, mint az app többi ablakában */
+.sc-foot { display: flex; gap: 10px; padding: 12px 18px 16px; border-top: 1px solid var(--line); flex-shrink: 0;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.sc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 11px;
+  border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); font: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: background .15s; }
+.sc-btn svg { width: 18px; height: 18px; }
+.sc-btn:disabled { opacity: .6; cursor: default; }
+.sc-btn--ghost:hover { background: var(--panel-strong); }
+.sc-btn--primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.sc-btn--primary:hover { filter: brightness(.95); }
+.sc-foot .sc-btn { flex: 1; }
+.sc-btn--block { width: 100%; }
+.sc-btn--sm { padding: 6px 12px; font-size: 13px; }
+@media (max-width: 600px) {
+  .sc-overlay { align-items: flex-end; padding: 0; }
+  .sc-panel { max-width: none; max-height: calc(100dvh - env(safe-area-inset-top) - 12px); border-radius: 18px 18px 0 0; }
+  .sc-preview canvas { max-height: 40dvh; }
+}
+.sc-check { display: flex; align-items: flex-start; gap: 10px; margin: -2px 0 14px; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 11px; cursor: pointer; font-size: 13px; }
+.sc-check[hidden] { display: none; }
+.sc-check input { margin-top: 2px; accent-color: var(--brand); }
+.sc-check span { display: flex; flex-direction: column; gap: 1px; }
+.sc-check small { color: var(--muted); font-size: 11.5px; }

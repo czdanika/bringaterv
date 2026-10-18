@@ -412,10 +412,10 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
       : 0;
     const step = Math.max(1, Math.floor(geometry.length / 400));
     const simPts = [];
-    for (let i = 0; i < geometry.length; i += step) simPts.push({ lat: geometry[i].lat, lng: geometry[i].lng });
+    for (let i = 0; i < geometry.length; i += step) simPts.push({ lat: geometry[i].lat, lng: geometry[i].lng, ele: geometry[i].ele });
     if (simPts.length && simPts[simPts.length - 1] !== geometry[geometry.length - 1]) {
       const last = geometry[geometry.length - 1];
-      simPts.push({ lat: last.lat, lng: last.lng });
+      simPts.push({ lat: last.lat, lng: last.lng, ele: last.ele });
     }
     _shareCardData = {
       geometry, descentMeters, startTime: meta.startTime || null,
@@ -599,6 +599,7 @@ function _initShareCardModal() {
       theme: _shareTheme,
       size:  _shareSize,
       photo: _shareTheme === "photo" ? _sharePhoto : null,
+      qrUrl: _qrUrl(),
     });
     previewCanvas.width  = card.width;
     previewCanvas.height = card.height;
@@ -732,10 +733,19 @@ function _initShareCardModal() {
     cv.addEventListener("pointerleave", endDrag);
   })();
 
+  // QR-kód: csak ha van nyilvános link, és a kapcsoló be van kapcsolva
+  function _qrUrl() {
+    const on = document.querySelector("#shareQrToggle")?.checked !== false;
+    return on ? (_shareCardData?.shareUrl || null) : null;
+  }
+  document.querySelector("#shareQrToggle")?.addEventListener("change", () => refreshSharePreview());
+
   function openShareCardModal() {
     if (!_shareCardData) return;
     const overlay = document.querySelector("#shareCardOverlay");
     if (!overlay) return;
+    const qrRow = document.querySelector("#shareQrRow");
+    if (qrRow) qrRow.hidden = !_shareCardData.shareUrl;
     const titleInput = document.querySelector("#shareCardTitle");
     if (titleInput) titleInput.value = _shareCardData.metaTitle || "";
     overlay.hidden = false;
@@ -765,7 +775,10 @@ function _initShareCardModal() {
         if (!newId || newId === "saved") throw new Error("Mentés sikertelen");
         return shareRouteUrl(newId);
       },
-      onImage: openShareCardModal,
+      onImage: () => {
+        _shareCardData.shareUrl = hasLink ? shareRouteUrl(id) : null;
+        openShareCardModal();
+      },
       onPdf: openFilePdf,
     });
   }
@@ -854,6 +867,7 @@ function _initShareCardModal() {
       theme: _shareTheme,
       size:  _shareSize,
       photo: _shareTheme === "photo" ? _sharePhoto : null,
+      qrUrl: _qrUrl(),
     });
   }
 
@@ -893,7 +907,7 @@ function _initShareCardModal() {
       const card = await _buildCard();
       downloadShareCard(card, `${_safeName(_getShareTitle())}-share.png`);
     } finally {
-      if (dlBtn) { dlBtn.disabled = false; if (span) span.textContent = "Letöltés (PNG)"; }
+      if (dlBtn) { dlBtn.disabled = false; if (span) span.textContent = "Letöltés"; }
     }
   });
 

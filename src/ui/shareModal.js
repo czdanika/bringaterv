@@ -109,7 +109,7 @@ function targetsHtml(url, title) {
   const text = `${title} – Bringaterv`;
   const u = encodeURIComponent(url), t = encodeURIComponent(text);
   const items = [];
-  if (navigator.share) items.push({ key: "native", label: "Megosztás…", icon: '<i data-lucide="share-2" aria-hidden="true"></i>', cls: "is-native" });
+  if (navigator.share) items.push({ key: "native", label: "Megosztás", icon: '<i data-lucide="share-2" aria-hidden="true"></i>', cls: "is-native" });
   items.push({ label: "Facebook", icon: svg(BRAND.facebook), color: "#1877F2", href: `https://www.facebook.com/sharer/sharer.php?u=${u}` });
   if (isTouch()) items.push({ label: "Messenger", icon: svg(BRAND.messenger), color: "#0084FF", href: `fb-messenger://share/?link=${u}` });
   items.push({ label: "WhatsApp", icon: svg(BRAND.whatsapp), color: "#25D366", href: `https://wa.me/?text=${t}%20${u}` });
@@ -120,8 +120,8 @@ function targetsHtml(url, title) {
   items.push({ label: "Megnyitás", icon: '<i data-lucide="external-link" aria-hidden="true"></i>', href: url });
 
   return items.map((it) => {
-    const style = it.color ? ` style="--brand-c:${it.color}"` : "";
-    const inner = `<span class="share-target-icon"${style}>${it.icon}</span><span>${it.label}</span>`;
+    // Egyszínű ikonok – a márkaszínek helyett az app saját színei (egységes megjelenés)
+    const inner = `<span class="share-target-icon">${it.icon}</span><span>${it.label}</span>`;
     if (it.key === "native") return `<button type="button" class="share-target ${it.cls}" data-share="native">${inner}</button>`;
     const ext = it.href.startsWith("http") ? ' target="_blank" rel="noopener"' : "";
     return `<a class="share-target" href="${it.href}"${ext}>${inner}</a>`;
