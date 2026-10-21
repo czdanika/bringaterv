@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.13.2 – 2026-10-21 – Frissített bemutató oldal
+
+- **Bemutató oldal („Mi ez?”):** új „Kezdőlap” és „Közösség” szakasz képernyőképpel (összesítő, forma, sorozatok, célok, aktivitás-naptár; közösségi útvonalak térképen, helyszín szerinti szűrés, beküldés névvel / becenévvel / névtelenül), a Könyvtárnál a térképes nézet és a helyszín-szűrés, a megosztásnál a megosztó kép stílusai, hátterei és grafikonjai; frissített bevezető és menü.
+
+### Verzió
+- v1.13.1 → v1.13.2
+
+---
+
 ## v1.13.1 – 2026-10-21 – Szebb gombok az útvonal betöltésénél
 
 - **Útvonal betöltése (Tervezés) – szebb gombok:** vizsgálat előtt egyetlen, teljes szélességű „Betöltés” gomb (nincs halvány, letiltott gomb); a szegmensvizsgálat után két egyforma gomb egymás mellett: „Csak betöltés” és „Betöltés burkolat szerint” (ez utóbbi az útburkolat alapján szakaszonként beállítja a tervezési módot).

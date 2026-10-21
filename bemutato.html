@@ -142,8 +142,10 @@
         <span>Bringa<b>terv</b></span>
       </a>
       <nav>
+        <a href="#kezdolap">Kezdőlap</a>
         <a href="#tervezes">Tervezés</a>
         <a href="#elemzes">Elemzés</a>
+        <a href="#kozosseg">Közösség</a>
         <a href="#statisztikak">Statisztikák</a>
         <a href="#mobil">Mobil</a>
         <a class="btn btn-primary" href="./login.html">Belépés</a>
@@ -157,7 +159,7 @@
       <div>
         <span class="eyebrow">Kerékpárosoknak · túrázóknak · futóknak</span>
         <h1>Tervezz, tekerj, <em>fedezd fel!</em></h1>
-        <p class="lead">A Bringaterv útvonaltervező és edzésnapló egy helyen: megtervezed a túrát szintprofillal és szélelemzéssel, elküldöd a Garminodra, utána pedig mindent visszanézhetsz – sebesség, pulzus, teljesítmény, rekordok. Gépen és telefonon is.</p>
+        <p class="lead">A Bringaterv útvonaltervező és edzésnapló egy helyen: megtervezed a túrát szintprofillal és szélelemzéssel, elküldöd a Garminodra, utána pedig mindent visszanézhetsz – sebesség, pulzus, teljesítmény, rekordok. Mások kipróbált útvonalait is megtalálod, a Kezdőlapon pedig egy pillantással látod a formádat és a céljaidat. Gépen és telefonon is.</p>
         <div class="hero-cta">
           <a class="btn btn-primary" href="./login.html">Belépés</a>
           <a class="btn btn-ghost" href="#hogyan">Hogyan csatlakozhatok?</a>
@@ -188,7 +190,7 @@
         <div class="pillar">
           <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></div>
           <h3>Tárolás</h3>
-          <p>Minden tervezett útvonal és edzés a könyvtáradban: kereshető, szűrhető, letölthető. Strava-ból és Garminból magától is bekerül.</p>
+          <p>Minden tervezett útvonal és edzés a könyvtáradban: kereshető, szűrhető, térképen is böngészhető. Stravából és Garminból magától is bekerül – és ott vannak mások kipróbált útvonalai is.</p>
         </div>
         <div class="pillar">
           <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
@@ -199,9 +201,29 @@
     </div>
   </section>
 
-  <!-- Tervezés -->
-  <section id="tervezes">
+  <!-- Kezdőlap -->
+  <section id="kezdolap">
     <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Kezdőlap</span>
+        <h2>Egy pillantás, és tudod, hol tartasz</h2>
+        <p class="sec-sub" style="color:var(--muted)">Belépés után a Kezdőlap fogad: egy helyen a legfontosabb számaid és a következő lépés.</p>
+        <ul>
+          <li><b>Összesítő:</b> e hét, a hónap és az év kilométerei, szintje, ideje</li>
+          <li><b>Forma:</b> friss vagy fáradt vagy – a fittség és a fáradtság alapján</li>
+          <li><b>Sorozatok:</b> hány napja, hete, hónapja tekersz egyhuzamban</li>
+          <li><b>Céljaim:</b> saját heti és éves célok, időarányos állással – vagy automatikusan a következő kerek szám</li>
+          <li><b>Eddington-szám</b> és <b>aktivitás-naptár</b> az elmúlt évről</li>
+          <li><b>Gyors indítás</b> és a legutóbbi útvonalaid, edzéseid egy kattintásra</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/kezdolap.jpg" alt="A Kezdőlap összesítővel, formával, célokkal és aktivitás-naptárral" width="1440" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Tervezés -->
+  <section id="tervezes" class="alt">
+    <div class="wrap feature rev">
       <div class="f-text">
         <span class="kicker">Tervezés</span>
         <h2>Megtervezed, mielőtt nyeregbe pattansz</h2>
@@ -221,9 +243,9 @@
   </section>
 
   <!-- Elemzés -->
-  <section id="elemzes" class="alt">
+  <section id="elemzes">
     <div class="wrap">
-      <div class="feature rev">
+      <div class="feature">
         <div class="f-text">
           <span class="kicker">Elemzés</span>
           <h2>Minden edzés, minden részlet</h2>
@@ -254,20 +276,39 @@
   </section>
 
   <!-- Könyvtár -->
-  <section id="konyvtar">
-    <div class="wrap feature">
+  <section id="konyvtar" class="alt">
+    <div class="wrap feature rev">
       <div class="f-text">
         <span class="kicker">Tárolás</span>
         <h2>A könyvtárad: minden útvonal és edzés egy helyen</h2>
         <ul>
-          <li><b>Kártyás vagy listás nézet,</b> útvonal-bélyegképekkel</li>
-          <li><b>Szűrés és keresés:</b> típus, forrás, sportág, táv, időtartam, név</li>
+          <li><b>Kártyás, listás vagy térképes nézet</b> – a térképen az összes útvonalad egyszerre, rámutatva kiemelve</li>
+          <li><b>Szűrés és keresés:</b> típus, forrás, sportág, táv, időtartam, név, helyszín</li>
           <li><b>Import:</b> GPX / FIT fájlból, Stravából, Garminból – a FIT eredetije is megmarad</li>
           <li><b>Letöltés</b> GPX-ben vagy eredeti FIT-ben, bármikor</li>
           <li><b>Teljes mentés</b> egy ZIP-fájlba – az adataid a tieid</li>
         </ul>
       </div>
       <div class="f-shot"><img src="./screenshots/konyvtar.jpg" alt="Könyvtár kártyás nézetben" width="1439" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Közösségi útvonalak -->
+  <section id="kozosseg">
+    <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Közösség</span>
+        <h2>Kipróbált útvonalak, mások ajánlásával</h2>
+        <p class="sec-sub" style="color:var(--muted)">Nem kell mindig nulláról tervezni: a Közösségi útvonalak között mások már bejárt, leírással ellátott túráit találod.</p>
+        <ul>
+          <li><b>Térképen böngészhető:</b> rögtön látod, mi van a környékeden</li>
+          <li><b>Helyszín szerint szűrhető:</b> ország, megye, település, körtúra vagy A → B – külföldi utak is</li>
+          <li><b>Leírás, nehézség, ajánlott évszak</b> – burkolat, emelkedők, látnivalók, kávézók</li>
+          <li><b>Egy kattintással betöltöd,</b> és máris a saját ízlésed szerint alakíthatod</li>
+          <li><b>Beküldheted a sajátodat</b> – névvel, becenévvel vagy névtelenül. Csak a nyomvonal kerül át: időpont, pulzus és egyéb személyes adat nem.</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/kozossegi-terkep.jpg" alt="Közösségi útvonalak a Könyvtár térképes nézetében" width="1440" height="690" loading="lazy"></div>
     </div>
   </section>
 
@@ -330,7 +371,7 @@
         </div>
         <div class="pillar">
           <h3>Megosztás</h3>
-          <p>Link és QR-kód (a megnézéséhez nem kell regisztrálni), megosztó kép a közösségi médiába, nyomtatható PDF útvonallap térképpel és szintprofillal.</p>
+          <p>Link és QR-kód (a megnézéséhez nem kell regisztrálni), nyomtatható PDF útvonallap térképpel és szintprofillal, és megosztó kép a közösségi médiába – többféle stílusban (adatpanellel vagy közvetlenül a térképen), világos, sötét, zöld terep- vagy saját fotó háttérrel, választható grafikonokkal (szint, sebesség, pulzus, kadencia, teljesítmény).</p>
         </div>
       </div>
     </div>
