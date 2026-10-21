@@ -164,6 +164,10 @@ const elevationTimeDefault = () => localStorage.getItem('bringaterv-elevation-de
 let elevationTimeEnabled = elevationTimeDefault();
 
 function switchTab(name) {
+  // A Kezdőlap keskeny oldalsávja és a többi fül széles oldalsávja között ne animáljon
+  // a rács – különben a térkép a váltás közben méri meg magát, és elcsúszik.
+  elements.appShell.classList.add("is-tab-switching");
+  requestAnimationFrame(() => requestAnimationFrame(() => elements.appShell.classList.remove("is-tab-switching")));
   currentTab = name;
   elements.appShell.classList.toggle("is-home-mode",    name === "home");
   elements.appShell.classList.toggle("is-file-mode",    name === "file");
@@ -182,6 +186,11 @@ function switchTab(name) {
   if (statsMain) statsMain.hidden = name !== "stats";
   // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen/Könyvtáron nem
   mapAdapter?.setRouteInteractive(name === "plan");
+  // A térkép a Kezdőlap / Könyvtár / Statok alatt rejtve van (indításkor a Kezdőlap miatt
+  // rejtve is jön létre) – láthatóvá váláskor újra kell mérnie magát, különben üres marad.
+  if (name === "plan" || name === "file") {
+    mapAdapter?.invalidateSize();
+  }
   // Könyvtár fül megnyitásakor mindig frissítjük a listát
   if (name === "library" && tabLibrary) loadRouteLibrary();
   // Statisztikák fül megnyitásakor: betölt ha szükséges, majd renderel (statsManager.js)
@@ -2789,6 +2798,9 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
   }
 
   if (target === "file") {
+    // Előbb a fül váltson (a térkép látható és méretezett legyen), csak utána rajzolunk
+    // és illesztünk – rejtett térképen a fitBounds rossz nagyítást ad.
+    switchTab("file");
     clearAllRouteState();
     // ── Elemzés fülre töltés (azonos logika mint a kézi GPX feltöltésnél) ──
     store.replaceWaypoints(imported.waypoints, {

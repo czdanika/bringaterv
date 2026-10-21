@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.13.3 – 2026-10-21 – Javítás: térkép az Elemzésben
+
+- **Javítás – üres / elcsúszott térkép az Elemzésben:** mióta az app a Kezdőlappal indul, a térkép rejtve volt, és a Kezdőlapról átváltva nem töltötte be a csempéket, illetve az első betöltött útvonal elcsúszva, rossz nagyítással jelent meg. A térkép most fülváltáskor újraméri magát, a keskeny és széles oldalsáv közti váltás nem animál, és a betöltés előbb vált fület, csak utána rajzol.
+
+### Verzió
+- v1.13.2 → v1.13.3
+
+---
+
 ## v1.13.2 – 2026-10-21 – Frissített bemutató oldal
 
 - **Bemutató oldal („Mi ez?”):** új „Kezdőlap” és „Közösség” szakasz képernyőképpel (összesítő, forma, sorozatok, célok, aktivitás-naptár; közösségi útvonalak térképen, helyszín szerinti szűrés, beküldés névvel / becenévvel / névtelenül), a Könyvtárnál a térképes nézet és a helyszín-szűrés, a megosztásnál a megosztó kép stílusai, hátterei és grafikonjai; frissített bevezető és menü.

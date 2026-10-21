@@ -6898,3 +6898,6 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 .load-preview-footer:has(#loadPreviewConfirmBtn[hidden]) { grid-template-columns: minmax(0, 1fr); }
 .load-preview-footer .export-confirm-btn { justify-content: center; min-height: 44px; text-align: center; white-space: nowrap; }
 .load-preview-footer .export-confirm-btn[hidden] { display: none; }
+
+/* Fülváltáskor (pl. Kezdőlap → Elemzés) a rács szélessége ugorjon, ne animáljon */
+.app-shell.is-tab-switching { transition: none !important; }
