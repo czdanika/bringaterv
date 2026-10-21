@@ -455,7 +455,7 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
 
 // ── Eddington-szám ────────────────────────────────────────────────────────────
 
-function calcEddington(routes) {
+export function calcEddington(routes) {
   // Napok szerinti összesítés (több edzés = összeadódik)
   const byDay = {};
   routes.forEach(r => {
@@ -628,7 +628,7 @@ function drawEddingtonChart(canvas, histogram, E) {
 
 // ── Edzésterhelés (CTL / ATL / TSB) ──────────────────────────────────────────
 
-function calcTrainingLoad(routes) {
+export function calcTrainingLoad(routes) {
   const a7  = 1 - Math.exp(-1 / 7);   // ATL alpha
   const a42 = 1 - Math.exp(-1 / 42);  // CTL alpha
 

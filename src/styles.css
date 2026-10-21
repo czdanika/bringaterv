@@ -6344,13 +6344,15 @@ body.is-drag-over::after {
     box-shadow: 0 -2px 12px rgba(0,0,0,.06);
   }
   .app-rail .rail-spacer, .app-rail .rail-collapse-btn, .app-rail .rail-version, .app-rail .update-dot { display: none !important; }
-  .app-rail .rail-tab { flex: 1; width: auto; height: 50px; }
+  .app-rail .rail-tab { flex: 1 1 0; min-width: 0; width: auto; height: 50px; }
   .rail-label { font-size: 11px; }
 
   /* Fő terület: a fejléc és az alsó sáv között, teljes szélességben */
-  .map-wrap, .library-main, .stats-main {
+  .map-wrap, .library-main, .stats-main, .home-main {
     position: fixed; top: var(--top-h); left: 0; right: 0; bottom: var(--nav-h);
   }
+  /* Kezdőlapon nincs felhúzható panel – a kezdőlap tölti ki a képernyőt */
+  .app-shell.is-home-mode .sidebar-inner { display: none !important; }
   /* Könyvtárban/Statokban a lista ne bújjon a panel alá */
   .library-main, .stats-main { padding-bottom: var(--sheet-h); }
 
@@ -6767,3 +6769,126 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 .sc-chip-dot { width: 8px; height: 8px; border-radius: 50%; opacity: .45; }
 .sc-chip--on { border-color: var(--brand); color: var(--text); background: var(--panel-bg); box-shadow: 0 0 0 1px var(--brand) inset; }
 .sc-chip--on .sc-chip-dot { opacity: 1; }
+
+/* ── Kezdőlap fül (a térkép helyén, teljes szélességben) ──────────────────── */
+.app-shell.is-home-mode { grid-template-columns: 52px 1fr; }
+.app-shell.is-home-mode .sidebar-inner,
+.app-shell.is-home-mode .map-wrap { display: none; }
+.app-shell.is-home-mode .home-main { display: block; }
+.home-main { display: none; overflow-y: auto; background: var(--bg); }
+.home-wrap { max-width: 1180px; margin: 0 auto; padding: 32px 32px 40px; }
+.home-head h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.4px; color: var(--text); }
+.home-head p { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
+.home-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 22px 0 26px; }
+.home-tile { display: flex; flex-direction: column; gap: 5px; padding: 16px 16px 15px; text-align: left; font: inherit; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel-bg); color: var(--text);
+  transition: border-color .15s, transform .15s, box-shadow .15s; }
+.home-tile:hover { border-color: var(--brand); box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+.home-tile:active { transform: scale(.98); }
+.home-tile b { font-size: 15px; font-weight: 700; }
+.home-tile span { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.home-tile--primary { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+.home-note { margin: 0 0 22px; padding: 16px 18px; border-radius: 14px; border: 1px dashed var(--line);
+  font-size: 14px; line-height: 1.55; color: var(--muted); background: var(--panel-bg); }
+.home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.home-c { padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-bg); min-width: 0; }
+.home-c--wide { grid-column: span 2; }
+.home-c--full { grid-column: 1 / -1; }
+.home-c--recent { margin-bottom: 18px; }
+.home-c-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.home-c-head h2 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 4px; }
+.home-c-head .hint-btn { text-transform: none; letter-spacing: 0; }
+.home-early { margin-top: 10px; font-style: italic; }
+.home-c-head button { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--brand); cursor: pointer; }
+.home-lbl { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.home-big { font-size: 34px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; color: var(--text); }
+.home-big small { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.home-mid { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--text); }
+.home-sub { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.home-sub--c { text-align: center; margin-top: 12px; }
+.home-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.home-sum-col { padding: 0 16px; min-width: 0; }
+.home-sum-col:first-child { padding-left: 0; }
+.home-sum-col + .home-sum-col { border-left: 1px solid var(--line); }
+.home-sum-col .home-big { margin: 4px 0 2px; }
+.home-sum-sub span + span::before { content: " · "; }
+.home-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: center; gap: 8px; }
+.home-trio > div { padding: 10px 4px; border-radius: 12px; background: var(--panel-strong); }
+.home-trio .home-lbl { margin-top: 3px; }
+.home-form { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.home-badge { padding: 4px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.home-badge--fresh    { background: rgba(34,197,94,.14);  color: #15803d; }
+.home-badge--training { background: rgba(59,130,246,.14); color: #1d4ed8; }
+.home-badge--tired    { background: rgba(249,115,22,.16); color: #c2410c; }
+.home-badge--overload { background: rgba(239,68,68,.15);  color: #b91c1c; }
+.home-edd { display: flex; align-items: center; gap: 18px; }
+.home-edd .home-big { font-size: 48px; color: var(--brand); }
+.home-goal + .home-goal { margin-top: 16px; }
+.home-goal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text); margin-bottom: 6px; }
+.home-goal-top span:first-child { font-weight: 600; }
+.home-goal .home-sub { margin-top: 5px; font-size: 11.5px; }
+.home-bar { position: relative; height: 8px; border-radius: 4px; background: var(--panel-strong); }
+.home-bar i { display: block; height: 100%; border-radius: 4px; background: var(--brand); }
+.home-bar em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); opacity: .55; }
+.home-goal--done .home-bar i { background: #16a34a; }
+.home-goal-input { display: flex; align-items: center; gap: 8px; }
+.home-goal-input .fb-input { flex: 1; }
+.home-goal-input span { font-size: 13px; color: var(--muted); min-width: 22px; }
+.home-cal { display: grid; grid-template-rows: repeat(7, auto); gap: 3px; }
+.home-cal i { display: block; aspect-ratio: 1; border-radius: 2px; }
+.home-cal-months { display: grid; gap: 3px; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.home-cal-months span { white-space: nowrap; }
+.home-cal-0, .home-cal-scale .home-cal-0 { background: var(--panel-strong); }
+.home-cal-1 { background: rgba(252,76,2,.28); }
+.home-cal-2 { background: rgba(252,76,2,.5); }
+.home-cal-3 { background: rgba(252,76,2,.75); }
+.home-cal-4 { background: #fc4c02; }
+.home-cal-x { background: transparent; }
+.home-cal-legend { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 10px; flex-wrap: wrap; }
+.home-cal-scale { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--muted); }
+.home-cal-scale i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.home-recent { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.home-row { display: flex; align-items: center; gap: 10px; padding: 11px 13px; text-align: left; font: inherit; cursor: pointer; min-width: 0;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel-bg); color: var(--text); }
+.home-row:hover { border-color: var(--brand); }
+.home-row-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.home-row-dot--workout { background: #fc4c02; }
+.home-row-dot--route { background: #2563eb; }
+.home-row-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.home-row-t b { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-row-t span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-row-go { font-size: 12.5px; font-weight: 700; color: var(--brand); flex: none; }
+.home-foot { font-size: 13px; color: var(--muted); }
+.home-foot a { color: var(--brand); font-weight: 600; text-decoration: none; }
+
+@media (max-width: 1100px) {
+  .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .home-wrap { padding: 20px 16px 28px; }
+  .home-head h1 { font-size: 24px; }
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+  .home-tile { padding: 13px; }
+  .home-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+  .home-c { padding: 15px 16px; }
+  .home-c--wide { grid-column: auto; }
+  .home-big { font-size: 26px; }
+  .home-sum-col { padding: 0 10px; }
+  .home-sum-sub span { display: block; }
+  .home-sum-sub span + span::before { content: none; }
+  .home-sub { font-size: 11.5px; }
+  .home-recent { grid-template-columns: minmax(0, 1fr); }
+  .home-cal { gap: 2px; }
+}
+
+/* Térkép: „Kattints a rajtponthoz” felirat üres tervezésnél */
+.map-start-hint { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 450;
+  display: flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 999px; pointer-events: none;
+  background: rgba(26,29,35,.8); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22); }
+.map-start-hint[hidden] { display: none; }
+.map-start-hint-dot { width: 9px; height: 9px; border-radius: 50%; background: #fc4c02;
+  animation: mapHintPulse 1.8s ease-out infinite; }
+@keyframes mapHintPulse { 0% { box-shadow: 0 0 0 0 rgba(252,76,2,.55); } 100% { box-shadow: 0 0 0 10px rgba(252,76,2,0); } }
+@media (max-width: 760px) { .map-start-hint { top: 22%; font-size: 12.5px; padding: 8px 13px; } }

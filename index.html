@@ -61,6 +61,10 @@
 
         <!-- VERTICAL ICON RAIL -->
         <nav class="app-rail">
+          <button class="sidebar-tab rail-tab" data-tab="home" type="button" title="Kezdőlap">
+            <i data-lucide="house" aria-hidden="true"></i>
+            <span class="rail-label">Kezdő</span>
+          </button>
           <button class="sidebar-tab rail-tab is-active" data-tab="plan" type="button" title="Tervezés" data-i18n-title="nav.planner">
             <i data-lucide="map-pin-plus" aria-hidden="true"></i>
             <span class="rail-label" data-i18n="tabs.plan">Tervezés</span>
@@ -868,6 +872,9 @@
           <p>Nincs találat a szűrési feltételeknek megfelelően.</p>
         </div>
       </div>
+
+      <!-- KEZDŐLAP (a térkép helyén, teljes szélességben – home.js tölti ki) -->
+      <div id="homeMain" class="home-main" hidden></div>
 
       <!-- STATS MAIN (replaces map in stats mode) -->
       <div id="statsMain" class="stats-main" hidden>

@@ -63,7 +63,7 @@ export function initMobileShell() {
 
 function modeKey() {
   const c = _shell.classList;
-  return c.contains("is-library-mode") ? "library" : c.contains("is-stats-mode") ? "stats"
+  return c.contains("is-home-mode") ? "home" : c.contains("is-library-mode") ? "library" : c.contains("is-stats-mode") ? "stats"
        : c.contains("is-file-mode") ? "file" : "plan";
 }
 

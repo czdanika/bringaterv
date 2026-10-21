@@ -23,6 +23,7 @@ import { initGarmin } from "./ui/garmin.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
+import { initHome, updateHome } from "./ui/home.js";
 import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js";
 import { initNotifications } from "./ui/notifications.js";
 import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
@@ -164,10 +165,13 @@ let elevationTimeEnabled = elevationTimeDefault();
 
 function switchTab(name) {
   currentTab = name;
+  elements.appShell.classList.toggle("is-home-mode",    name === "home");
   elements.appShell.classList.toggle("is-file-mode",    name === "file");
   elements.appShell.classList.toggle("is-library-mode", name === "library");
   elements.appShell.classList.toggle("is-stats-mode",   name === "stats");
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
+  const homeMain = document.querySelector("#homeMain");
+  if (homeMain) homeMain.hidden = name !== "home";
   tabPlan.hidden    = name !== "plan";
   tabFile.hidden    = name !== "file";
   if (tabLibrary) tabLibrary.hidden = name !== "library";
@@ -182,6 +186,7 @@ function switchTab(name) {
   if (name === "library" && tabLibrary) loadRouteLibrary();
   // Statisztikák fül megnyitásakor: betölt ha szükséges, majd renderel (statsManager.js)
   if (name === "stats") loadAndRenderStats();
+  updateHome({ tab: name });
   window.lucide?.createIcons();
 }
 
@@ -193,8 +198,8 @@ function requestTabSwitch(targetTab) {
 
   const hasPlanData = store.getState().waypoints.length > 0;
 
-  // Könyvtár fülre/könyvtárból való váltásnál nincs megerősítés szükséges
-  if (!tabLibrary || targetTab === "library" || currentTab === "library") {
+  // Könyvtár / Kezdőlap fülre vagy onnan váltásnál nincs megerősítés szükséges
+  if (!tabLibrary || ["library", "home"].includes(targetTab) || ["library", "home"].includes(currentTab)) {
     switchTab(targetTab);
     return;
   }
@@ -577,6 +582,7 @@ const mapAdapter = createMapAdapter({
   startView: appSettings.startView ?? null,
   onMapClick: (point) => {
     if (currentTab === "file") return; // view-only in file tab
+    if (currentTab === "home") switchTab("plan");   // a Kezdőlapról a térképre kattintás = tervezés indul
     addWaypointWithName(point);
   },
   onRouteClick: async ({ lat, lng, geometryIndex }) => {
@@ -677,6 +683,34 @@ initStats({
 });
 
 initMobileShell();
+
+// Kezdőlap: összesítő + gyors műveletek; indításkor ez nyílik (kivéve mélylinknél)
+initHome({
+  api: routesApi,
+  getUser,
+  actions: {
+    plan: () => {
+      switchTab("plan");
+      setTimeout(() => document.querySelector("#searchInput")?.focus(), 50);
+    },
+    loadFile: () => { switchTab("file"); elements.gpxInput.click(); },
+    community: () => {
+      switchTab("library");
+      document.querySelector('[data-lib-type="sample"]')?.click();
+    },
+    stats: () => switchTab("stats"),
+    statsView: (view) => {
+      switchTab("stats");
+      document.querySelector(`.stats-nav-item[data-stats-view="${view}"]`)?.click();
+    },
+    library: () => switchTab("library"),
+    openItem: (id, name, target) => loadRouteFromLibrary(id, false, name, target),
+  },
+});
+{
+  const p = new URLSearchParams(location.search);
+  if (!p.get("open") && !p.get("route") && !p.get("settings")) switchTab("home");
+}
 initInstallPrompt({ menuItem: document.getElementById("installAppButton") });
 // A GPX/FIT fájlválasztók szándékosan accept-szűrő NÉLKÜL vannak: a Safari (Mac és
 // iOS) az ismeretlen „.fit” kiterjesztést szürkén, kiválaszthatatlanul hagyja.
@@ -1250,6 +1284,7 @@ if (_sv) setTimeout(() => mapAdapter.setView(_sv.lat, _sv.lng, _sv.zoom), 500);
 
 store.subscribe(async (state) => {
   renderSidebar(state);
+  updateHome({ hasRoute: state.waypoints.length > 0 });
   elements.undoButton.disabled = !state.canUndo;
   elements.redoButton.disabled = !state.canRedo;
   const hasPoints  = state.waypoints.length > 0;
@@ -1685,6 +1720,7 @@ if (isAdmin()) {
       if (serverSettings.unit)       { localStorage.setItem("route4meUnit",          serverSettings.unit);                      changed = true; }
       if (serverSettings.startView)  { localStorage.setItem("bringaterv.startView",  JSON.stringify(serverSettings.startView)); changed = true; }
       if (serverSettings.theme)      { localStorage.setItem("route4meTheme",         serverSettings.theme);                     changed = true; }
+      if (serverSettings.goals)      { localStorage.setItem("bringaterv.goals",      JSON.stringify(serverSettings.goals));     changed = true; }
     }
     // A UI elemek értesítése, hogy újraolvassanak a localStorage-ból
     if (changed) {
@@ -1708,6 +1744,7 @@ if (isAdmin()) {
       payload.unit             = localStorage.getItem("route4meUnit")         || undefined;
       try { payload.startView = JSON.parse(localStorage.getItem("bringaterv.startView") || "null"); } catch {}
       payload.theme            = localStorage.getItem("route4meTheme")        || undefined;
+      try { payload.goals = JSON.parse(localStorage.getItem("bringaterv.goals") || "null") || undefined; } catch {}
       routesApi.saveSettings(payload).catch(() => {});
     }, 1500);
   }

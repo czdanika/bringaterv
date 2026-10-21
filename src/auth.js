@@ -15,6 +15,7 @@ const USER_SPECIFIC_KEYS = [
   "bringaterv.chartColors",
   "bringaterv.cyclistProfile",
   "bringaterv.startView",
+  "bringaterv.goals",
   "bringaterv.settings.collapsed",
   "route4meMapStyle",
   "route4meUnit",

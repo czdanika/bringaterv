@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.13.0 – 2026-10-21 – Kezdőlap
+
+- **Kezdőlap fül** (a fülsor elején; indításkor ez nyílik, kivéve mélylinknél): gépen a térkép helyén, teljes szélességben, mobilon teljes képernyőn. Köszönés keresztnévvel; négy gyors indítás – útvonal tervezése (a keresőre ugrik), edzés elemzése (fájlválasztó), közösségi utak (Könyvtár a Közösségi szűrővel), statisztikák. Kártyák az edzésadatokból: **összesítő** (e hét, a hónap, az év – km, edzésszám, szint, idő), **forma** (fittség / fáradtság / forma, a Statok edzésterhelése alapján), **sorozatok** (egymást követő napok, hetek, hónapok edzéssel), **Eddington-szám** a következő céllal, **Céljaim** – saját célok a „Beállítás” gombbal (heti táv, éves táv, éves szint; a szerverrel szinkronizálva, minden eszközön ugyanaz), ami nincs megadva, ahhoz automatikus cél (a következő kerek szám); soronként „mostani / cél · %”, a csík 0-tól a célig mér, éves saját célnál jel mutatja az időarányos állást és hogy mennyivel jársz előtte / mögötte, **aktivitás-naptár** (gépen az elmúlt év, mobilon 18 hét), és a **legutóbbi 6 elem** egy kattintással betölthetően. A „Részletek →” linkek a Statok megfelelő nézetére visznek. A Forma, Sorozatok, Eddington, Célok és Aktivitás kártyák címe mellett ⓘ súgó magyarázza, mit mutat a kártya; 5-nél kevesebb edzésnél a Forma és az Eddington kártyán „néhány edzés után lesz pontos” megjegyzés áll. Ha még nincs edzés, rövid útmutató áll a kártyák helyén.
+- **Tervezés – kezdő felirat a térképen:** amíg nincs pont, a térkép közepén halvány, pulzáló „Kattints a térképre a rajtponthoz” (mobilon „Koppints…”) jelzés.
+
+### Verzió
+- v1.12.0 → v1.13.0
+
+---
+
 ## v1.12.0 – 2026-10-21 – Megosztó kép stílusok és grafikonok, könyvtár térképnézet
 
 - **Megosztó kép – stílusválasztó:** a megosztó kép ablakban külön választható a **stílus** (kis rajzolt előnézettel) és a **háttér**. Stílusok: *Adatpanel* (a korábbi: térkép felül, adatok alul panelen) és az új *Térképen* (az adatok fehér betűkkel, alul sötét átmeneten, közvetlenül a térképen; vékony, elegáns nyomvonal; álló képen két oszlopban nagy számok). Háttér: Világos, Sötét, az új **Terep** (zöld, domborzatos térkép) vagy Fotó – bármelyik stílussal kombinálható. A választott stílust a böngésző megjegyzi; a lista később bővíthető.

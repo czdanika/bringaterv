@@ -58,6 +58,8 @@ SETTINGS_ALLOWED_KEYS = {
     "mapStyle", "theme", "unit", "startView",
     "snapToRoads", "showStageInfo", "gpxSampleWaypoints",
     "toolbarOrder", "toolbarHidden",
+    # Kezdőlap: saját célok (heti / éves km, éves szint)
+    "goals",
     # HR / edzés zónák
     "hrZones", "speedZones", "cadZones", "powerZones",
     # Diagram színek (mode + per-chart színek)
