@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.13.1 – 2026-10-21 – Szebb gombok az útvonal betöltésénél
+
+- **Útvonal betöltése (Tervezés) – szebb gombok:** vizsgálat előtt egyetlen, teljes szélességű „Betöltés” gomb (nincs halvány, letiltott gomb); a szegmensvizsgálat után két egyforma gomb egymás mellett: „Csak betöltés” és „Betöltés burkolat szerint” (ez utóbbi az útburkolat alapján szakaszonként beállítja a tervezési módot).
+
+### Verzió
+- v1.13.0 → v1.13.1
+
+---
+
 ## v1.13.0 – 2026-10-21 – Kezdőlap
 
 - **Kezdőlap fül** (a fülsor elején; indításkor ez nyílik, kivéve mélylinknél): gépen a térkép helyén, teljes szélességben, mobilon teljes képernyőn. Köszönés keresztnévvel; négy gyors indítás – útvonal tervezése (a keresőre ugrik), edzés elemzése (fájlválasztó), közösségi utak (Könyvtár a Közösségi szűrővel), statisztikák. Kártyák az edzésadatokból: **összesítő** (e hét, a hónap, az év – km, edzésszám, szint, idő), **forma** (fittség / fáradtság / forma, a Statok edzésterhelése alapján), **sorozatok** (egymást követő napok, hetek, hónapok edzéssel), **Eddington-szám** a következő céllal, **Céljaim** – saját célok a „Beállítás” gombbal (heti táv, éves táv, éves szint; a szerverrel szinkronizálva, minden eszközön ugyanaz), ami nincs megadva, ahhoz automatikus cél (a következő kerek szám); soronként „mostani / cél · %”, a csík 0-tól a célig mér, éves saját célnál jel mutatja az időarányos állást és hogy mennyivel jársz előtte / mögötte, **aktivitás-naptár** (gépen az elmúlt év, mobilon 18 hét), és a **legutóbbi 6 elem** egy kattintással betölthetően. A „Részletek →” linkek a Statok megfelelő nézetére visznek. A Forma, Sorozatok, Eddington, Célok és Aktivitás kártyák címe mellett ⓘ súgó magyarázza, mit mutat a kártya; 5-nél kevesebb edzésnél a Forma és az Eddington kártyán „néhány edzés után lesz pontos” megjegyzés áll. Ha még nincs edzés, rövid útmutató áll a kártyák helyén.

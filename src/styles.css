@@ -6892,3 +6892,9 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   animation: mapHintPulse 1.8s ease-out infinite; }
 @keyframes mapHintPulse { 0% { box-shadow: 0 0 0 0 rgba(252,76,2,.55); } 100% { box-shadow: 0 0 0 10px rgba(252,76,2,0); } }
 @media (max-width: 760px) { .map-start-hint { top: 22%; font-size: 12.5px; padding: 8px 13px; } }
+
+/* Útvonal-betöltés előnézet: egy teljes szélességű gomb, vizsgálat után két egyforma */
+.load-preview-footer { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
+.load-preview-footer:has(#loadPreviewConfirmBtn[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.load-preview-footer .export-confirm-btn { justify-content: center; min-height: 44px; text-align: center; white-space: nowrap; }
+.load-preview-footer .export-confirm-btn[hidden] { display: none; }

@@ -2323,8 +2323,15 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
     analysisEl.innerHTML = "";
     analyzeBtn.hidden  = false;
     analyzeBtn.disabled = false;
-    confirmBtn.disabled = true;
     analyzeHint.hidden  = false;
+    // Vizsgálat előtt egyetlen „Betöltés” gomb; utána két egyforma gomb egymás mellett
+    const setScanned = (scanned) => {
+      confirmBtn.hidden = !scanned;
+      skipBtn.textContent = scanned ? "Csak betöltés" : "Betöltés";
+      skipBtn.classList.toggle("export-confirm-btn--primary", !scanned);
+      skipBtn.classList.toggle("export-confirm-btn--secondary", scanned);
+    };
+    setScanned(false);
 
     // --- Rögzítő pontok szekció ---
     // Csak akkor mutatjuk ha van elegendő geometria és kevés az eredeti waypont
@@ -2474,7 +2481,7 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
 
         latestSegments = segments; // confirmBtn-hoz szükséges (D-P merge)
         resolvedResult = { segmentedGeom };
-        confirmBtn.disabled = false;
+        setScanned(true);
         if (typeof lucide !== "undefined") lucide.createIcons();
 
       } catch (err) {
