@@ -17,12 +17,22 @@ import { ensureQR, buildQrCanvas } from "./routePdf.js";
  *   4. alsó adatpanel: cím, dátum, szintprofil-csík, 2–4 adat nagy számokkal,
  *      és ha van nyilvános link, egy kis QR-kód a jobb felső sarkában
  *
+ * Két független választás:
+ *   theme  – a háttér: világos / sötét / terep (zöld, domborzatos) térkép, vagy fotó
+ *   layout – a stílus (elrendezés), lásd SHARE_LAYOUTS:
+ *            „panel”   – alul fehér/sötét adatpanel (a fenti rétegek)
+ *            „overlay” – az adatok fehér betűkkel, alul sötét átmeneten,
+ *                        közvetlenül a háttérre kerülnek (panel nélkül)
+ * Új stílus: egy új elem a SHARE_LAYOUTS-ba + egy rajzoló ág a fő függvényben.
+ *
  * Ha a térképcsempék nem tölthetők be (offline), sima háttérszín marad.
  */
 
 const BASE = 360;
 const FONT = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif";
 const BRAND_FONT = "Montserrat, Inter, system-ui, sans-serif";
+// Számok: keskeny, sportos számbetű – karcsúbb, mint a vastag Inter
+const NUM_FONT = "'Barlow Semi Condensed', Inter, system-ui, sans-serif";
 const TILE = 256;
 const MAX_ZOOM = 16;
 const TILES = {
@@ -34,7 +44,64 @@ const TILES = {
     base: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
     ref:  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
   },
+  // Terep: domborzatos, zöld erdős topográfiai térkép (a feliratok benne vannak)
+  topo: {
+    base: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    filter: "saturate(1.45) contrast(1.06)",   // élénkebb zöld erdők, kék víz
+  },
 };
+
+/** A választható stílusok (a megosztó kép ablak ebből építi a választót). */
+export const SHARE_LAYOUTS = [
+  { id: "panel",   label: "Adatpanel", hint: "Térkép felül, adatok alul egy panelen" },
+  { id: "overlay", label: "Térképen",  hint: "Az adatok közvetlenül a térképen" },
+];
+
+/**
+ * Választható grafikonok az adatok fölött (egymás alatt, a megadott sorrendben).
+ * A pont-mezők: ele (m), speed (km/h), hr (bpm), cad (rpm), power (W).
+ */
+export const SHARE_CHARTS = [
+  { id: "ele",   label: "Szintprofil",  caps: "SZINTPROFIL",  unit: "m",    color: "#fc4c02", minRange: 20 },
+  { id: "speed", label: "Sebesség",     caps: "SEBESSÉG",     unit: "km/h", color: "#2563eb", minRange: 5,  avg: true, smooth: 3 },
+  { id: "hr",    label: "Pulzus",       caps: "PULZUS",       unit: "bpm",  color: "#e11d48", minRange: 10, avg: true, smooth: 2 },
+  { id: "cad",   label: "Kadencia",     caps: "KADENCIA",     unit: "rpm",  color: "#7c3aed", minRange: 10, avg: true, smooth: 3 },
+  { id: "power", label: "Teljesítmény", caps: "TELJESÍTMÉNY", unit: "W",    color: "#d97706", minRange: 30, avg: true, smooth: 4 },
+];
+
+/** Mely grafikonokhoz van elég adat a pontokban. */
+export function availableShareCharts(points = []) {
+  return SHARE_CHARTS.filter((ch) =>
+    points.filter((p) => Number.isFinite(p[ch.id]) && (ch.id === "ele" || p[ch.id] > 0)).length > 10).map((ch) => ch.id);
+}
+
+/**
+ * A megosztó képhez ~400 pontra ritkított nyomvonal. A szenzoradatok
+ * (sebesség, pulzus, kadencia, teljesítmény) a kihagyott pontokkal együtt
+ * átlagolva kerülnek át, így a grafikon-csíkok nem ugrálnak.
+ */
+export function shareCardPoints(geometry) {
+  const step = Math.max(1, Math.floor(geometry.length / 400));
+  const out = [];
+  for (let i = 0; i < geometry.length; i += step) {
+    const g = geometry[i];
+    const p = { lat: g.lat, lng: g.lng, ele: g.ele };
+    for (const k of ["speed", "hr", "cad", "power"]) {
+      let sum = 0, n = 0;
+      for (let j = i; j < Math.min(geometry.length, i + step); j++) {
+        const v = geometry[j][k];
+        if (v != null && Number.isFinite(v)) { sum += v; n++; }
+      }
+      if (n) p[k] = sum / n;
+    }
+    out.push(p);
+  }
+  const last = geometry[geometry.length - 1];
+  if (out.length && last && (out[out.length - 1].lat !== last.lat || out[out.length - 1].lng !== last.lng)) {
+    out.push({ lat: last.lat, lng: last.lng, ele: last.ele });
+  }
+  return out;
+}
 
 // ── Betöltések (cache-elve) ──────────────────────────────────────────────────
 
@@ -53,6 +120,18 @@ function loadImage(src, cors = false) {
 }
 const loadLogo = () => loadImage("/src/assets/icons/icon-192.png");
 
+/** „Térképen” stílus: fehér szöveg, vékony vonal, áttetsző jelvény – bármelyik háttéren. */
+function overlayPalette(c) {
+  return {
+    ...c, overlay: true, shade: c.shade || "12,14,18",
+    panelText: "#ffffff", panelMuted: "rgba(255,255,255,0.78)", panelLine: "rgba(255,255,255,0.22)",
+    elevFill: "rgba(255,255,255,0.12)", elevLine: "rgba(255,255,255,0.9)",
+    // sötét térképen a fehér szegély rózsaszínre mosná a narancsot
+    casing: c.tiles === TILES.dark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.7)", end: "#1a1d23", endCore: "#ffffff",
+    badgeBg: "rgba(20,24,20,0.55)", badgeText: "#ffffff", attrib: "rgba(255,255,255,0.55)",
+  };
+}
+
 function palette(theme) {
   if (theme === "photo") {
     return {
@@ -61,6 +140,15 @@ function palette(theme) {
       panelLine: "rgba(255,255,255,0.16)", elevFill: "rgba(255,106,61,0.30)", elevLine: "rgba(255,106,61,0.9)",
       route: "#ff6a3d", casing: "rgba(0,0,0,0.45)", start: "#22c55e", end: "#ffffff", endCore: "#ff6a3d",
       badgeBg: "rgba(12,16,20,0.55)", badgeText: "#ffffff", attrib: "rgba(255,255,255,0.6)",
+    };
+  }
+  if (theme === "topo") {
+    return {
+      tiles: TILES.topo, mapBg: "#dfe8d4", cardBg: "#ffffff", shade: "16,32,18",
+      panel: "#ffffff", panelText: "#1a1d23", panelMuted: "#6b7280",
+      panelLine: "#ececec", elevFill: "rgba(252,76,2,0.13)", elevLine: "#fc4c02",
+      route: "#fc4c02", casing: "#ffffff", start: "#16a34a", end: "#1a1d23", endCore: "#ffffff",
+      badgeBg: "rgba(255,255,255,0.92)", badgeText: "#1a1d23", attrib: "rgba(0,0,0,0.5)",
     };
   }
   if (theme === "dark") {
@@ -92,30 +180,41 @@ export async function createWorkoutShareCard({
   avgSpeedKmh = 0,
   elevationM = 0,
   points = [],
-  theme = "light",            // "light" | "dark" | "photo"
+  theme = "light",            // "light" | "dark" | "topo" | "photo"
+  layout = "panel",           // "panel" | "overlay" – lásd SHARE_LAYOUTS
+  charts = ["ele"],           // grafikonok egymás alatt – lásd SHARE_CHARTS
   size = "square",            // "square" | "story"
   photo = null,               // { img, scale, offsetX, offsetY, blur, headerBg, routeColor, routeOffsetX/Y, routeScale }
   qrUrl = null,               // nyilvános nézőoldal linkje → kis QR-kód a panelen
 }) {
   const dim = size === "story" ? { width: 1080, height: 1920 } : { width: 1080, height: 1080 };
   const s = dim.width / BASE;
-  const c = palette(theme);
+  const c = layout === "overlay" ? overlayPalette(palette(theme)) : palette(theme);
   const W = dim.width, H = dim.height;
 
   // A canvas csak betöltött betűtípussal rajzol szépen – várjunk rá (ha elérhető)
-  try { await Promise.all([document.fonts?.load(`800 20px Montserrat`), document.fonts?.load(`800 20px Inter`)]); } catch {}
+  try {
+    await Promise.all([document.fonts?.load(`800 20px Montserrat`), document.fonts?.load(`700 20px Inter`),
+                       document.fonts?.load(`600 20px 'Barlow Semi Condensed'`)]);
+  } catch {}
 
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
 
   const stats = statItems({ distanceKm, durationText, avgSpeedKmh, elevationM });
-  const hasElev = points.filter((p) => Number.isFinite(p.ele)).length > 10;
+  const avail = availableShareCharts(points);
+  const chartIds = charts.filter((id) => avail.includes(id));
   const panelBg = theme === "photo" ? (photo?.headerBg || "translucent") : "solid";
+
+  if (c.overlay) {
+    return drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, stats, points, chartIds, qrUrl, photo });
+  }
 
   // Panel-magasság: cím + dátum + (szintprofil) + adatsor
   const head = Math.max(date ? 56 : 44, qrUrl ? 62 : 0);
-  const panelH = head + (hasElev ? 30 : 6) + 62;
+  const chartH = chartIds.length > 1 ? 15 : 20;   // több grafikonnál laposabb csíkok
+  const panelH = head + (chartIds.length ? 6 + chartIds.length * (11 + chartH + 4) : 6) + 62;
   const panel = { x: 0, y: H - panelH * s, w: W, h: panelH * s };
   // A térkép a teljes kép; a nyomvonal a panel fölötti részbe kerül
   const routeArea = { x: 18 * s, y: 50 * s, w: W - 36 * s, h: panel.y - 50 * s - 18 * s };
@@ -166,7 +265,7 @@ export async function createWorkoutShareCard({
   if (qrUrl) {
     try { qr = buildQrCanvas(qrUrl, await ensureQR(), { size: 300 }); } catch { qr = null; }
   }
-  drawPanel(ctx, c, s, panel, { title, date, stats, points: hasElev ? valid : null, panelBg, qr });
+  drawPanel(ctx, c, s, panel, { title, date, stats, points: valid, chartIds, chartH, panelBg, qr });
 
   ctx.restore();
   return canvas;
@@ -238,9 +337,9 @@ async function drawTiles(ctx, tiles, proj, W, H, s) {
   // így a térkép részletessége olyan, mint egy telefonon nézett térképé.
   const zLogical = Math.log2(proj.worldPx / s / TILE);
   const layers = [
-    { url: tiles.base, z: Math.min(MAX_ZOOM, Math.max(1, Math.floor(zLogical) + 2)) },  // éles alap
-    { url: tiles.ref,  z: Math.min(MAX_ZOOM, Math.max(1, Math.floor(zLogical) + 1)), alpha: 0.95 },  // feliratok, olvasható méretben
-  ];
+    { url: tiles.base, z: Math.min(MAX_ZOOM, Math.max(1, Math.floor(zLogical) + (tiles.ref ? 2 : 1))) },  // éles alap
+    tiles.ref && { url: tiles.ref, z: Math.min(MAX_ZOOM, Math.max(1, Math.floor(zLogical) + 1)), alpha: 0.95 },  // feliratok, olvasható méretben
+  ].filter(Boolean);
   for (const layer of layers) {
     const n = 2 ** layer.z;
     const tilePx = proj.worldPx / n;                     // egy csempe mérete a képen
@@ -259,6 +358,7 @@ async function drawTiles(ctx, tiles, proj, W, H, s) {
     const loaded = await Promise.all(jobs);
     ctx.save();
     ctx.globalAlpha = layer.alpha ?? 1;
+    if (tiles.filter && layer.url === tiles.base) ctx.filter = tiles.filter;
     ctx.imageSmoothingQuality = "high";
     for (const { img, tx, ty } of loaded) {
       if (!img) continue;
@@ -302,39 +402,44 @@ function drawPhotoLayer(ctx, s, photo, W, H) {
 function drawRoute(ctx, c, s, pts, opts) {
   if (opts) {
     // Fotó téma: mozgatható / méretezhető nyomvonal
-    const ox = (opts.offsetX || 0) * s, oy = (opts.offsetY || 0) * s;
-    const sc = Math.max(0.2, opts.scale || 1);
-    const bcx = opts.box.x + opts.box.w / 2, bcy = opts.box.y + opts.box.h / 2;
-    pts = pts.map((p) => ({ x: bcx + (p.x - bcx) * sc + ox, y: bcy + (p.y - bcy) * sc + oy }));
+    pts = photoRouteTransform(pts, s, { routeOffsetX: opts.offsetX, routeOffsetY: opts.offsetY, routeScale: opts.scale }, opts.box);
   }
   const color = opts?.color || c.route;
   ctx.save();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   // Körvonal (világos térképen fehér, sötéten / fotón árnyék)
   ctx.strokeStyle = c.casing;
-  ctx.lineWidth = 6.5 * s;
+  ctx.lineWidth = 4 * s;
   if (c.photo) { ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 6 * s; }
   drawPath(ctx, pts);
   ctx.shadowBlur = 0;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3.6 * s;
+  ctx.lineWidth = 2.2 * s;
   drawPath(ctx, pts);
   ctx.restore();
 
   const a = pts[0], b = pts[pts.length - 1];
   const loop = Math.hypot(a.x - b.x, a.y - b.y) < 8 * s;   // körtúra: rajt = cél
-  drawDot(ctx, a.x, a.y, 5.5 * s, c.start, "#ffffff", 2 * s);
+  drawDot(ctx, a.x, a.y, 4.5 * s, c.start, "#ffffff", 1.6 * s);
   if (!loop) {
-    drawDot(ctx, b.x, b.y, 6 * s, c.end, "#ffffff", 2 * s);
-    drawDot(ctx, b.x, b.y, 2.4 * s, c.endCore, null, 0);
+    drawDot(ctx, b.x, b.y, 5 * s, c.end, "#ffffff", 1.6 * s);
+    drawDot(ctx, b.x, b.y, 2 * s, c.endCore, null, 0);
   }
+}
+
+/** Fotó háttéren a nyomvonal a felhasználó által húzott / méretezett helyre kerül. */
+function photoRouteTransform(pts, s, photo, box) {
+  const ox = (photo?.routeOffsetX || 0) * s, oy = (photo?.routeOffsetY || 0) * s;
+  const sc = Math.max(0.2, photo?.routeScale || 1);
+  const bcx = box.x + box.w / 2, bcy = box.y + box.h / 2;
+  return pts.map((p) => ({ x: bcx + (p.x - bcx) * sc + ox, y: bcy + (p.y - bcy) * sc + oy }));
 }
 
 // ── Logó-jelvény ─────────────────────────────────────────────────────────────
 
 function drawBadge(ctx, c, s, logo) {
-  const x = 12 * s, y = 12 * s, h = 26 * s;
-  ctx.font = `800 ${11.5 * s}px ${BRAND_FONT}`;
+  const x = 12 * s, y = 12 * s, h = 30 * s;
+  ctx.font = `800 ${13.2 * s}px ${BRAND_FONT}`;
   const wB = ctx.measureText("Bringa").width, wT = ctx.measureText("terv").width;
   const w = h + 6 * s + wB + wT + 10 * s;
   ctx.save();
@@ -358,7 +463,7 @@ function drawBadge(ctx, c, s, logo) {
 
 // ── Adatpanel ────────────────────────────────────────────────────────────────
 
-function drawPanel(ctx, c, s, rect, { title, date, stats, points, panelBg, qr }) {
+function drawPanel(ctx, c, s, rect, { title, date, stats, points, chartIds, chartH, panelBg, qr }) {
   const padX = 18 * s;
   const qrBox = 44 * s, qrPad = 3 * s;
   if (panelBg !== "none") {
@@ -391,23 +496,28 @@ function drawPanel(ctx, c, s, rect, { title, date, stats, points, panelBg, qr })
   // Cím
   ctx.textAlign = "left"; ctx.textBaseline = "top";
   ctx.fillStyle = c.panelText;
-  ctx.font = `800 ${17 * s}px ${BRAND_FONT}`;
+  ctx.font = `700 ${16.5 * s}px ${FONT}`;
+  ctx.letterSpacing = `${-0.2 * s}px`;
   fitOneLine(ctx, title || "Bringaterv", padX, y, textW);
+  ctx.letterSpacing = "0px";
   y += 23 * s;
   if (date) {
     ctx.fillStyle = c.panelMuted;
-    ctx.font = `500 ${10.5 * s}px ${FONT}`;
+    ctx.letterSpacing = "0px";
+    ctx.font = `500 ${10 * s}px ${FONT}`;
     fitOneLine(ctx, date, padX, y, textW);
     y += 14 * s;
   }
 
-  // Szintprofil-csík (a QR mellett végig – a QR alá nem lóg)
-  if (points) {
+  // Grafikon-csíkok egymás alatt (a QR alá nem lógnak)
+  if (chartIds.length) {
     y += 6 * s;
     const minY = qr ? rect.y + 12 * s + qrBox + 6 * s : 0;
     if (y < minY) y = minY;
-    drawElevation(ctx, c, s, points, { x: padX, y, w: rect.w - padX * 2, h: 20 * s });
-    y += 24 * s;
+    for (const id of chartIds) {
+      drawChart(ctx, c, s, points, id, { x: padX, y, w: rect.w - padX * 2, h: chartH * s });
+      y += (11 + chartH + 4) * s;
+    }
   } else {
     y += 4 * s;
   }
@@ -428,64 +538,271 @@ function drawPanel(ctx, c, s, rect, { title, date, stats, points, panelBg, qr })
       ctx.beginPath(); ctx.moveTo(x - 0.5 * s, y + 2 * s); ctx.lineTo(x - 0.5 * s, y + 34 * s); ctx.stroke();
     }
     const tx = x + (i > 0 ? 10 * s : 0);
-    let size = 21;
+    let size = 25;
     const maxW = colW - (i > 0 ? 14 : 4) * s;
     let vw, uw;
     do {
-      ctx.font = `800 ${size * s}px ${FONT}`;
+      ctx.font = `600 ${size * s}px ${NUM_FONT}`;
       vw = ctx.measureText(it.value).width;
-      ctx.font = `600 ${size * 0.5 * s}px ${FONT}`;
+      ctx.font = `500 ${size * 0.46 * s}px ${FONT}`;
       uw = it.unit ? ctx.measureText(it.unit).width + 3 * s : 0;
       size -= 1;
-    } while (vw + uw > maxW && size > 12);
+    } while (vw + uw > maxW && size > 14);
     size += 1;
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = c.panelText;
-    ctx.font = `800 ${size * s}px ${FONT}`;
-    ctx.fillText(it.value, tx, y + 21 * s);
+    ctx.font = `600 ${size * s}px ${NUM_FONT}`;
+    ctx.fillText(it.value, tx, y + 22 * s);
     if (it.unit) {
       ctx.fillStyle = c.panelMuted;
-      ctx.font = `600 ${size * 0.5 * s}px ${FONT}`;
-      ctx.fillText(it.unit, tx + vw + 3 * s, y + 21 * s);
+      ctx.font = `500 ${size * 0.46 * s}px ${FONT}`;
+      ctx.fillText(it.unit, tx + vw + 3 * s, y + 22 * s);
     }
     ctx.fillStyle = c.panelMuted;
-    ctx.font = `600 ${7.5 * s}px ${FONT}`;
-    ctx.letterSpacing = `${0.8 * s}px`;
+    ctx.font = `500 ${7 * s}px ${FONT}`;
+    ctx.letterSpacing = `${0.9 * s}px`;
     ctx.fillText(it.label, tx, y + 34 * s);
     ctx.letterSpacing = "0px";
   });
 }
 
-function drawElevation(ctx, c, s, points, box) {
-  // Táv szerinti x-tengely (haversine), magasság szerinti y
-  const pts = points.filter((p) => Number.isFinite(p.ele));
+// ── „Terep” téma: adatok közvetlenül a térképen ────────────────────────────
+
+async function drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, stats, points, chartIds, qrUrl, photo }) {
+  const story = size === "story";
+  const padX = 20 * s;
+  // Adatrács: álló képen 2 oszlop (nagy számok), négyzetesen egy sor
+  const cols = story ? 2 : Math.max(1, stats.length);
+  const rows = Math.ceil(stats.length / cols);
+  const rowH = (story ? 58 : 42) * s;
+  const n = chartIds.length;
+  const elevH = story ? (n > 1 ? 16 : 20) : (n > 1 ? 11 : 14);
+  const blockH = (story ? 34 : 28) * s + (date ? 14 * s : 0) + 10 * s + rows * rowH + n * (elevH + 18) * s + 16 * s;
+
+  ctx.save();
+  roundRectPath(ctx, 0, 0, W, H, 18 * s);
+  ctx.clip();
+  ctx.fillStyle = c.photo ? c.cardBg : c.mapBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // A nyomvonal szinte az egész képet kitölti; alul kissé belelóghat az adatokba
+  const valid = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  const routeArea = { x: 24 * s, y: 56 * s, w: W - 48 * s, h: H - 56 * s - blockH * (story ? 0.75 : 1) - (story ? 0 : 14 * s) };
+  let proj = null;
+  if (valid.length > 1) {
+    proj = fitProjection(valid, routeArea);
+    if (!c.photo) await drawTiles(ctx, c.tiles, proj, W, H, s);
+  }
+  if (c.photo) drawPhotoLayer(ctx, s, photo, W, H);
+
+  // Olvashatóság: felül halvány, alul erősebb sötét átmenet (terepen zöldes)
+  const sh = c.shade;
+  const gT = ctx.createLinearGradient(0, 0, 0, 70 * s);
+  gT.addColorStop(0, `rgba(${sh},0.35)`); gT.addColorStop(1, `rgba(${sh},0)`);
+  ctx.fillStyle = gT; ctx.fillRect(0, 0, W, 70 * s);
+  const gy = H - blockH - 70 * s;
+  const gB = ctx.createLinearGradient(0, gy, 0, H);
+  gB.addColorStop(0, `rgba(${sh},0)`);
+  gB.addColorStop(0.35, `rgba(${sh},0.55)`);
+  gB.addColorStop(1, `rgba(${sh},0.9)`);
+  ctx.fillStyle = gB; ctx.fillRect(0, gy, W, H - gy);
+
+  if (proj) {
+    let pts = valid.map(proj.toPx);
+    if (c.photo) pts = photoRouteTransform(pts, s, photo, routeArea);
+    const routeColor = (c.photo && photo?.routeColor) || c.route;
+    ctx.save();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    // Vékony, elegáns vonal: halvány fehér szegély + 1,6 px-es narancs
+    ctx.shadowColor = "rgba(0,0,0,0.25)"; ctx.shadowBlur = 2 * s;
+    ctx.strokeStyle = c.casing; ctx.lineWidth = 2.8 * s;
+    drawPath(ctx, pts);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = routeColor; ctx.lineWidth = 1.6 * s;
+    drawPath(ctx, pts);
+    ctx.restore();
+    const a = pts[0], b = pts[pts.length - 1];
+    drawDot(ctx, a.x, a.y, 4 * s, c.start, "#ffffff", 1.5 * s);
+    if (Math.hypot(a.x - b.x, a.y - b.y) >= 8 * s) {
+      drawDot(ctx, b.x, b.y, 4.5 * s, c.end, "#ffffff", 1.5 * s);
+      drawDot(ctx, b.x, b.y, 1.8 * s, c.endCore, null, 0);
+    }
+  }
+
+  drawBadge(ctx, c, s, await loadLogo());
+
+  // Szöveg – fehér, enyhe árnyékkal, hogy világos térképrészen is olvasható legyen
+  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 4 * s;
+  let y = H - blockH;
+  let qr = null;
+  if (qrUrl) {
+    try { qr = buildQrCanvas(qrUrl, await ensureQR(), { size: 300 }); } catch { qr = null; }
+  }
+  const qrBox = 46 * s;
+  const textW = W - padX * 2 - (qr ? qrBox + 10 * s : 0);
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillStyle = c.panelText;
+  ctx.font = `700 ${(story ? 24 : 19) * s}px ${FONT}`;
+  ctx.letterSpacing = `${-0.3 * s}px`;
+  fitOneLine(ctx, title || "Bringaterv", padX, y, textW);
+  ctx.letterSpacing = "0px";
+  y += (story ? 32 : 26) * s;
+  if (date) {
+    ctx.fillStyle = c.panelMuted;
+    ctx.font = `500 ${10 * s}px ${FONT}`;
+    fitOneLine(ctx, date, padX, y, textW);
+    y += 14 * s;
+  }
+  y += 10 * s;
+
+  const colW = (W - padX * 2) / cols;
+  const valSize = story ? 34 : 26;
+  stats.forEach((it, i) => {
+    const x = padX + colW * (i % cols);
+    const ry = y + Math.floor(i / cols) * rowH;
+    ctx.textBaseline = "top";
+    ctx.fillStyle = c.panelMuted;
+    ctx.font = `500 ${8 * s}px ${FONT}`;
+    ctx.letterSpacing = `${0.9 * s}px`;
+    ctx.fillText(it.label, x, ry);
+    ctx.letterSpacing = "0px";
+    let size = valSize, vw, uw;
+    const maxW = colW - 8 * s;
+    do {
+      ctx.font = `600 ${size * s}px ${NUM_FONT}`;
+      vw = ctx.measureText(it.value).width;
+      ctx.font = `500 ${size * 0.42 * s}px ${FONT}`;
+      uw = it.unit ? ctx.measureText(it.unit).width + 3 * s : 0;
+      size -= 1;
+    } while (vw + uw > maxW && size > 14);
+    size += 1;
+    ctx.textBaseline = "alphabetic";
+    const base = ry + 11 * s + size * 0.8 * s;
+    ctx.fillStyle = c.panelText;
+    ctx.font = `600 ${size * s}px ${NUM_FONT}`;
+    ctx.fillText(it.value, x, base);
+    if (it.unit) {
+      ctx.fillStyle = c.panelMuted;
+      ctx.font = `500 ${size * 0.42 * s}px ${FONT}`;
+      ctx.fillText(it.unit, x + vw + 3 * s, base);
+    }
+  });
+  y += rows * rowH;
+  ctx.shadowBlur = 0;
+
+  for (const id of chartIds) {
+    drawChart(ctx, c, s, valid, id, { x: padX, y, w: textW, h: elevH * s });
+    y += (elevH + 18) * s;
+  }
+
+  if (qr) {
+    const qx = W - padX - qrBox, qy = H - 18 * s - qrBox;
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    roundRectPath(ctx, qx, qy, qrBox, qrBox, 6 * s);
+    ctx.fill();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(qr, qx + 3 * s, qy + 3 * s, qrBox - 6 * s, qrBox - 6 * s);
+    ctx.restore();
+  }
+
+  if (proj && !c.photo) {
+    ctx.fillStyle = c.attrib;
+    ctx.font = `400 ${6 * s}px ${FONT}`;
+    ctx.textAlign = "right"; ctx.textBaseline = "top";
+    ctx.fillText("© Esri, OpenStreetMap", W - 10 * s, 10 * s);
+  }
+  ctx.restore();
+  return canvas;
+}
+
+/**
+ * Egy grafikon-csík felirattal: balra a neve, jobbra az összegzés
+ * (szintnél max/min, a többinél átlag/max). box.y a felirat teteje;
+ * a csík alatta 11 egységgel kezdődik, box.h magas.
+ */
+function drawChart(ctx, c, s, points, id, box) {
+  const ch = SHARE_CHARTS.find((x) => x.id === id);
+  if (!ch) return;
+  // Táv szerinti x-tengely (haversine) – minden ponton, a hiányzó érték kimarad
   let d = 0;
   const xs = [0];
-  for (let i = 1; i < pts.length; i++) { d += hav(pts[i - 1], pts[i]); xs.push(d); }
-  if (d <= 0) return;
-  const eles = pts.map((p) => p.ele);
-  const min = Math.min(...eles), max = Math.max(...eles);
-  const range = Math.max(max - min, 20);   // lapos útnál se legyen „fűrészfog”
+  for (let i = 1; i < points.length; i++) { d += hav(points[i - 1], points[i]); xs.push(d); }
+  const ok = (v) => Number.isFinite(v) && (id === "ele" || v > 0);
+  let vals = points.map((p) => (ok(p[id]) ? p[id] : null));
+  if (ch.smooth) {
+    // A szenzoradat zajos: kis mozgóátlag, hogy a csík olvasható legyen
+    const k = ch.smooth;
+    vals = vals.map((v, i) => {
+      if (v == null) return null;
+      let sum = 0, n = 0;
+      for (let j = Math.max(0, i - k); j <= Math.min(vals.length - 1, i + k); j++) if (vals[j] != null) { sum += vals[j]; n++; }
+      return sum / n;
+    });
+  }
+  const series = vals.map((v, i) => (v == null ? null : { x: xs[i], v })).filter(Boolean);
+  if (d <= 0 || series.length < 2) return;
+  const raw = points.map((p) => p[id]).filter(ok);
+  const sorted = [...raw].sort((a, b) => a - b);
+  const q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))];
+
+  // Felirat
+  const overlay = !!c.overlay;
+  const color = overlay ? c.elevLine : ch.color;
+  ctx.save();
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  ctx.fillStyle = c.panelMuted;
+  ctx.font = `600 ${6.5 * s}px ${FONT}`;
+  ctx.letterSpacing = `${0.9 * s}px`;
+  if (!overlay && id !== "ele") {
+    // színes pötty a név előtt, hogy a csík színe azonosítható legyen
+    ctx.fillStyle = ch.color;
+    ctx.beginPath(); ctx.arc(box.x + 2.2 * s, box.y + 3.3 * s, 2.2 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c.panelMuted;
+    ctx.fillText(ch.caps, box.x + 7 * s, box.y);
+  } else {
+    ctx.fillText(ch.caps, box.x, box.y);
+  }
+  ctx.letterSpacing = "0px";
+  ctx.font = `500 ${7 * s}px ${FONT}`;
+  ctx.textAlign = "right";
+  const r0 = (v) => Math.round(v);
+  const summary = ch.avg
+    ? `átl ${r0(raw.reduce((a, b) => a + b, 0) / raw.length)} · max ${r0(q(0.99))} ${ch.unit}`
+    : `max ${r0(sorted[sorted.length - 1])} m · min ${r0(sorted[0])} m`;
+  ctx.fillText(summary, box.x + box.w, box.y);
+  ctx.restore();
+
+  // Csík: a skála a (kilógó csúcsok nélküli) tartományra illeszkedik
+  const top = box.y + 11 * s;
+  let min = ch.avg ? q(0.02) : sorted[0];
+  let max = ch.avg ? q(0.99) : sorted[sorted.length - 1];
+  const range = Math.max(max - min, ch.minRange);
   const mid = (min + max) / 2;
-  const toY = (e) => box.y + box.h - ((e - (mid - range / 2)) / range) * box.h;
+  const lo = mid - range / 2;
+  const toY = (v) => top + box.h - Math.max(0, Math.min(1, (v - lo) / range)) * box.h;
+  const toX = (x) => box.x + (x / d) * box.w;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(box.x, box.y + box.h);
-  pts.forEach((p, i) => ctx.lineTo(box.x + (xs[i] / d) * box.w, toY(p.ele)));
-  ctx.lineTo(box.x + box.w, box.y + box.h);
+  ctx.moveTo(toX(series[0].x), top + box.h);
+  series.forEach((p) => ctx.lineTo(toX(p.x), toY(p.v)));
+  ctx.lineTo(toX(series[series.length - 1].x), top + box.h);
   ctx.closePath();
-  ctx.fillStyle = c.elevFill;
+  ctx.fillStyle = overlay ? c.elevFill : hexA(ch.color, c.panel === "#14181c" || c.photo ? 0.22 : 0.13);
   ctx.fill();
   ctx.beginPath();
-  pts.forEach((p, i) => {
-    const x = box.x + (xs[i] / d) * box.w, y = toY(p.ele);
-    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-  });
-  ctx.strokeStyle = c.elevLine;
+  series.forEach((p, i) => (i ? ctx.lineTo(toX(p.x), toY(p.v)) : ctx.moveTo(toX(p.x), toY(p.v))));
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1.2 * s;
   ctx.lineJoin = "round";
   ctx.stroke();
   ctx.restore();
+}
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 // ── Segédek ──────────────────────────────────────────────────────────────────

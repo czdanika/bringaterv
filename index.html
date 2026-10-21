@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="./src/assets/icons/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@400;500;600;700;800&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -841,6 +841,9 @@
               <button class="library-view-btn" data-view="cards" type="button" title="Kártyás nézet" aria-label="Kártyás nézet">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               </button>
+              <button class="library-view-btn" data-view="map" type="button" title="Térképes nézet" aria-label="Térképes nézet">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>
+              </button>
               <button class="library-view-btn" data-view="list" type="button" title="Lista nézet" aria-label="Lista nézet">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
@@ -851,6 +854,15 @@
 
         <div id="libraryGrid" class="library-grid"></div>
         <div id="libraryList" class="library-list" hidden></div>
+        <div id="libraryMapWrap" class="library-map-wrap" hidden>
+          <div id="libraryMap" class="library-map"></div>
+          <div class="library-map-legend">
+            <span><i style="background:#fc4c02"></i>Edzés</span>
+            <span><i style="background:#2563eb"></i>Útvonal</span>
+            <span><i style="background:#7c3aed"></i>Közösségi</span>
+          </div>
+          <div class="library-map-status" id="libraryMapStatus" hidden></div>
+        </div>
         <div id="libraryGridEmpty" class="library-grid-empty" hidden>
           <i data-lucide="inbox" aria-hidden="true"></i>
           <p>Nincs találat a szűrési feltételeknek megfelelően.</p>
@@ -1547,6 +1559,7 @@
                   <option value="standard">Standard</option>
                   <option value="cycling">Kerékpár</option>
                   <option value="topo">Domborzat</option>
+                  <option value="terrain">Terep (zöld)</option>
                   <option value="satellite">Műhold</option>
                   <option value="hybrid">Hybrid</option>
                   <option value="light">Világos</option>
@@ -2846,13 +2859,18 @@
         <label class="sc-label" for="shareCardTitle">Cím</label>
         <input id="shareCardTitle" class="sc-input" type="text" placeholder="pl. Balatoni kör, Reggeli tekerés…">
 
-        <!-- Téma és méret -->
+        <!-- Stílus (elrendezés) – a SHARE_LAYOUTS listából épül -->
+        <div class="sc-label">Stílus</div>
+        <div id="shareLayoutPicker" class="sc-layouts" role="radiogroup" aria-label="Stílus"></div>
+
+        <!-- Háttér és méret -->
         <div class="sc-row">
           <div class="sc-field">
-            <div class="sc-label">Téma</div>
-            <div class="sc-seg" role="group" aria-label="Téma">
+            <div class="sc-label">Háttér</div>
+            <div class="sc-seg" role="group" aria-label="Háttér">
               <button class="share-opt-btn share-opt-btn--active" data-share-theme="light" type="button"><i data-lucide="sun" aria-hidden="true"></i> Világos</button>
               <button class="share-opt-btn" data-share-theme="dark" type="button"><i data-lucide="moon" aria-hidden="true"></i> Sötét</button>
+              <button class="share-opt-btn" data-share-theme="topo" type="button"><i data-lucide="mountain" aria-hidden="true"></i> Terep</button>
               <button class="share-opt-btn" data-share-theme="photo" type="button"><i data-lucide="image" aria-hidden="true"></i> Fotó</button>
             </div>
           </div>
@@ -2863,6 +2881,12 @@
               <button class="share-opt-btn" data-share-size="story" type="button"><i data-lucide="smartphone" aria-hidden="true"></i> Sztori</button>
             </div>
           </div>
+        </div>
+
+        <!-- Grafikonok az adatok fölött (csak az elérhetők; a JS tölti ki) -->
+        <div id="shareChartRow" hidden>
+          <div class="sc-label">Grafikonok <small class="sc-label-note">– egymás alatt, legfeljebb 3</small></div>
+          <div id="shareChartPicker" class="sc-chips" role="group" aria-label="Grafikonok"></div>
         </div>
 
         <!-- QR-kód (csak ha van nyilvános link) -->
@@ -2887,8 +2911,8 @@
               <span><span>Életlenítés</span><span id="sharePhotoBlurVal">6</span></span>
               <input id="sharePhotoBlur" type="range" min="0" max="20" step="1" value="6">
             </label>
-            <div class="sc-sub">Adatsáv háttere</div>
-            <div class="sc-seg sc-seg--sm">
+            <div class="sc-sub" data-panel-only>Adatsáv háttere</div>
+            <div class="sc-seg sc-seg--sm" data-panel-only>
               <button class="share-opt-btn share-opt-btn--active" data-photo-headerbg="translucent" type="button">Áttetsző</button>
               <button class="share-opt-btn" data-photo-headerbg="solid" type="button">Tömör</button>
               <button class="share-opt-btn" data-photo-headerbg="none" type="button">Nincs</button>

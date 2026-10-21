@@ -335,6 +335,10 @@
     .badge-question { background: #dbeafe; color: var(--blue); }
     .badge-other    { background: #f3f4f6; color: var(--muted); }
     .badge-account_deleted { background: #fee2e2; color: var(--red); }
+    .sample-loc-box { margin-top: 4px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .sample-loc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .sample-loc-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+    @media (max-width: 760px) { .sample-loc-box > div[style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns: 1fr !important; } }
     .sub-item { display: grid; grid-template-columns: 180px 1fr; gap: 18px; padding: 16px 20px; border-top: 1px solid var(--border); }
     .sub-item:first-child { border-top: 0; }
     .sub-preview { width: 180px; height: 140px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; }
@@ -633,7 +637,7 @@
         </ul>
 
         <h3 id="admin-mintak">Közösségi útvonalak</h3>
-        <p>A felhasználók által látott közös útvonalak (korábban: minta útvonalak): a jóváhagyott beküldések és a kézzel feltöltött GPX-ek. Név, típus, távolság, idő, emelkedő, leírás szerkeszthető, az útvonal törölhető.</p>
+        <p>A felhasználók által látott közös útvonalak (korábban: minta útvonalak): a jóváhagyott beküldések és a kézzel feltöltött GPX-ek. A listában látszik a helyszín (település, megye, ország, körtúra). A <b>Szerkeszt</b> ablakban minden adat módosítható, ugyanúgy, mint beküldéskor: név, típus, táv, idő, emelkedő, leírás, nehézség, ajánlott évszak, megjelenő név és a helyszín. A <b>↻ Hely</b> gomb (vagy a szerkesztőben az <b>Újraszámolás</b>) a nyomvonalból újraszámolja a helyadatot – ez felülírja a kézi javítást. Új útvonal feltöltésekor a helyadat magától kiszámolódik.</p>
       </div>
     </div>
     </section>
@@ -689,7 +693,7 @@
   <div class="modal-overlay" id="sampleModal" hidden>
     <div class="modal" style="max-width:540px;width:100%">
       <div class="modal-header">
-        <span class="modal-title" id="sampleModalTitle">Új minta feltöltése</span>
+        <span class="modal-title" id="sampleModalTitle">Új közösségi útvonal</span>
         <button class="modal-close" id="sampleModalClose" type="button">×</button>
       </div>
       <div class="modal-body">
@@ -736,7 +740,41 @@
         </div>
         <div class="form-group">
           <label class="form-label">Leírás</label>
-          <textarea class="form-input" id="sampleDescription" rows="3" style="resize:vertical"></textarea>
+          <textarea class="form-input" id="sampleDescription" rows="4" style="resize:vertical"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label class="form-label">Nehézség</label>
+            <select class="form-input form-select" id="sampleDifficulty">
+              <option value="">–</option><option value="easy">Könnyű</option><option value="medium">Közepes</option><option value="hard">Nehéz</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Mikor ajánlott?</label>
+            <select class="form-input form-select" id="sampleSeason">
+              <option value="">–</option><option value="all">Egész évben</option><option value="spring-autumn">Tavasztól őszig</option>
+              <option value="summer">Nyáron</option><option value="dry">Száraz időben</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Beküldőként megjelenő név <span style="font-weight:400;color:#9ca3af">(üresen: névtelen)</span></label>
+          <input class="form-input" id="sampleAuthor" type="text" maxlength="40" placeholder="pl. Kovács János vagy becenév">
+        </div>
+        <div class="sample-loc-box" id="sampleLocBox">
+          <div class="sample-loc-head">
+            <span class="form-label" style="margin:0">Helyszín</span>
+            <button class="btn btn-ghost" id="sampleLocateBtn" type="button" style="padding:4px 10px;font-size:12px" title="Újraszámolás a nyomvonalból (OpenStreetMap)">↻ Újraszámolás</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div><label class="form-label">Ország</label><input class="form-input" id="sampleLocCountry" type="text"></div>
+            <div><label class="form-label">Régió / megye</label><input class="form-input" id="sampleLocRegion" type="text"></div>
+            <div><label class="form-label">Rajt települése</label><input class="form-input" id="sampleLocSettlement" type="text"></div>
+          </div>
+          <label class="form-label" style="margin-top:8px">Érintett települések (vesszővel)</label>
+          <input class="form-input" id="sampleLocPlaces" type="text">
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px"><input type="checkbox" id="sampleLocLoop"> Körtúra (a rajt és a cél ugyanott)</label>
+          <p class="sample-loc-note" id="sampleLocNote" hidden>Új útvonalnál a helyadat mentés után a háttérben számolódik.</p>
         </div>
         <div id="sampleModalError" style="color:#ef4444;font-size:13px;margin-top:6px"></div>
       </div>
@@ -1576,12 +1614,20 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     // ── Minták szekció ────────────────────────────────────────────────────────
     const SAMPLE_TYPE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra", cycling: "Kerékpár" };
 
+    function locCell(loc) {
+      if (!loc || !(loc.settlement || loc.region)) return `<span style="color:var(--muted);font-size:12px">nincs adat</span>`;
+      const main = [...new Set([loc.settlement, loc.region].filter(Boolean))].join(" · ");
+      const extra = [loc.country && loc.country !== "Magyarország" ? loc.country : "", (loc.countries || []).length > 1 ? loc.countries.join(", ") : "",
+                     loc.loop === true ? "körtúra" : loc.loop === false ? "A → B" : ""].filter(Boolean);
+      return `<div style="font-size:13px">${escHtml(main)}</div>${extra.length ? `<div style="font-size:11px;color:var(--muted)">${escHtml([...new Set(extra)].join(" · "))}</div>` : ""}`;
+    }
+
     async function loadSamples() {
       const wrap = document.querySelector("#samplesWrap");
       try {
         const samples = await routesApi.admin.listSamples();
         if (!samples.length) {
-          wrap.innerHTML = `<div class="loading">Nincs minta útvonal.</div>`;
+          wrap.innerHTML = `<div class="loading">Még nincs közösségi útvonal.</div>`;
           return;
         }
         wrap.innerHTML = `
@@ -1589,6 +1635,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
             <thead>
               <tr>
                 <th>Név</th>
+                <th>Helyszín</th>
                 <th style="width:1%;white-space:nowrap">Típus</th>
                 <th style="width:1%;white-space:nowrap">Távolság</th>
                 <th style="width:1%;white-space:nowrap">Emelkedő</th>
@@ -1603,12 +1650,14 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
                     <div style="font-weight:500">${escHtml(s.name)}</div>
                     ${s.description ? `<div style="font-size:11px;color:var(--muted)">${escHtml(s.description)}</div>` : ""}
                   </td>
-                  <td><span class="badge badge-on">${escHtml(SAMPLE_TYPE_LABELS[s.type] || s.type)}</span></td>
-                  <td style="white-space:nowrap">${s.distance != null ? s.distance + " km" : "—"}</td>
-                  <td style="white-space:nowrap">${s.elevation != null ? s.elevation + " m" : "—"}</td>
-                  <td><span class="badge ${s.custom ? "badge-off" : ""}" style="${s.custom ? "" : "background:var(--bg);color:var(--muted)"}">${s.custom ? "Egyedi" : "Beépített"}</span></td>
+                  <td data-label="Helyszín">${locCell(s.location)}</td>
+                  <td data-label="Típus"><span class="badge badge-on">${escHtml(SAMPLE_TYPE_LABELS[s.type] || s.type)}</span></td>
+                  <td data-label="Távolság" style="white-space:nowrap">${s.distance != null ? s.distance + " km" : "—"}</td>
+                  <td data-label="Emelkedő" style="white-space:nowrap">${s.elevation != null ? s.elevation + " m" : "—"}</td>
+                  <td data-label="Forrás"><span class="badge ${s.custom ? "badge-off" : ""}" style="${s.custom ? "" : "background:var(--bg);color:var(--muted)"}">${s.custom ? (s.community ? "Beküldött" : "Egyedi") : "Beépített"}</span></td>
                   <td style="white-space:nowrap">
                     <div class="row-actions" style="justify-content:flex-end">
+                      <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="locate" data-sid="${escHtml(s.id)}" title="Helyadat (ország, régió, települések) újraszámolása a nyomvonalból">↻ Hely</button>
                       <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="edit" data-sid="${escHtml(s.id)}">Szerkeszt</button>
                       ${s.custom ? `<button class="btn btn-danger" style="padding:5px 10px;font-size:12px" data-saction="del" data-sid="${escHtml(s.id)}" data-sname="${escHtml(s.name)}">Törlés</button>` : ""}
                     </div>
@@ -1625,6 +1674,11 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
             if (btn.dataset.saction === "edit") {
               const s = samples.find(x => x.id === sid);
               openSampleModal(s);
+            }
+            if (btn.dataset.saction === "locate") {
+              btn.disabled = true; btn.textContent = "Számolás…";
+              try { await routesApi.admin.locateSample(sid); await loadSamples(); }
+              catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "↻ Hely"; }
             }
             if (btn.dataset.saction === "del") {
               if (!confirm(`Törlöd: „${sname}"?`)) return;
@@ -1646,7 +1700,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
     function openSampleModal(sample) {
       _editSampleId = sample ? sample.id : null;
-      document.querySelector("#sampleModalTitle").textContent = sample ? `Szerkesztés – ${sample.name}` : "Új minta feltöltése";
+      document.querySelector("#sampleModalTitle").textContent = sample ? `Szerkesztés – ${sample.name}` : "Új közösségi útvonal";
       document.querySelector("#sampleGpxFile").value      = "";
       document.querySelector("#sampleGpxGroup").hidden = !!sample;
       document.querySelector("#sampleLoadPreview").hidden = true;
@@ -1659,10 +1713,43 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       document.querySelector("#sampleDuration").value     = sample?.duration    ?? "";
       document.querySelector("#sampleElevation").value    = sample?.elevation   ?? "";
       document.querySelector("#sampleDescription").value  = sample?.description || "";
+      document.querySelector("#sampleDifficulty").value   = sample?.difficulty  || "";
+      document.querySelector("#sampleSeason").value       = sample?.season      || "";
+      document.querySelector("#sampleAuthor").value       = sample?.author      || "";
+      fillSampleLoc(sample?.location || {});
+      document.querySelector("#sampleLocateBtn").hidden = !sample;
+      document.querySelector("#sampleLocNote").hidden = !!sample;
       document.querySelector("#sampleModalError").textContent = "";
       document.querySelector("#sampleModalSubmit").disabled = false;
       sampleModal.hidden = false;
     }
+
+    function fillSampleLoc(loc) {
+      document.querySelector("#sampleLocCountry").value    = loc.country || "";
+      document.querySelector("#sampleLocRegion").value     = loc.region || "";
+      document.querySelector("#sampleLocSettlement").value = loc.settlement || "";
+      document.querySelector("#sampleLocPlaces").value     = (loc.places || []).join(", ");
+      document.querySelector("#sampleLocLoop").checked     = !!loc.loop;
+    }
+    function readSampleLoc() {
+      return {
+        country: document.querySelector("#sampleLocCountry").value.trim(),
+        region: document.querySelector("#sampleLocRegion").value.trim(),
+        settlement: document.querySelector("#sampleLocSettlement").value.trim(),
+        places: document.querySelector("#sampleLocPlaces").value,
+        loop: document.querySelector("#sampleLocLoop").checked,
+      };
+    }
+    document.querySelector("#sampleLocateBtn").addEventListener("click", async (e) => {
+      if (!_editSampleId) return;
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = "Számolás…";
+      try {
+        const s = await routesApi.admin.locateSample(_editSampleId);
+        fillSampleLoc(s.location || {});
+      } catch (err) { alert(err.message); }
+      finally { btn.disabled = false; btn.textContent = "↻ Újraszámolás"; }
+    });
 
     function haversineTotalMeters(geometry) {
       let total = 0;
@@ -1813,6 +1900,10 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
             distance:    document.querySelector("#sampleDistance").value  || null,
             duration:    document.querySelector("#sampleDuration").value  || null,
             elevation:   document.querySelector("#sampleElevation").value || null,
+            difficulty:  document.querySelector("#sampleDifficulty").value,
+            season:      document.querySelector("#sampleSeason").value,
+            author:      document.querySelector("#sampleAuthor").value.trim(),
+            location:    readSampleLoc(),
           });
         } else {
           const gpxFile = document.querySelector("#sampleGpxFile").files[0];
@@ -1828,6 +1919,9 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
           if (dist) fd.append("distance",  dist);
           if (dur)  fd.append("duration",  dur);
           if (ele)  fd.append("elevation", ele);
+          fd.append("difficulty", document.querySelector("#sampleDifficulty").value);
+          fd.append("season",     document.querySelector("#sampleSeason").value);
+          fd.append("author",     document.querySelector("#sampleAuthor").value.trim());
           await routesApi.admin.createSample(fd);
         }
         sampleModal.hidden = true;

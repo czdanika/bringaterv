@@ -112,7 +112,7 @@ export function openRoutePdfModal(context) {
 }
 
 function normalizeStyle(s) {
-  return ["standard", "cycling", "topo", "satellite", "hybrid", "light", "dark"].includes(s) ? s : "standard";
+  return ["standard", "cycling", "topo", "terrain", "satellite", "hybrid", "light", "dark"].includes(s) ? s : "standard";
 }
 
 function closeModal() {

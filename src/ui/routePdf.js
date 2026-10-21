@@ -8,7 +8,7 @@
  * pontos és éles legyen nyomtatva is. A csempeszolgáltatók (OSM, Esri) CORS-barátak.
  *
  * Beállítások (exportRoutePdf opts):
- *   mapStyle:    "standard" | "light" | "topo" | "satellite"
+ *   mapStyle:    "standard" | "light" | "topo" | "terrain" | "satellite"
  *   orientation: "portrait" | "landscape"
  *   includeQr / includeElevation / includeSurface / includeWaypoints : boolean
  *   note:        szabad szöveg (megjegyzés)
@@ -38,6 +38,7 @@ function tileDefFor(style) {
     maxZoom: Math.min(opts.maxNativeZoom || opts.maxZoom || 18, 18),
     overlay: d.overlay?.url || null,
     veil: VEIL[style] || 0,
+    filter: d.filter || null,
   };
 }
 
@@ -180,18 +181,23 @@ async function buildMapCanvas(points, style, { width, height, pad = 44, routeCol
     return tmpl.replace("{s}", sub).replace("{z}", z).replace("{x}", wx).replace("{y}", ty);
   };
 
-  const drawTiles = async (tmpl) => {
+  const drawTiles = async (tmpl, filter = null) => {
     const jobs = [];
     for (let tx = x0; tx <= x1; tx++)
       for (let ty = y0; ty <= y1; ty++) {
         if (ty < 0 || ty >= nTiles) continue;
         const dx = tx * TILE - originX, dy = ty * TILE - originY;
-        jobs.push(loadImage(tileUrl(tmpl, tx, ty)).then((img) => { if (img) ctx.drawImage(img, dx, dy, TILE, TILE); }));
+        jobs.push(loadImage(tileUrl(tmpl, tx, ty)).then((img) => {
+          if (!img) return;
+          ctx.filter = filter || "none";
+          ctx.drawImage(img, dx, dy, TILE, TILE);
+          ctx.filter = "none";
+        }));
       }
     await Promise.all(jobs);
   };
 
-  await drawTiles(def.url);
+  await drawTiles(def.url, def.filter);
   if (def.overlay) await drawTiles(def.overlay);
 
   if (def.veil > 0) {

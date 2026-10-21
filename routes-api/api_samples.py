@@ -130,9 +130,14 @@ def admin_create_sample():
                 meta[key] = float(val)
             except ValueError:
                 pass
+    for key in ("difficulty", "season", "author"):
+        if request.form.get(key):
+            meta[key] = request.form.get(key).strip()[:80]
     json_path = os.path.join(CUSTOM_SAMPLES_DIR, f"{sid}.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
+    # Helyadat a háttérben (Nominatim, kb. 1 mp / lekérés)
+    threading.Thread(target=_locate_one, args=(CUSTOM_SAMPLES_DIR, sid), daemon=True).start()
     return jsonify(_sample_entry(sid, meta, True)), 201
 
 
@@ -226,3 +231,69 @@ def admin_locate_samples():
         _locate_state.update(running=True, done=0, total=0)
         threading.Thread(target=_locate_missing, daemon=True).start()
     return jsonify(_locate_state)
+
+
+def _sample_dir(sid: str) -> str | None:
+    for directory in (CUSTOM_SAMPLES_DIR, SAMPLES_DIR):
+        if os.path.isfile(os.path.join(directory, f"{sid}.gpx")):
+            return directory
+    return None
+
+
+def _locate_one(directory: str, sid: str) -> dict:
+    """Egy közösségi útvonal helyadatának (újra)számolása és mentése; visszaadja a bejegyzést."""
+    loc = geo_location.locate(_gpx_points(os.path.join(directory, f"{sid}.gpx")))
+    meta = _merged_meta(directory, sid)
+    if loc:
+        meta["location"] = loc
+        os.makedirs(CUSTOM_SAMPLES_DIR, exist_ok=True)
+        with open(os.path.join(CUSTOM_SAMPLES_DIR, f"{sid}.json"), "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+    return _sample_entry(sid, meta, directory == CUSTOM_SAMPLES_DIR)
+
+
+@bp.route("/api/admin/samples/<sample_id>/locate", methods=["POST"])
+@require_auth
+@require_admin
+def admin_locate_sample(sample_id: str):
+    """Egy útvonal helyadatának kézi újraszámolása (felülírja a meglévőt)."""
+    sample_id = _safe_id(sample_id)
+    directory = _sample_dir(sample_id)
+    if not directory:
+        abort(404, description="Nincs ilyen útvonal.")
+    entry = _locate_one(directory, sample_id)
+    if not entry.get("location"):
+        abort(502, description="A helyadatot most nem sikerült lekérni – próbáld újra később.")
+    return jsonify(entry)
+
+
+# ── Térképes nézethez: egyszerűsített geometria (publikus, mint a lista) ──────
+
+_geo_cache = {}
+
+
+@bp.route("/api/samples/geometry-bulk", methods=["GET"])
+def samples_geometry_bulk():
+    out = []
+    for directory in (CUSTOM_SAMPLES_DIR, SAMPLES_DIR):
+        if not os.path.isdir(directory):
+            continue
+        for fn in sorted(os.listdir(directory)):
+            if not fn.endswith(".gpx"):
+                continue
+            sid = fn[:-4]
+            if any(o["id"] == sid for o in out):
+                continue
+            path = os.path.join(directory, fn)
+            mtime = os.path.getmtime(path)
+            cached = _geo_cache.get(path)
+            if not cached or cached[0] != mtime:
+                pts = _gpx_points(path)
+                step = max(1, len(pts) // 300)
+                simple = [[round(p[0], 5), round(p[1], 5)] for p in pts[::step]]
+                if pts and simple and simple[-1] != [round(pts[-1][0], 5), round(pts[-1][1], 5)]:
+                    simple.append([round(pts[-1][0], 5), round(pts[-1][1], 5)])
+                cached = (mtime, simple)
+                _geo_cache[path] = cached
+            out.append({"id": sid, "points": cached[1]})
+    return jsonify({"tracks": out})

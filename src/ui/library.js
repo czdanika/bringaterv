@@ -14,6 +14,7 @@ import { openRoutePdfModal, resolveShareBase, shareRouteUrl } from "./routePdfMo
 import { importGpx } from "../gpx/gpx.js";
 import { openShareModal } from "./shareModal.js";
 import { openSubmitRouteModal } from "./submitRoute.js";
+import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export async function loadRouteLibrary() {
   const elFilter  = document.querySelector("#libraryFilterPanel");
   elLoading.hidden = false;
   elOffline.hidden = true;
+  invalidateLibraryGeometry();   // a térképes nézet újratölti a nyomvonalakat
   if (elFilter) elFilter.hidden = true;
   try {
     const [userRoutes, samples] = await Promise.all([_api.listRoutes(), _api.listSamples()]);
@@ -69,7 +71,7 @@ export async function loadRouteLibrary() {
 
 // ── View mód ─────────────────────────────────────────────────────────────────
 export function setLibraryViewMode(mode) {
-  _viewMode = mode === "list" ? "list" : "cards";
+  _viewMode = ["list", "map"].includes(mode) ? mode : "cards";
   localStorage.setItem("bringaterv.libraryView", _viewMode);
   document.querySelectorAll(".library-view-btn").forEach(btn =>
     btn.classList.toggle("is-active", btn.dataset.view === _viewMode));
@@ -562,14 +564,18 @@ async function runAction(act, btn) {
         btn.disabled = true; btn.textContent = "Betöltés…";
         try {
           const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
-          const xml = new DOMParser().parseFromString(gpxText, "application/xml");
-          const pts = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")]
-            .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")),
-                         ele: parseFloat(n.getElementsByTagNameNS("*", "ele")[0]?.textContent) }))
-            .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-          const step = Math.max(1, Math.floor(pts.length / 400));
-          const simPts = []; for (let i = 0; i < pts.length; i += step) simPts.push(pts[i]);
-          if (simPts.length && simPts[simPts.length-1] !== pts[pts.length-1] && pts.length > 0) simPts.push(pts[pts.length-1]);
+          // Teljes feldolgozás (sebesség, pulzus, kadencia, teljesítmény is – a grafikonokhoz);
+          // hiba esetén egyszerű lat/lng/ele parsolás.
+          let pts = null;
+          try { pts = (await importGpx(new Blob([gpxText]))).geometry; } catch (_) {}
+          if (!pts?.length) {
+            const xml = new DOMParser().parseFromString(gpxText, "application/xml");
+            pts = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")]
+              .map(n => ({ lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")),
+                           ele: parseFloat(n.getElementsByTagNameNS("*", "ele")[0]?.textContent) }));
+          }
+          pts = pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+          const simPts = shareCardPoints(pts);
           const distKm = route.distance ?? 0, durMin = route.duration ?? null;
           _openShareCardWith?.({
             title: route.name || "Bringaterv edzés", metaTitle: route.name || "",
@@ -865,6 +871,10 @@ function openRouteActionMenu(route, category, isSample, anchor) {
 
   // Asztali nézetben a gomb mellé igazítva, mobilon alulról nyíló lap (CSS)
   const menu = ov.querySelector(".lib-menu");
+  if (!matchMedia("(max-width: 600px)").matches && !anchor) {
+    menu.style.width = "280px";
+    menu.style.left = "50%"; menu.style.top = "50%"; menu.style.transform = "translate(-50%, -50%)";
+  }
   if (!matchMedia("(max-width: 600px)").matches && anchor) {
     const r = anchor.getBoundingClientRect();
     const w = 260;
@@ -988,12 +998,16 @@ export function renderLibraryGrid() {
     btn.classList.toggle("is-active", btn.dataset.view === _viewMode));
 
   grid.innerHTML = ""; list.innerHTML = "";
-  const useList = _viewMode === "list";
-  grid.hidden = useList; list.hidden = !useList;
-  if (filtered.length === 0) { if (emptyEl) emptyEl.hidden = false; return; }
+  const useList = _viewMode === "list", useMap = _viewMode === "map";
+  grid.hidden = useList || useMap; list.hidden = !useList;
+  const mapWrap = document.querySelector("#libraryMapWrap");
+  if (mapWrap) mapWrap.hidden = !useMap;
+  if (filtered.length === 0) { if (emptyEl) emptyEl.hidden = false; if (useMap) renderLibraryMap([]); return; }
   if (emptyEl) emptyEl.hidden = true;
 
-  if (useList) {
+  if (useMap) {
+    renderLibraryMap(filtered);
+  } else if (useList) {
     renderLibraryListView(filtered, list);
   } else {
     filtered.forEach(({ route, category, isSample }) => grid.append(createLibraryCard(route, category, isSample)));
@@ -1151,4 +1165,126 @@ function updateLocationFilters() {
   rSel.innerHTML = `<option value="">${_filter.country || countries.length < 2 ? "Minden régió / megye" : "Minden régió"}</option>` +
     regions.map((r) => `<option value="${escapeHtml(r)}" ${r === _filter.region ? "selected" : ""}>${escapeHtml(r)}</option>`).join("");
   rSel.disabled = !regions.length;
+}
+
+
+// ── Térképes nézet ───────────────────────────────────────────────────────────
+// A szűrt elemek nyomvonala egy térképen (a hőtérképhez hasonlóan): rámutatva
+// kiemelődik, kattintásra felugró ablak (több közeli nyomvonalnál lista) a
+// betöltéssel és a „⋯” menüvel.
+
+const MAP_COLORS = { workout: "#fc4c02", route: "#2563eb", sample: "#7c3aed" };
+let _libMap = null, _libMapLayer = null, _geoById = null, _geoLoading = null, _lastFitKey = "";
+
+export function invalidateLibraryGeometry() { _geoById = null; _lastFitKey = ""; }
+
+async function loadLibraryGeometry() {
+  if (_geoById) return _geoById;
+  if (_geoLoading) return _geoLoading;
+  _geoLoading = (async () => {
+    const map = new Map();
+    const [own, samples] = await Promise.all([
+      _api.geometryBulk().catch(() => ({ tracks: [] })),
+      fetch("/api/samples/geometry-bulk").then((r) => r.ok ? r.json() : { tracks: [] }).catch(() => ({ tracks: [] })),
+    ]);
+    for (const t of own.tracks || []) map.set(`own:${t.id}`, t.points);
+    for (const t of samples.tracks || []) map.set(`sample:${t.id}`, t.points);
+    _geoById = map;
+    return map;
+  })();
+  try { return await _geoLoading; } finally { _geoLoading = null; }
+}
+
+function ensureLibraryMap() {
+  if (_libMap) return _libMap;
+  const el = document.querySelector("#libraryMap");
+  if (!el || !window.L) return null;
+  _libMap = L.map(el, { zoomControl: true, attributionControl: true, preferCanvas: true }).setView([47.2, 19.4], 7);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    { maxZoom: 16, attribution: "Tiles © Esri — OpenStreetMap" }).addTo(_libMap);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+    { maxZoom: 16 }).addTo(_libMap);
+  _libMapLayer = L.layerGroup().addTo(_libMap);
+  return _libMap;
+}
+
+function libItemInfo({ route, category }) {
+  const kind = category === "workout" ? "Edzés" : category === "sample" ? "Közösségi" : "Útvonal";
+  const loc = route.location || {};
+  const where = category === "sample" && (loc.settlement || loc.region)
+    ? [...new Set([loc.settlement, loc.region].filter(Boolean))].join(" · ")
+    : smartDateTimeFormat(route);
+  const stats = [route.distance != null ? `${num(route.distance, 1)} km` : "", route.elevation ? `${int(route.elevation)} m` : ""].filter(Boolean).join(" · ");
+  return { kind, where, stats };
+}
+
+async function renderLibraryMap(items) {
+  const map = ensureLibraryMap();
+  if (!map) return;
+  setTimeout(() => map.invalidateSize(), 50);
+  const status = document.querySelector("#libraryMapStatus");
+  if (!_geoById && status) { status.hidden = false; status.textContent = "Nyomvonalak betöltése…"; }
+  const geo = await loadLibraryGeometry();
+  if (status) status.hidden = true;
+  _libMapLayer.clearLayers();
+
+  const drawn = [];
+  for (const it of items) {
+    const key = it.category === "sample" ? `sample:${it.route.id}` : `own:${it.route.id}`;
+    const pts = geo.get(key);
+    if (!pts || pts.length < 2) continue;
+    const color = MAP_COLORS[it.category] || "#fc4c02";
+    const line = L.polyline(pts, { color, weight: 3, opacity: 0.75, lineCap: "round", lineJoin: "round", interactive: false }).addTo(_libMapLayer);
+    // Széles, láthatatlan „találati” vonal – könnyebb rámutatni / koppintani
+    const hit = L.polyline(pts, { color, weight: 16, opacity: 0, interactive: true }).addTo(_libMapLayer);
+    const entry = { it, pts, line };
+    drawn.push(entry);
+    hit.on("mouseover", () => { line.setStyle({ weight: 6, opacity: 1 }); line.bringToFront();
+      hit.bindTooltip(escapeHtml(it.route.name || "Névtelen"), { sticky: true, direction: "top", className: "lib-map-tip" }).openTooltip(); });
+    hit.on("mouseout", () => { line.setStyle({ weight: 3, opacity: 0.75 }); hit.closeTooltip(); });
+    hit.on("click", (e) => openLibraryMapPopup(e.latlng, drawn));
+  }
+
+  const status2 = document.querySelector("#libraryMapStatus");
+  if (status2) { status2.hidden = !!drawn.length; if (!drawn.length) status2.textContent = "Ezekhez az elemekhez nincs megjeleníthető nyomvonal."; }
+
+  // A nézetet csak akkor igazítjuk, ha a szűrés megváltozott (kézi nagyítás megmarad)
+  const fitKey = drawn.map((d) => d.it.route.id).join(",");
+  if (drawn.length && fitKey !== _lastFitKey) {
+    _lastFitKey = fitKey;
+    const all = drawn.flatMap((d) => d.pts);
+    try { map.fitBounds(all, { padding: [24, 24], maxZoom: 13 }); } catch {}
+  }
+}
+
+function openLibraryMapPopup(latlng, drawn) {
+  // Közeli nyomvonalak: a koppintás ~18 px-es körzetében
+  const p0 = _libMap.latLngToContainerPoint(latlng);
+  const near = drawn.filter((d) => d.pts.some((pt) => _libMap.latLngToContainerPoint(pt).distanceTo(p0) < 18)).slice(0, 20);
+  if (!near.length) return;
+  const rows = near.map((d, i) => {
+    const { kind, where, stats } = libItemInfo(d.it);
+    const loadLbl = d.it.category === "workout" ? "Elemzés" : "Tervezés";
+    return `<div class="lib-map-pop-row">
+      <div class="lib-map-pop-main"><i style="background:${MAP_COLORS[d.it.category]}"></i>
+        <div><b>${escapeHtml(d.it.route.name || "Névtelen")}</b><small>${escapeHtml([kind, where, stats].filter(Boolean).join(" · "))}</small></div></div>
+      <div class="lib-map-pop-act">
+        <button class="library-card-load-btn" data-i="${i}" data-a="load">${loadLbl}</button>
+        <button class="library-card-action-btn" data-i="${i}" data-a="more" title="További műveletek">⋯</button>
+      </div></div>`;
+  }).join("");
+  const popup = L.popup({ maxWidth: 340, minWidth: 260, maxHeight: 260, className: "lib-map-popup", autoPanPadding: [20, 20] })
+    .setLatLng(latlng)
+    .setContent(`<div class="lib-map-pop">${near.length > 1 ? `<div class="lib-map-pop-head">${near.length} elem itt</div>` : ""}${rows}</div>`)
+    .openOn(_libMap);
+  const el = popup.getElement();
+  el?.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-a]");
+    if (!b) return;
+    const d = near[+b.dataset.i];
+    const { route, category, isSample } = d.it;
+    _libMap.closePopup();
+    if (b.dataset.a === "load") await _loadRoute(route.id, isSample, route.name, category === "workout" ? "file" : "plan");
+    else openRouteActionMenu(route, category, isSample, null);
+  });
 }

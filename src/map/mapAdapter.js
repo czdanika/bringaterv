@@ -49,6 +49,13 @@ const tileLayers = {
       options: { maxZoom: 19, maxNativeZoom: 16, attribution: "", pane: "shadowPane" },
     },
   },
+  // Terep: zöld erdős, domborzatos Esri topo térkép (a megosztó kép „Terep” háttere).
+  // A filter a PDF-be rajzoláskor élénkíti a színeket (Leaflet nem használja).
+  terrain: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    options: { maxZoom: 19, maxNativeZoom: 17, attribution: esriAttrib },
+    filter: "saturate(1.45) contrast(1.06)",
+  },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: { maxZoom: 19, attribution: esriAttrib },

@@ -314,6 +314,7 @@ export const routesApi = {
     rejectSubmission(id, reason)      { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}/reject`, { method: "POST", body: JSON.stringify({ reason }) }); },
     deleteSubmission(id)              { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}`, { method: "DELETE" }); },
     submissionGpx(id)                 { return fetchText(`${BASE}/admin/submissions/${encodeURIComponent(id)}/gpx`); },
+    locateSample(id)                  { return fetchJson(`${BASE}/admin/samples/${encodeURIComponent(id)}/locate`, { method: "POST" }); },
     locateSamples(start)              { return fetchJson(`${BASE}/admin/samples/locate`, start ? { method: "POST" } : {}); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
     getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },

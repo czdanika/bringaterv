@@ -14,7 +14,7 @@
 
 import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
 import { fitToGpx } from '../gpx/fit.js';
-import { createWorkoutShareCard, downloadShareCard } from './shareCard.js';
+import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts } from './shareCard.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
 import { openRoutePdfModal, shareRouteUrl } from './routePdfModal.js';
@@ -410,13 +410,7 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
     const avgSpd = hasSpeed
       ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10
       : 0;
-    const step = Math.max(1, Math.floor(geometry.length / 400));
-    const simPts = [];
-    for (let i = 0; i < geometry.length; i += step) simPts.push({ lat: geometry[i].lat, lng: geometry[i].lng, ele: geometry[i].ele });
-    if (simPts.length && simPts[simPts.length - 1] !== geometry[geometry.length - 1]) {
-      const last = geometry[geometry.length - 1];
-      simPts.push({ lat: last.lat, lng: last.lng, ele: last.ele });
-    }
+    const simPts = shareCardPoints(geometry);
     _shareCardData = {
       geometry, descentMeters, startTime: meta.startTime || null,
       isWorkout: !!(meta.startTime || meta.totalDuration),
@@ -574,6 +568,31 @@ export async function processImportedFile(file) {
 function _initShareCardModal() {
   let _shareTheme = "light";
   let _shareSize  = "square";
+  // A választott stílus megmarad a következő megosztásra is
+  let _shareLayout = "panel";
+  try { const v = localStorage.getItem("bt.shareLayout"); if (SHARE_LAYOUTS.some((l) => l.id === v)) _shareLayout = v; } catch {}
+  // A választott grafikonok (sorrend: SHARE_CHARTS); ami az adott útvonalnál nincs, kimarad
+  const MAX_CHARTS = 3;
+  let _shareCharts = ["ele"];
+  try {
+    const v = JSON.parse(localStorage.getItem("bt.shareCharts") || "null");
+    if (Array.isArray(v)) _shareCharts = v.filter((id) => SHARE_CHARTS.some((c) => c.id === id)).slice(0, MAX_CHARTS);
+  } catch {}
+
+  function renderChartPicker() {
+    const row = document.querySelector("#shareChartRow");
+    const picker = document.querySelector("#shareChartPicker");
+    if (!row || !picker) return;
+    const avail = availableShareCharts(_shareCardData?.points || []);
+    row.hidden = !avail.length;
+    const chosen = _shareCharts.filter((id) => avail.includes(id));
+    picker.innerHTML = SHARE_CHARTS.filter((c) => avail.includes(c.id)).map((c) => {
+      const on = chosen.includes(c.id);
+      const full = !on && chosen.length >= MAX_CHARTS;
+      return `<button type="button" class="sc-chip${on ? " sc-chip--on" : ""}" data-share-chart="${c.id}"
+        aria-pressed="${on}" ${full ? "disabled" : ""}><span class="sc-chip-dot" style="background:${c.color}"></span>${c.label}</button>`;
+    }).join("");
+  }
   const _sharePhoto = {
     img: null, scale: 1, offsetX: 0, offsetY: 0, blur: 6, headerBg: "translucent",
     routeColor: "#ff6a3d", routeOffsetX: 0, routeOffsetY: 0, routeScale: 1,
@@ -597,6 +616,8 @@ function _initShareCardModal() {
       ..._shareCardData,
       title: titleVal,
       theme: _shareTheme,
+      layout: _shareLayout,
+      charts: _shareCharts,
       size:  _shareSize,
       photo: _shareTheme === "photo" ? _sharePhoto : null,
       qrUrl: _qrUrl(),
@@ -748,10 +769,23 @@ function _initShareCardModal() {
     if (qrRow) qrRow.hidden = !_shareCardData.shareUrl;
     const titleInput = document.querySelector("#shareCardTitle");
     if (titleInput) titleInput.value = _shareCardData.metaTitle || "";
+    renderChartPicker();
     overlay.hidden = false;
     refreshSharePreview();
     window.lucide?.createIcons();
   }
+
+  document.querySelector("#shareChartPicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-share-chart]");
+    if (!b || b.disabled) return;
+    const id = b.dataset.shareChart;
+    _shareCharts = _shareCharts.includes(id)
+      ? _shareCharts.filter((x) => x !== id)
+      : SHARE_CHARTS.map((c) => c.id).filter((x) => x === id || _shareCharts.includes(x));
+    try { localStorage.setItem("bt.shareCharts", JSON.stringify(_shareCharts)); } catch {}
+    renderChartPicker();
+    refreshSharePreview();
+  });
 
   function closeShareCardModal() {
     const overlay = document.querySelector("#shareCardOverlay");
@@ -830,6 +864,37 @@ function _initShareCardModal() {
     });
   }
 
+  // Stílusválasztó: kis rajzolt előnézet + név, a SHARE_LAYOUTS listából
+  {
+    const picker = document.querySelector("#shareLayoutPicker");
+    if (picker) {
+      picker.innerHTML = SHARE_LAYOUTS.map((l) => `
+        <button type="button" class="sc-layout" role="radio" data-share-layout="${l.id}" title="${l.hint}">
+          <span class="sc-layout-thumb sc-layout-thumb--${l.id}" aria-hidden="true"><i></i><b></b><em></em></span>
+          <span class="sc-layout-name">${l.label}</span>
+        </button>`).join("");
+      const sync = () => {
+        picker.querySelectorAll("[data-share-layout]").forEach((b) => {
+          const on = b.dataset.shareLayout === _shareLayout;
+          b.classList.toggle("sc-layout--active", on);
+          b.setAttribute("aria-checked", on ? "true" : "false");
+        });
+        // Az „Adatsáv háttere” csak az adatpanelos stílusnál értelmes
+        document.querySelectorAll("#sharePhotoControls [data-panel-only]")
+          .forEach((el) => { el.hidden = _shareLayout !== "panel"; });
+      };
+      sync();
+      picker.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-share-layout]");
+        if (!b || b.dataset.shareLayout === _shareLayout) return;
+        _shareLayout = b.dataset.shareLayout;
+        try { localStorage.setItem("bt.shareLayout", _shareLayout); } catch {}
+        sync();
+        refreshSharePreview();
+      });
+    }
+  }
+
   document.querySelectorAll("[data-share-theme]").forEach((btn) => {
     btn.addEventListener("click", () => {
       _shareTheme = btn.dataset.shareTheme;
@@ -865,6 +930,8 @@ function _initShareCardModal() {
       ..._shareCardData,
       title: _getShareTitle(),
       theme: _shareTheme,
+      layout: _shareLayout,
+      charts: _shareCharts,
       size:  _shareSize,
       photo: _shareTheme === "photo" ? _sharePhoto : null,
       qrUrl: _qrUrl(),

@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.12.0 – 2026-10-21 – Megosztó kép stílusok és grafikonok, könyvtár térképnézet
+
+- **Megosztó kép – stílusválasztó:** a megosztó kép ablakban külön választható a **stílus** (kis rajzolt előnézettel) és a **háttér**. Stílusok: *Adatpanel* (a korábbi: térkép felül, adatok alul panelen) és az új *Térképen* (az adatok fehér betűkkel, alul sötét átmeneten, közvetlenül a térképen; vékony, elegáns nyomvonal; álló képen két oszlopban nagy számok). Háttér: Világos, Sötét, az új **Terep** (zöld, domborzatos térkép) vagy Fotó – bármelyik stílussal kombinálható. A választott stílust a böngésző megjegyzi; a lista később bővíthető.
+- **Megosztó kép – választható grafikonok:** a szintprofil mellé (vagy helyett) **sebesség, pulzus, kadencia és teljesítmény** csík is kérhető – legfeljebb három, egymás alatt, mindegyik felett a neve és az összegzése (szintnél max/min, a többinél átlag/max). Csak az jelenik meg a választóban, amihez az edzésben van adat; a választást a böngésző megjegyzi. A szenzoradat enyhén simítva kerül a képre, a kilógó csúcsok nem torzítják a skálát.
+- **Megosztó kép – vékonyabb nyomvonal** az Adatpanel stílusban is, kisebb rajt- és célponttal.
+- **Megosztó kép – finomítások:** kis „SZINTPROFIL” felirat a csík fölött (és a többi grafikon neve), kb. 15%-kal nagyobb „Bringaterv” jelvény.
+- **Megosztó kép – finomabb betűk:** az adatsor számai keskeny, sportos számbetűvel (Barlow Semi Condensed) jelennek meg a vastag, kerek Inter helyett; a mértékegységek és a feliratok könnyebbek, a cím Inter félkövér a nehéz Montserrat helyett. Az elrendezés változatlan.
+- **PDF – „Terep” térkép:** a PDF útvonallap térképstílusai közé bekerült a megosztó kép zöld, domborzatos Terep térképe.
+- **Könyvtár – térképes nézet** (harmadik nézet a kártya és a lista mellett): a szűrt elemek nyomvonala egy térképen, színnel jelölve (edzés / útvonal / közösségi). Rámutatva kiemelődik és kiírja a nevét; kattintásra felugró lista az ott futó összes elemmel (név, dátum vagy helyszín, táv, szint), „Elemzés” / „Tervezés” gombbal és a „⋯” menüvel. A szűrők itt is működnek, a nézet a szűrés változásakor igazodik.
+- **Admin – Közösségi útvonalak:** új „Helyszín” oszlop (település, megye, ország, körtúra / A → B), soronként „↻ Hely” gomb a kézi újraszámoláshoz. A szerkesztő ablakban minden adat szerkeszthető, mint beküldéskor: nehézség, ajánlott évszak, megjelenő név, helyszín (ország, régió, település, érintett települések, körtúra) – „Újraszámolás” gombbal. Új útvonal feltöltésekor a helyadat magától kiszámolódik.
+
+### Verzió
+- v1.11.0 → v1.12.0
+
+---
+
 ## v1.11.0 – 2026-10-21 – Közösségi útvonalak, helyszín-szűrés, könyvtár-menü
 
 - **Könyvtár, kártyás nézet:** a kártyán „Elemzés” / „Tervezés” betöltő gomb és egy „⋯” gomb, ami menüt nyit az összes művelettel (eddig csak a lista nézetben voltak elérhetők): betöltés a másik nézetbe, megosztás, GPX / FIT letöltés, Strava-frissítés és -megnyitás, Garminra küldés, statisztika-kapcsoló, szerkesztés, és a menü alján a törlés. Gépen a gomb mellett nyílik, mobilon alulról. A kártya és a lista ugyanazt a műveletkészletet használja.
