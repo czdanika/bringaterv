@@ -6664,3 +6664,44 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 .sc-check input { margin-top: 2px; accent-color: var(--brand); }
 .sc-check span { display: flex; flex-direction: column; gap: 1px; }
 .sc-check small { color: var(--muted); font-size: 11.5px; }
+
+/* ── Könyvtár kártya: Betöltés + „Egyéb” menü ─────────────────────────────── */
+.library-card-load-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  border: 1px solid var(--brand); border-radius: var(--r-sm, 8px); background: var(--brand); color: #fff;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+.library-card-load-btn svg { width: 15px; height: 15px; }
+.library-card-load-btn:hover { filter: brightness(.95); }
+.lib-menu-overlay { position: fixed; inset: 0; z-index: 2600; }
+.lib-menu { position: fixed; background: var(--panel-bg); color: var(--text); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.22); padding: 6px; max-height: calc(100dvh - 16px); overflow-y: auto; }
+.lib-menu-head { display: none; }
+.lib-menu-list { display: flex; flex-direction: column; }
+.lib-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px;
+  background: none; color: var(--text); font-family: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer; }
+.lib-menu-item svg { width: 17px; height: 17px; color: var(--muted); flex-shrink: 0; }
+.lib-menu-item span { flex: 1; }
+.lib-menu-item small { color: var(--muted); font-size: 11.5px; }
+.lib-menu-item:hover { background: var(--panel-strong); }
+.lib-menu-item.is-danger, .lib-menu-item.is-danger svg { color: var(--danger, #dc2626); }
+.lib-menu-sep { height: 1px; margin: 5px 8px; background: var(--line); }
+@media (max-width: 600px) {
+  .lib-menu-overlay { background: rgba(0,0,0,.45); display: flex; align-items: flex-end; }
+  .lib-menu { position: relative; width: 100%; border-radius: 18px 18px 0 0; border: 0; padding: 6px 10px calc(12px + env(safe-area-inset-bottom));
+    max-height: 85dvh; }
+  .lib-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 6px 8px; }
+  .lib-menu-title { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-menu-close { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px;
+    background: none; color: var(--text); }
+  .lib-menu-close svg { width: 18px; height: 18px; }
+  .lib-menu-item { padding: 12px 10px; font-size: 15px; }
+}
+.heatmap-routes-toggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12.5px; color: var(--muted);
+  white-space: nowrap; cursor: pointer; }
+.heatmap-routes-toggle input { accent-color: var(--brand); }
+.heatmap-routes-toggle + .heatmap-count { margin-left: 0; }
+
+/* Könyvtár – helyszín-szűrő (közösségi útvonalak) */
+.library-loc-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.library-loc-select { flex: 1 1 140px; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel-bg); color: var(--text); font-family: inherit; font-size: 13px; }
+.library-loc-select[hidden] { display: none; }

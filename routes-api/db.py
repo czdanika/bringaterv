@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 13
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -244,6 +244,47 @@ def _db_init_locked() -> None:
                 conn.execute("ALTER TABLE auth_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
             conn.execute("PRAGMA user_version = 10")
             log.info("DB migrálva v10-re (megerősítő kód)")
+        if ver < 11:
+            # v11: közösségi útvonal-beküldések (admin jóváhagyással kerülnek a közösségi útvonalak közé)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS route_submissions (
+                    id           TEXT    PRIMARY KEY,
+                    created_at   TEXT    NOT NULL,
+                    user_id      TEXT,
+                    user_name    TEXT,
+                    user_email   TEXT,
+                    source_id    TEXT,
+                    source_kind  TEXT,
+                    name         TEXT    NOT NULL,
+                    description  TEXT    NOT NULL DEFAULT '',
+                    route_type   TEXT    NOT NULL DEFAULT 'asphalt',
+                    difficulty   TEXT    NOT NULL DEFAULT '',
+                    season       TEXT    NOT NULL DEFAULT '',
+                    show_author  INTEGER NOT NULL DEFAULT 1,
+                    distance_km  REAL,
+                    elevation_m  INTEGER,
+                    status       TEXT    NOT NULL DEFAULT 'pending',
+                    admin_note   TEXT    NOT NULL DEFAULT '',
+                    reviewed_at  TEXT,
+                    sample_id    TEXT
+                )
+            """)
+            conn.execute("PRAGMA user_version = 11")
+            log.info("DB migrálva v11-re (közösségi útvonal-beküldések)")
+        if ver < 12:
+            # v12: helyadat a beküldésekhez (ország, régió, település, érintett helyek – JSON)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(route_submissions)")}
+            if "location" not in cols:
+                conn.execute("ALTER TABLE route_submissions ADD COLUMN location TEXT NOT NULL DEFAULT ''")
+            conn.execute("PRAGMA user_version = 12")
+            log.info("DB migrálva v12-re (beküldések helyadata)")
+        if ver < 13:
+            # v13: megjelenő beküldő-név (becenév) – üresen a felhasználó neve, show_author=0 → névtelen
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(route_submissions)")}
+            if "author_alias" not in cols:
+                conn.execute("ALTER TABLE route_submissions ADD COLUMN author_alias TEXT NOT NULL DEFAULT ''")
+            conn.execute("PRAGMA user_version = 13")
+            log.info("DB migrálva v13-ra (beküldő beceneve)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

@@ -3,8 +3,11 @@
 import json
 import os
 import re
+import threading
 
 from flask import Blueprint, abort, jsonify, request
+
+import geo_location
 
 from auth import require_admin, require_auth
 from config import CUSTOM_SAMPLES_DIR, SAMPLES_DIR
@@ -34,8 +37,21 @@ def _sample_entry(sid: str, meta: dict, custom: bool) -> dict:
         "elevation":   meta.get("elevation"),
         "type":        meta.get("type", "cycling"),
         "description": meta.get("description", ""),
+        "difficulty":  meta.get("difficulty", ""),
+        "season":      meta.get("season", ""),
+        "author":      meta.get("author", ""),
+        "community":   bool(meta.get("community")),
+        "location":    meta.get("location") or {},
         "custom":      custom,
     }
+
+
+def _merged_meta(directory: str, sid: str) -> dict:
+    """Beépített mintánál a custom JSON (admin szerkesztés, helyadat) felülírja az alapot."""
+    meta = _load_sample_meta(directory, sid)
+    if directory != CUSTOM_SAMPLES_DIR:
+        meta.update(_load_sample_meta(CUSTOM_SAMPLES_DIR, sid))
+    return meta
 
 
 @bp.route("/api/samples", methods=["GET"])
@@ -50,8 +66,7 @@ def list_samples():
                 continue
             sid = fn[:-4]
             if sid not in seen:
-                meta = _load_sample_meta(directory, sid)
-                seen[sid] = _sample_entry(sid, meta, is_custom)
+                seen[sid] = _sample_entry(sid, _merged_meta(directory, sid), is_custom)
     return jsonify(list(seen.values()))
 
 
@@ -85,8 +100,7 @@ def admin_list_samples():
             if not fn.endswith(".gpx"):
                 continue
             sid  = fn[:-4]
-            meta = _load_sample_meta(directory, sid)
-            result.append(_sample_entry(sid, meta, is_custom))
+            result.append(_sample_entry(sid, _merged_meta(directory, sid), is_custom))
     return jsonify(result)
 
 
@@ -135,9 +149,12 @@ def admin_update_sample(sample_id: str):
     if not meta:
         meta = _load_sample_meta(SAMPLES_DIR, sample_id)
     data = request.get_json(force=True) or {}
-    for key in ("name", "type", "description"):
+    for key in ("name", "type", "description", "difficulty", "season", "author"):
         if key in data:
             meta[key] = data[key]
+    if isinstance(data.get("location"), dict):
+        from api_submissions import _clean_location
+        meta["location"] = _clean_location({**(meta.get("location") or {}), **data["location"]})
     for key in ("distance", "duration", "elevation"):
         if key in data:
             try:
@@ -163,3 +180,49 @@ def admin_delete_sample(sample_id: str):
     if not deleted:
         abort(404, description="Csak custom minta törölhető")
     return jsonify({"ok": True})
+
+
+# ── Helyadat pótlása a közösségi útvonalakhoz (admin, háttérben) ──────────────
+
+_locate_state = {"running": False, "done": 0, "total": 0}
+
+
+def _gpx_points(path: str) -> list:
+    from api_submissions import _clean_points
+    with open(path, encoding="utf-8") as f:
+        return _clean_points(f.read())
+
+
+def _locate_missing() -> None:
+    try:
+        todo = []
+        for directory in (CUSTOM_SAMPLES_DIR, SAMPLES_DIR):
+            if not os.path.isdir(directory):
+                continue
+            for fn in sorted(os.listdir(directory)):
+                sid = fn[:-4]
+                if fn.endswith(".gpx") and not _merged_meta(directory, sid).get("location") and sid not in [t[1] for t in todo]:
+                    todo.append((directory, sid))
+        _locate_state.update(total=len(todo), done=0)
+        for directory, sid in todo:
+            loc = geo_location.locate(_gpx_points(os.path.join(directory, f"{sid}.gpx")))
+            if loc:
+                os.makedirs(CUSTOM_SAMPLES_DIR, exist_ok=True)
+                meta = _merged_meta(directory, sid)
+                meta["location"] = loc
+                with open(os.path.join(CUSTOM_SAMPLES_DIR, f"{sid}.json"), "w", encoding="utf-8") as f:
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+            _locate_state["done"] += 1
+    finally:
+        _locate_state["running"] = False
+
+
+@bp.route("/api/admin/samples/locate", methods=["GET", "POST"])
+@require_auth
+@require_admin
+def admin_locate_samples():
+    """POST: helyadat-pótlás indítása a háttérben (ahol még nincs); GET: állapot."""
+    if request.method == "POST" and not _locate_state["running"]:
+        _locate_state.update(running=True, done=0, total=0)
+        threading.Thread(target=_locate_missing, daemon=True).start()
+    return jsonify(_locate_state)

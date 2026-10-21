@@ -44,6 +44,7 @@ Ugyanaz az alkalmazás, külön telefonos elrendezéssel: teljes képernyős té
 
 | Verzió | Főbb változások |
 |---|---|
+| **v1.11** | 🌍 **Közösségi útvonalak**: beküldés admin jóváhagyással, automatikus helyadat (ország, megye, települések), helyszín-szűrő · könyvtár „⋯” menü a kártyákon · hőtérkép csak edzésekkel |
 | **v1.10** | 🖼️ **Új megosztó kép**: valódi térkép, szintprofil-csík, nagy számok, opcionális QR-kód · egységes megosztás ablak |
 | **v1.9.1** | 🌐 **Bemutató oldal** (`/bemutato`) – mit tud az app, képernyőképekkel · kapcsolati e-mail-cím (`CONTACT_EMAIL`) · egyszerűbb Névjegy |
 | **v1.9** | 🛡️ **Admin felület** külön címen (mobilon is) · ✉️ **meghívó linkek** QR-kóddal · e-mail: **megerősítés 6 jegyű kóddal**, **elfelejtett jelszó**, üzenet a felhasználóknak · 🐞 **hibajelentés / ötlet** az appból · saját fiók törlése |

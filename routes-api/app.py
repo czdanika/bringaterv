@@ -17,6 +17,7 @@ Modulok:
   api_admin.py        /api/admin/users*, /api/admin/stats
   api_routes.py       /api/routes*
   api_samples.py      /api/samples* + /api/admin/samples*
+  api_submissions.py  /api/submissions + /api/admin/submissions* (közösségi útvonalak beküldése, jóváhagyás)
   api_backup.py       /api/user/backup|restore + admin párjaik
   strava_service.py   Strava helperek (token, app config, deny-list, GPX builder)
   api_strava.py       /api/strava/* + /api/admin/strava/config
@@ -43,6 +44,7 @@ import api_public
 import api_records
 import api_routes
 import api_samples
+import api_submissions
 import api_strava
 from config import _LEGACY_USER_DIR, SAMPLES_DIR
 from db import _db, _db_init
@@ -59,6 +61,7 @@ app.register_blueprint(api_account.bp)
 app.register_blueprint(api_admin.bp)
 app.register_blueprint(api_routes.bp)
 app.register_blueprint(api_samples.bp)
+app.register_blueprint(api_submissions.bp)
 app.register_blueprint(api_backup.bp)
 app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)

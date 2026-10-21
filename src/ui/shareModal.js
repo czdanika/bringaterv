@@ -129,7 +129,7 @@ function targetsHtml(url, title) {
 }
 
 export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf, onSaveForLink,
-                                 noLinkText = "Minta-útvonalhoz nincs nyilvános link." } = {}) {
+                                 noLinkText = "Közösségi útvonalhoz nincs külön nyilvános link." } = {}) {
   if (!_el) _el = build();
   const { ov, q, close } = _el;
 

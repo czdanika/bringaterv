@@ -129,6 +129,7 @@ let _hmMap    = null;
 let _hmLayer  = null;
 let _hmTracks = null;
 let _hmSport  = "all";
+let _hmShowRoutes = false;   // alapból csak a rögzített edzések – a tervezett útvonalak kapcsolóval
 let _hmLoading = false;
 
 function _hmSportKey(t) {
@@ -164,6 +165,10 @@ function _ensureHeatmapMap() {
     _onLoadRoute(btn.dataset.id, false, btn.dataset.name, "file");
   });
   // Hőtérkép sport szűrő
+  document.getElementById("heatmapShowRoutes")?.addEventListener("change", (e) => {
+    _hmShowRoutes = e.target.checked;
+    _drawHeatmapTracks();
+  });
   document.querySelectorAll("[data-heatmap-sport]").forEach(btn => {
     btn.addEventListener("click", () => {
       _hmSport = btn.dataset.heatmapSport;
@@ -178,7 +183,9 @@ function _ensureHeatmapMap() {
 function _drawHeatmapTracks() {
   if (!_hmLayer || !_hmTracks) return;
   _hmLayer.clearLayers();
-  const filtered = _hmTracks.filter(t => _hmSport === "all" || _hmSportKey(t) === _hmSport);
+  const filtered = _hmTracks.filter(t =>
+    (_hmShowRoutes || (t.kind || "workout") === "workout") &&
+    (_hmSport === "all" || _hmSportKey(t) === _hmSport));
 
   const firsts = filtered.map(t => t.points?.[0]).filter(Boolean);
   const median = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] ?? 0; };
@@ -231,7 +238,11 @@ function _drawHeatmapTracks() {
   });
 
   const countEl = document.getElementById("heatmapCount");
-  if (countEl) countEl.textContent = `${filtered.length} edzés`;
+  if (countEl) {
+    const nW = filtered.filter(t => (t.kind || "workout") === "workout").length;
+    const nR = filtered.length - nW;
+    countEl.textContent = `${nW} edzés` + (nR ? ` · ${nR} útvonal` : "");
+  }
   if (boundsPts.length) try { _hmMap.fitBounds(boundsPts, { padding: [30, 30], maxZoom: 14 }); } catch {}
 }
 

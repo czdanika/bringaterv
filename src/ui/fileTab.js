@@ -768,7 +768,7 @@ function _initShareCardModal() {
       title: _shareCardData.title,
       url: hasLink ? shareRouteUrl(id) : null,
       noLinkText: _loadedIsSample
-        ? "Minta-útvonalhoz nincs nyilvános link."
+        ? "Közösségi útvonalhoz nincs külön nyilvános link."
         : "Nyilvános linkhez előbb mentsd el a könyvtárba.",
       onSaveForLink: _loadedIsSample ? undefined : async () => {
         const newId = await saveImportedToLibrary();

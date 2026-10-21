@@ -137,7 +137,7 @@ const tabStats    = document.querySelector("#tabStats");
 let currentTab = "plan";
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
-let _libraryFilter = { type: 'all', source: 'all', sport: 'all', query: '', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
+let _libraryFilter = { type: 'all', source: 'all', sport: 'all', query: '', country: '', region: '', shape: 'all', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
 const DIST_MAX = 500;  // km
 const DUR_MAX  = 600;  // perc (10 óra)
 

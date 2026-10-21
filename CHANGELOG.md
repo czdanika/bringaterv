@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.11.0 – 2026-10-21 – Közösségi útvonalak, helyszín-szűrés, könyvtár-menü
+
+- **Könyvtár, kártyás nézet:** a kártyán „Elemzés” / „Tervezés” betöltő gomb és egy „⋯” gomb, ami menüt nyit az összes művelettel (eddig csak a lista nézetben voltak elérhetők): betöltés a másik nézetbe, megosztás, GPX / FIT letöltés, Strava-frissítés és -megnyitás, Garminra küldés, statisztika-kapcsoló, szerkesztés, és a menü alján a törlés. Gépen a gomb mellett nyílik, mobilon alulról. A kártya és a lista ugyanazt a műveletkészletet használja.
+- **Közösségi útvonalak** (a korábbi „Minta” útvonalak új neve): a felhasználók egy mentett útvonalat vagy edzést **beküldhetnek** a könyvtár „⋯” menüjéből vagy a lenyitott sorból, egy kötelező űrlappal (név, leírás, típus, nehézség, ajánlott évszak, beküldőként névtelenül / saját névvel / becenévvel). Csak a nyomvonal és a szint kerül át. Az admin push- és e-mail-értesítést kap; az admin felület új **Beküldések** fülén nyomvonal-előnézettel látja, a leírást és az adatokat szerkesztheti, majd **jóváhagyja** (→ megjelenik a Közösségi útvonalak között) vagy **elutasítja** indoklással. A beküldő mindkét esetben értesítést kap. A lenyitott sorban a nehézség, az évszak és a beküldő is látszik. Adatbázis-migráció: v11, v13 (becenév).
+- **Helyadat a közösségi útvonalakhoz**: ország, régió / megye, rajt települése, érintett települések, érintett országok, körtúra vagy A → B – automatikusan a nyomvonalból (OpenStreetMap / Nominatim, magyar nevekkel, 1 kérés/mp, gyorsítótárral). Beküldéskor a háttérben számolódik, az admin jóváhagyás előtt javíthatja; a meglévőkhöz „Helyadatok pótlása” gomb. A Könyvtár Közösségi nézetében **Régió / megye** (és több országnál **Ország**) választó, **Körtúra / A → B** szűrő, a kereső a településekben is keres; a kártyán a település és a megye, a lenyitott sorban a teljes helyadat látszik. Adatbázis-migráció: v12.
+- **Hőtérkép:** alapból csak a rögzített edzések látszanak; a tervezett útvonalak a „Tervezett útvonalak is” kapcsolóval kapcsolhatók be. Az edzés / útvonal megkülönböztetés a fájl tartalmán alapul (Strava / Garmin / FIT forrás, vagy időbélyeges nyomvonal), így a régebben rosszul jelölt elemek is jó helyre kerülnek. A számláló külön mutatja az edzéseket és az útvonalakat.
+
+### Verzió
+- v1.10.0 → v1.11.0
+
+---
+
 ## v1.10.0 – 2026-10-18 – Új megosztó kép és megosztás ablak
 
 - **Új megosztó kép**: valódi térkép (világos / sötét) a nyomvonal alatt, fehér körvonalas narancs útvonal, zöld rajt- és célpont; kis „Bringaterv” jelvény a sarokban a nehéz fejléc helyett; alul adatpanel nagy címmel, dátummal, **szintprofil-csíkkal** és nagy számokkal (táv, idő 1:05 formában, átlag, szint – ami nincs, kimarad). A Fotó téma ugyanezt az elrendezést kapta.

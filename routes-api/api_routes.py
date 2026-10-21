@@ -27,6 +27,19 @@ def list_routes():
 _TRKPT_RE = re.compile(r'<(?:trkpt|rtept)\b[^>]*\blat="([-\d.]+)"[^>]*\blon="([-\d.]+)"')
 
 
+_TIME_RE = re.compile(r"<time>")
+
+
+def _is_recorded(entry: dict, gpx_text: str) -> bool:
+    """Valódi (rögzített) edzés-e – nem pedig tervezett útvonal.
+    Forrás alapján (Strava / Garmin / FIT / indulási idő), vagy ha a nyomvonal
+    pontjainak van időbélyege (a tervezett útvonalaknak nincs)."""
+    if entry.get("strava_id") or entry.get("garmin_activity_id") or entry.get("has_fit") or entry.get("start_time"):
+        return True
+    # A metadata <time> mellett legalább néhány trackpont-idő kell
+    return len(_TIME_RE.findall(gpx_text[:200000])) > 3
+
+
 def _extract_track_points(gpx_path: str, every: int = 8, max_points: int = 300) -> list:
     """Egyszerűsített [lat, lon] lista egy GPX-ből (hőtérképhez – ritkított)."""
     try:
@@ -51,31 +64,36 @@ def _extract_track_points(gpx_path: str, every: int = 8, max_points: int = 300) 
 @bp.route("/api/routes/geometry-bulk", methods=["GET"])
 @require_auth
 def routes_geometry_bulk():
-    """Edzések egyszerűsített geometriája egyetlen válaszban (hőtérképhez).
-    Csak type=workout bejegyzések kerülnek be, és csak ha include_in_stats nincs False-ra állítva."""
+    """Egyszerűsített geometria egyetlen válaszban (hőtérképhez).
+    Minden elemnél „kind”: workout (rögzített edzés) vagy route (tervezett útvonal) –
+    a kliens alapból csak az edzéseket mutatja. A statisztikából kizárt edzések kimaradnak."""
     user_dir, idx = _resolve_dirs()
     index = _load_index(idx)
     out = []
     for entry in index:
-        # Csak edzések – tervezett útvonalak nem kerülnek a hőtérképre
-        if entry.get("type") != "workout":
-            continue
-        # Statisztikákból kizárt edzések sem kellenek
-        if entry.get("include_in_stats") is False:
-            continue
         rid = entry.get("id")
         if not rid:
             continue
         gpx_path = os.path.join(user_dir, f"{rid}.gpx")
         if not os.path.isfile(gpx_path):
             continue
+        try:
+            with open(gpx_path, encoding="utf-8") as f:
+                head = f.read(200000)
+        except OSError:
+            continue
+        kind = "workout" if _is_recorded(entry, head) else "route"
+        if kind == "workout" and entry.get("include_in_stats") is False:
+            continue
         pts = _extract_track_points(gpx_path)
         if len(pts) < 2:
             continue
+        sport = entry.get("sport_type") or ("cycling" if kind == "route" else entry.get("type")) or "cycling"
         out.append({
             "id":       rid,
             "name":     entry.get("name") or "",
-            "sport":    entry.get("sport_type") or entry.get("type") or "cycling",
+            "kind":     kind,
+            "sport":    sport,
             "distance": entry.get("distance"),
             "date":     entry.get("date"),
             "points":   pts,

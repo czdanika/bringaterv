@@ -288,7 +288,7 @@
         <h2>Könyvtár</h2>
         <ul>
           <li><b>Rács- és listanézet</b> a jobb felső kapcsolókkal. A rácsnézet kártyáin útvonal-bélyegkép, a listanézetben oszloponként rendezhető táblázat, lenyitható részletekkel.</li>
-          <li><b>Szűrők</b>: típus (Összes / Útvonal / Edzés / Minta), forrás (Saját, Strava, Garmin, FIT), sport (Bringa, Futás, Túra, Gyaloglás, Egyéb), táv és edzésidő csúszkával, keresés névre, rendezés (dátum, név, km, idő).</li>
+          <li><b>Szűrők</b>: típus (Összes / Útvonal / Edzés / Közösségi), forrás (Saját, Strava, Garmin, FIT), sport (Bringa, Futás, Túra, Gyaloglás, Egyéb), táv és edzésidő csúszkával, keresés névre, rendezés (dátum, név, km, idő).</li>
           <li><b>Forrásjelölők</b>: SAJÁT (kézzel mentett), STRAVA, GARMIN, FIT.</li>
           <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
         </ul>
@@ -306,6 +306,23 @@
         </table>
         <h3>Importálás</h3>
         <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b> (ha a kapcsolat be van állítva).</p>
+      </section>
+
+      <section id="kozossegi">
+        <h2>Közösségi útvonalak</h2>
+        <p>A Könyvtárban a <b>Közösségi</b> szűrővel érhetők el azok az útvonalak, amelyeket a felhasználók ajánlottak, és az admin jóváhagyott. Bármelyik megnyitható, betölthető tervezésbe, letölthető. A lenyitott sorban a nehézség, az ajánlott évszak, a helyszín (település, megye, ország, körtúra vagy A→B, érintett települések) és (ha engedte) a beküldő neve is látszik.</p>
+        <ul>
+          <li><b>Helyszín szerint</b>: a Közösségi típusnál megjelenik a <b>Régió / megye</b> választó (és ha több országból is van útvonal, az <b>Ország</b>), valamint a <b>Körtúra / A → B</b> szűrő.</li>
+          <li>A <b>kereső</b> a településekben is keres – pl. „Visegrád” beírására azok az útvonalak is megjelennek, amelyek csak áthaladnak rajta.</li>
+          <li>A helyadatot a Bringaterv automatikusan számolja a nyomvonalból (OpenStreetMap), magyar nevekkel (pl. Bécs, Pozsony); határon átnyúló útvonalnál minden érintett ország szűrésénél megjelenik.</li>
+        </ul>
+        <h3>Saját útvonal beküldése</h3>
+        <ul>
+          <li>Egy mentett útvonal vagy edzés <b>⋯</b> menüjében (vagy a lista lenyitott sorában): <span class="path">Beküldés a közösségi útvonalak közé</span>.</li>
+          <li>Töltsd ki az űrlapot: név, <b>leírás</b> (milyen az út, burkolat, forgalom, emelkedők, látnivalók, kávézók, mire figyeljenek), típus, nehézség, mikor ajánlott, és hogy beküldőként <b>névtelenül</b>, <b>a neveddel</b> vagy egy <b>becenévvel</b> jelenj meg.</li>
+          <li>Csak a nyomvonal és a szint kerül át – időpontok, pulzus, sebesség és egyéb személyes adat nem.</li>
+          <li>Az admin átnézi (a leírást pontosíthatja), és jóváhagyja vagy elutasítja; az eredményről értesítést kapsz.</li>
+        </ul>
       </section>
 
       <section id="megosztas">

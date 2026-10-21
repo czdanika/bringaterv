@@ -662,7 +662,20 @@
                   <button class="lib-type-chip is-active" data-lib-type="all" type="button">Összes</button>
                   <button class="lib-type-chip" data-lib-type="route" type="button">Útvonal</button>
                   <button class="lib-type-chip" data-lib-type="workout" type="button">Edzés</button>
-                  <button class="lib-type-chip" data-lib-type="sample" type="button">Minta</button>
+                  <button class="lib-type-chip" data-lib-type="sample" type="button">Közösségi</button>
+                </div>
+              </div>
+              <!-- Helyszín – csak a Közösségi típusnál látszik -->
+              <div class="library-filter-group" id="libraryLocationGroup" hidden>
+                <span class="library-filter-label">Helyszín</span>
+                <div class="library-loc-row">
+                  <select id="libraryCountrySelect" class="library-loc-select" aria-label="Ország" hidden></select>
+                  <select id="libraryRegionSelect" class="library-loc-select" aria-label="Régió (megye)"></select>
+                </div>
+                <div class="library-type-chips">
+                  <button class="lib-type-chip is-active" data-lib-shape="all" type="button">Mind</button>
+                  <button class="lib-type-chip" data-lib-shape="loop" type="button">Körtúra</button>
+                  <button class="lib-type-chip" data-lib-shape="ab" type="button">A → B</button>
                 </div>
               </div>
               <div class="library-filter-group">
@@ -1110,6 +1123,9 @@
               <button class="stats-chip" data-heatmap-sport="hike">Túra</button>
               <button class="stats-chip" data-heatmap-sport="walk">Gyaloglás</button>
             </div>
+            <label class="heatmap-routes-toggle" title="A könyvtárban mentett, tervezett útvonalak is látszódjanak">
+              <input type="checkbox" id="heatmapShowRoutes"> Tervezett útvonalak is
+            </label>
             <span class="heatmap-count" id="heatmapCount"></span>
           </div>
           <!-- Leaflet térkép -->

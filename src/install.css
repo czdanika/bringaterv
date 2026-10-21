@@ -131,3 +131,15 @@
 .del-backup .fb-btn { flex-shrink: 0; padding: 7px 12px; font-size: 13px; }
 .del-confirm { background: #dc2626; border-color: #dc2626; color: #fff; }
 @media (max-width: 420px) { .del-reasons { grid-template-columns: 1fr; } .del-backup { flex-direction: column; align-items: stretch; } }
+
+/* ── Beküldés a közösségi útvonalak közé (src/ui/submitRoute.js) ─────────── */
+.sr-seg { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.sr-seg .fb-cat span { padding: 9px 4px; font-size: 13px; }
+.sr-note { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--panel-strong, #f6f6f6);
+  font-size: 12px; line-height: 1.45; color: var(--muted, #777); }
+.sr-author { display: flex; flex-direction: column; gap: 6px; }
+.sr-radio { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line, #e5e5e5); border-radius: 10px; font-size: 14px; cursor: pointer; }
+.sr-radio input { accent-color: var(--brand, #ea580c); }
+.sr-radio small { color: var(--muted, #777); }
+.sr-radio:has(input:checked) { border-color: var(--brand, #ea580c); background: var(--brand-soft, rgba(234,88,12,.08)); }
+.sr-alias[hidden] { display: none; }

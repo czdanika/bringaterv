@@ -308,6 +308,13 @@ export const routesApi = {
     },
     testMail()                        { return fetchJson(`${BASE}/admin/mail/test`, { method: "POST" }); },
     sendMessage(data)                 { return fetchJson(`${BASE}/admin/message`, { method: "POST", body: JSON.stringify(data) }); },
+    listSubmissions()                 { return fetchJson(`${BASE}/admin/submissions`); },
+    updateSubmission(id, data)        { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data) }); },
+    approveSubmission(id, data)       { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify(data || {}) }); },
+    rejectSubmission(id, reason)      { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}/reject`, { method: "POST", body: JSON.stringify({ reason }) }); },
+    deleteSubmission(id)              { return fetchJson(`${BASE}/admin/submissions/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+    submissionGpx(id)                 { return fetchText(`${BASE}/admin/submissions/${encodeURIComponent(id)}/gpx`); },
+    locateSamples(start)              { return fetchJson(`${BASE}/admin/samples/locate`, start ? { method: "POST" } : {}); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
     getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },
     async getUserRouteFit(userId, routeId) {
