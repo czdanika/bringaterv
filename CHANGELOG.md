@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.17.0 – 2026-10-22 – Körtúra kapcsoló, „Rajt ide”, új útvonalpont-ablak
+
+### Verzió
+
+- **Körtúra kapcsoló a tervezésben:** a rajt (és a cél) ablakában, valamint az Útvonal beállításai között „Körtúra” kapcsoló – bekapcsolva az útvonal mindig visszaér a rajthoz: a végére kerül a rajt, az új pontok a visszaút elé szúródnak be, a rajt elhúzásakor a cél is vele mozog, a rajt törlésekor a következő pont lesz a rajt és a cél. Zárt körnél a célzászló nem takarja el a rajtot („Rajt és cél”). A célpont ablakában a „Visszaút a rajthoz” gombot ez a kapcsoló váltja.
+- **Körtúra indítása bármelyik pontról:** körtúránál (a cél a rajttól 300 m-en belül) a köztes pontok ablakában „Rajt ide” gomb – a kör ettől a ponttól indul és oda ér vissza; a pontok sorrendje körbefordul, a szakaszmódok a helyükön maradnak, importált GPX-nyomvonalnál a nyomvonal is elfordul (nem tervez újra). Tetszőleges helyhez: kattintás az útvonalra (köztes pont), majd Rajt ide. Visszavonható.
+- **Letisztultabb útvonalpont-ablak:** nagyobb cím, alatta halvány koordináta másolás ikonnal, vonalas ikonok emoji helyett, címke–érték sorok. A következő szakasz módja egyetlen szürke, szegmentált kapcsoló (Alap / Aszfalt / Gravel / MTB / Túra) – a kiválasztottnál a felirat alatt kis csík jelzi a szakasz színét. Puha, ikonos gombok (Visszaút, Oda-vissza, Pont törlése). Telefonon tömörebb, és amíg nyitva van, a felhúzható lap a legkisebb állásba megy, a térkép pedig úgy görget, hogy az ablak teljesen látsszon (bezáráskor a lap visszaáll).
+
+---
+
 ## v1.16.0 – 2026-10-22 – Egységes diagramok, új útvonalpont-ablak
 
 ### Verzió

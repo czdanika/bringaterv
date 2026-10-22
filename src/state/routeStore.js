@@ -68,7 +68,7 @@ export function createRouteStore() {
     emit();
   }
 
-  function insertWaypointAt(index, point) {
+  function insertWaypointAt(index, point, { reroute = false } = {}) {
     snapshot();
     const newWp = {
       id: generateId(),
@@ -82,7 +82,9 @@ export function createRouteStore() {
     // importedRoute és routeGeometry megmarad:
     // az importált vonal változatlan marad, nem triggereljük az újratervezést.
     // Ha a user vonszol egy pontot (updateWaypointPosition), az majd törli az importedRoute-ot.
-    state = { ...state, waypoints: next };
+    state = reroute
+      ? { ...state, waypoints: next, importedRoute: false, routeGeometry: [], routeSegments: [], sourcePointCount: 0 }
+      : { ...state, waypoints: next };
     emit();
   }
 
@@ -162,6 +164,21 @@ export function createRouteStore() {
     emit();
   }
 
+  /** Több pont áthelyezése egyetlen (visszavonható) lépésben – pl. körtúra rajt + cél. */
+  function updateWaypointPositions(moves) {
+    snapshot();
+    const byId = new Map(moves.map((m) => [m.id, m]));
+    state = {
+      ...state,
+      waypoints: state.waypoints.map((wp) => (byId.has(wp.id) ? { ...wp, lat: byId.get(wp.id).lat, lng: byId.get(wp.id).lng } : wp)),
+      routeGeometry: [],
+      routeSegments: [],
+      distanceMeters: 0,
+      importedRoute: false,
+    };
+    emit();
+  }
+
   function updateWaypointPosition(id, lat, lng) {
     snapshot();
     state = {
@@ -198,6 +215,7 @@ export function createRouteStore() {
   return {
     addWaypoint,
     insertWaypointAt,
+    updateWaypointPositions,
     clear,
     getState,
     removeWaypoint,

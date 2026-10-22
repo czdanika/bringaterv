@@ -70,7 +70,7 @@ const tileLayers = {
   },
 };
 
-export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, onReturnRoute, onRoundTrip, getWaypointInfo, startView }) {
+export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, onReturnRoute, onRoundTrip, onSetLoopStart, onToggleLoop, isClosedLoop, getWaypointInfo, startView }) {
   const defaultCenter = startView ? [startView.lat, startView.lng] : [47.4979, 19.0402];
   const defaultZoom   = startView?.zoom ?? 12;
   const map = L.map(elementId, { zoomControl: false }).setView(defaultCenter, defaultZoom);
@@ -248,8 +248,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   function renderWaypoints(waypoints, globalMode = "asphalt") {
     markers.clearLayers();
     const isLast = (i) => waypoints.length > 1 && i === waypoints.length - 1;
+    // Körtúra: legalább 3 pont, és a cél a rajttól 300 m-en belül van
+    const loopGap = waypoints.length >= 3 ? L.latLng(waypoints[0]).distanceTo(L.latLng(waypoints[waypoints.length - 1])) : Infinity;
+    const isLoop = loopGap < 300;
+    const isClosed = loopGap < 30;   // körtúra-mód: a záró pont a rajt másolata
     waypoints.forEach((point, index) => {
       const isDestination = isLast(index);
+      // zárt körnél a célzászló ne takarja el a rajtot (a rajt ablakából kezelhető)
+      if (isClosed && isDestination) return;
       // Az effektív szín: ha a pont saját segmentMode-ja van → azt; ha nincs → a globális mód
       const effectiveMode = point.segmentMode ?? globalMode ?? "asphalt";
       const markerColor   = SEGMENT_COLORS[effectiveMode] ?? SEGMENT_COLORS.asphalt;
@@ -267,10 +273,47 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       });
 
       const isLastWaypoint = isLast(index);
-      const popup = buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint);
-      marker.bindPopup(popup, { minWidth: 290, maxWidth: 320, className: "marker-popup-wrap" });
+      const popup = buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint, isLoop, isClosed, waypoints.length);
+      // Mobilon a térkép nagy részét a lap és az eszköztár takarja: a lap a legkisebb
+      // állásba megy (mobileShell), és a lap animációja után úgy görgetünk, hogy az
+      // ablak a látható térképrészbe kerüljön
+      const fitPopupPads = () => {
+        const pop = marker.getPopup();
+        if (!pop) return;
+        const o = pop.options;
+        const mobile = innerWidth <= 768;
+        const mr = map.getContainer().getBoundingClientRect();
+        const tb = document.querySelector("#mapToolbar");
+        const tbTop = mobile && tb?.offsetParent ? tb.getBoundingClientRect().top : mr.bottom;
+        const bottomPad = Math.max(10, mr.bottom - tbTop + 8);
+        const topPad = mobile ? 62 : 10;
+        o.autoPanPaddingTopLeft = [8, topPad];
+        o.autoPanPaddingBottomRight = [8, bottomPad];
+      };
+      marker.bindPopup(popup, { minWidth: 310, maxWidth: 330, className: "marker-popup-wrap" });
       // Az adatsorok (táv a rajttól, idő, emelkedés, magasság, meredekség) megnyitáskor frissülnek
-      marker.on("popupopen", () => popup._fillInfo?.());
+      marker.on("popupopen", () => {
+        popup._fillInfo?.();
+        if (innerWidth > 768) return;
+        window.dispatchEvent(new CustomEvent("bringaterv:map-popup", { detail: { open: true } }));
+        // a lap animációja közben és után is igazítunk (a második a végleges helyzetre)
+        const refit = () => {
+          const pop = marker.getPopup();
+          if (!pop?.isOpen()) return;
+          fitPopupPads();
+          pop.update();
+          pop._adjustPan?.();
+        };
+        // a lap leengedése után az eszköztár is lecsúszik – ha megállt, igazítunk
+        const tb = document.querySelector("#mapToolbar");
+        const onEnd = (ev) => { if (ev.propertyName === "bottom") { tb.removeEventListener("transitionend", onEnd); refit(); } };
+        tb?.addEventListener("transitionend", onEnd);
+        setTimeout(refit, 400);
+        setTimeout(() => { tb?.removeEventListener("transitionend", onEnd); refit(); }, 1300);
+      });
+      marker.on("popupclose", () => {
+        if (innerWidth <= 768) window.dispatchEvent(new CustomEvent("bringaterv:map-popup", { detail: { open: false } }));
+      });
 
       marker.addTo(markers);
     });
@@ -315,26 +358,31 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
    * meredekség), alatta a következő szakasz módja névvel ellátott gombokkal, legalul
    * lágy gombok. A név és a megjegyzés szerkesztése az „Átnevezés” link mögött van.
    */
-  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false) {
+  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false, isLoop = false, isClosed = false, count = 0) {
     const el = document.createElement("div");
     el.className = "marker-popup wp-pop";
     const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    const kicker = index === 0 ? "Rajt" : isLastWaypoint ? "Cél" : `${index + 1}. útvonalpont`;
+    const kicker = index === 0 ? (isClosed ? "Rajt és cél" : "Rajt") : isLastWaypoint ? "Cél" : `${index + 1}. útvonalpont`;
     const coord = `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`;
 
+    const ICO = {
+      edit:  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+      copy:  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+      check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    };
     el.innerHTML = `
       <div class="wp-kicker">${kicker}</div>
       <div class="wp-title">${esc(point.name) || "Névtelen pont"}</div>
-      <button type="button" class="wp-edit-link" data-act="edit">✎ Átnevezés, megjegyzés</button>
+      <button type="button" class="wp-edit-link" data-act="edit">Átnevezés, megjegyzés ${ICO.edit}</button>
       ${point.note ? `<div class="wp-note">${esc(point.note)}</div>` : ""}
-      <div class="wp-coord">${coord}<button type="button" class="wp-copy" data-act="copy" title="Koordináta másolása">Másolás</button></div>
+      <div class="wp-coord"><span>${coord}</span><button type="button" class="wp-copy" data-act="copy" title="Koordináta másolása" aria-label="Koordináta másolása">${ICO.copy}</button></div>
       <div class="wp-edit" hidden>
         <label class="marker-popup-label">Név<input type="text" class="marker-popup-input" data-f="name" placeholder="Névtelen pont" value="${esc(point.name)}"></label>
         <label class="marker-popup-label">Megjegyzés<textarea class="marker-popup-textarea" data-f="note" rows="2" placeholder="pl. szállás, ebédszünet, kilátó…">${esc(point.note)}</textarea></label>
         <div class="wp-edit-actions"><button type="button" class="wp-btn wp-btn--soft" data-act="cancel">Mégse</button><button type="button" class="wp-btn wp-btn--brand" data-act="save">Mentés</button></div>
       </div>
       <div class="wp-rows"></div>
-      ${!isLastWaypoint ? `<div class="wp-sec">Következő szakasz módja</div><div class="wp-modes"></div>` : ""}
+      ${!isLastWaypoint ? `<div class="wp-sec">Következő szakasz</div><div class="wp-modes" role="radiogroup" aria-label="Következő szakasz tervezési módja"></div>` : ""}
       <div class="wp-actions"></div>`;
 
     const rows = el.querySelector(".wp-rows");
@@ -359,15 +407,19 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       let cur = point.segmentMode ?? null;
       const items = [[null, `Alap (${SEGMENT_MODE_LABELS[globalMode] ?? globalMode})`, SEGMENT_COLORS[globalMode] ?? SEGMENT_COLORS.asphalt],
                      ...Object.keys(SEGMENT_COLORS).map((m) => [m, SEGMENT_MODE_LABELS[m] ?? m, SEGMENT_COLORS[m]])];
-      const paint = () => modes.querySelectorAll(".wp-mode").forEach((b) =>
-        b.classList.toggle("is-active", (b.dataset.m || null) === cur));
+      const paint = () => modes.querySelectorAll(".wp-mode").forEach((b) => {
+        const on = (b.dataset.m || null) === cur;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-checked", String(on));
+      });
       items.forEach(([m, label, color]) => {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "wp-mode" + (m === null ? " wp-mode--default" : "");
         b.dataset.m = m ?? "";
         b.title = m === null ? "Az útvonal alapértelmezett tervezési módja" : label;
-        b.innerHTML = `<i style="background:${color}${m === null ? ";opacity:.45" : ""}"></i>${m === null ? "Alap" : label}`;
+        b.setAttribute("role", "radio");
+        b.innerHTML = `<i style="background:${color}"></i>${m === null ? "Alap" : label}`;
         b.addEventListener("click", () => { cur = m; paint(); onWaypointUpdate?.(point.id, { segmentMode: m }); });
         modes.append(b);
       });
@@ -382,9 +434,23 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       b.addEventListener("click", () => { marker.closePopup(); fn(); });
       actions.append(b);
     };
-    if (isDestination && onReturnRoute) btn("wp-btn--brand", "↩ Visszaút a rajthoz", () => onReturnRoute());
-    if (isDestination && onRoundTrip) btn("wp-btn--brand", "⇄ Oda-vissza (automatikus)", () => onRoundTrip());
-    btn("wp-btn--soft", "Pont törlése", () => onWaypointDelete?.(point.id));
+    const I = (d) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    // Körtúránál bármely köztes pont lehet az új rajt (a kör ettől a ponttól indul és ide ér vissza)
+    if (isLoop && index > 0 && !isLastWaypoint && onSetLoopStart) {
+      btn("wp-btn--brand", I('<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 8 2a6 6 0 0 0 3.6-1.2 1 1 0 0 1 1.4.9v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.5"/>') + "Rajt ide", () => onSetLoopStart(point.id));
+    }
+    if (isDestination && onRoundTrip) btn("wp-btn--brand", I('<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>') + "Oda-vissza", () => onRoundTrip());
+    btn("wp-btn--soft", I('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>') + "Pont törlése", () => onWaypointDelete?.(point.id));
+
+    // Körtúra kapcsoló (mint a Komootban): a rajtnál mindig, a célnál ha még nem kör
+    if (onToggleLoop && count >= 2 && (index === 0 || isDestination)) {
+      const row = document.createElement("label");
+      row.className = "wp-switch";
+      row.innerHTML = `<span><b>Körtúra</b><small>az útvonal visszaér a rajthoz</small></span>`
+        + `<span class="toggle-switch"><input type="checkbox" ${isClosed ? "checked" : ""}><span class="toggle-track"></span></span>`;
+      row.querySelector("input").addEventListener("change", (e) => { marker.closePopup(); onToggleLoop(e.target.checked); });
+      el.append(row);
+    }
 
     // Szerkesztés / másolás
     const edit = el.querySelector(".wp-edit");
@@ -400,8 +466,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         });
         marker.closePopup();
       } else if (a === "copy") {
-        try { await navigator.clipboard.writeText(coord); e.target.textContent = "✓ Másolva"; } catch {}
-        setTimeout(() => { e.target.textContent = "Másolás"; }, 1500);
+        const cb = e.target.closest("[data-act]");
+        try { await navigator.clipboard.writeText(coord); cb.innerHTML = ICO.check; cb.classList.add("is-done"); } catch {}
+        setTimeout(() => { cb.innerHTML = ICO.copy; cb.classList.remove("is-done"); }, 1500);
       }
     });
     // Leaflet: a popupon belüli kattintás ne menjen a térképre

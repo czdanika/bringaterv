@@ -567,9 +567,41 @@ const STYLE_LABELS = {
 };
 
 
+// ── Körtúra: a záró pont a rajt másolata; ilyenkor az új pontok a visszaút elé kerülnek
+const LOOP_CLOSE_M = 30;
+function distMeters(a, b) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function isClosedLoop(wps = store.getState().waypoints) {
+  return wps.length >= 3 && distMeters(wps[0], wps[wps.length - 1]) < LOOP_CLOSE_M;
+}
+function setLoop(on) {
+  const wps = store.getState().waypoints;
+  if (on && !isClosedLoop(wps) && wps.length >= 2) {
+    const first = wps[0];
+    store.addWaypoint({ lat: first.lat, lng: first.lng, name: first.name });
+    showToast("Körtúra: az útvonal visszaér a rajthoz");
+  } else if (!on && isClosedLoop(wps)) {
+    store.removeWaypoint(wps[wps.length - 1].id);
+    showToast("Körtúra kikapcsolva");
+  }
+}
+
 async function addWaypointWithName(point) {
-  store.addWaypoint(point);
-  const id = store.getState().waypoints.at(-1)?.id;
+  let id;
+  const wps = store.getState().waypoints;
+  if (isClosedLoop(wps)) {
+    // körtúránál a visszaút (záró pont) elé szúrjuk be, így a kör zárva marad
+    const idx = wps.length - 1;
+    store.insertWaypointAt(idx, point, { reroute: true });
+    id = store.getState().waypoints[idx]?.id;
+  } else {
+    store.addWaypoint(point);
+    id = store.getState().waypoints.at(-1)?.id;
+  }
   if (!id) return;
   const name = await reverseGeocode(point.lat, point.lng);
   if (name && store.getState().waypoints.some((wp) => wp.id === id)) {
@@ -578,6 +610,17 @@ async function addWaypointWithName(point) {
 }
 
 async function relocateWaypointWithName(id, lat, lng) {
+  const wps = store.getState().waypoints;
+  if (isClosedLoop(wps) && (id === wps[0].id || id === wps[wps.length - 1].id)) {
+    // körtúra: a rajt és a cél együtt mozog
+    const first = wps[0], last = wps[wps.length - 1];
+    store.updateWaypointPositions([{ id: first.id, lat, lng }, { id: last.id, lat, lng }]);
+    const name = await reverseGeocode(lat, lng);
+    if (name) for (const wid of [first.id, last.id]) {
+      if (store.getState().waypoints.some((wp) => wp.id === wid)) store.updateWaypoint(wid, { name });
+    }
+    return;
+  }
   store.updateWaypointPosition(id, lat, lng);
   const name = await reverseGeocode(lat, lng);
   if (name && store.getState().waypoints.some((wp) => wp.id === id)) {
@@ -635,12 +678,22 @@ const mapAdapter = createMapAdapter({
     });
     showToast("Oda-vissza útvonal létrehozva");
   },
+  onSetLoopStart: (id) => setLoopStart(id),
   onRouteFallback: () => showToast(i18n.t("map.routeFailed")),
   onMarkerDrag: (id, lat, lng) => relocateWaypointWithName(id, lat, lng),
   onWaypointDelete: (id) => {
     if (getSelectedWaypointId() === id) setSelectedWaypointId(null);
+    const wps = store.getState().waypoints;
+    if (isClosedLoop(wps) && id === wps[0].id && wps.length > 3) {
+      // körtúra rajtjának törlése: a következő pont lesz a rajt, és a kör oda ér vissza
+      const next = wps.slice(1, -1);
+      store.replaceWaypoints([...next, { lat: next[0].lat, lng: next[0].lng, name: next[0].name }]);
+      return;
+    }
     store.removeWaypoint(id);
   },
+  onToggleLoop: (on) => setLoop(on),
+  isClosedLoop: () => isClosedLoop(),
   onWaypointUpdate: (id, changes) => store.updateWaypoint(id, changes),
   onMeasureUpdate: (totalMeters, pointCount) => {
     const bar = elements.measureBar;
@@ -2144,9 +2197,53 @@ elements.reverseRouteButton.addEventListener("click", () => {
   });
 });
 
+/**
+ * Körtúra rajtjának áthelyezése: a kör a megadott köztes ponttól indul és oda ér vissza.
+ * A pontok sorrendje körbefordul (a szakaszmódok a hozzájuk tartozó szakaszon maradnak);
+ * importált nyomvonalnál a geometria is elfordul, így nem kell újratervezni.
+ */
+function setLoopStart(id) {
+  const st = store.getState();
+  const wps = st.waypoints;
+  const k = wps.findIndex((w) => w.id === id);
+  if (k <= 0 || k >= wps.length - 1) return;
+  const cycle = wps.slice(0, -1);                 // az utolsó pont a rajt másolata
+  const rotated = [...cycle.slice(k), ...cycle.slice(0, k)];
+  const start = rotated[0];
+  const next = [...rotated, { lat: start.lat, lng: start.lng, name: start.name, note: start.note }];
+  let geometry = [];
+  const g = st.routeGeometry || [];
+  if (st.importedRoute && g.length > 2) {
+    const cosLat = Math.cos(start.lat * Math.PI / 180);
+    let best = 0, bestD = Infinity;
+    g.forEach((p, i) => {
+      const d = (p.lat - start.lat) ** 2 + ((p.lng - start.lng) * cosLat) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    const body = g.slice(0, -1);                  // a záró pont ≈ a kezdőpont
+    geometry = [...body.slice(best), ...body.slice(0, best), body[best]];
+  }
+  store.replaceWaypoints(next, {
+    geometry,
+    importedRoute: st.importedRoute && geometry.length > 0,
+    sourcePointCount: st.sourcePointCount,
+  });
+  showToast(`Új rajt: ${start.name || "kijelölt pont"}`);
+}
+
+// Körtúra kapcsoló (útvonal-beállítások) – az állapota a pontokból adódik
+const loopToggle = document.querySelector("#loopToggle");
+loopToggle?.addEventListener("change", () => setLoop(loopToggle.checked));
+store.subscribe((st) => {
+  if (!loopToggle) return;
+  loopToggle.checked = isClosedLoop(st.waypoints);
+  loopToggle.disabled = st.waypoints.length < 2;
+});
+
 elements.returnRouteButton?.addEventListener("click", () => {
   const { waypoints } = store.getState();
   if (waypoints.length < 2) return;
+  if (isClosedLoop(waypoints)) { showToast("Az útvonal már visszaér a rajthoz"); return; }
   const first = waypoints[0];
   store.addWaypoint({ lat: first.lat, lng: first.lng, name: first.name });
   showToast("Hazaút hozzáadva");

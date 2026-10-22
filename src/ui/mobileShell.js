@@ -59,6 +59,24 @@ export function initMobileShell() {
       if (open) setTimeout(() => window.dispatchEvent(new Event("bringaterv:refit")), 400);
     }).observe(charts, { attributes: true, attributeFilter: ["hidden"] });
   }
+
+  // Útvonalpont-ablak a térképen: amíg nyitva van, a lap a legkisebb állásban
+  let popupRestore = null;
+  window.addEventListener("bringaterv:map-popup", (e) => {
+    if (!MQ.matches) return;
+    if (e.detail?.open) {
+      if (popupRestore === null && _shell.dataset.sheet !== "mini") {
+        popupRestore = _shell.dataset.sheet;
+        setSheet("mini");
+      }
+    } else if (popupRestore !== null) {
+      // új pont ablakára váltáskor ne ugráljon: csak akkor álljon vissza, ha nincs nyitott ablak
+      setTimeout(() => {
+        if (document.querySelector(".leaflet-popup.marker-popup-wrap")) return;
+        if (popupRestore !== null) { setSheet(popupRestore); popupRestore = null; }
+      }, 60);
+    }
+  });
 }
 
 function modeKey() {
