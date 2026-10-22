@@ -8,7 +8,7 @@
  */
 
 import { importGpx, calcElevationFromGeometry } from "./gpx/gpx.js";
-import { buildElevationData, buildHrData, buildCadData, buildPowerData, buildSpeedData } from "./ui/elevationProfile.js";
+import { buildElevationData, buildHrData, buildCadData, buildPowerData, buildSpeedData, initElevationChart, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { getTileLayerDef } from "./map/mapAdapter.js";
 import { libraryRouteSportKey } from "./ui/library.js";
 
@@ -29,6 +29,19 @@ const TYPE_LABELS = {
   hiking: "Túra", walking: "Túra", running: "Futás", run: "Futás", ride: "Kerékpár",
 };
 
+/**
+ * Hibaoldal: „gone” – törölték / kikapcsolták a megosztást; „offline” – a szerver most
+ * nem érhető el (újrapróbálható); „badlink” – hiányos link (nincs benne azonosító).
+ */
+const ERRORS = {
+  gone: ["Ez a megosztott útvonal vagy edzés már nem elérhető",
+         "A tulajdonosa törölte, vagy kikapcsolta a megosztását. Ha tőle kaptad a linket vagy a QR-kódot, kérj tőle újat."],
+  offline: ["A Bringaterv most nem érhető el",
+            "Valószínűleg átmeneti hiba vagy karbantartás – az útvonal ettől még megvan. Próbáld újra pár perc múlva."],
+  badlink: ["Hiányos link",
+            "A linkből hiányzik az útvonal azonosítója. Ellenőrizd, hogy a teljes címet másoltad-e, vagy olvasd be újra a QR-kódot."],
+};
+
 initTheme();
 init();
 
@@ -39,21 +52,35 @@ async function init() {
   $("v-open").href = id ? `${appHome}/?route=${encodeURIComponent(id)}` : appHome + "/";
   window.lucide?.createIcons();
 
-  if (!id) return showError();
+  if (!id) return showError("badlink");
 
+  let resp;
   try {
-    const resp = await fetch(`/api/public/route/${encodeURIComponent(id)}`);
-    if (!resp.ok) return showError();
-    const data = await resp.json();
-    if (!data.found || !data.gpx) return showError();
-    await render(data.meta || {}, data.gpx);
+    resp = await fetch(`/api/public/route/${encodeURIComponent(id)}`);
   } catch (err) {
     console.error("Publikus betöltés hiba:", err);
-    showError();
+    return showError("offline");
+  }
+  if (resp.status === 404) return showError("gone");
+  if (!resp.ok) return showError("offline");
+  try {
+    const data = await resp.json();
+    if (!data.found || !data.gpx) return showError("gone");
+    await render(data.meta || {}, data.gpx);
+  } catch (err) {
+    console.error("Publikus megjelenítés hiba:", err);
+    showError("offline");
   }
 }
 
-function showError() {
+function showError(kind = "gone") {
+  const [title, text] = ERRORS[kind] || ERRORS.gone;
+  $("v-err-title").textContent = title;
+  $("v-err-text").textContent = text;
+  $("v-err-retry").hidden = kind !== "offline";
+  $("v-err-retry").onclick = () => location.reload();
+  $("v-err-about").hidden = kind === "offline";
+  document.title = `${title} – Bringaterv`;
   $("v-loading").hidden = true;
   $("v-error").hidden = false;
 }
@@ -240,13 +267,24 @@ function renderStats(meta, geometry, gmeta) {
 
 // ── Szintprofil ──────────────────────────────────────────────────────────────
 
+// A színek az app grafikonjainak alapszínei – a nézőoldal ugyanúgy néz ki, mint az Elemzés fül
 const CHARTS = [
-  { key: "elev",  label: "Szintprofil",  unit: "m",    rgb: [5, 150, 105],  build: buildElevationData, fromZero: false, dec: 0, def: true },
-  { key: "speed", label: "Sebesség",     unit: "km/h", rgb: [25, 118, 210], build: buildSpeedData,     fromZero: true,  dec: 1, def: true },
-  { key: "hr",    label: "Pulzus",       unit: "bpm",  rgb: [220, 38, 38],  build: buildHrData,        fromZero: false, dec: 0, def: true },
-  { key: "cad",   label: "Kadencia",     unit: "rpm",  rgb: [147, 51, 234], build: buildCadData,       fromZero: true,  dec: 0, def: true },
-  { key: "power", label: "Teljesítmény", unit: "W",    rgb: [217, 119, 6],  build: buildPowerData,     fromZero: true,  dec: 0, def: true },
+  { key: "elev",  label: "Szintprofil",  unit: "m",    color: "#e8461e", build: buildElevationData, fromZero: false, dec: 0, def: true },
+  { key: "speed", label: "Sebesség",     unit: "km/h", color: "#3B82F6", build: buildSpeedData,     fromZero: true,  dec: 1, def: true },
+  { key: "hr",    label: "Pulzus",       unit: "bpm",  color: "#EF4444", build: buildHrData,        fromZero: false, dec: 0, def: true },
+  { key: "cad",   label: "Kadencia",     unit: "rpm",  color: "#A855F7", build: buildCadData,       fromZero: true,  dec: 0, def: true },
+  { key: "power", label: "Teljesítmény", unit: "W",    color: "#EAB308", build: buildPowerData,     fromZero: true,  dec: 0, def: true },
 ];
+
+/** A grafikon fejlécének kulcsszámai (ugyanaz a stílus, mint az appban). */
+function chartStatsHtml(cfg, data) {
+  const vals = data.map((d) => d.value);
+  const stat = (v, u, l) => `<div class="cs-stat"><b>${v}<small>${u}</small></b><span>${l}</span></div>`;
+  if (cfg.key === "elev") return stat(Math.round(Math.max(...vals)), "m", "Legmagasabb") + stat(Math.round(Math.min(...vals)), "m", "Legalacsonyabb");
+  const pos = cfg.key === "speed" ? vals.filter((v) => v > 1 && v < 120) : cfg.key === "cad" ? vals.filter((v) => v > 0) : vals;
+  const a = pos.length ? pos.reduce((x, y) => x + y, 0) / pos.length : 0;
+  return stat(fmt(a, cfg.dec), cfg.unit, "Átlag") + stat(fmt(Math.max(...pos, 0), cfg.dec), cfg.unit, "Maximum");
+}
 // v2: a kadencia és a teljesítmény is alapból látszik (régi mentett választás érvénytelen)
 const CHART_PREF_KEY = "bringaterv-view-charts-v2";
 let _charts = [];
@@ -296,7 +334,7 @@ function renderCharts(geometry) {
       ch.el.hidden = !ch.on;
       saveChartPrefs();
       updateChartsPanel();
-      if (ch.on) drawChart(ch, _hoverDist);
+      if (ch.on) requestAnimationFrame(() => ch.inst?.resize());
     });
     row.querySelector("input[data-color-key]")?.addEventListener("change", (e) => {
       setColorMode(e.target.checked ? ch.cfg.key : null);
@@ -306,28 +344,80 @@ function renderCharts(geometry) {
     const sec = document.createElement("div");
     sec.className = "v-chart";
     sec.hidden = !ch.on;
-    sec.innerHTML = `<div class="v-chart-head"><h2>${ch.cfg.label} (${ch.cfg.unit})</h2><span class="v-readout"></span></div><canvas></canvas>`;
+    sec.innerHTML = `<div class="chart-section-header v-chart-header"><span class="chart-section-title">${ch.cfg.label}</span>`
+      + `<div class="chart-stats">${chartStatsHtml(ch.cfg, ch.data)}</div>`
+      + `<div class="chart-head-actions"><button type="button" class="chart-mode-btn" data-view-chart-mode title="Váltás egyszínű és zóna szerinti színezés között"></button></div></div>`
+      + `<div class="v-chart-body"><canvas></canvas></div><div class="chart-legend" hidden></div>`;
     host.appendChild(sec);
     ch.el = sec;
-    ch.canvas = sec.querySelector("canvas");
-    ch.readout = sec.querySelector(".v-readout");
-
-    const onMove = (e) => {
-      const rect = ch.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      if (!ch.scale) return;
-      setHover(ch.scale.invX(x));
-    };
-    ch.canvas.addEventListener("pointermove", onMove);
-    ch.canvas.addEventListener("pointerdown", onMove);
-    ch.canvas.addEventListener("pointerleave", () => setHover(null));
+    // Közös rajzoló (mint az appban): szinkronizált rámutatás, címke, A / B jelölő
+    ch.inst = initElevationChart(sec.querySelector("canvas"), {
+      onHover: (pt, _o, src) => {
+        for (const c of _charts) if (c.inst && c.inst !== src) c.inst.setHoverByDist(pt.dist);
+        moveHoverMarker(pt.dist);
+      },
+      onLeave: () => {
+        for (const c of _charts) c.inst?.clearHover();
+        moveHoverMarker(null);
+      },
+    });
   }
 
   _geoDists = cumulativeDists(geometry);
   _geometry = geometry;
+  applyChartColors();
+  // onclick (nem addEventListener): a grafikonok újrarajzolásakor se duplázódjon
+  host.onclick = (e) => {
+    if (!e.target.closest("[data-view-chart-mode]")) return;
+    _chartZones = !_chartZones;
+    try { localStorage.setItem(CHART_ZONES_KEY, _chartZones ? "1" : "0"); } catch (_) {}
+    applyChartColors();
+  };
   redrawAll();
   let t = null;
   window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(redrawAll, 120); });
+}
+
+// Egyszínű (szürke, alapértelmezés) vagy zóna szerinti színezés – a fejléc végén váltható.
+// A néző nem látja a tulajdonos zónáit: a sávok az edzés saját eloszlásából
+// (ötödök) jönnek, a szintprofil lejtés szerint színez – mint a térképszínezés.
+const CHART_ZONES_KEY = "bringaterv-view-chart-zones";
+let _chartZones = (() => { try { return localStorage.getItem(CHART_ZONES_KEY) === "1"; } catch (_) { return false; } })();
+
+function chartZoneSpec(cfg, data) {
+  if (cfg.key === "elev") {
+    const labels = ["lejtő > 4%", "enyhe lejtő", "sík", "enyhe emelkedő", "emelkedő", "meredek > 8%"];
+    return {
+      colorFn: (_v, pt) => (pt?.grade == null ? "#9CA3AF" : GRADE_COLORS[bandIndex(pt.grade, GRADE_EDGES)]),
+      legend: GRADE_COLORS.map((c, i) => [c, labels[i]]),
+    };
+  }
+  const edges = quantileEdges(data.map((d) => (d.value > 0 ? d.value : null)));
+  const r = (v) => fmt(v, cfg.dec);
+  const labels = [`< ${r(edges[0])}`, ...edges.slice(0, 3).map((e, i) => `${r(e)}–${r(edges[i + 1])}`), `${r(edges[3])} +`];
+  return {
+    colorFn: (v) => BAND_COLORS[bandIndex(v, edges)],
+    legend: BAND_COLORS.map((c, i) => [c, `${labels[i]}${i === 4 ? " " + cfg.unit : ""}`]),
+  };
+}
+
+function applyChartColors() {
+  for (const ch of _charts) {
+    const { cfg, data } = ch;
+    const spec = _chartZones ? chartZoneSpec(cfg, data) : null;
+    ch.inst.setData(data, {
+      color: CHART_SOLID_GRAY, colorFn: spec?.colorFn || null,
+      unit: cfg.unit, zeroBase: cfg.fromZero, minRange: cfg.key === "elev" ? 20 : 0,
+      formatTip: (pt) => [`${fmt(pt.dist / 1000, 1)} km · ${fmt(pt.value, cfg.dec)} ${cfg.unit}`],
+    });
+    ch.inst.setMarkers([{ dist: 0, label: "A", color: "#16a34a" }, { dist: data[data.length - 1].dist, label: "B", color: "#1a1d23" }]);
+    const btn = ch.el.querySelector("[data-view-chart-mode]");
+    btn.textContent = _chartZones ? "Zónaszín" : "Egyszínű";
+    btn.classList.toggle("is-zones", _chartZones);
+    const lg = ch.el.querySelector(".chart-legend");
+    lg.hidden = !spec;
+    lg.innerHTML = spec ? spec.legend.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join("") : "";
+  }
 }
 
 let _hoverDist = null, _geometry = [], _geoDists = [];
@@ -336,16 +426,17 @@ let _hoverDist = null, _geometry = [], _geoDists = [];
 // mérete ehhez igazodik.
 function updateChartsPanel() {
   $("v-charts-wrap").hidden = !_charts.some((c) => c.on);
+  $("v-resize").hidden = $("v-charts-wrap").hidden;
   if (_map) setTimeout(() => _map.invalidateSize(), 0);
 }
 
 function redrawAll() {
-  for (const ch of _charts) if (ch.on) drawChart(ch, _hoverDist);
+  for (const ch of _charts) if (ch.on) ch.inst?.resize();
 }
 
-function setHover(dist) {
+/** A térképen mozgó pont a grafikonon rámutatott távolsághoz. */
+function moveHoverMarker(dist) {
   _hoverDist = dist;
-  redrawAll();
   if (!_map) return;
   if (dist == null) {
     if (_hoverMarker) { _map.removeLayer(_hoverMarker); _hoverMarker = null; }
@@ -360,71 +451,6 @@ function setHover(dist) {
     }).addTo(_map);
   } else {
     _hoverMarker.setLatLng([p.lat, p.lng]);
-  }
-}
-
-function drawChart(ch, hoverDist) {
-  const { data, cfg } = ch;
-  const [r, g, b] = cfg.rgb;
-  const canvas = ch.canvas;
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || 800, cssH = 120;
-  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  const padL = 40, padR = 8, padT = 8, padB = 20;
-  const plotW = cssW - padL - padR, plotH = cssH - padT - padB;
-  const dMin = data[0].dist, dMax = data[data.length - 1].dist;
-  let vMin = Infinity, vMax = -Infinity;
-  for (const d of data) { if (d.value < vMin) vMin = d.value; if (d.value > vMax) vMax = d.value; }
-  if (cfg.fromZero) { vMin = 0; vMax = vMax * 1.1 || 1; }
-  else { if (vMax - vMin < 10) { vMax += 5; vMin -= 5; } const pd = (vMax - vMin) * 0.12; vMin -= pd; vMax += pd; }
-  const sx = (d) => padL + ((d - dMin) / (dMax - dMin || 1)) * plotW;
-  const sy = (v) => padT + plotH - ((v - vMin) / (vMax - vMin || 1)) * plotH;
-  ch.scale = { invX: (x) => dMin + Math.min(1, Math.max(0, (x - padL) / plotW)) * (dMax - dMin) };
-
-  const muted = getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#7a8891";
-  ctx.clearRect(0, 0, cssW, cssH);
-  ctx.strokeStyle = "rgba(127,127,127,0.18)"; ctx.lineWidth = 1;
-  ctx.fillStyle = muted; ctx.font = "10px Inter, sans-serif";
-  ctx.textAlign = "right"; ctx.textBaseline = "middle";
-  for (let i = 0; i <= 3; i++) {
-    const v = vMin + ((vMax - vMin) * i) / 3, y = sy(v);
-    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssW - padR, y); ctx.stroke();
-    ctx.fillText(`${Math.round(v)}`, padL - 6, y);
-  }
-
-  ctx.beginPath();
-  ctx.moveTo(sx(data[0].dist), sy(data[0].value));
-  for (const d of data) ctx.lineTo(sx(d.dist), sy(d.value));
-  ctx.lineTo(sx(dMax), padT + plotH); ctx.lineTo(sx(dMin), padT + plotH); ctx.closePath();
-  const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
-  grad.addColorStop(0, `rgba(${r},${g},${b},0.28)`); grad.addColorStop(1, `rgba(${r},${g},${b},0.02)`);
-  ctx.fillStyle = grad; ctx.fill();
-
-  ctx.beginPath();
-  data.forEach((d, i) => (i === 0 ? ctx.moveTo(sx(d.dist), sy(d.value)) : ctx.lineTo(sx(d.dist), sy(d.value))));
-  ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 1.6; ctx.lineJoin = "round"; ctx.stroke();
-
-  ctx.fillStyle = muted; ctx.textAlign = "center"; ctx.textBaseline = "top";
-  const totalKm = dMax / 1000;
-  const step = totalKm > 60 ? 20 : totalKm > 20 ? 10 : totalKm > 8 ? 5 : 2;
-  for (let km = 0; km <= totalKm + 0.001; km += step) ctx.fillText(`${km}`, sx(km * 1000), padT + plotH + 6);
-
-  // Hover: függőleges vonal + pont + kiírt érték
-  if (hoverDist != null) {
-    const d = data[nearestIndex(data.map((p) => p.dist), hoverDist)];
-    const x = sx(d.dist), y = sy(d.value);
-    ctx.strokeStyle = "rgba(100,110,118,0.6)"; ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + plotH); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fill();
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
-    ch.readout.textContent = `${fmt(d.dist / 1000, 1)} km · ${fmt(d.value, cfg.dec)} ${cfg.unit}`;
-  } else {
-    ch.readout.textContent = "";
   }
 }
 
@@ -594,3 +620,38 @@ function setColorMode(key) {
   };
   _colorLegend.addTo(_map);
 }
+
+// ── Grafikonpanel átméretezése a térkép alatti fogantyúval (asztali nézet) ────
+(function initChartsResize() {
+  const grip = $("v-resize"), wrap = $("v-charts-wrap");
+  if (!grip || !wrap) return;
+  const KEY = "bringaterv-view-charts-h";
+  const apply = (h) => {
+    const main = wrap.parentElement.clientHeight || innerHeight;
+    wrap.style.maxHeight = Math.max(120, Math.min(h, main - 220)) + "px";
+    if (_map) _map.invalidateSize();
+    redrawAll();
+  };
+  try { const saved = Number(localStorage.getItem(KEY)); if (saved) wrap.style.maxHeight = saved + "px"; } catch (_) {}
+  let startY = 0, startH = 0;
+  const move = (e) => apply(startH + (startY - e.clientY));
+  const up = () => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", up);
+    document.body.classList.remove("is-resizing");
+    try { localStorage.setItem(KEY, String(parseInt(wrap.style.maxHeight, 10) || "")); } catch (_) {}
+  };
+  grip.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    startY = e.clientY; startH = wrap.offsetHeight;
+    document.body.classList.add("is-resizing");
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  });
+  grip.addEventListener("dblclick", () => {
+    wrap.style.maxHeight = "";
+    try { localStorage.removeItem(KEY); } catch (_) {}
+    if (_map) _map.invalidateSize();
+    redrawAll();
+  });
+})();

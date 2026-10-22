@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.16.0 – 2026-10-22 – Egységes diagramok, új útvonalpont-ablak
+
+### Verzió
+
+- **Egységes, letisztult diagramok:** mind a hat grafikon (szintprofil, sebesség, pulzus, kadencia, teljesítmény, szél) új, közös rajzolót és fejlécet kapott. A fejlécben a fő számok nagyban (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és a tempó – utóbbira kattintva a tervezési sebességek állíthatók), szaggatott rácsvonalak, a táv szerint igazodó km-feliratok, halvány kitöltés a vonal alatt. A „Zónaszín” gombbal egy kattintással váltható az egyszínű és a zóna/lejtés szerinti színezés, jelmagyarázattal. A rámutatás minden nyitott diagramon ugyanannál a km-nél látszik, a címke csak azon, amelyik fölött az egér van. Tervezésnél a rajt (A), cél (B) és a közbenső útvonalpontok a diagramon is jelölve.
+- **Szél grafikonon:** a szélelemzés eredménye a többi diagrammal egyező grafikonon is látszik (szélerősség a táv mentén, hát-/oldal-/szembeszél szerint színezve), fejlécben az arányokkal; a szakaszlista lenyitható részletként.
+- **Megosztott oldal diagramjai:** a nyilvános nézőoldal (link / QR) ugyanazokat a diagramokat használja, mint az alkalmazás – egyező színekkel, összehangolt rámutatással és térképjelölővel.
+- **Új útvonalpont-ablak:** a pontra kattintva rendezett kártya jelenik meg: rajttól mért táv (becsült idő, emelkedés), magasság, meredekség színjelöléssel, célig hátralévő táv, másolható koordináták. Innen átnevezhető, megjegyzés írható hozzá, a következő szakasz tervezési módja egy kattintással váltható, a célnál a visszaút / oda-vissza is indítható, és a pont törölhető.
+- **Egyszínű mód mindenhol szürke:** az „Egyszínű” diagrambeállítás mind a hat grafikont egységes, semleges szürkével rajzolja – az Elemzés fülön, a megosztó képen és a PDF útvonallapon is (a diagramonkénti színválasztók megszűntek). Zónaszín módban marad a színes zóna-/lejtésszínezés.
+- **Átméretezhető diagrampanel:** a térkép alján nyíló grafikonpanel felső fogantyújával a panel magasabbra húzható (több nyitott diagram is kifér), a magasság megmarad; dupla kattintás: alaphelyzet. A diagramok nem nyomódnak össze, a panel szükség esetén görget. A tervező eszköztár, a térkép +/− gombjai és a „Kattints a térképre” felirat a nyitott panel fölé csúszik.
+- **Megosztott oldal:** a diagramok fejlécének végén Egyszínű / Zónaszín váltó (jelmagyarázattal), és a térkép alatti fogantyúval a grafikonok magassága állítható.
+- **Megosztó kép grafikonjai:** az új diagramstílusban – félkövér szám kis mértékegységgel, szaggatott rács, elhalványuló kitöltés.
+- **Könyvtár lenyitott sora:** a statok a diagramfejlécek stílusában (nagy szám, kis mértékegység, halvány felirat, dobozok nélkül), egységes, lekerekített gombok.
+- **Útvonal a térképen:** vékonyabb vonal fehér körvonallal; elemzésnél a Bringaterv saját színével (nem a tervezési mód színével).
+- **Javítás:** nyitott diagrampanelnél a PDF- és más ablakok nem kerülnek a grafikonok mögé; mobilon a térkép forrásmegjelölése nem lóg a panelre.
+- **Megosztott link, ami már nem él:** a nyilvános nézőoldal (link / QR-kód) üres félmondat helyett rendes hibaoldalt mutat: „Ez a megosztott útvonal vagy edzés már nem elérhető” magyarázattal, „Mi a Bringaterv?” és „Belépés” gombbal. Külön üzenet jön, ha a szerver épp nem érhető el („Újrapróbálom” gombbal – nem tűnik töröltnek), és ha a link hiányos. Bejelentkezve egy törölt útvonal mélylinkjénél is pontos üzenet jelenik meg.
+
+---
+
 ## v1.15.0 – 2026-10-22 – Meghívó e-mailben
 
 - **Meghívó e-mailben (admin):** az új meghívónál megadható a jelentkező e-mail-címe – ilyenkor a meghívó egyszer használható, és a „Létrehozás és küldés” gombbal a Bringaterv HTML-levélben ki is küldi („Regisztrálok” gomb, lejárat). A regisztrációs oldalon a cím előre kitöltve; ha a meghívott ezzel a címmel regisztrál, a cím rögtön igazolt (nincs megerősítő kód). A meghívók listájában látszik a cím és a küldés ideje, aktív meghívónál „Újraküldés”. Adatbázis-migráció: v14.

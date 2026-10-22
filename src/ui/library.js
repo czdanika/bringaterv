@@ -240,17 +240,27 @@ function aggregateGpxStats(points) {
   };
 }
 
+// Lenyitott sor statjai – ugyanaz a stílus, mint a diagramfejléceké
+// (nagy szám, kis mértékegység, alatta halvány felirat)
+function libStat(label, value, unit = "") {
+  return `<div class="cs-stat"><b>${value}${unit ? `<small>${unit}</small>` : ""}</b><span>${label}</span></div>`;
+}
+function libDuration(min) {
+  if (min == null) return "–";
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return h ? `${h}<small>ó</small> ${m}<small>p</small>` : `${m}<small>p</small>`;
+}
+
 function renderExtendedStats(s) {
   if (!s) return "";
-  const card = (label, value) => `<div class="stat-card"><span>${label}</span><strong>${value}</strong></div>`;
   const rows = [];
-  if (s.startTime) rows.push(card("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
-  if (s.avgSpeed != null) rows.push(card("⌀ Sebesség", `${num(s.avgSpeed, 1)} km/h`));
-  if (s.maxSpeed != null) rows.push(card("Max sebesség", `${num(s.maxSpeed, 1)} km/h`));
-  if (s.avgHr != null)    rows.push(card("⌀ Pulzus", `${int(s.avgHr)} bpm`));
-  if (s.maxHr != null)    rows.push(card("Max pulzus", `${int(s.maxHr)} bpm`));
-  if (s.avgCad != null)   rows.push(card("⌀ Kadencia", `${int(s.avgCad)} rpm`));
-  if (s.avgPower != null) rows.push(card("⌀ Teljesítmény (mért)", `${int(s.avgPower)} W`));
+  if (s.avgSpeed != null) rows.push(libStat("Átlagsebesség", num(s.avgSpeed, 1), "km/h"));
+  if (s.maxSpeed != null) rows.push(libStat("Max. sebesség", num(s.maxSpeed, 1), "km/h"));
+  if (s.avgHr != null)    rows.push(libStat("Átlagpulzus", int(s.avgHr), "bpm"));
+  if (s.maxHr != null)    rows.push(libStat("Max. pulzus", int(s.maxHr), "bpm"));
+  if (s.avgCad != null)   rows.push(libStat("Átl. kadencia", int(s.avgCad), "rpm"));
+  if (s.avgPower != null) rows.push(libStat("Átl. teljesítmény (mért)", int(s.avgPower), "W"));
+  if (s.startTime) rows.push(libStat("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
   return rows.join("");
 }
 
@@ -392,17 +402,17 @@ function buildLibraryExpandRow(route, category, isSample) {
   const td = document.createElement("td");
   td.colSpan = 10;
   const previewSlot = `<div class="library-expand-preview" id="libExpPreview_${route.id}">…</div>`;
-  // Stat-kártyák (ugyanaz a stílus, mint az Elemzés fülön és a nézőoldalon)
-  const card = (label, value) => `<div class="stat-card"><span>${label}</span><strong>${value}</strong></div>`;
+  // Statok – a diagramfejlécekkel egyező stílusban
+  const card = libStat;
   const stats = [];
-  if (route.distance != null)  stats.push(card("Távolság", `${num(route.distance, 1)} km`));
-  if (route.duration != null)  stats.push(card("Idő", libraryFormatDuration(route.duration)));
-  if (route.elevation != null) stats.push(card("↑ Emelkedő", `${int(route.elevation)} m`));
-  if (route.calories != null)  stats.push(card("Kalória", `${int(route.calories)} kcal`));
+  if (route.distance != null)  stats.push(card("Táv", num(route.distance, 1), "km"));
+  if (route.duration != null)  stats.push(card("Idő", libDuration(route.duration)));
+  if (route.elevation != null) stats.push(card("Emelkedés", int(route.elevation), "m"));
+  if (route.calories != null)  stats.push(card("Kalória", int(route.calories), "kcal"));
   if (route.suffer_score != null) stats.push(card("Relatív terhelés", int(route.suffer_score)));
-  if (route.weighted_avg_watts != null) stats.push(card("Súlyozott telj. (NP)", `${int(route.weighted_avg_watts)} W`));
-  else if (route.avg_watts != null)     stats.push(card("⌀ Teljesítmény", `${int(route.avg_watts)} W`));
-  if (route.kilojoules != null) stats.push(card("Mechanikai munka", `${int(route.kilojoules)} kJ`));
+  if (route.weighted_avg_watts != null) stats.push(card("Súlyozott telj. (NP)", int(route.weighted_avg_watts), "W"));
+  else if (route.avg_watts != null)     stats.push(card("Átl. teljesítmény", int(route.avg_watts), "W"));
+  if (route.kilojoules != null) stats.push(card("Mechanikai munka", int(route.kilojoules), "kJ"));
   if (route.pr_count > 0)       stats.push(card("Személyes rekord", route.pr_count));
 
   // Fejléc-sor: sport + teljes dátum (+ hely) – a nyers „workout” helyett
@@ -434,7 +444,7 @@ function buildLibraryExpandRow(route, category, isSample) {
         <div class="library-expand-meta">${metaLine}</div>
         ${communityLine ? `<div class="library-expand-meta">${communityLine}</div>` : ""}
         ${locLine ? `<div class="library-expand-meta">${locLine}</div>` : ""}
-        <div class="stats-panel library-expand-cards" id="libExpStats_${route.id}">${stats.join("")}</div>
+        <div class="library-expand-cards" id="libExpStats_${route.id}">${stats.join("")}</div>
         ${route.description ? `<div class="library-expand-desc">${escapeHtml(route.description)}</div>` : ""}
       </div>
       <div class="library-expand-actions">

@@ -231,6 +231,8 @@
 
         <h3 id="szintprofil">Szintprofil</h3>
         <p>A diagram az útvonal magasságát mutatja a táv függvényében. A <b>Szintprofil</b> kapcsolóval a térképen a meredekség szerint színeződik az útvonal (zöld = lejtő, szürke = sík, piros = emelkedő); a jelmagyarázat a térkép bal felső sarkában látszik. A diagramon mozgatott egér vagy ujj a térképen is mutatja a pontot.</p>
+        <h3 id="utvonalpont">Útvonalpont</h3>
+        <p>Egy útvonalpontra kattintva ablak nyílik: rajttól mért táv (becsült idővel és emelkedéssel), magasság, meredekség, célig hátralévő táv és koordináták (másolható). Itt nevezheted át a pontot, írhatsz hozzá megjegyzést, állíthatod a <b>következő szakasz tervezési módját</b>, és törölheted a pontot. A célpontnál a <b>Visszaút a rajthoz</b> és az <b>Oda-vissza</b> is innen indítható.</p>
 
         <h3 id="szelelemzes">Szélelemzés</h3>
         <ol>
@@ -238,7 +240,7 @@
           <li>Add meg az indulás idejét (legfeljebb 7 nappal előre).</li>
           <li>Az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> előrejelzéséből minden szakaszra kiszámolja, mikor érsz oda, és ott épp honnan fúj a szél.</li>
         </ol>
-        <p>Eredmény: hátszél / oldalszél / szembeszél arány km-ben és százalékban, szegmenslista, időjárás, és a térképen szél szerinti színezés (zöld = hátszél, sárga = oldalszél, piros = szembeszél). A szélszínezés és a szintprofil-színezés kizárja egymást.</p>
+        <p>Eredmény: hátszél / oldalszél / szembeszél arány km-ben és százalékban, szegmenslista, időjárás, és a térképen szél szerinti színezés (zöld = hátszél, sárga = oldalszél, piros = szembeszél). A szél a többi diagramhoz hasonló grafikonon is megjelenik (szélerősség a táv mentén, irány szerint színezve); a szakaszok részletes listája lenyitható. A szélszínezés és a szintprofil-színezés kizárja egymást.</p>
 
         <h3 id="gpx-tervezeshez">GPX importálása tervezéshez</h3>
         <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz. Betöltéskor egy előnézet jelenik meg:</p>
@@ -272,7 +274,7 @@
         </ul>
         <p>A sebesség-, kadencia- és teljesítménysávok a <span class="path">Beállítások → Adatzónák</span> alatt, a pulzuszónák az <span class="path">Elemzési beállítások</span> alatt állíthatók.</p>
         <h3>Diagramok</h3>
-        <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény. Az egérrel (telefonon az ujjaddal vízszintesen húzva) a diagramon mozogva a térképen is látszik az adott pont és az érték. Függőlegesen húzva továbbra is görgethető az oldal.</p>
+        <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény és szél – mind egységes kinézetű. Fejlécük a legfontosabb számokat mutatja (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és tempó; a többinél átlag és maximum). A <b>Zónaszín</b> gombbal a vonal a zónák / lejtés szerint színeződik, ilyenkor jelmagyarázat is megjelenik. Az egérrel (telefonon az ujjaddal vízszintesen húzva) mozogva minden nyitott diagramon és a térképen is ugyanaz a pont látszik; a címke csak azon a diagramon jelenik meg, amelyiken mozogsz. Tervezésnél a rajt (A), a cél (B) és a közbenső útvonalpontok is jelölve vannak. Függőlegesen húzva továbbra is görgethető az oldal.</p>
         <h3 id="pulzuselemzes">Pulzuselemzés</h3>
         <p>Megmutatja, mennyi időt töltöttél az egyes pulzuszónákban (idő és százalék), valamint két terhelésmutatót:</p>
         <ul>
@@ -496,7 +498,7 @@
           <tr><td class="path">Eszköztár sorrend</td><td>Az eszköztár gombjainak sorrendje (húzással) és elrejtése (👁).</td></tr>
           <tr><td class="path">Elemzési beállítások</td><td>Személyes adatok és pulzuszónák – lásd <a href="#pulzus">Pulzuszónák</a>.</td></tr>
           <tr><td class="path">Adatzónák</td><td>Sebesség- (km/h), kadencia- (rpm) és teljesítmény- (W) zónahatárok csúszkákkal; az „Egyenlő felosztás” gomb egyenletesen osztja szét őket. Ezek színezik a térképet és (zónaszín módban) a diagramokat.</td></tr>
-          <tr><td class="path">Diagram színek</td><td><b>Egyszínű</b>: diagramonként saját szín; <b>Zónaszín</b>: a vonal szakaszonként az adatzónák színeivel rajzolódik (Strava / Garmin-szerűen).</td></tr>
+          <tr><td class="path">Diagram színek</td><td><b>Egyszínű</b>: minden diagram egységes, semleges szürke; <b>Zónaszín</b>: a vonal szakaszonként az adatzónák színeivel rajzolódik (Strava / Garmin-szerűen).</td></tr>
           <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos).</td></tr>
           <tr><td class="path">Kerékpáros profil</td><td>Saját és kerékpár tömege, vezetési pozíció (légellenállás, CdA: városi 0,65 – aero 0,32). A gördülési ellenállás a tervezési módból jön (aszfalt 0,005, gravel 0,010, MTB 0,018). A szélhatás és a kalóriabecslés használja.</td></tr>
           <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>

@@ -18,7 +18,7 @@
 
 import { analyzeSurface, MODE_LABELS } from "../map/surfaceAnalysis.js";
 import { SEGMENT_COLORS, getTileLayerDef } from "../map/mapAdapter.js";
-import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData } from "./elevationProfile.js";
+import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, isSolidChartMode } from "./elevationProfile.js";
 
 const NAVY = "#2d4a5a";
 const ACCENT = "#e8461e";
@@ -267,7 +267,8 @@ function buildProfileCanvas(rawData, { width = 1600, height = 300, rgb = [232, 7
   const ctx = canvas.getContext("2d");
   const data = (rawData || []).filter((d) => d.value != null && Number.isFinite(d.value));
   if (data.length < 2) return null;
-  const [r, g, b] = rgb;
+  // Egyszínű mód: egységes szürke (a beállításokból), mint az alkalmazás diagramjai
+  const [r, g, b] = isSolidChartMode() ? [139, 146, 156] : rgb;
   // Fehér háttér → JPEG-ként ágyazható (a színátmenetes PNG nagyon nagy lenne)
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, width, height);
 

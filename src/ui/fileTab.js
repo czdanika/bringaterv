@@ -14,6 +14,7 @@
 
 import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
 import { fitToGpx } from '../gpx/fit.js';
+import { isSolidChartMode } from './elevationProfile.js';
 import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts } from './shareCard.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
@@ -590,7 +591,7 @@ function _initShareCardModal() {
       const on = chosen.includes(c.id);
       const full = !on && chosen.length >= MAX_CHARTS;
       return `<button type="button" class="sc-chip${on ? " sc-chip--on" : ""}" data-share-chart="${c.id}"
-        aria-pressed="${on}" ${full ? "disabled" : ""}><span class="sc-chip-dot" style="background:${c.color}"></span>${c.label}</button>`;
+        aria-pressed="${on}" ${full ? "disabled" : ""}>${isSolidChartMode() ? "" : `<span class="sc-chip-dot" style="background:${c.color}"></span>`}${c.label}</button>`;
     }).join("");
   }
   const _sharePhoto = {

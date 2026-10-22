@@ -12,13 +12,18 @@
 
 import { analyzeWind, defaultAvgSpeed, WIND_COLORS, WIND_LABELS } from '../wind/windService.js';
 import { num } from "../format.js";
+import { buildTrackDistances } from "./elevationProfile.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _mapAdapter, _onRenderSidebar, _getActiveGeometry, _getStore;
 let _el, _visibleSections, _applyRouteLayer, _syncElevationBtnState;
+let _windChart = null, _chartMarkers = null;
 
 export function initWind({ mapAdapter, store, onRenderSidebar, getActiveGeometry,
-                           elements, visibleSections, applyRouteLayer, syncElevationBtnState }) {
+                           elements, visibleSections, applyRouteLayer, syncElevationBtnState,
+                           windChart = null, chartMarkers = null }) {
+  _windChart = windChart;
+  _chartMarkers = chartMarkers;
   _mapAdapter = mapAdapter;
   _onRenderSidebar = onRenderSidebar;
   _getActiveGeometry = getActiveGeometry;
@@ -110,60 +115,32 @@ export function renderWindResult(result) {
   const km = (n) => `${num(n, 1)} km`;
   const pct = (n) => `${num(n, 0)}%`;
 
+  // Fejléc: a közös grafikon-fejléc stílusában (nagy szám, kis mértékegység, felirat)
+  const stat = (v, u, label, dot) =>
+    `<div class="cs-stat"><b>${v}<small>${u}</small></b><span>${dot ? `<i style="background:${dot}"></i>` : ""}${label}</span></div>`;
+  const statsEl = document.querySelector("#statsWind");
+  if (statsEl) statsEl.innerHTML =
+    stat(num(stats.tailPct, 0), "%", "Hátszél", WIND_COLORS.tail) +
+    stat(num(stats.crossPct, 0), "%", "Oldalszél", WIND_COLORS.cross) +
+    stat(num(stats.headPct, 0), "%", "Szembeszél", WIND_COLORS.head) +
+    stat(num(stats.avgWindSpeed, 0), "km/h", "Átlag szél");
+
+  // Időjárás-kiegészítők kis címkékként
   _el.windStats.hidden = false;
-  _el.windStats.innerHTML = `
-    <div class="wind-stat wind-stat--tail">
-      <span class="wind-stat-label">Hátszél</span>
-      <span class="wind-stat-value">${pct(stats.tailPct)} <small>${km(stats.tailKm)}</small></span>
-    </div>
-    <div class="wind-stat wind-stat--cross">
-      <span class="wind-stat-label">Oldalszél</span>
-      <span class="wind-stat-value">${pct(stats.crossPct)} <small>${km(stats.crossKm)}</small></span>
-    </div>
-    <div class="wind-stat wind-stat--head">
-      <span class="wind-stat-label">Szembeszél</span>
-      <span class="wind-stat-value">${pct(stats.headPct)} <small>${km(stats.headKm)}</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Átlag szél</span>
-      <span class="wind-stat-value">${num(stats.avgWindSpeed, 1)} <small>km/h</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Hőmérséklet</span>
-      <span class="wind-stat-value">${stats.avgTemperature != null ? num(stats.avgTemperature, 1) : "—"} <small>°C</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Csapadék (max)</span>
-      <span class="wind-stat-value">${stats.maxPrecipitation != null ? num(stats.maxPrecipitation, 0) : "—"} <small>%</small></span>
-    </div>
-    <div class="wind-stat">
-      <span class="wind-stat-label">Felhőzet</span>
-      <span class="wind-stat-value">${stats.avgCloudcover != null ? num(stats.avgCloudcover, 0) : "—"} <small>%</small></span>
-    </div>`;
+  const chip = (t) => `<span class="wind-chip">${t}</span>`;
+  _el.windStats.innerHTML =
+    chip(`${fmtTime(coverage.from)} → ${fmtTime(coverage.to)}${coverage.withinForecast ? "" : " (részben az előrejelzésen kívül)"}`) +
+    (stats.avgTemperature != null ? chip(`${num(stats.avgTemperature, 1)} °C`) : "") +
+    (stats.maxPrecipitation != null ? chip(`csapadék max ${num(stats.maxPrecipitation, 0)}%`) : "") +
+    (stats.avgCloudcover != null ? chip(`felhőzet ${num(stats.avgCloudcover, 0)}%`) : "");
 
-  _el.windBar.hidden = false;
-  const totalKm = stats.totalDistKm || 1;
-  _el.windBar.innerHTML = segments.map(seg => {
-    const w = (seg.distanceKm / totalKm) * 100;
-    const color = WIND_COLORS[seg.wind.mode] ?? "#888";
-    return `<div class="wind-bar-seg" style="width:${w.toFixed(2)}%;background:${color}"
-      title="${WIND_LABELS[seg.wind.mode]} – ${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km, ${num(seg.wind.speed, 1)} km/h"></div>`;
-  }).join("");
+  // Grafikon: a szél ereje a táv mentén, a szakasz típusa szerint színezve (a többi grafikonnal közös rajzoló)
+  renderWindChart(segments);
+  _el.windBar.hidden = true;
 
-  _el.windSegments.hidden = false;
-  _el.windSegments.innerHTML = segments.map(seg => {
-    const color = WIND_COLORS[seg.wind.mode] ?? "#888";
-    return `<div class="wind-segment-row">
-      <div class="wind-segment-dot" style="background:${color}"></div>
-      <div>${num(seg.fromKm, 1)}–${num(seg.toKm, 1)} km <span style="color:var(--muted)">· ${WIND_LABELS[seg.wind.mode]}</span></div>
-      <span class="wind-segment-arrow" title="szél felé fúj">${windArrow(seg.wind.direction)}</span>
-      <span class="wind-segment-speed">${num(seg.wind.speed, 1)} km/h</span>
-      <span class="wind-segment-time">${fmtHour(seg.arrivalTime)}</span>
-    </div>`;
-  }).join("");
-
-  _el.windHeaderInfo.textContent =
-    `${fmtTime(coverage.from)} → ${fmtTime(coverage.to)}${coverage.withinForecast ? "" : " (részben az előrejelzésen kívül)"}`;
+  const segDetails = document.querySelector("#windSegDetails");
+  if (segDetails) segDetails.hidden = false;
+  _el.windHeaderInfo.textContent = "";
 
   applyWindMapColoring(segments);
 
@@ -181,9 +158,42 @@ export function renderWindResult(result) {
   _onRenderSidebar?.();
 }
 
+/** A szélgrafikon adatai: a nyomvonal minden pontjához az őt tartalmazó szakasz szele. */
+function renderWindChart(segments) {
+  if (!_windChart) return;
+  const track = buildTrackDistances(_getActiveGeometry?.() || []);
+  if (!track.length || !segments?.length) { _windChart.setData([]); return; }
+  let si = 0;
+  const data = track.map((p) => {
+    const km = p.dist / 1000;
+    while (si < segments.length - 1 && km > segments[si].toKm) si++;
+    const w = segments[si].wind;
+    return { ...p, value: w.speed, mode: w.mode };
+  });
+  _windChart.setData(data, {
+    color: WIND_COLORS.cross, unit: "km/h", zeroBase: true,
+    colorFn: (_v, pt) => WIND_COLORS[pt?.mode] || "#888",
+    formatTip: (pt) => [`${num(pt.dist / 1000, 1)} km · ${num(pt.value, 0)} km/h szél`, WIND_LABELS[pt.mode] || ""],
+  });
+  _windChart.setMarkers(_chartMarkers ? _chartMarkers(data) : []);
+  const legend = document.querySelector("#legendWind");
+  if (legend) {
+    legend.innerHTML = ["tail", "cross", "head"]
+      .map((m) => `<span><i style="background:${WIND_COLORS[m]}"></i>${WIND_LABELS[m]}</span>`).join("");
+    legend.hidden = false;
+  }
+}
+
 export function clearWindResult() {
   _windResult = null;
   if (!_el) return;
+  _windChart?.setData([]);
+  const statsEl = document.querySelector("#statsWind");
+  if (statsEl) statsEl.innerHTML = "";
+  const legend = document.querySelector("#legendWind");
+  if (legend) legend.hidden = true;
+  const segDetails = document.querySelector("#windSegDetails");
+  if (segDetails) segDetails.hidden = true;
   _el.windStats.hidden = true;
   _el.windBar.hidden = true;
   _el.windSegments.hidden = true;
@@ -259,6 +269,7 @@ export function openWindSection() {
   _el.elevationPanel.hidden = false;
   chartWind.hidden = false;
   _visibleSections.add("wind");
+  requestAnimationFrame(() => _windChart?.resize());
   document.querySelector("#windBtn")?.classList.add("is-active");
   _syncElevationBtnState();
   if (!_windResult && _getActiveGeometry?.()?.length >= 2) {

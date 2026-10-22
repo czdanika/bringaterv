@@ -1280,102 +1280,126 @@
         <!-- Elevation Profile Panel -->
         <!-- Diagram konténer – több szekció egymás alatt -->
         <div id="elevationPanel" class="elevation-panel" hidden>
+          <div class="elevation-resize" id="elevationResize" title="Húzd a panel átméretezéséhez (dupla kattintás: alaphelyzet)"><span></span></div>
 
-          <!-- Szintprofil szekció -->
+          <!-- Grafikon-szekciók: közös fejléc (cím · számok · színezés · bezárás), vászon, jelmagyarázat -->
           <div id="chartElevation" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Szintprofil</span>
-              <div class="elevation-panel-info" id="elevationInfo"></div>
-              <button id="closeChartElevation" class="elevation-panel-close" type="button" title="Bezárás">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <div class="chart-stats" id="elevationInfo"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartElevation" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
             <div class="elevation-panel-body">
               <canvas id="elevationCanvas"></canvas>
             </div>
+            <div class="chart-legend" id="legendElevation" hidden></div>
           </div>
-
-          <!-- Sebesség szekció -->
           <div id="chartSpeed" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Sebesség</span>
-              <button id="closeChartSpeed" class="elevation-panel-close" type="button" title="Bezárás">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <div class="chart-stats" id="statsSpeed"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartSpeed" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
             <div class="elevation-panel-body">
               <canvas id="speedCanvas"></canvas>
             </div>
+            <div class="chart-legend" id="legendSpeed" hidden></div>
           </div>
-
-          <!-- Pulzus szekció -->
           <div id="chartHr" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Pulzus</span>
-              <button id="closeChartHr" class="elevation-panel-close" type="button" title="Bezárás">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <div class="chart-stats" id="statsHr"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartHr" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
             <div class="elevation-panel-body">
               <canvas id="hrCanvas"></canvas>
             </div>
+            <div class="chart-legend" id="legendHr" hidden></div>
           </div>
-
-          <!-- Kadencia szekció -->
           <div id="chartCad" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Kadencia</span>
-              <button id="closeChartCad" class="elevation-panel-close" type="button" title="Bezárás">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <div class="chart-stats" id="statsCad"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartCad" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
             <div class="elevation-panel-body">
               <canvas id="cadCanvas"></canvas>
             </div>
+            <div class="chart-legend" id="legendCad" hidden></div>
           </div>
-
-          <!-- Teljesítmény szekció -->
           <div id="chartPower" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Teljesítmény</span>
-              <button id="closeChartPower" class="elevation-panel-close" type="button" title="Bezárás">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <div class="chart-stats" id="statsPower"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartPower" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
             <div class="elevation-panel-body">
               <canvas id="powerCanvas"></canvas>
             </div>
+            <div class="chart-legend" id="legendPower" hidden></div>
           </div>
-
           <!-- Szél szekció -->
           <div id="chartWind" class="chart-section" hidden>
             <div class="chart-section-header">
               <span class="chart-section-title">Szél</span>
-              <div class="wind-header-info" id="windHeaderInfo"></div>
+              <div class="chart-stats" id="statsWind"></div>
+              <div class="wind-header-info" id="windHeaderInfo" hidden></div>
               <button id="closeChartWind" class="elevation-panel-close" type="button" title="Bezárás">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
-            <div class="elevation-panel-body" id="windBody">
-              <!-- Stats panel -->
-              <div id="windStats" class="wind-stats" hidden></div>
-              <!-- Vizuális szegmens sáv -->
-              <div id="windBar" class="wind-bar" hidden></div>
-              <!-- Részletes szegmens lista -->
-              <div id="windSegments" class="wind-segments" hidden></div>
+            <div class="elevation-panel-body wind-chart-body">
+              <canvas id="windCanvas"></canvas>
+            </div>
+            <div class="chart-legend" id="legendWind" hidden></div>
+            <div class="wind-extra" id="windBody">
               <div id="windStatus" class="wind-status"></div>
+              <!-- Időjárás-kiegészítők (időszak, hőmérséklet, csapadék, felhőzet) -->
+              <div id="windStats" class="wind-chips" hidden></div>
+              <!-- Régi szegmens sáv (a grafikon váltotta ki) -->
+              <div id="windBar" class="wind-bar" hidden></div>
+              <!-- Részletes szegmens lista – lenyitható -->
+              <details class="wind-seg-details" id="windSegDetails" hidden>
+                <summary>Szakaszok részletesen</summary>
+                <div id="windSegments" class="wind-segments" hidden></div>
+              </details>
             </div>
           </div>
 
@@ -2597,7 +2621,7 @@
     <h4 class="settings-section-title">
       <i data-lucide="line-chart" aria-hidden="true"></i>
       Diagram színek
-      <button class="hint-btn" type="button" data-hint="Az Elemzés fülön megjelenő diagramok színezése. Egyszínű módban minden adattípushoz külön színt választhatsz. Zónaszín módban a diagram vonala szegmensenként színeződik az 'Adatzónák' beállításnál megadott zónaszínekkel." aria-label="Segítség">
+      <button class="hint-btn" type="button" data-hint="Az Elemzés fülön megjelenő diagramok színezése. Egyszínű módban minden diagram egységes, semleges szürke. Zónaszín módban a diagram vonala szegmensenként színeződik az 'Adatzónák' beállításnál megadott zónaszínekkel." aria-label="Segítség">
         <i data-lucide="info" aria-hidden="true"></i>
       </button>
       <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
@@ -2607,10 +2631,10 @@
       <div class="settings-unit-group" style="margin-bottom:14px">
         <label class="settings-unit-btn">
           <input type="radio" name="chartColorMode" value="solid" checked>
-          <span class="hint-target" data-hint="Minden diagram egyszínű vonalként rajzolódik. Az alábbi színválasztókkal külön testreszabhatod sebesség, pulzus, kadencia és teljesítmény diagramokat.">
+          <span class="hint-target" data-hint="Minden diagram egységes, semleges szürke vonalként rajzolódik – a diagram fejlécében egy kattintással válthatsz Zónaszínre.">
             <i data-lucide="minus" aria-hidden="true"></i>
             Egyszínű
-            <small>fix szín</small>
+            <small>szürke</small>
           </span>
         </label>
         <label class="settings-unit-btn">
@@ -2623,32 +2647,6 @@
         </label>
       </div>
 
-      <!-- Egyszínű mód: színválasztók -->
-      <div id="chartColorSolidRow">
-        <p class="settings-label-text">Egyedi színek</p>
-        <div class="chart-color-grid">
-          <div class="chart-color-field">
-            <label for="chartColorEle">Szintprofil</label>
-            <input type="color" id="chartColorEle" value="#e8461e">
-          </div>
-          <div class="chart-color-field">
-            <label for="chartColorSpeed">Sebesség</label>
-            <input type="color" id="chartColorSpeed" value="#3B82F6">
-          </div>
-          <div class="chart-color-field">
-            <label for="chartColorHr">Pulzus</label>
-            <input type="color" id="chartColorHr" value="#EF4444">
-          </div>
-          <div class="chart-color-field">
-            <label for="chartColorCad">Kadencia</label>
-            <input type="color" id="chartColorCad" value="#A855F7">
-          </div>
-          <div class="chart-color-field">
-            <label for="chartColorPower">Teljesítmény</label>
-            <input type="color" id="chartColorPower" value="#EAB308">
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 

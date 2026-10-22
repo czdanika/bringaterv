@@ -1945,10 +1945,11 @@ body.is-drag-over::after {
 /* ── Floating map toolbar ───────────────────────────── */
 .map-toolbar {
   position: absolute;
-  bottom: calc(32px + env(safe-area-inset-bottom));
+  bottom: calc(var(--elev-h, 0px) + 32px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 600;
+  transition: bottom .28s cubic-bezier(.4,0,.2,1);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1970,7 +1971,7 @@ body.is-drag-over::after {
   .map-toolbar .toolbar-btn { height: 34px; min-width: 30px; padding: 0 4px; }
   .map-toolbar, .map-toolbar > .toolbar-content { gap: 1px; }
   /* a nagyítás-gombok az eszköztár fölé, hogy ne fedjék egymást */
-  .map-wrap .leaflet-bottom.leaflet-right { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .map-wrap .leaflet-bottom.leaflet-right { bottom: calc(84px + env(safe-area-inset-bottom) + var(--elev-h, 0px)); }
 }
 /* Ha JS beállított pozíciót, a CSS-es centrálás ne ütközzön */
 .map-toolbar[data-dragged] {
@@ -6390,7 +6391,7 @@ body.is-drag-over::after {
 
   /* Térkép-elemek a panel fölött */
   .map-toolbar {
-    left: 8px; right: 8px; transform: none; bottom: calc(var(--sheet-h) + 8px);
+    left: 8px; right: 8px; transform: none; bottom: calc(var(--sheet-h) + var(--elev-h, 0px) + 8px);
     width: auto; max-width: none; overflow-x: auto; justify-content: flex-start;
     scrollbar-width: none; transition: bottom .25s cubic-bezier(.4,0,.2,1);
   }
@@ -6450,7 +6451,7 @@ body.is-drag-over::after {
 
 /* ── PWA / iPad: home-csík és érintés ──────────────────────────────────────── */
 /* Asztali (iPad) elrendezésben a térkép alsó elemei ne kerüljenek a home-csík alá */
-.map-wrap .leaflet-bottom { bottom: env(safe-area-inset-bottom); }
+.map-wrap .leaflet-bottom { bottom: calc(env(safe-area-inset-bottom) + var(--elev-h, 0px)); }
 .map-wrap .leaflet-right  { right: env(safe-area-inset-right); }
 /* Érintőképernyőn (iPad) nagyobb célterületek a menüben és a sávban */
 @media (pointer: coarse) {
@@ -6897,7 +6898,7 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 }
 
 /* Térkép: „Kattints a rajtponthoz” felirat üres tervezésnél */
-.map-start-hint { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 450;
+.map-start-hint { position: absolute; left: 50%; top: calc((100% - var(--elev-h, 0px)) * .4); transform: translate(-50%, -50%); z-index: 450;
   display: flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 999px; pointer-events: none;
   background: rgba(26,29,35,.8); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap;
   box-shadow: 0 6px 18px rgba(0,0,0,.22); }
@@ -6996,3 +6997,150 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 #stravaAppConfigOverlay .form-input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border);
   border-radius: 8px; background: var(--panel-bg); color: var(--text); font: inherit; font-size: 13px; }
 #stravaAppConfigOverlay .form-input:focus { outline: none; border-color: var(--accent); }
+
+/* ═══ Egységes grafikonok (szint, sebesség, pulzus, kadencia, teljesítmény, szél) ═══
+   Közös fejléc: cím · kulcsszámok (nagy szám, kis mértékegység, felirat) · színezés · bezárás;
+   alatta a vászon (elevationProfile.js rajzolja), legalul jelmagyarázat. */
+.elevation-panel { border-radius: 16px 16px 0 0; }
+.chart-section { height: 196px; min-height: 140px; }
+.chart-section-header { align-items: flex-end; gap: 22px; padding: 12px 18px 2px; }
+.chart-section-title { min-width: 92px; padding-bottom: 3px; }
+.chart-stats { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 20px; overflow: hidden; }
+.cs-stat { flex: none; min-width: 0; }
+.cs-stat > b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.3px; line-height: 1.15; color: var(--text); white-space: nowrap; }
+.cs-stat > b small { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 2px; letter-spacing: 0; }
+.cs-stat > span { display: flex; align-items: center; gap: 5px; margin-top: 1px; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+.cs-stat > span i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.cs-chip { display: inline-block; vertical-align: middle; padding: 3px 8px; border: 0; border-radius: 7px; font: inherit;
+  font-size: 12px; font-weight: 700; line-height: 1.35; letter-spacing: 0; background: var(--panel-strong); color: var(--text); }
+.cs-chip--easy   { background: rgba(34,197,94,.15);  color: #15803d; }
+.cs-chip--medium { background: rgba(232,70,30,.12);  color: #c2410c; }
+.cs-chip--hard   { background: rgba(220,38,38,.14);  color: #b91c1c; }
+.cs-chip--btn { cursor: pointer; }
+.cs-chip--btn:hover { box-shadow: 0 0 0 1px var(--brand) inset; }
+.chart-head-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
+.chart-head-actions .elevation-panel-close { margin-left: 0; }
+.chart-mode-btn { border: 0; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  background: var(--panel-strong); color: var(--text-muted); }
+.chart-mode-btn.is-zones { color: var(--text); }
+.chart-mode-btn:hover { color: var(--text); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 3px 12px; padding: 0 18px 8px 62px; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.chart-legend[hidden] { display: none; }
+.chart-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+#elevationTooltip { display: none !important; }   /* a címke a vásznon jelenik meg */
+
+/* Szél: ugyanaz a grafikon, alatta időjárás-címkék és lenyitható szakaszlista */
+#chartWind { height: auto; min-height: 0; flex: 0 0 auto; }
+#chartWind .wind-chart-body { flex: none; height: 132px; padding: 0; overflow: hidden; }
+.wind-extra { padding: 2px 18px 12px; }
+.wind-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.wind-chips[hidden] { display: none; }
+.wind-chip { font-size: 12px; padding: 4px 9px; border-radius: 999px; background: var(--panel-strong); color: var(--text); white-space: nowrap; }
+.wind-seg-details { margin-top: 8px; font-size: 12.5px; }
+.wind-seg-details[hidden] { display: none; }
+.wind-seg-details summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
+.wind-seg-details .wind-segments { margin-top: 6px; max-height: 180px; overflow-y: auto; }
+
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Mobilon: cím és gombok egy sorban, a számok alatta (vízszintesen görgethetők) */
+  .chart-section { height: 182px; min-height: 150px; }
+  .chart-section-header { flex-wrap: wrap; gap: 4px 10px; padding: 10px 12px 2px; align-items: center; }
+  .chart-section-title { min-width: 0; padding: 0; }
+  .chart-stats { order: 3; flex-basis: 100%; gap: 16px; overflow-x: auto; scrollbar-width: none; }
+  .chart-stats::-webkit-scrollbar { display: none; }
+  .cs-stat > b { font-size: 16.5px; }
+  .cs-stat > span { font-size: 10.5px; }
+  .chart-legend { padding: 0 12px 6px 46px; font-size: 10.5px; }
+  .wind-extra { padding: 2px 12px 10px; }
+}
+/* A térkép alsó vezérlői (nagyítás, forrásmegjelölés) a nyitott grafikonpanel fölé
+   csúsznak – így a panel maradhat a modálok (700+) alatt */
+.map-wrap .leaflet-bottom { transition: bottom .28s cubic-bezier(.4,0,.2,1); }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Mobilon a grafikonok nem nyomódnak össze – a panel görgethető */
+  .chart-section { flex-shrink: 0; }
+  #chartWind .wind-chart-body { height: 112px; }
+}
+
+/* ── Útvonalpont-ablak (adatok elöl, szerkesztés a link mögött) ──────────────── */
+.marker-popup-wrap .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,.2); }
+.marker-popup.wp-pop { display: block; padding: 16px 18px 14px; min-width: 270px; font-family: inherit; color: var(--text); }
+.wp-kicker { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); }
+.wp-title { margin-top: 2px; font-size: 17px; font-weight: 800; letter-spacing: -.2px; line-height: 1.25; padding-right: 14px; }
+.wp-edit-link { margin-top: 5px; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--brand); cursor: pointer; }
+.wp-note { margin-top: 6px; font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+.wp-coord { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.wp-copy { border: 1px solid var(--line); background: var(--panel-bg); color: var(--text-muted); border-radius: 6px; padding: 1px 7px; font: inherit; font-size: 11px; cursor: pointer; }
+.wp-edit { margin-top: 10px; padding: 10px; border-radius: 12px; background: var(--panel-strong); }
+.wp-edit[hidden] { display: none; }
+.wp-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
+.wp-edit-actions .wp-btn { margin-top: 0; }
+.wp-rows { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; margin: 12px 0 4px; font-size: 13px; }
+.wp-rows:empty { display: none; }
+.wp-row { display: contents; }
+.wp-row b { font-weight: 700; }
+.wp-row span { text-align: right; }
+.wp-row small { color: var(--text-muted); font-size: 12px; }
+.wp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.wp-sec { margin-top: 12px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted); }
+.wp-modes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.wp-mode { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 0; border-radius: 9px; cursor: pointer;
+  background: var(--panel-strong); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; }
+.wp-mode i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.wp-mode.is-active { background: var(--panel-bg); box-shadow: 0 0 0 2px var(--brand) inset; color: var(--brand); }
+.wp-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.wp-btn { width: 100%; padding: 9px 10px; border: 0; border-radius: 11px; cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 700; }
+.wp-btn--brand { background: color-mix(in srgb, var(--brand) 14%, transparent); color: color-mix(in srgb, var(--brand) 80%, #000); }
+.wp-btn--soft { background: var(--panel-strong); color: var(--text); }
+.wp-btn:hover { filter: brightness(.97); }
+
+/* Diagramok: fix rajzmagasság, a panel görget – több nyitott diagramnál sem
+   nyomódnak össze (a jelmagyarázat a rajz alá kerül, nem abból vesz el) */
+.chart-section { height: auto; min-height: 0; flex-shrink: 0; }
+.chart-section > .elevation-panel-body { flex: none; height: 132px; }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .chart-section { height: auto; min-height: 0; }
+  .chart-section > .elevation-panel-body { height: 116px; }
+}
+
+/* ── Könyvtár: lenyitott sor – a diagramfejlécekkel egyező, letisztult stílus ── */
+.library-list-expand-row .library-list-expand-inner { grid-template-columns: 168px 1fr; gap: 16px 26px; padding: 18px 22px 16px; }
+.library-list-expand-row .library-expand-preview { width: 168px; height: 168px; border: 0; border-radius: 14px; background: var(--panel-strong); }
+.library-list-expand-row .library-expand-preview svg { width: 148px; height: 148px; }
+.library-list-expand-row .library-expand-body { gap: 14px; padding-top: 2px; }
+.library-list-expand-row .library-expand-meta { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
+.library-list-expand-row .library-expand-cards { display: flex; flex-wrap: wrap; gap: 16px 30px; align-content: start; padding: 0; border: 0; }
+.library-list-expand-row .cs-stat > b { font-size: 20px; }
+.library-list-expand-row .library-expand-actions { padding-top: 14px; gap: 8px 16px; }
+.library-list-expand-row .library-expand-actions-main,
+.library-list-expand-row .library-expand-actions-end { gap: 6px; }
+.library-list-expand-row .library-card-btn {
+  height: 32px; padding: 0 13px; border: 0; border-radius: 9px;
+  background: var(--panel-strong); color: var(--text);
+  font-size: 12.5px; font-weight: 600; text-decoration: none;
+}
+.library-list-expand-row .library-card-btn:hover { background: color-mix(in srgb, var(--text) 10%, var(--panel-strong)); color: var(--text); }
+.library-list-expand-row .library-card-btn--primary { background: var(--text); color: var(--panel-bg); }
+.library-list-expand-row .library-card-btn--primary:hover { background: color-mix(in srgb, var(--text) 85%, var(--panel-bg)); color: var(--panel-bg); }
+.library-list-expand-row .library-card-btn--danger { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+.library-list-expand-row .library-card-btn--danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+@media (max-width: 768px) {
+  .library-list-expand-row .library-list-expand-inner { grid-template-columns: 1fr; padding: 14px; }
+  .library-list-expand-row .library-expand-preview { width: 100%; height: 140px; }
+  .library-list-expand-row .library-expand-cards { gap: 12px 22px; }
+  .library-list-expand-row .cs-stat > b { font-size: 18px; }
+}
+.library-list-expand-row .library-stats-toggle.is-on { background: color-mix(in srgb, #22C55E 13%, transparent); color: #15803d; }
+.library-list-expand-row .library-stats-toggle:not(.is-on) { color: var(--text-muted); }
+
+/* Diagrampanel átméretező fogantyú (felül, görgetéskor is látszik) */
+.elevation-resize { position: sticky; top: 0; z-index: 3; flex: none; height: 14px; margin-bottom: -14px;
+  display: flex; justify-content: center; align-items: center; cursor: ns-resize; touch-action: none; }
+.elevation-resize span { width: 44px; height: 4px; border-radius: 3px; background: var(--line); transition: background .15s; }
+.elevation-resize:hover span, .is-resizing-charts .elevation-resize span { background: var(--muted); }
+.is-resizing-charts { cursor: ns-resize; user-select: none; }
+.is-resizing-charts .elevation-panel { transition: none; }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Mobilon nincs +/− gomb: a térkép alsó elemei maradnak a lap alatt (mint eddig) */
+  .map-wrap .leaflet-bottom { bottom: env(safe-area-inset-bottom); }
+}

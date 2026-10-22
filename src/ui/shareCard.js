@@ -1,5 +1,6 @@
 import { num } from "../format.js";
 import { ensureQR, buildQrCanvas } from "./routePdf.js";
+import { CHART_SOLID_GRAY, isSolidChartMode } from "./elevationProfile.js";
 /**
  * Bringaterv – Workout Share Card Generator
  * ==========================================
@@ -62,11 +63,11 @@ export const SHARE_LAYOUTS = [
  * A pont-mezők: ele (m), speed (km/h), hr (bpm), cad (rpm), power (W).
  */
 export const SHARE_CHARTS = [
-  { id: "ele",   label: "Szintprofil",  caps: "SZINTPROFIL",  unit: "m",    color: "#fc4c02", minRange: 20 },
-  { id: "speed", label: "Sebesség",     caps: "SEBESSÉG",     unit: "km/h", color: "#2563eb", minRange: 5,  avg: true, smooth: 3 },
-  { id: "hr",    label: "Pulzus",       caps: "PULZUS",       unit: "bpm",  color: "#e11d48", minRange: 10, avg: true, smooth: 2 },
-  { id: "cad",   label: "Kadencia",     caps: "KADENCIA",     unit: "rpm",  color: "#7c3aed", minRange: 10, avg: true, smooth: 3 },
-  { id: "power", label: "Teljesítmény", caps: "TELJESÍTMÉNY", unit: "W",    color: "#d97706", minRange: 30, avg: true, smooth: 4 },
+  { id: "ele",   label: "Szintprofil",  caps: "SZINTPROFIL",  unit: "m",    color: "#e8461e", minRange: 20 },
+  { id: "speed", label: "Sebesség",     caps: "SEBESSÉG",     unit: "km/h", color: "#3B82F6", minRange: 5,  avg: true, smooth: 3 },
+  { id: "hr",    label: "Pulzus",       caps: "PULZUS",       unit: "bpm",  color: "#EF4444", minRange: 10, avg: true, smooth: 2 },
+  { id: "cad",   label: "Kadencia",     caps: "KADENCIA",     unit: "rpm",  color: "#A855F7", minRange: 10, avg: true, smooth: 3 },
+  { id: "power", label: "Teljesítmény", caps: "TELJESÍTMÉNY", unit: "W",    color: "#EAB308", minRange: 30, avg: true, smooth: 4 },
 ];
 
 /** Mely grafikonokhoz van elég adat a pontokban. */
@@ -748,14 +749,16 @@ function drawChart(ctx, c, s, points, id, box) {
 
   // Felirat
   const overlay = !!c.overlay;
-  const color = overlay ? c.elevLine : ch.color;
+  const solid = isSolidChartMode();
+  const lineColor = solid ? CHART_SOLID_GRAY : ch.color;   // Egyszínű mód: egységes szürke
+  const color = overlay ? c.elevLine : lineColor;
   ctx.save();
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
   ctx.fillStyle = c.panelMuted;
   ctx.font = `600 ${6.5 * s}px ${FONT}`;
   ctx.letterSpacing = `${0.9 * s}px`;
-  if (!overlay && id !== "ele") {
+  if (!overlay && !solid && id !== "ele") {
     // színes pötty a név előtt, hogy a csík színe azonosítható legyen
     ctx.fillStyle = ch.color;
     ctx.beginPath(); ctx.arc(box.x + 2.2 * s, box.y + 3.3 * s, 2.2 * s, 0, Math.PI * 2); ctx.fill();
@@ -765,13 +768,27 @@ function drawChart(ctx, c, s, points, id, box) {
     ctx.fillText(ch.caps, box.x, box.y);
   }
   ctx.letterSpacing = "0px";
-  ctx.font = `500 ${7 * s}px ${FONT}`;
-  ctx.textAlign = "right";
+  // Összegzés jobbra – mint az alkalmazás diagramfejléce: félkövér szám,
+  // kisebb mértékegység, halvány címke
   const r0 = (v) => Math.round(v);
-  const summary = ch.avg
-    ? `átl ${r0(raw.reduce((a, b) => a + b, 0) / raw.length)} · max ${r0(q(0.99))} ${ch.unit}`
-    : `max ${r0(sorted[sorted.length - 1])} m · min ${r0(sorted[0])} m`;
-  ctx.fillText(summary, box.x + box.w, box.y);
+  const items = ch.avg
+    ? [[r0(raw.reduce((a, b) => a + b, 0) / raw.length), ch.unit, "átl."], [r0(q(0.99)), ch.unit, "max"]]
+    : [[r0(sorted[sorted.length - 1]), "m", "max"], [r0(sorted[0]), "m", "min"]];
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const base = box.y + 6.6 * s;
+  const fVal = `700 ${8.4 * s}px ${FONT}`, fUnit = `500 ${6.4 * s}px ${FONT}`, fLab = `500 ${6.4 * s}px ${FONT}`;
+  let xr = box.x + box.w;
+  for (let k = items.length - 1; k >= 0; k--) {
+    const [val, unit, lab] = items[k];
+    const parts = [[String(val), fVal, c.panelText || color], [unit, fUnit, c.panelMuted], [lab, fLab, c.panelMuted]];
+    const gaps = [0, 1.2 * s, 2.6 * s];
+    const widths = parts.map(([t, f]) => { ctx.font = f; return ctx.measureText(t).width; });
+    const total = widths.reduce((a, b) => a + b, 0) + gaps[1] + gaps[2];
+    let x = xr - total;
+    parts.forEach(([t, f, col], i) => { x += gaps[i]; ctx.font = f; ctx.fillStyle = col; ctx.fillText(t, x, base); x += widths[i]; });
+    xr -= total + 9 * s;
+  }
   ctx.restore();
 
   // Csík: a skála a (kilógó csúcsok nélküli) tartományra illeszkedik
@@ -783,19 +800,37 @@ function drawChart(ctx, c, s, points, id, box) {
   const lo = mid - range / 2;
   const toY = (v) => top + box.h - Math.max(0, Math.min(1, (v - lo) / range)) * box.h;
   const toX = (x) => box.x + (x / d) * box.w;
+  const dark = c.panel === "#14181c" || c.photo || overlay;
   ctx.save();
+  // Szaggatott rácsvonalak (alsó, közép, felső)
+  ctx.strokeStyle = dark ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.09)";
+  ctx.lineWidth = 0.5 * s;
+  ctx.setLineDash([2 * s, 2 * s]);
+  [0, 0.5, 1].forEach((f) => {
+    const y = Math.round(top + box.h * f) + 0.5;
+    ctx.beginPath(); ctx.moveTo(box.x, y); ctx.lineTo(box.x + box.w, y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  // Halvány, lefelé elhalványuló kitöltés
   ctx.beginPath();
   ctx.moveTo(toX(series[0].x), top + box.h);
   series.forEach((p) => ctx.lineTo(toX(p.x), toY(p.v)));
   ctx.lineTo(toX(series[series.length - 1].x), top + box.h);
   ctx.closePath();
-  ctx.fillStyle = overlay ? c.elevFill : hexA(ch.color, c.panel === "#14181c" || c.photo ? 0.22 : 0.13);
+  if (overlay) ctx.fillStyle = c.elevFill;
+  else {
+    const g = ctx.createLinearGradient(0, top, 0, top + box.h);
+    g.addColorStop(0, hexA(lineColor, dark ? 0.32 : 0.22));
+    g.addColorStop(1, hexA(lineColor, 0.02));
+    ctx.fillStyle = g;
+  }
   ctx.fill();
   ctx.beginPath();
   series.forEach((p, i) => (i ? ctx.lineTo(toX(p.x), toY(p.v)) : ctx.moveTo(toX(p.x), toY(p.v))));
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.2 * s;
+  ctx.lineWidth = 1.4 * s;
   ctx.lineJoin = "round";
+  ctx.lineCap = "round";
   ctx.stroke();
   ctx.restore();
 }
