@@ -978,25 +978,18 @@
         <!-- ── EDZÉSTERHELÉS nézet ── -->
         <div id="statsViewTraining" class="stats-view stats-main-inner" hidden>
 
-          <!-- Bevezető magyarázat -->
-          <div class="training-intro">
+          <!-- Bevezető magyarázat (becsukva – kattintásra nyílik) -->
+          <details class="training-intro">
+            <summary>Hogyan számoljuk?</summary>
             <p>Az edzésterhelés-modell (Banister-féle impulzusmodell) három mutatóval írja le az edzettségi állapotot.</p>
             <p><strong>Napi terhelés = edzés percei.</strong> Tervezett útvonalnál ez Naismith-képlettel becsült idő (tartalmazza az emelkedés hatását), FIT/Strava importnál a tényleges mozgási idő. Így az emelkedés már benne van az időben – nem számítjuk kétszer.</p>
             <p style="color:var(--text-muted);font-size:12px">Megjegyzés: pulzusadattal (TRIMP) pontosabb lenne, de az nem minden edzésnél áll rendelkezésre.</p>
-          </div>
+          </details>
 
-          <!-- Időszak választó -->
-          <div class="training-range" id="trainingRange">
-            <span class="training-range-label">Időszak:</span>
-            <button class="stats-chip" data-training-range="1">1 hónap</button>
-            <button class="stats-chip" data-training-range="3">3 hónap</button>
-            <button class="stats-chip stats-chip--active" data-training-range="6">6 hónap</button>
-            <button class="stats-chip" data-training-range="12">1 év</button>
-            <button class="stats-chip" data-training-range="0">Összes</button>
-          </div>
+
 
           <!-- KPI kártyák magyarázattal -->
-          <div class="stats-kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="stats-kpi-grid training-kpi-grid" style="grid-template-columns:repeat(4,1fr)">
             <div class="stats-kpi-card training-kpi-card">
               <div class="training-kpi-header">
                 <span class="training-kpi-abbr" style="color:#3B82F6">CTL</span>
@@ -1031,7 +1024,7 @@
           </div>
 
           <!-- Másodlagos KPI kártyák -->
-          <div class="stats-kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px" id="trainingSecondaryKpis">
+          <div class="stats-kpi-grid training-kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px" id="trainingSecondaryKpis">
             <div class="stats-kpi-card training-kpi-card">
               <div class="training-kpi-header">
                 <span class="training-kpi-abbr" id="trainingACColor">A:C</span>
@@ -1068,6 +1061,16 @@
               <div class="stats-kpi-value" id="trainingWeeklyLoad">—</div>
               <div class="training-kpi-desc">Az elmúlt 7 nap összesített edzésterhelése (percek + szint/20).</div>
             </div>
+          </div>
+
+          <!-- Időszak választó – csak a lenti grafikonokra hat (a kártyák mindig a mai állapotot mutatják) -->
+          <div class="training-range" id="trainingRange">
+            <span class="training-range-label">Grafikonok időszaka:</span>
+            <button class="stats-chip" data-training-range="1">1 hónap</button>
+            <button class="stats-chip" data-training-range="3">3 hónap</button>
+            <button class="stats-chip stats-chip--active" data-training-range="6">6 hónap</button>
+            <button class="stats-chip" data-training-range="12">1 év</button>
+            <button class="stats-chip" data-training-range="0">Összes</button>
           </div>
 
           <!-- Diagramok -->
@@ -2742,32 +2745,40 @@
         <button id="stravaAppConfigCloseBtn" type="button" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px 8px">×</button>
       </div>
       <div style="padding:16px 18px">
-        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.55">
-          A Strava integrációhoz <strong>saját Strava app</strong> kell. A Stravánál minden app limitálva van (alapból 1 athlete = te magad), ezért nem lehet közös app-ot használni több felhasználóval.
+        <p class="strava-setup-lead">
+          A Strava-kapcsolathoz egy <strong>saját Strava API-alkalmazás</strong> kell – egyszer kell létrehozni, kb. 2 perc.
+          <a href="./help.html#strava-beallitas" target="_blank" rel="noopener">Lépésről lépésre, képekkel →</a>
         </p>
-        <details style="margin-bottom:12px">
-          <summary style="cursor:pointer;font-size:12px;color:var(--accent)">Hogyan hozz létre Strava app-ot? (1 perc)</summary>
-          <ol style="font-size:12px;line-height:1.6;margin:8px 0 0;padding-left:18px;color:var(--muted)">
-            <li>Nyisd meg: <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener" style="color:var(--accent)">strava.com/settings/api</a></li>
-            <li>Töltsd ki a mezőket (app neve tetszőleges, weboldal lehet bármi)</li>
-            <li><strong>Authorization Callback Domain</strong>: másold be a lent megjelenő domain részét (csak a domain, http:// nélkül)</li>
-            <li>Mentés után másold ide a <strong>Client ID</strong>-t és a <strong>Client Secret</strong>-et (a Secret-et „Show" gombbal lehet előhívni)</li>
-          </ol>
-        </details>
+        <ol class="strava-setup-steps">
+          <li>Nyisd meg: <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> (gépen a legkényelmesebb).</li>
+          <li>Az űrlapba ezeket írd (a gombbal másolhatod):
+            <div class="strava-copy-box">
+              <div class="strava-copy-row"><span>Category</span><code>Visualizer</code></div>
+              <div class="strava-copy-row"><span>Website</span><code id="stravaCopyWebsite">—</code><button type="button" class="strava-copy-btn" data-copy-from="stravaCopyWebsite">Másolás</button></div>
+              <div class="strava-copy-row"><span>Application Description</span><code id="stravaCopyDesc">Saját edzéseim a Bringatervben</code><button type="button" class="strava-copy-btn" data-copy-from="stravaCopyDesc">Másolás</button></div>
+              <div class="strava-copy-row strava-copy-row--key"><span>Authorization Callback Domain</span><code id="stravaCopyDomain">—</code><button type="button" class="strava-copy-btn" data-copy-from="stravaCopyDomain">Másolás</button></div>
+            </div>
+            Az <b>Application Name</b> bármi lehet (pl. „Bringaterv – a neved”, a „Strava” szó nem lehet benne), a <b>Club</b> maradhat üres.</li>
+          <li>Ha a Strava ikont kér az alkalmazáshoz, töltsd fel a <a href="./src/assets/icons/icon-512.png" download="bringaterv-ikon.png">Bringaterv logóját</a>.</li>
+          <li>A kész alkalmazásnál a <b>Client ID</b>-t és a <b>Client Secret</b>-et (a „Show” gombbal jelenik meg) másold ide lent, és <b>Mentés</b>. Utána: <b>Csatlakozás Stravához</b>.</li>
+        </ol>
         <div class="form-group" style="margin-bottom:8px">
           <label class="form-label" style="font-size:12px">Client ID</label>
-          <input id="stravaUserClientId" class="form-input" type="text" placeholder="pl. 231390" autocomplete="off">
+          <input id="stravaUserClientId" class="form-input" type="text" placeholder="pl. 123456" autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom:8px">
           <label class="form-label" style="font-size:12px">Client Secret</label>
           <input id="stravaUserClientSecret" class="form-input" type="password" placeholder="Új mentésnél felülírja a meglévőt" autocomplete="off">
         </div>
-        <div class="form-group" style="margin-bottom:10px">
+        <details class="strava-adv">
+          <summary>Haladó: visszatérési cím felülírása</summary>
+        <div class="form-group" style="margin:8px 0 10px">
           <label class="form-label" style="font-size:12px">Callback URL (Strava-nál ennek a <strong>domain</strong>-je kell az „Authorization Callback Domain"-be)</label>
           <input id="stravaUserCallbackInput" class="form-input" type="text" placeholder="auto-detect: server adja" style="font-family:monospace;font-size:11px">
           <div id="stravaUserCallbackDomain" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:monospace"></div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">Üresen hagyva a szerver automatikusan kiszámolja a request-ből. Más telepítésnél (pl. cloudflared tunnel, NAS, custom domain) felülbírálhatod.</div>
         </div>
+        </details>
       </div>
       <div style="display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--border);background:var(--panel-strong);border-radius:0 0 12px 12px;color:var(--text)">
         <button id="stravaUserAppSaveBtn" class="strava-conn-btn" type="button" style="font-size:12px;padding:6px 14px">Mentés</button>

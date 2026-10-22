@@ -14,6 +14,7 @@ import {
   renderEddington, renderTrainingLoad,
 } from './statsPanel.js';
 import { renderRecordsView } from './recordsView.js';
+import { mobileMQ } from '../layout.js';
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api           = null;
@@ -25,6 +26,49 @@ export function initStats({ api, getLibraryData, onLoadRoute }) {
   _getLibraryData = getLibraryData;
   _onLoadRoute    = onLoadRoute;
   _registerListeners();
+  _placeControls();
+  mobileMQ.addEventListener?.("change", _placeControls);
+}
+
+/**
+ * Mobilon a nézetválasztó és a szűrők a Statok tetejére kerülnek (vízszintesen
+ * görgethető fülsor + szűrősor, görgetéskor is látható) – a felcsúszó alsó lap
+ * helyett, ahol nehezen vehetők észre. Gépen maradnak a bal oldali sávban.
+ * Az elemeket mozgatjuk (nem másoljuk), így az eseménykezelők megmaradnak.
+ */
+/** A mobil fülsoron a kiválasztott fül görgetődjön középre (függőlegesen nem mozdít). */
+function _centerActiveTab() {
+  const nav = document.querySelector("#statsMobileBar .stats-nav");
+  const btn = nav?.querySelector(".stats-nav-item--active");
+  if (!btn) return;
+  const left = btn.offsetLeft - (nav.clientWidth - btn.offsetWidth) / 2;
+  nav.scrollLeft = Math.max(0, left);
+}
+
+function _placeControls() {
+  const side = document.getElementById("tabStats");
+  const main = document.getElementById("statsMain");
+  if (!side || !main) return;
+  const nav = side.querySelector(".stats-nav") || main.querySelector(".stats-nav");
+  const filters = ["statsFilterPeriodSection", "statsFilterSportSection"].map((id) => document.getElementById(id)).filter(Boolean);
+  let bar = document.getElementById("statsMobileBar");
+  if (mobileMQ.matches) {
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "statsMobileBar";
+      bar.className = "stats-mobile-bar";
+      main.prepend(bar);
+    }
+    if (nav) bar.appendChild(nav);
+    const row = bar.querySelector(".stats-mobile-filters") || bar.appendChild(Object.assign(document.createElement("div"), { className: "stats-mobile-filters" }));
+    filters.forEach((f) => row.appendChild(f));
+    bar.hidden = false;
+    _centerActiveTab();
+  } else {
+    if (nav) side.prepend(nav);
+    filters.forEach((f) => side.appendChild(f));
+    if (bar) bar.hidden = true;
+  }
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -44,6 +88,8 @@ export function switchStatsView(view) {
   _statsView = view;
   document.querySelectorAll("[data-stats-view]").forEach(b =>
     b.classList.toggle("stats-nav-item--active", b.dataset.statsView === view));
+  // mobilon a kiválasztott fül görgetődjön a fülsor közepére
+  if (mobileMQ.matches) _centerActiveTab();
   ["overview","monthly","records","eddington","training","heatmap"].forEach(v => {
     const el = document.getElementById("statsView" + v.charAt(0).toUpperCase() + v.slice(1));
     if (el) el.hidden = v !== view;
@@ -82,6 +128,23 @@ function _registerListeners() {
   // Alnavigáció
   document.querySelectorAll("[data-stats-view]").forEach(btn =>
     btn.addEventListener("click", () => switchStatsView(btn.dataset.statsView)));
+
+  // Edzésterhelés kártyák: a fix leírás mobilon ⓘ mögé kerül (a CSS rejti a szöveget)
+  document.querySelectorAll("#statsViewTraining .training-kpi-card").forEach(card => {
+    const desc = card.querySelector(".training-kpi-desc:not([id])");
+    const head = card.querySelector(".training-kpi-header");
+    if (!desc || !head || head.querySelector(".hint-btn")) return;
+    desc.classList.add("training-kpi-desc--static");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "hint-btn";
+    btn.setAttribute("aria-label", "Segítség");
+    btn.dataset.hintTitle = card.querySelector(".training-kpi-name")?.textContent.trim() || "";
+    btn.dataset.hint = desc.textContent.replace(/\s+/g, " ").trim();
+    btn.innerHTML = '<i data-lucide="info" aria-hidden="true"></i>';
+    head.appendChild(btn);
+  });
+  window.lucide?.createIcons();
 
   // Edzésterhelés időszak
   document.querySelectorAll("[data-training-range]").forEach(btn => {

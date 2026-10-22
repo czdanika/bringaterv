@@ -37,12 +37,21 @@ function cssVar(name) {
 }
 
 function fmtKm(km) {
-  if (km >= 1000) return num(km / 1000, 1) + ' e km';
   return Math.round(km).toLocaleString('hu-HU') + ' km';
+}
+
+/** Összesített idő a KPI-kártyára: sok óránál csak órában („283 óra”), hogy kiférjen. */
+function fmtTotalTime(min) {
+  return min >= 600 ? `${Math.round(min / 60).toLocaleString('hu-HU')} óra` : fmtMin(min);
 }
 
 function fmtMin(min) {
   return dur(min);
+}
+
+/** Időcella a havi táblában: gépen hosszú forma, mobilon (CSS) rövid. */
+function durCell(min) {
+  return `<span class="dur-long">${fmtMinVerbose(min)}</span><span class="dur-short">${fmtTotalTime(min)}</span>`;
 }
 
 /** Hosszú forma: "2 nap 4 óra 37 perc" / "17 óra 56 perc" / "53 perc" */
@@ -165,7 +174,7 @@ function drawBarChart(canvas, bars, { unit = '', color = '#e8461e', height = 180
     return;
   }
 
-  const PAD = { top: 14, right: 6, bottom: 28, left: 42 };
+  const PAD = { top: 14, right: 6, bottom: 28, left: 52 };
   const iW = W - PAD.left - PAD.right;
   const iH = H - PAD.top - PAD.bottom;
   const maxVal = Math.max(...bars.map(b => b.value));
@@ -187,7 +196,7 @@ function drawBarChart(canvas, bars, { unit = '', color = '#e8461e', height = 180
     ctx.stroke();
     if (frac > 0) {
       const val = maxVal * frac;
-      const label = val >= 1000 ? num((val / 1000), 1) + 'e' : Math.round(val) + unit;
+      const label = Math.round(val).toLocaleString('hu-HU') + (unit ? ' ' + unit.trim() : '');
       ctx.fillStyle    = textColor;
       ctx.font         = '9px system-ui, sans-serif';
       ctx.textAlign    = 'right';
@@ -246,7 +255,7 @@ export function renderStats(allRoutes, { period = 'year', sport = 'all' } = {}) 
 
   const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
   setEl('statsKpiKm',    totalKm > 0   ? fmtKm(totalKm)   : '—');
-  setEl('statsKpiTime',  totalDur > 0  ? fmtMin(totalDur)  : '—');
+  setEl('statsKpiTime',  totalDur > 0  ? fmtTotalTime(totalDur) : '—');
   setEl('statsKpiElev',  totalElev > 0 ? fmtElev(totalElev): '—');
   setEl('statsKpiCount', count);
 
@@ -388,12 +397,12 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
     // Fősor – chevron a hónap cellán belül (7 oszlop)
     rows.push(`<tr class="stats-monthly-row" data-month-key="${key}" role="button" tabindex="0" aria-expanded="false">
       <td class="stats-monthly-month ${isCur ? 'stats-monthly-cur' : ''}"><span class="stats-monthly-chevron">›</span> ${label}</td>
-      <td class="num"><strong>${mrs.length}</strong></td>
-      <td class="num">${km   > 0 ? Math.round(km) + ' km'  : '—'}</td>
-      <td class="num">${elev > 0 ? Math.round(elev).toLocaleString('hu-HU') + ' m' : '—'}</td>
-      <td class="num">${dur  > 0 ? fmtMinVerbose(dur) : '—'}</td>
-      <td class="num">${kcal > 0 ? Math.round(kcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
-      <td class="num">${edd}</td>
+      <td class="num" data-label="Edzés"><strong>${mrs.length}</strong></td>
+      <td class="num" data-label="Táv">${km   > 0 ? Math.round(km).toLocaleString('hu-HU') + ' km'  : '—'}</td>
+      <td class="num" data-label="Szint">${elev > 0 ? Math.round(elev).toLocaleString('hu-HU') + ' m' : '—'}</td>
+      <td class="num" data-label="Idő">${dur  > 0 ? durCell(dur) : '—'}</td>
+      <td class="num" data-label="Kalória">${kcal > 0 ? Math.round(kcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
+      <td class="num" data-label="Eddington">${edd}</td>
     </tr>`);
 
     // Sport-bontás sorok (alapból rejtve)
@@ -413,42 +422,45 @@ export function renderMonthlyTable(allRoutes, { sport = 'all' } = {}) {
       const gKcal = calcKcalForRoutes(group);
       rows.push(`<tr class="stats-monthly-sub" data-month-parent="${key}" hidden>
         <td class="stats-monthly-sub-label">${SPORT_LABELS[sk] || sk}</td>
-        <td class="num">${group.length}</td>
-        <td class="num">${gKm   > 0 ? Math.round(gKm) + ' km'  : '—'}</td>
-        <td class="num">${gElev > 0 ? Math.round(gElev).toLocaleString('hu-HU') + ' m' : '—'}</td>
-        <td class="num">${gDur  > 0 ? fmtMinVerbose(gDur) : '—'}</td>
-        <td class="num">${gKcal > 0 ? Math.round(gKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
-        <td></td>
+        <td class="num" data-label="Edzés">${group.length}</td>
+        <td class="num" data-label="Táv">${gKm   > 0 ? Math.round(gKm).toLocaleString('hu-HU') + ' km'  : '—'}</td>
+        <td class="num" data-label="Szint">${gElev > 0 ? Math.round(gElev).toLocaleString('hu-HU') + ' m' : '—'}</td>
+        <td class="num" data-label="Idő">${gDur  > 0 ? durCell(gDur) : '—'}</td>
+        <td class="num" data-label="Kalória">${gKcal > 0 ? Math.round(gKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</td>
+        <td class="stats-monthly-empty-cell"></td>
       </tr>`);
     }
   }
 
   tbody.innerHTML = rows.join('');
 
-  // Expand / collapse kattintás
-  tbody.addEventListener('click', (e) => {
-    const row = e.target.closest('.stats-monthly-row');
-    if (!row) return;
-    const key = row.dataset.monthKey;
-    const expanded = row.getAttribute('aria-expanded') === 'true';
-    row.setAttribute('aria-expanded', String(!expanded));
-    row.querySelector('.stats-monthly-chevron').textContent = expanded ? '›' : '⌄';
-    tbody.querySelectorAll(`[data-month-parent="${key}"]`).forEach(sub => {
-      sub.hidden = expanded;
+  // Expand / collapse kattintás – csak egyszer kötjük be (a táblázat többször is újrarajzolódik)
+  if (!tbody.dataset.bound) {
+    tbody.dataset.bound = '1';
+    tbody.addEventListener('click', (e) => {
+      const row = e.target.closest('.stats-monthly-row');
+      if (!row) return;
+      const key = row.dataset.monthKey;
+      const expanded = row.getAttribute('aria-expanded') === 'true';
+      row.setAttribute('aria-expanded', String(!expanded));
+      row.querySelector('.stats-monthly-chevron').textContent = expanded ? '›' : '⌄';
+      tbody.querySelectorAll(`[data-month-parent="${key}"]`).forEach(sub => {
+        sub.hidden = expanded;
+      });
     });
-  });
+  }
 
   // Lábléc
   const tfoot = tbody.closest('table')?.tFoot;
   if (tfoot) {
     tfoot.innerHTML = `<tr class="stats-monthly-total">
       <td><strong>Összesen</strong></td>
-      <td class="num"><strong>${routes.length}</strong></td>
-      <td class="num"><strong>${totKm   > 0 ? Math.round(totKm) + ' km' : '—'}</strong></td>
-      <td class="num"><strong>${totElev > 0 ? Math.round(totElev).toLocaleString('hu-HU') + ' m' : '—'}</strong></td>
-      <td class="num"><strong>${totDur  > 0 ? fmtMinVerbose(totDur) : '—'}</strong></td>
-      <td class="num"><strong>${totKcal > 0 ? Math.round(totKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</strong></td>
-      <td></td>
+      <td class="num" data-label="Edzés"><strong>${routes.length}</strong></td>
+      <td class="num" data-label="Táv"><strong>${totKm   > 0 ? Math.round(totKm).toLocaleString('hu-HU') + ' km' : '—'}</strong></td>
+      <td class="num" data-label="Szint"><strong>${totElev > 0 ? Math.round(totElev).toLocaleString('hu-HU') + ' m' : '—'}</strong></td>
+      <td class="num" data-label="Idő"><strong>${totDur  > 0 ? durCell(totDur) : '—'}</strong></td>
+      <td class="num" data-label="Kalória"><strong>${totKcal > 0 ? Math.round(totKcal).toLocaleString('hu-HU') + ' kcal' : '—'}</strong></td>
+      <td class="stats-monthly-empty-cell"></td>
     </tr>`;
   }
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.14.0 – 2026-10-22 – Statok mobilon, Strava-beállítás képes leírással
+
+- **Strava-beállítás képes leírással:** a súgóban lépésről lépésre, képernyőképekkel, hogyan hozz létre saját Strava API-alkalmazást (mezőnként mit írj be, ikon, Client ID / Secret), mit tegyél, ha már van alkalmazásod, és hogyan töltsd fel kézzel az edzéseket, ha a kapcsolat nem sikerül. A Bringaterv „Strava API beállítás” ablaka is megújult: a Strava űrlapjába írandó értékek (Website, Callback Domain, Category, Description) **másolás gombbal**, link a képes leírásra, letölthető logó az ikonhoz; a haladó visszatérési cím felülírás becsukva.
+- **Statok mobilon – felső fülsor:** a nézetválasztó (Áttekintés, Havi, Rekordok, Eddington, Edzésterhelés, Hőtérkép) és a szűrők (Időszak, Sporttípus) a felcsúszó alsó lap helyett a Statok tetejére kerültek: vízszintesen görgethető fülsor + szűrősor, görgetéskor is látható; a kiválasztott fül középre görgetődik. Gépen változatlanul a bal oldali sávban.
+- **Edzésterhelés:** a bevezető magyarázat becsukható („Hogyan számoljuk?”), az időszakválasztó közvetlenül a grafikonok fölé került „Grafikonok időszaka” felirattal (a kártyák mindig a mai állapotot mutatják); mobilon a kártyák 2 oszlopban, a hosszú leírások ⓘ mögött.
+- **Havi statisztikák mobilon:** kártyás elrendezés (hónap fent, az értékek rácsban felirattal, rövid időformátum) a kilógó táblázat helyett. Javítva: újrarajzolás után a hónap lenyitása nem működött.
+- **Áttekintés:** a km teljes számmal („5 755 km” az „5,8 e km” helyett), az összes idő órában („283 óra”), mobilon a nagy számok egy sorban maradnak; a grafikonok tengelyfeliratai egységesek.
+- **Eddington mobilon:** a nagy szám és a magyarázat egymás alatt.
+
+### Verzió
+- v1.13.3 → v1.14.0
+
+---
+
 ## v1.13.3 – 2026-10-21 – Javítás: térkép az Elemzésben
 
 - **Javítás – üres / elcsúszott térkép az Elemzésben:** mióta az app a Kezdőlappal indul, a térkép rejtve volt, és a Kezdőlapról átváltva nem töltötte be a csempéket, illetve az első betöltött útvonal elcsúszva, rossz nagyítással jelent meg. A térkép most fülváltáskor újraméri magát, a keskeny és széles oldalsáv közti váltás nem animál, és a betöltés előbb vált fület, csak utána rajzol.

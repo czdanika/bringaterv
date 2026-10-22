@@ -84,6 +84,10 @@
     .lead { color: var(--muted); font-size: 16px; margin-bottom: 24px; }
     .tip, .warn { padding: 10px 14px; border-radius: 10px; margin: 12px 0; font-size: 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); }
     .warn { border-left-color: var(--warn); background: rgba(180,83,9,.08); }
+    figure.shot { margin: 14px 0 18px; }
+    figure.shot img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+    figure.shot figcaption { margin-top: 6px; font-size: 13px; color: var(--muted); }
+    ol.steps > li { margin-bottom: 10px; }
     .tip b:first-child, .warn b:first-child { display: block; margin-bottom: 2px; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; display: block; overflow-x: auto; }
     th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -241,7 +245,7 @@
         <ul>
           <li><b>Szegmensvizsgálat futtatása</b> – az útvonal mentén lekérdezi az OSM útburkolat-adatokat, és szakaszonként automatikusan beállítja a tervezési módot (aszfalt / gravel / MTB).</li>
           <li><b>Fordulópontok rögzítése</b> – a legfontosabb kanyarokat útvonalpontként rögzíti, hogy módváltáskor az útvonal az eredeti nyomvonalon maradjon (különben rövidebb utat is választhat).</li>
-          <li><b>Betöltés vizsgálat nélkül</b> – gyors betöltés, a beállított móddal.</li>
+          <li><b>Betöltés</b> – gyors betöltés vizsgálat nélkül, a beállított móddal. A szegmensvizsgálat után két gomb közül választhatsz: <b>Csak betöltés</b> (a vizsgálat eredménye nélkül) vagy <b>Betöltés burkolat szerint</b> (a szakaszok a vizsgálat szerinti tervezési móddal töltődnek be).</li>
         </ul>
 
         <h3 id="mentes">Mentés, letöltés</h3>
@@ -371,16 +375,43 @@
       <section id="strava">
         <h2>Strava</h2>
         <p>A Bringaterv <b>csak olvas</b> a Stravából (<code>activity:read_all</code> jogosultság) – semmit nem ír vissza.</p>
-        <h3 id="strava-beallitas">1. Saját Strava app létrehozása (egyszer, ~1 perc)</h3>
-        <p>A Strava minden alkalmazást korlátoz (alapból 1 sportoló = te magad), ezért mindenkinek saját „Strava app” kell:</p>
-        <ol>
-          <li>Nyisd meg: <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.</li>
-          <li>Töltsd ki a mezőket (az app neve és a weboldal tetszőleges).</li>
-          <li><b>Authorization Callback Domain</b>: a Bringaterv <b>Strava API beállítás</b> ablakában megjelenő cím <i>domain</i> része (<code>http://</code> és elérési út nélkül).</li>
-          <li>Mentés után másold be a <b>Client ID</b>-t és a <b>Client Secret</b>-et (a Secret a „Show” gombbal jelenik meg) a <span class="path">Beállítások → Strava kapcsolat → API beállítás</span> ablakba, és mentsd.</li>
+        <h3 id="strava-beallitas">1. Saját Strava-alkalmazás létrehozása (egyszer kell, kb. 2 perc)</h3>
+        <p>A Strava minden külső programnak saját „API-alkalmazást” ír elő, és egy alkalmazáshoz alapból csak a létrehozója csatlakozhat. Ezért mindenki a <b>saját</b> Strava-fiókjában hoz létre egyet – ez ingyenes, és csak egyszer kell. Gépen a legkényelmesebb.</p>
+        <ol class="steps">
+          <li>A Bringatervben nyisd meg: <span class="path">Beállítások → Strava kapcsolat → API beállítás</span>. Ebben az ablakban látod azokat az értékeket (másolás gombbal), amiket a Strava kérni fog – hagyd nyitva.</li>
+          <li>Egy másik lapon nyisd meg a <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a> oldalt (Strava-fiókkal bejelentkezve). Ha még nincs alkalmazásod, egy űrlapot látsz:
+            <figure class="shot">
+              <img src="./screenshots/strava/1-urlap.jpg" alt="A Strava API-alkalmazás űrlapja kitöltve" width="700" height="807" loading="lazy">
+              <figcaption>A Strava űrlapja kitöltve (a név csak minta).</figcaption>
+            </figure>
+            <table>
+              <tr><th>Mező</th><th>Mit írj be?</th></tr>
+              <tr><td class="path">Application Name</td><td>Bármi, pl. „Bringaterv – a neved”. A „Strava” szó nem lehet benne.</td></tr>
+              <tr><td class="path">Category</td><td><b>Visualizer</b></td></tr>
+              <tr><td class="path">Club</td><td>Maradhat üres.</td></tr>
+              <tr><td class="path">Website</td><td><code>https://bringaterv.hu</code> – az ablakból is másolhatod.</td></tr>
+              <tr><td class="path">Application Description</td><td>Pl. „Saját edzéseim a Bringatervben”.</td></tr>
+              <tr><td class="path">Authorization Callback Domain</td><td><b>A legfontosabb:</b> <code>bringaterv.hu</code> – <code>https://</code> és perjel nélkül (az ablakból is másolhatod; ha a Bringatervet más címen éred el, az ablak azt mutatja). Ha ez nem egyezik, a csatlakozás „redirect_uri invalid” hibát ad.</td></tr>
+            </table>
+            Pipáld be az <b>API Agreement</b> elfogadását, majd <b>Create</b>.</li>
+          <li><b>Ikon:</b> a Strava ezután egy képet kér az alkalmazáshoz. Bármilyen kép jó – például a <a href="./src/assets/icons/icon-512.png" download="bringaterv-ikon.png">Bringaterv logója</a> (letöltés).</li>
+          <li>Elkészült az alkalmazásod. A <b>Client ID</b> egy szám, a <b>Client Secret</b> a <b>Show</b> gombra jelenik meg:
+            <figure class="shot">
+              <img src="./screenshots/strava/2-client-id.jpg" alt="Client ID és Client Secret a Strava API-oldalán" width="760" height="523" loading="lazy">
+              <figcaption>A Client ID-t és a Client Secretet kell átmásolnod. A Secretet senkinek ne küldd el.</figcaption>
+            </figure></li>
+          <li>Másold be mindkettőt a Bringaterv ablakába, és nyomd meg a <b>Mentés</b> gombot:
+            <figure class="shot">
+              <img src="./screenshots/strava/3-bringaterv.jpg" alt="A Bringaterv Strava API beállítás ablaka" width="520" height="614" loading="lazy">
+              <figcaption>A Bringaterv „Strava API beállítás” ablaka – a másolható értékekkel és a két beillesztendő kóddal.</figcaption>
+            </figure></li>
         </ol>
+        <div class="tip"><b>Ha már van Strava API-alkalmazásod</b> (pl. egy másik programhoz): egy Strava-fiókhoz csak egy alkalmazás tartozhat. Használhatod ugyanazt, de a Callback Domainje csak egy domain lehet, és webhook (azonnali import) is csak egy programhoz kapcsolható. Ha ez ütközik, a Bringatervben maradhat az időközös automatikus import, vagy a kézi feltöltés (lásd lent).</div>
+
         <h3>2. Csatlakozás</h3>
-        <p><span class="path">Beállítások → Strava kapcsolat</span> → <b>Csatlakozás Stravához</b> → a Strava oldalán engedélyezd a hozzáférést.</p>
+        <p><span class="path">Beállítások → Strava kapcsolat</span> → <b>Csatlakozás Stravához</b> → a Strava oldalán <b>Authorize</b>. A Bringaterv csak olvas, semmit nem ír vissza a Stravára.</p>
+
+
         <h3>3. Kézi import</h3>
         <p><span class="path">Könyvtár → Import → Strava-ból</span>: válaszd ki az időszakot és a darabszámot → <b>Listázás</b>. Az edzések mellett jelölés látszik:</p>
         <table>
@@ -418,6 +449,13 @@
           <li><b>„A Strava az API-alkalmazásodat inaktívvá tette”</b> – a strava.com/settings/api oldalon nézd meg az app állapotát (lehet, hogy új feltételt kell elfogadni), vagy hozz létre új appot.</li>
           <li><b>„A Strava kapcsolat érvénytelenné vált”</b> – csatlakozz újra a Beállításokban.</li>
           <li><b>Rate limit</b> – túl sok kérés ment ki; 15 perc múlva újra működik.</li>
+        </ul>
+      
+        <h3 id="strava-kezzel">Ha a Strava-kapcsolat nem sikerül: kézi feltöltés</h3>
+        <p>Strava-kapcsolat nélkül is behozhatod az edzéseidet:</p>
+        <ul>
+          <li><b>Egy edzés:</b> a Strava weboldalán nyisd meg az edzést → <b>⋯</b> menü → <b>Export Original</b> (eredeti FIT) vagy <b>Export GPX</b>, majd a Bringaterv <span class="path">Könyvtár → Import → GPX / FIT fájlból</span>.</li>
+          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, más eszközök (Wahoo, Magene, Bryton…) a saját appjukból exportált FIT / GPX fájllal.</li>
         </ul>
       </section>
 

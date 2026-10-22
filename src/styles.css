@@ -1569,7 +1569,21 @@ body.is-drag-over::after {
   border-radius: 14px; padding: 16px 20px;
   font-size: 13px; color: var(--text-muted); line-height: 1.6;
 }
-.training-intro p { margin: 0; }
+.training-intro p { margin: 8px 0 0; }
+.training-intro summary { cursor: pointer; font-weight: 600; color: var(--text); list-style: none; display: flex; align-items: center; gap: 6px; }
+.training-intro summary::-webkit-details-marker { display: none; }
+.training-intro summary::before { content: "▸"; font-size: 11px; transition: transform .15s; }
+.training-intro[open] summary::before { transform: rotate(90deg); }
+.training-intro { padding: 12px 16px; }
+.training-kpi-header .hint-btn { margin-left: auto; align-self: center; }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Mobilon a kártyák 2 oszlopban, a hosszú leírások az ⓘ mögött */
+  .training-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .training-kpi-desc--static { display: none; }
+}
+@media (min-width: 769px) and (not ((max-height: 500px) and (pointer: coarse))) {
+  .training-kpi-header .hint-btn { display: none; }   /* gépen a leírás látszik */
+}
 .training-range { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .training-range-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-right: 4px; }
 .training-kpi-card { display: flex; flex-direction: column; gap: 6px; }
@@ -6901,3 +6915,84 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 
 /* Fülváltáskor (pl. Kezdőlap → Elemzés) a rács szélessége ugorjon, ne animáljon */
 .app-shell.is-tab-switching { transition: none !important; }
+
+/* ── Statok mobilon: felső fülsor + szűrősor a felcsúszó lap helyett ────────── */
+.stats-mobile-bar { display: none; }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .app-shell.is-stats-mode .sidebar-inner { display: none !important; }
+  .app-shell.is-stats-mode .stats-main { padding-bottom: 0; }
+  .stats-mobile-bar { display: block; position: sticky; top: 0; z-index: 20; flex-shrink: 0;
+    background: var(--bg); border-bottom: 1px solid var(--line); padding: 10px 0 8px; }
+  .stats-mobile-bar[hidden] { display: none; }
+  .stats-mobile-bar .stats-nav { position: relative; flex-direction: row; gap: 6px; padding: 0 12px; overflow-x: auto; scrollbar-width: none;
+    scroll-snap-type: x proximity; }
+  .stats-mobile-bar .stats-nav::-webkit-scrollbar { display: none; }
+  .stats-mobile-bar .stats-nav-item { width: auto; flex: none; white-space: nowrap; scroll-snap-align: center;
+    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); border-left-width: 1px;
+    background: var(--panel-bg); font-size: 13px; }
+  .stats-mobile-bar .stats-nav-item--active { color: #fff; background: var(--brand); border-color: var(--brand); }
+  .stats-mobile-filters { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 0; }
+  .stats-mobile-filters::-webkit-scrollbar { display: none; }
+  .stats-mobile-filters:not(:has(.stats-sidebar-section:not([hidden]))) { display: none; }
+  .stats-mobile-filters .stats-sidebar-section { display: flex; align-items: center; gap: 6px; padding: 0; margin: 0; flex: none; }
+  .stats-mobile-filters .stats-sidebar-section[hidden] { display: none; }
+  .stats-mobile-filters .stats-sidebar-label { margin: 0; white-space: nowrap; }
+  .stats-mobile-filters .stats-chip-group { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .stats-mobile-filters .stats-sidebar-label { min-width: 74px; }
+  .stats-mobile-filters .stats-chip { white-space: nowrap; }
+}
+
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Statok KPI-kártyák: a szám és a mértékegység egy sorban maradjon */
+  .stats-kpi-card { padding: 14px 14px; }
+  .stats-kpi-value { font-size: 23px; white-space: nowrap; }
+}
+
+/* Havi statisztikák: időcella gépen hosszan, mobilon röviden */
+.dur-short { display: none; }
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .dur-long { display: none; }
+  .dur-short { display: inline; }
+  /* A táblázat mobilon kártyákká alakul: hónap fent, az értékek rácsban, kis felirattal */
+  .stats-monthly-table, .stats-monthly-table tbody, .stats-monthly-table tfoot { display: block; width: 100%; }
+  .stats-monthly-table thead { display: none; }
+  .stats-monthly-table tr { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .stats-monthly-table tr[hidden] { display: none !important; }
+  .stats-monthly-table td { padding: 0 !important; border: 0 !important; text-align: left !important; min-width: 0; }
+  .stats-monthly-table td:first-child { grid-column: 1 / -1; font-size: 15px; }
+  .stats-monthly-table td[data-label]::before { content: attr(data-label); display: block; font-size: 10px; font-weight: 700;
+    letter-spacing: .4px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 1px; }
+  .stats-monthly-table .stats-monthly-empty-cell { display: none; }
+  .stats-monthly-table .stats-monthly-sub { background: var(--panel-strong); padding-left: 26px; }
+  .stats-monthly-table tfoot tr { background: var(--panel-strong); }
+}
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* Eddington: a nagy szám és a magyarázat egymás alá kerül */
+  .edd-header { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 18px; }
+  .edd-number-wrap { min-width: 0; }
+  .edd-number { font-size: 64px; }
+}
+
+/* Strava API beállító ablak: lépések + másolható értékek */
+.strava-setup-lead { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.strava-setup-lead a, .strava-setup-steps a { color: var(--accent); font-weight: 600; }
+.strava-setup-steps { margin: 0 0 14px; padding-left: 18px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+.strava-setup-steps li + li { margin-top: 6px; }
+.strava-copy-box { margin: 6px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.strava-copy-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 10px; font-size: 11.5px; }
+.strava-copy-row + .strava-copy-row { border-top: 1px solid var(--border); }
+.strava-copy-row span { color: var(--muted); }
+.strava-copy-row code { font-size: 12px; font-weight: 600; color: var(--text); background: var(--panel-strong); padding: 2px 6px; border-radius: 5px;
+  justify-self: end; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strava-copy-row--key { background: color-mix(in srgb, #FC4C02 7%, transparent); }
+.strava-copy-btn { border: 1px solid var(--border); background: var(--panel-bg); color: var(--text); border-radius: 6px; padding: 3px 8px;
+  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.strava-copy-btn:hover { border-color: var(--accent); }
+.strava-adv { margin-top: 6px; font-size: 12px; }
+.strava-adv summary { cursor: pointer; color: var(--muted); }
+#stravaAppConfigOverlay .form-group { display: flex; flex-direction: column; gap: 4px; }
+#stravaAppConfigOverlay .form-label { display: block; font-weight: 600; color: var(--text); }
+#stravaAppConfigOverlay .form-input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--panel-bg); color: var(--text); font: inherit; font-size: 13px; }
+#stravaAppConfigOverlay .form-input:focus { outline: none; border-color: var(--accent); }

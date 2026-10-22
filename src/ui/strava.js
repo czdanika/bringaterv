@@ -317,6 +317,7 @@ async function refreshStravaUserAppConfig() {
         try {
           const u = new URL(effective);
           cbDomEl.textContent = `Authorization Callback Domain a Strava-nál: ${u.host}`;
+          fillStravaCopyBox(u);
         } catch { cbDomEl.textContent = ""; }
       }
       clearBtn.style.display = (cfg.client_id || cfg.secret_set) ? "" : "none";
@@ -326,10 +327,28 @@ async function refreshStravaUserAppConfig() {
   }
 }
 
+/** A „másold be a Strava űrlapjába” doboz értékei (domain a szerver visszatérési címéből). */
+function fillStravaCopyBox(u = location) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("stravaCopyWebsite", `${u.protocol}//${u.host}`);
+  set("stravaCopyDomain", u.hostname);
+}
+
 function openStravaAppConfigModal() {
   const o = document.querySelector("#stravaAppConfigOverlay");
-  if (o) { o.hidden = false; refreshStravaUserAppConfig(); }
+  if (o) { o.hidden = false; fillStravaCopyBox(); refreshStravaUserAppConfig(); }
 }
+
+// Másolás gombok a Strava-beállító ablakban
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".strava-copy-btn");
+  if (!btn) return;
+  const text = document.getElementById(btn.dataset.copyFrom)?.textContent.trim() || "";
+  try { await navigator.clipboard.writeText(text); } catch { return; }
+  const old = btn.textContent;
+  btn.textContent = "✓ Másolva";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+});
 function closeStravaAppConfigModal() {
   const o = document.querySelector("#stravaAppConfigOverlay");
   if (o) o.hidden = true;
