@@ -297,6 +297,7 @@ export const routesApi = {
     listInvites()                     { return fetchJson(`${BASE}/admin/invites`); },
     createInvite(data)                { return fetchJson(`${BASE}/admin/invites`, { method: "POST", body: JSON.stringify(data) }); },
     revokeInvite(token)               { return fetchJson(`${BASE}/admin/invites/${encodeURIComponent(token)}`, { method: "DELETE" }); },
+    sendInvite(token)                 { return fetchJson(`${BASE}/admin/invites/${encodeURIComponent(token)}/send`, { method: "POST" }); },
     listFeedback()                    { return fetchJson(`${BASE}/admin/feedback`); },
     setFeedbackStatus(id, status)     { return fetchJson(`${BASE}/admin/feedback/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }); },
     deleteFeedback(id)                { return fetchJson(`${BASE}/admin/feedback/${encodeURIComponent(id)}`, { method: "DELETE" }); },

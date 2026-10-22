@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -285,6 +285,15 @@ def _db_init_locked() -> None:
                 conn.execute("ALTER TABLE route_submissions ADD COLUMN author_alias TEXT NOT NULL DEFAULT ''")
             conn.execute("PRAGMA user_version = 13")
             log.info("DB migrálva v13-ra (beküldő beceneve)")
+        if ver < 14:
+            # v14: e-mailben kiküldött meghívó – a meghívott címe és a küldés ideje
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(invites)")}
+            if "invited_email" not in cols:
+                conn.execute("ALTER TABLE invites ADD COLUMN invited_email TEXT NOT NULL DEFAULT ''")
+            if "sent_at" not in cols:
+                conn.execute("ALTER TABLE invites ADD COLUMN sent_at TEXT")
+            conn.execute("PRAGMA user_version = 14")
+            log.info("DB migrálva v14-re (meghívó e-mailben)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

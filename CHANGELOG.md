@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.15.0 – 2026-10-22 – Meghívó e-mailben
+
+- **Meghívó e-mailben (admin):** az új meghívónál megadható a jelentkező e-mail-címe – ilyenkor a meghívó egyszer használható, és a „Létrehozás és küldés” gombbal a Bringaterv HTML-levélben ki is küldi („Regisztrálok” gomb, lejárat). A regisztrációs oldalon a cím előre kitöltve; ha a meghívott ezzel a címmel regisztrál, a cím rögtön igazolt (nincs megerősítő kód). A meghívók listájában látszik a cím és a küldés ideje, aktív meghívónál „Újraküldés”. Adatbázis-migráció: v14.
+
+### Verzió
+- v1.14.0 → v1.15.0
+
+---
+
 ## v1.14.0 – 2026-10-22 – Statok mobilon, Strava-beállítás képes leírással
 
 - **Strava-beállítás képes leírással:** a súgóban lépésről lépésre, képernyőképekkel, hogyan hozz létre saját Strava API-alkalmazást (mezőnként mit írj be, ikon, Client ID / Secret), mit tegyél, ha már van alkalmazásod, és hogyan töltsd fel kézzel az edzéseket, ha a kapcsolat nem sikerül. A Bringaterv „Strava API beállítás” ablaka is megújult: a Strava űrlapjába írandó értékek (Website, Callback Domain, Category, Description) **másolás gombbal**, link a képes leírásra, letölthető logó az ikonhoz; a haladó visszatérési cím felülírás becsukva.

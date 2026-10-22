@@ -475,32 +475,109 @@ def admin_list_invites():
     return jsonify([_invite_public(r) for r in rows])
 
 
+def _send_invite_mail(row, inviter: str) -> None:
+    """A meghívó levél kiküldése a meghívott címére (hiba esetén kivételt dob)."""
+    import mail_templates
+    import mailer
+    from api_account import public_base
+    link = f"{public_base()}/invite?t={row['token']}"
+    months = ("január", "február", "március", "április", "május", "június", "július", "augusztus",
+              "szeptember", "október", "november", "december")
+    exp = row["expires_at"] or ""
+    until = f"{months[int(exp[5:7]) - 1]} {int(exp[8:10])}" if len(exp) >= 10 else "a megadott időpont"
+    who = inviter or "A Bringaterv csapata"
+    intro = (f"Szia!\n\n{who} meghívott a Bringatervbe – útvonaltervező és edzésnapló egy helyen: "
+             "megtervezed a túrát, utána visszanézed az edzést, és látod, hogyan fejlődsz.\n\n"
+             "A regisztráció egy perc: a gombra kattintva add meg a neved és egy jelszót.")
+    text = (f"{intro}\n\nRegisztráció: {link}\n\n"
+            f"A meghívó {until}-ig érvényes, és csak egyszer használható. "
+            "Ha nem számítottál rá, nyugodtan hagyd figyelmen kívül.\n\nBringaterv")
+    mailer.send("Meghívó a Bringatervbe", text, to=[row["invited_email"]], html=mail_templates.render(
+        "Meghívó a Bringatervbe", intro,
+        button=("Regisztrálok", link),
+        note=f"A meghívó {until}-ig érvényes, és csak egyszer használható. "
+             "Ha nem számítottál rá, nyugodtan hagyd figyelmen kívül.",
+        preheader=f"{who} meghívott a Bringatervbe"))
+
+
+def _inviter_name(user_id: str) -> str:
+    with _db() as conn:
+        r = conn.execute("SELECT name FROM users WHERE id = ?", (user_id,)).fetchone()
+    return (r["name"] if r else "") or ""
+
+
 @bp.route("/api/admin/invites", methods=["POST"])
 @require_auth
 @require_admin
 def admin_create_invite():
-    """body: {role, days (1–90), max_uses (1–50), quota_routes?, note}"""
+    """body: {role, days (1–90), max_uses (1–50), quota_routes?, note, email?, send?}
+    Ha van e-mail-cím: a meghívó egyszer használható, és (send=true esetén) ki is küldjük."""
     import secrets
     from datetime import datetime, timedelta, timezone
+    from api_account import EMAIL_RE
     body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    if email:
+        if not EMAIL_RE.match(email) or len(email) > 120:
+            abort(400, description="Érvénytelen e-mail-cím.")
+        with _db() as conn:
+            if conn.execute("SELECT id FROM users WHERE email = ? OR contact_email = ?", (email, email)).fetchone():
+                abort(409, description="Ezzel az e-mail-címmel már van fiók.")
     role = body.get("role", "user")
     if role not in ("user", "readonly", "admin"):
         abort(400, description="Érvénytelen szerepkör")
     try:
         days = max(1, min(90, int(body.get("days", 7))))
-        max_uses = max(1, min(50, int(body.get("max_uses", 1))))
+        max_uses = 1 if email else max(1, min(50, int(body.get("max_uses", 1))))
         quota = int(body["quota_routes"]) if body.get("quota_routes") not in (None, "") else None
     except (TypeError, ValueError):
         abort(400, description="Érvénytelen szám")
     token = secrets.token_urlsafe(18)
     expires = (datetime.now(timezone.utc) + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     with _db() as conn:
-        conn.execute("""INSERT INTO invites (token, created_at, created_by, expires_at, max_uses, role, quota_routes, note)
-                        VALUES (?,?,?,?,?,?,?,?)""",
-                     (token, _now_dt(), g.user["id"], expires, max_uses, role, quota, (body.get("note") or "").strip()[:200]))
+        conn.execute("""INSERT INTO invites (token, created_at, created_by, expires_at, max_uses, role, quota_routes, note,
+                                             invited_email)
+                        VALUES (?,?,?,?,?,?,?,?,?)""",
+                     (token, _now_dt(), g.user["id"], expires, max_uses, role, quota, (body.get("note") or "").strip()[:200],
+                      email))
         row = conn.execute("SELECT * FROM invites WHERE token = ?", (token,)).fetchone()
-    log.info("Meghívó létrehozva (%s, %s nap, %sx) – admin: %s", role, days, max_uses, g.user["email"])
-    return jsonify(_invite_public(row)), 201
+    log.info("Meghívó létrehozva (%s, %s nap, %sx%s) – admin: %s", role, days, max_uses,
+             ", e-mailben" if email else "", g.user["email"])
+    out = _invite_public(row)
+    if email and body.get("send", True):
+        out.update(_try_send_invite(row))
+    return jsonify(out), 201
+
+
+def _try_send_invite(row) -> dict:
+    """Kiküldés + sent_at rögzítése; az eredményt a válaszba tesszük (a meghívó hiba esetén is megmarad)."""
+    try:
+        _send_invite_mail(row, _inviter_name(row["created_by"] or g.user["id"]))
+    except Exception as exc:
+        log.warning("Meghívó levél küldési hiba (%s): %s", row["invited_email"], exc)
+        return {"mail_sent": False, "mail_error": str(exc)}
+    with _db() as conn:
+        conn.execute("UPDATE invites SET sent_at = ? WHERE token = ?", (_now_dt(), row["token"]))
+    return {"mail_sent": True, "sent_at": _now_dt()}
+
+
+@bp.route("/api/admin/invites/<token>/send", methods=["POST"])
+@require_auth
+@require_admin
+def admin_send_invite(token: str):
+    """E-mailes meghívó (újra)küldése – csak aktív, címhez kötött meghívónál."""
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM invites WHERE token = ?", (token,)).fetchone()
+    if not row:
+        abort(404, description="Nincs ilyen meghívó.")
+    if not row["invited_email"]:
+        abort(400, description="Ehhez a meghívóhoz nincs e-mail-cím.")
+    if _invite_public(row)["status"] != "active":
+        abort(400, description="A meghívó már nem aktív.")
+    res = _try_send_invite(row)
+    if not res["mail_sent"]:
+        abort(502, description=f"Nem sikerült elküldeni: {res['mail_error']}")
+    return jsonify(res)
 
 
 @bp.route("/api/admin/invites/<token>", methods=["DELETE"])

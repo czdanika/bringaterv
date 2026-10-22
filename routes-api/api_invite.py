@@ -34,8 +34,8 @@ def invite_info(token: str):
         r, err = _valid_invite(conn, token)
         if err:
             return jsonify({"valid": False, "error": err}), 404
-    # Csak az érvényesség és a lejárat – a meghívó neve és a megjegyzés nem kerül ki
-    return jsonify({"valid": True, "expires_at": r["expires_at"]})
+    # Csak az érvényesség, a lejárat és (e-mailes meghívónál) a cím – a megjegyzés nem kerül ki
+    return jsonify({"valid": True, "expires_at": r["expires_at"], "email": r["invited_email"] or ""})
 
 
 @bp.route("/api/invite/<token>/register", methods=["POST"])
@@ -67,7 +67,10 @@ def invite_register(token: str):
         conn.execute("UPDATE users SET last_login_at = ?, login_count = 1, contact_email = ? WHERE id = ?",
                      (_now_dt(), email, uid))
         user = dict(conn.execute("SELECT id, email, name, role FROM users WHERE id = ?", (uid,)).fetchone())
-        if mailer.status()["configured"]:
+        if r["invited_email"] and r["invited_email"] == email:
+            # A meghívót erre a címre küldtük, a linkkel jött – a cím ezzel igazolt, nem kell kód
+            conn.execute("UPDATE users SET email_verified_at = ? WHERE id = ?", (_now_dt(), uid))
+        elif mailer.status()["configured"]:
             send_verification(conn, user, email, public_base())
     log.info("Regisztráció meghívóval: %s [%s]", email, user["role"])
     return jsonify({"token": _make_token(user["id"], user["email"], user["role"]), "user": user}), 201

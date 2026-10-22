@@ -280,6 +280,7 @@
         const exp = d.expires_at ? new Date(d.expires_at).toLocaleDateString("hu-HU", { month: "long", day: "numeric" }) : "";
         $("inviteInfo").textContent = "Meghívást kaptál a Bringatervbe – útvonaltervezés és edzésnapló egy helyen."
           + (exp ? ` A meghívó ${exp}-ig érvényes.` : "");
+        if (d.email) $("email").value = d.email;   // e-mailben kapott meghívó: a cím előre kitöltve (átírható)
         $("lastName").focus();
       } catch {
         invalid("A szerver most nem érhető el – próbáld újra később.");

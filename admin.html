@@ -406,7 +406,11 @@
       .modal-overlay { padding: 8px; align-items: flex-end; }
       .modal { max-width: none !important; width: 100% !important; max-height: calc(100dvh - 16px); overflow-y: auto; }
     }
-  </style>
+      .inv-email-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .inv-sent { margin: -4px 0 12px; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      background: rgba(34,197,94,.12); color: #15803d; }
+    .inv-sent--err { background: rgba(239,68,68,.12); color: #b91c1c; }
+</style>
 </head>
 <body>
 
@@ -575,6 +579,7 @@
         <h3 id="admin-meghivok">Meghívók</h3>
         <ul>
           <li><b>Új meghívó</b>: megjegyzés (csak az adminnak látszik, pl. kinek szól), szerepkör, érvényesség (1–90 nap), hányszor használható (1–50), opcionális útvonal-kvóta.</li>
+          <li><b>E-mailben küldve:</b> ha megadod a jelentkező e-mail-címét, a meghívó <b>egyszer használható</b> lesz, és a „Létrehozás és küldés” gombbal a Bringaterv el is küldi neki egy szép levélben a „Regisztrálok” gombbal (a lejárattal együtt). A regisztrációs oldalon a cím előre ki van töltve; ha ezzel regisztrál, a cím rögtön igazolt, nem kell megerősítő kódot beírnia. A listában látszik, hova és mikor ment ki, és aktív meghívónál <b>Újraküldés</b> gomb van. Ha a küldés nem sikerül (pl. nincs beállítva az e-mail), a meghívó megmarad, és a link máshogy is elküldhető.</li>
           <li>Létrehozás után QR-kód és link jelenik meg: <b>másolás</b>, a telefon <b>megosztás</b> menüje, e-mail, WhatsApp, Messenger.</li>
           <li>A meghívott a linken regisztrál: név, belépési név, jelszó, és el kell fogadnia az adatkezelési tájékoztatót. A meghívó oldalán nem jelenik meg, ki küldte, és a megjegyzés sem.</li>
           <li>Állapotok: <b>aktív</b>, <b>felhasznált</b> (elfogyott a használat), <b>lejárt</b>, <b>visszavont</b>. Egy aktív meghívó bármikor <b>visszavonható</b> – utána a link már nem működik.</li>
@@ -859,6 +864,11 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
+          <label class="form-label" for="invEmail">E-mail-cím (nem kötelező)</label>
+          <input class="form-input" id="invEmail" type="email" placeholder="pl. peter@example.com" maxlength="120" autocomplete="off">
+          <p class="inv-email-hint" id="invEmailHint">Ha megadod, a meghívót a létrehozás után el is küldjük neki e-mailben, és <b>csak egyszer használható</b>. Ha ezzel a címmel regisztrál, nem kell megerősítő kódot beírnia.</p>
+        </div>
+        <div class="form-group">
           <label class="form-label">Kinek? (megjegyzés, csak neked látszik)</label>
           <input class="form-input" id="invNote" type="text" placeholder="pl. Péter, edzőtárs" maxlength="200">
         </div>
@@ -953,6 +963,7 @@
       <div class="modal-body" style="text-align:center">
         <canvas id="invQr" width="200" height="200" style="width:200px;height:200px;border-radius:12px;background:#fff;padding:8px"></canvas>
         <p id="invMeta" style="font-size:12px;color:var(--muted);margin:8px 0 12px"></p>
+        <p class="inv-sent" id="invSent" hidden></p>
         <div class="inv-link-row">
           <input class="form-input" id="invLink" type="text" readonly>
           <button class="btn btn-ghost" id="invCopyBtn" type="button">Másolás</button>
@@ -2012,18 +2023,28 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
         wrap.innerHTML = `<table class="user-table invite-table"><thead><tr>
             <th>Kinek</th><th>Szerepkör</th><th>Állapot</th><th>Felhasználva</th><th>Lejár</th><th></th></tr></thead><tbody>
           ${list.map(i => `<tr>
-            <td><div class="user-name">${escHtml(i.note || "—")}</div><div class="user-email">${fmtDate(i.created_at)}</div></td>
+            <td><div class="user-name">${escHtml(i.note || i.invited_email || "—")}</div>
+              ${i.invited_email ? `<div class="user-email">✉ ${escHtml(i.invited_email)}${i.sent_at ? " · elküldve " + fmtDate(i.sent_at) : " · nincs elküldve"}</div>` : ""}
+              <div class="user-email">${fmtDate(i.created_at)}</div></td>
             <td data-label="Szerepkör">${ROLE_LABEL[i.role] || i.role}</td>
             <td data-label="Állapot"><span class="badge ${INV_STATUS[i.status][1]}">${INV_STATUS[i.status][0]}</span></td>
             <td data-label="Felhasználva">${i.uses} / ${i.max_uses}${i.used_by ? `<div class="user-email">${escHtml(i.used_by)}</div>` : ""}</td>
             <td data-label="Lejár" style="white-space:nowrap">${fmtDate(i.expires_at)}</td>
             <td><div class="row-actions" style="justify-content:flex-end">
+              ${i.status === "active" && i.invited_email ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-inv-send="${escHtml(i.token)}">${i.sent_at ? "Újraküldés" : "Küldés"}</button>` : ""}
               ${i.status === "active" ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-inv-share="${escHtml(i.token)}">Link</button>
               <button class="btn btn-danger-ghost" style="padding:5px 10px;font-size:12px" data-inv-revoke="${escHtml(i.token)}">Visszavonás</button>` : ""}
             </div></td></tr>`).join("")}
           </tbody></table>`;
         wrap.querySelectorAll("[data-inv-share]").forEach(b => b.addEventListener("click", () => {
           openInviteLink(list.find(i => i.token === b.dataset.invShare));
+        }));
+        wrap.querySelectorAll("[data-inv-send]").forEach(b => b.addEventListener("click", async () => {
+          const inv = list.find(i => i.token === b.dataset.invSend);
+          if (!confirm(`Elküldöd a meghívót ide: ${inv.invited_email}?`)) return;
+          b.disabled = true; b.textContent = "Küldés…";
+          try { await routesApi.admin.sendInvite(inv.token); loadInvites(); }
+          catch (e) { alert(e.message); b.disabled = false; b.textContent = "Újraküldés"; }
         }));
         wrap.querySelectorAll("[data-inv-revoke]").forEach(b => b.addEventListener("click", async () => {
           if (!confirm("Visszavonod a meghívót? A link ezután nem használható.")) return;
@@ -2423,6 +2444,8 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
     document.querySelector("#createInviteBtn").addEventListener("click", () => {
       document.querySelector("#invNote").value = "";
+      document.querySelector("#invEmail").value = "";
+      syncInvEmail();
       document.querySelector("#invQuota").value = "";
       document.querySelector("#invError").textContent = "";
       document.querySelector("#inviteModal").hidden = false;
@@ -2437,6 +2460,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
           days: Number(document.querySelector("#invDays").value),
           max_uses: Number(document.querySelector("#invUses").value),
           quota_routes: document.querySelector("#invQuota").value || null,
+          email: document.querySelector("#invEmail").value.trim(),
         });
         document.querySelector("#inviteModal").hidden = true;
         openInviteLink(inv);
@@ -2469,8 +2493,24 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       } catch { canvas.hidden = true; }
     }
 
+    // E-mail-cím megadásakor a meghívó egyszer használható (a szerver is így menti) – a választó ezt mutassa
+    function syncInvEmail() {
+      const has = !!document.querySelector("#invEmail").value.trim();
+      const uses = document.querySelector("#invUses");
+      if (has) uses.value = "1";
+      uses.disabled = has;
+      document.querySelector("#invSubmitBtn").textContent = has ? "Létrehozás és küldés" : "Meghívó létrehozása";
+    }
+    document.querySelector("#invEmail").addEventListener("input", syncInvEmail);
+
     function openInviteLink(inv) {
       if (!inv) return;
+      const sent = document.querySelector("#invSent");
+      sent.hidden = !inv.invited_email;
+      sent.className = "inv-sent" + (inv.mail_sent === false ? " inv-sent--err" : "");
+      sent.textContent = inv.mail_sent === true ? `✓ Elküldve e-mailben: ${inv.invited_email}`
+        : inv.mail_sent === false ? `Nem sikerült elküldeni (${inv.mail_error || "hiba"}) – küldd el a linket máshogy, vagy próbáld újra a listában.`
+        : inv.sent_at ? `E-mailben elküldve: ${inv.invited_email} (${fmtDate(inv.sent_at)})` : `Címhez kötött meghívó: ${inv.invited_email}`;
       const url = inviteUrl(inv.token);
       const text = "Meghívlak a Bringatervbe – útvonaltervezés és edzésnapló. Regisztrálj ezen a linken:";
       document.querySelector("#invLink").value = url;
