@@ -913,6 +913,7 @@ const visibleSections = new Set();
 
 function updateElevationButton(geometry) {
   activeGeometry = geometry ?? [];
+  if (currentTab !== "file") renderMobileElevStrip(activeGeometry);
   const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
   if (elements.elevationBtn) elements.elevationBtn.disabled = !hasEle;
   // Wind gomb: csak tervezési kontextusban (importált fájl esetén nem releváns)
@@ -2229,6 +2230,219 @@ function setLoopStart(id) {
     sourcePointCount: st.sourcePointCount,
   });
   showToast(`Új rajt: ${start.name || "kijelölt pont"}`);
+}
+
+// ── Mobil tervezési összefoglaló (a lap teteje) ──────────────────────────────
+(function initMobilePlanSummary() {
+  const box = document.getElementById("mPlanSummary");
+  if (!box) return;
+  const $id = (i) => document.getElementById(i);
+  // a kereső mobilon a lap tetejére költözik (a meglévő elem, a figyelőivel együtt)
+  const form = $id("searchForm"), results = $id("searchResults"), slot = $id("mSearchSlot");
+  const homeParent = form?.parentElement, homeNext = results?.nextElementSibling;
+  const placeSearch = () => {
+    if (!form || !slot) return;
+    if (mobileMQ.matches) { slot.append(form, results); }
+    else if (homeParent && form.parentElement === slot) { homeParent.insertBefore(results, homeNext); homeParent.insertBefore(form, results); }
+  };
+  placeSearch();
+  mobileMQ.addEventListener?.("change", placeSearch);
+
+  // számok: a meglévő statokból, kis mértékegységgel
+  const unitify = (t) => String(t || "—").replace(/([\d,.]+)\s*([^\d\s,.]+)/g, "$1<small>$2</small>");
+  const mirror = () => {
+    $id("mSumDist").innerHTML = unitify($id("distanceValue")?.textContent);
+    $id("mSumTime").innerHTML = unitify($id("estimatedTimeValue")?.textContent);
+    $id("mSumAsc").innerHTML = unitify($id("ascentValue")?.textContent);
+  };
+  ["distanceValue", "estimatedTimeValue", "ascentValue"].forEach((i) => {
+    const el = $id(i); if (el) new MutationObserver(mirror).observe(el, { childList: true, characterData: true, subtree: true });
+  });
+  mirror();
+
+  // tervezési mód: szegmentált kapcsoló (a meglévő mód-gombokat nyomja meg)
+  const MODES = [["asphalt", "Aszfalt"], ["gravel", "Gravel"], ["mtb", "MTB"], ["walking", "Túra"]];
+  const modes = $id("mModes");
+  modes.innerHTML = MODES.map(([m, l]) => `<button type="button" class="wp-mode" role="radio" data-m="${m}"><i style="background:${SEGMENT_COLORS[m] ?? "#888"}"></i>${l}</button>`).join("");
+  modes.addEventListener("click", (e) => {
+    const b = e.target.closest(".wp-mode"); if (!b) return;
+    document.querySelector(`.route-mode-item[data-route-mode="${b.dataset.m}"]`)?.click();
+  });
+
+  // eszközgombok: a (mobilon rejtett) lebegő eszköztár gombjait nyomják meg, azok állapotát követik
+  const proxies = [...document.querySelectorAll("#mTools [data-proxy], #mMapUndo [data-proxy]")];
+  proxies.forEach((b) => {
+    const src = $id(b.dataset.proxy);
+    if (!src) { b.hidden = true; return; }
+    b.addEventListener("click", () => src.click());
+    const sync = () => { b.disabled = src.disabled; b.classList.toggle("is-active", src.classList.contains("is-active")); };
+    new MutationObserver(sync).observe(src, { attributes: true, attributeFilter: ["disabled", "class"] });
+    sync();
+  });
+  window.lucide?.createIcons({ nodes: [$id("mTools"), $id("mMapUndo"), $id("mSumStats")].filter(Boolean) });
+
+  $id("mLoopToggle")?.addEventListener("change", (e) => setLoop(e.target.checked));
+  $id("mSumElev")?.addEventListener("click", () => document.getElementById("gradeLegendChartBtnPlan")?.click());
+  $id("mSaveBtn")?.addEventListener("click", () => elements.sidebarExportButton?.click());
+
+  store.subscribe((st) => {
+    const has = st.waypoints.length >= 2;
+    $id("mMapUndo").hidden = st.waypoints.length === 0;
+    $id("mSumStats").hidden = !has;
+    $id("mLoopRow").hidden = !has;
+    $id("mTools").hidden = !has;
+    $id("mLoopToggle").checked = isClosedLoop(st.waypoints);
+    modes.querySelectorAll(".wp-mode").forEach((b) => {
+      const on = b.dataset.m === st.mode;
+      b.classList.toggle("is-active", on); b.setAttribute("aria-checked", String(on));
+    });
+  });
+})();
+
+// ── Mobil elemzés: összefoglaló a lap tetején ────────────────────────────────
+// Minden mért adat egy sor: új szenzor = új sor itt (a felület ebből épül, és csak
+// azt mutatja, amiből van adat – a meglévő oldalsáv-elemek láthatósága alapján).
+const ANALYSIS_METRICS = [
+  { key: "speed", label: "Sebesség",     legend: "speedLegend", toggle: "speedMapToggle", chart: "speedChartBtn",       avg: "fileAvgSpeed", avgLabel: "Átlag",        field: null },
+  { key: "hr",    label: "Pulzus",       legend: "hrLegend",    toggle: "hrMapToggle",    chart: "hrChartBtn",          avg: "fileAvgHr",    avgLabel: "Átl. pulzus",  field: "hr",    unit: "bpm" },
+  { key: "cad",   label: "Kadencia",     legend: "cadLegend",   toggle: "cadMapToggle",   chart: "cadChartBtn",         avg: "fileAvgCad",   avgLabel: "Átl. kadencia", field: "cad",  unit: "rpm" },
+  { key: "power", label: "Teljesítmény", legend: "powerLegend", toggle: "powerMapToggle", chart: "powerChartBtn",       avg: "fileAvgPower", avgLabel: "Átl. telj.",   field: "power", unit: "W" },
+  { key: "grade", label: "Szint",        legend: "gradeLegend", toggle: "gradeMapToggle", chart: "gradeLegendChartBtn", avg: "fileAscent",   avgLabel: "Emelkedés",    field: "ele",   unit: "m" },
+];
+
+(function initMobileFileSummary() {
+  const box = document.getElementById("mFileSummary");
+  if (!box) return;
+  const $id = (i) => document.getElementById(i);
+  const unitify = (t) => String(t || "—").replace(/([\d,.]+)\s*([^\d\s,.]+)/g, "$1<small>$2</small>");
+  const visible = (id) => { const el = $id(id); return !!el && !el.hidden; };
+  const available = () => ANALYSIS_METRICS.filter((m) => visible(m.legend));
+  const activeColor = () => available().find((m) => $id(m.toggle)?.checked) || null;
+
+  // műveletek: a (mobilon rejtett) nagy gombokat nyomják meg
+  box.querySelectorAll("#mFileTools [data-proxy]").forEach((b) => {
+    const src = $id(b.dataset.proxy);
+    if (!src) { b.hidden = true; return; }
+    b.addEventListener("click", () => src.click());
+    const sync = () => { b.hidden = src.hidden; b.disabled = src.disabled; };
+    new MutationObserver(sync).observe(src, { attributes: true, attributeFilter: ["disabled", "hidden"] });
+    sync();
+  });
+
+  function render() {
+    if (!mobileMQ.matches || $id("fileDetails")?.hidden) return;
+    // fejléc
+    const name = $id("fileMetaName")?.textContent?.trim() || $id("importedFileName")?.textContent?.trim() || "Edzés";
+    $id("mFileTitle").textContent = name;
+    $id("mFileSub").textContent = [$id("fileMetaStart")?.textContent?.trim(), $id("fileMetaType")?.textContent?.trim()].filter(Boolean).join(" · ");
+    // fő számok: táv, idő, és a színezett adat átlaga (alapból átlagsebesség)
+    const act = activeColor();
+    const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
+    const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : ["fileTotalDur", "Időtartam"];
+    const stats = [["fileDistance", "Táv"], timeEl, visible(third.avg + "Row") ? [third.avg, third.avgLabel] : null].filter(Boolean);
+    $id("mFileStats").innerHTML = stats.map(([id, l]) => `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${l}</span></div>`).join("");
+    // színezés választó (csak az elérhető adatok)
+    const avail = available();
+    $id("mFileColor").innerHTML = [`<button type="button" class="m-chip${act ? "" : " is-active"}" data-color="">Nincs</button>`]
+      .concat(avail.map((m) => `<button type="button" class="m-chip${act === m ? " is-active" : ""}" data-color="${m.key}">${m.label}</button>`)).join("");
+    // (a színskála a térkép sarkában jelenik meg – itt nem ismételjük)
+    // grafikonok (több is nyitva lehet)
+    $id("mFileCharts").innerHTML = avail.filter((m) => $id(m.chart))
+      .map((m) => `<button type="button" class="m-chip${$id(m.chart).classList.contains("is-active") ? " is-active" : ""}" data-chart="${m.key}">${m.label}</button>`).join("");
+    renderStrip();
+  }
+
+  $id("mFileColor").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-color]"); if (!b) return;
+    const want = ANALYSIS_METRICS.find((m) => m.key === b.dataset.color) || null;
+    const cur = activeColor();
+    if (cur === want) return;
+    if (want) $id(want.toggle)?.click();            // a meglévő kapcsoló (egyszerre egy aktív)
+    else if (cur) $id(cur.toggle)?.click();
+    setTimeout(render, 30);
+  });
+  $id("mFileCharts").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-chart]"); if (!b) return;
+    const m = ANALYSIS_METRICS.find((x) => x.key === b.dataset.chart);
+    $id(m?.chart)?.click();
+    setTimeout(render, 30);
+  });
+
+  // mini szintprofil húzással: a térképen mozog a pont, a buborék mutatja az értékeket
+  let dists = [];
+  function renderStrip() {
+    const g = activeGeometry || [];
+    const wrap = $id("mFileStrip");
+    const data = (buildElevationData(g) || []).filter((d) => Number.isFinite(d.value));
+    if (data.length < 2) { wrap.hidden = true; return; }
+    const W = 300, H = 44, maxD = data[data.length - 1].dist || 1;
+    const vals = data.map((d) => d.value), lo = Math.min(...vals), rng = Math.max(Math.max(...vals) - lo, 20);
+    const step = Math.max(1, Math.floor(data.length / 150));
+    const pts = data.filter((_, i) => i % step === 0 || i === data.length - 1)
+      .map((d) => `${((d.dist / maxD) * W).toFixed(1)},${(H - 4 - ((d.value - lo) / rng) * (H - 10)).toFixed(1)}`);
+    $id("mFileStripSvg").innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`
+      + `<path d="M0,${H} L${pts.join(" L")} L${W},${H}Z" fill="${CHART_SOLID_GRAY}" opacity=".16"/>`
+      + `<path d="M${pts.join(" L")}" fill="none" stroke="${CHART_SOLID_GRAY}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+    dists = buildTrackDistances(g);
+    wrap.hidden = false;
+  }
+  const strip = $id("mFileStrip");
+  const scrub = (clientX) => {
+    const g = activeGeometry || [];
+    if (!dists.length || g.length < 2) return;
+    const r = strip.getBoundingClientRect();
+    const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    const target = f * dists[dists.length - 1].dist;
+    let lo = 0, hi = dists.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (dists[mid].dist < target) lo = mid + 1; else hi = mid; }
+    const p = g[lo] || {};
+    mapAdapter.setElevationMarker(p.lat, p.lng);
+    const parts = [`${num(dists[lo].dist / 1000, 1)} km`];
+    if (Number.isFinite(p.ele)) parts.push(`${Math.round(p.ele)} m`);
+    for (const m of ANALYSIS_METRICS) if (m.field && m.field !== "ele" && Number.isFinite(p[m.field]) && p[m.field] > 0) parts.push(`${Math.round(p[m.field])} ${m.unit}`);
+    const cur = $id("mFileCursor"), bub = $id("mFileBubble");
+    cur.hidden = bub.hidden = false;
+    cur.style.left = `${f * 100}%`;
+    bub.textContent = parts.join(" · ");
+    bub.style.left = `${Math.max(18, Math.min(82, f * 100))}%`;
+  };
+  const endScrub = () => { $id("mFileCursor").hidden = $id("mFileBubble").hidden = true; mapAdapter.clearElevationMarker(); };
+  strip.addEventListener("pointerdown", (e) => { strip.setPointerCapture(e.pointerId); scrub(e.clientX); });
+  strip.addEventListener("pointermove", (e) => { if (e.buttons || e.pointerType === "touch") scrub(e.clientX); });
+  strip.addEventListener("pointerup", endScrub);
+  strip.addEventListener("pointercancel", endScrub);
+
+  // frissítés: ha a fájl adatai, a kapcsolók vagy a grafikonok változnak
+  let t = null;
+  const later = () => { clearTimeout(t); t = setTimeout(render, 60); };
+  const details = $id("fileDetails");
+  // a saját összefoglaló változásai nem számítanak (különben önmagát frissítené)
+  if (details) new MutationObserver((muts) => { if (muts.some((mu) => !box.contains(mu.target))) later(); })
+    .observe(details, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden"] });
+  ANALYSIS_METRICS.forEach((m) => {
+    $id(m.toggle)?.addEventListener("change", later);
+    const c = $id(m.chart); if (c) new MutationObserver(later).observe(c, { attributes: true, attributeFilter: ["class"] });
+  });
+  mobileMQ.addEventListener?.("change", later);
+  window.lucide?.createIcons({ nodes: [box] });
+  later();
+})();
+
+/** Mini szintprofil a mobil összefoglalóban (szürke csík, koppintásra a nagy diagram). */
+function renderMobileElevStrip(geometry) {
+  const box = document.getElementById("mSumElev");
+  if (!box) return;
+  const data = (buildElevationData(geometry || []) || []).filter((d) => Number.isFinite(d.value));
+  if (data.length < 2) { box.hidden = true; box.innerHTML = ""; return; }
+  const W = 300, H = 44, maxD = data[data.length - 1].dist || 1;
+  const vals = data.map((d) => d.value), lo = Math.min(...vals), hi = Math.max(...vals), rng = Math.max(hi - lo, 20);
+  const step = Math.max(1, Math.floor(data.length / 150));
+  const pts = data.filter((_, i) => i % step === 0 || i === data.length - 1)
+    .map((d) => `${((d.dist / maxD) * W).toFixed(1)},${(H - 4 - ((d.value - lo) / rng) * (H - 10)).toFixed(1)}`);
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`
+    + `<path d="M0,${H} L${pts.join(" L")} L${W},${H}Z" fill="${CHART_SOLID_GRAY}" opacity=".16"/>`
+    + `<path d="M${pts.join(" L")}" fill="none" stroke="${CHART_SOLID_GRAY}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  box.hidden = false;
 }
 
 // Körtúra kapcsoló (útvonal-beállítások) – az állapota a pontokból adódik

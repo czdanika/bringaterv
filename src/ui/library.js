@@ -437,6 +437,9 @@ function buildLibraryExpandRow(route, category, isSample) {
   ].filter(Boolean).join(" · ") : "";
 
   const isWorkout = category === "workout";
+  // Gomb: asztalon a hosszú felirat, mobilon ikon + rövid felirat
+  const act = (action, icon, long, short, cls = "", attrs = "") =>
+    `<button class="library-card-btn ${cls}" data-action="${action}" ${attrs}><i data-lucide="${icon}" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">${long}</span><span class="m-only">${short}</span></button>`;
   td.innerHTML = `
     <div class="library-list-expand-inner">
       ${previewSlot}
@@ -449,23 +452,21 @@ function buildLibraryExpandRow(route, category, isSample) {
       </div>
       <div class="library-expand-actions">
         <div class="library-expand-actions-main">
-          <button class="library-card-btn library-card-btn--primary" data-action="load-${isWorkout ? "file" : "plan"}">
-            ${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre"}
-          </button>
-          ${!isWorkout ? '' : '<button class="library-card-btn" data-action="load-plan">Betöltés tervezésre</button>'}
-          <button class="library-card-btn" data-action="share-menu" title="Megosztó kép, PDF útvonallap, nyilvános link">Megosztás</button>
-          <button class="library-card-btn" data-action="download-gpx">GPX</button>
-          ${route.has_fit ? '<button class="library-card-btn" data-action="download-fit">FIT</button>' : ''}
-          ${route.strava_id ? '<button class="library-card-btn" data-action="strava-refresh">Frissítés Stravából</button>' : ''}
-          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener">Megnyitás Stravában ↗</a>` : ''}
-          ${(!isWorkout && !isSample) ? `<button class="library-card-btn${route.garmin_course_id ? ' garmin-uploaded' : ''}" data-action="garmin-course" title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)">${route.garmin_course_id ? '✓ Garmin – újraküldés' : 'Küldés Garminra'}</button>` : ''}
-          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben">Garmin course ↗</a>` : ''}
+          ${act(`load-${isWorkout ? "file" : "plan"}`, isWorkout ? "line-chart" : "map-pin-plus", isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre", isWorkout ? "Elemzés" : "Tervezés", "library-card-btn--primary")}
+          ${!isWorkout ? '' : act("load-plan", "map-pin-plus", "Betöltés tervezésre", "Tervezés")}
+          ${act("share-menu", "share-2", "Megosztás", "Megosztás", "", 'title="Megosztó kép, PDF útvonallap, nyilvános link"')}
+          ${act("download-gpx", "download", "GPX", "GPX")}
+          ${route.has_fit ? act("download-fit", "file-down", "FIT", "FIT") : ''}
+          ${route.strava_id ? act("strava-refresh", "refresh-cw", "Frissítés Stravából", "Frissítés") : ''}
+          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener"><i data-lucide="external-link" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">Megnyitás Stravában ↗</span><span class="m-only">Strava</span></a>` : ''}
+          ${(!isWorkout && !isSample) ? act("garmin-course", "watch", route.garmin_course_id ? '✓ Garmin – újraküldés' : 'Küldés Garminra', "Garmin", route.garmin_course_id ? 'garmin-uploaded' : '', 'title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"') : ''}
+          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben"><i data-lucide="external-link" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">Garmin course ↗</span><span class="m-only">Course</span></a>` : ''}
         </div>
         ${!isSample ? `<div class="library-expand-actions-end">
-          <button class="library-card-btn library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}" data-action="toggle-stats">${route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában'}</button>
-          <button class="library-card-btn" data-action="submit-community" title="Beküldés a közösségi útvonalak közé (admin jóváhagyással)">Beküldés a közösbe</button>
-          <button class="library-card-btn" data-action="edit">Szerkesztés</button>
-          <button class="library-card-btn library-card-btn--danger" data-action="delete">Törlés</button>
+          ${act("toggle-stats", route.include_in_stats === false ? "square" : "check-square", route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában', "Statisztika", `library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}`)}
+          ${act("submit-community", "users", "Beküldés a közösbe", "Közösbe", "", 'title="Beküldés a közösségi útvonalak közé (admin jóváhagyással)"')}
+          ${act("edit", "pencil", "Szerkesztés", "Módosítás")}
+          ${act("delete", "trash-2", "Törlés", "Törlés", "library-card-btn--danger")}
         </div>` : ''}
       </div>
     </div>`;
@@ -486,7 +487,12 @@ function buildLibraryExpandRow(route, category, isSample) {
 // Megosztás-ablak is ezt hívja
 function makeRouteActionRunner(route, isSample) {
 async function runAction(act, btn) {
-    const origLabel = btn.textContent;
+    const origLabel = btn.innerHTML;
+    // felirat átírása úgy, hogy az ikon és a mobil/asztali felirat-szerkezet megmaradjon
+    const setLabel = (text) => {
+      const spans = btn.querySelectorAll(".d-only, .m-only");
+      if (spans.length) spans.forEach((sp) => { sp.textContent = text; }); else btn.textContent = text;
+    };
     try {
       if (act === "share-menu") {
         openShareModal({
@@ -520,7 +526,8 @@ async function runAction(act, btn) {
             if (i >= 0) coll[i].include_in_stats = next;
           }
           btn.classList.toggle("is-on", next);
-          btn.textContent = next ? "☑ Statisztikában" : "☐ Statisztikán kívül";
+          btn.querySelector(".d-only") ? (btn.querySelector(".d-only").textContent = next ? "☑ Statisztikában" : "☐ Statisztikán kívül")
+            : (btn.textContent = next ? "☑ Statisztikában" : "☐ Statisztikán kívül");
           _toast(next ? "Beleszámít a statisztikákba" : "Kihagyva a statisztikákból");
         } catch { _toast("Nem sikerült módosítani."); } finally { btn.disabled = false; }
       } else if (act === "strava-refresh") {
@@ -571,7 +578,7 @@ async function runAction(act, btn) {
           else _toast("Garmin feltöltés sikertelen: " + err.message);
         } finally { btn.disabled = false; }
       } else if (act === "share") {
-        btn.disabled = true; btn.textContent = "Betöltés…";
+        btn.disabled = true; setLabel("Betöltés…");
         try {
           const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
           // Teljes feldolgozás (sebesség, pulzus, kadencia, teljesítmény is – a grafikonokhoz);
@@ -596,9 +603,9 @@ async function runAction(act, btn) {
             shareUrl: isSample ? null : shareRouteUrl(route.id),
           });
         } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
-        finally { btn.disabled = false; btn.textContent = origLabel; }
+        finally { btn.disabled = false; btn.innerHTML = origLabel; }
       } else if (act === "pdf") {
-        btn.disabled = true; btn.textContent = "Betöltés…";
+        btn.disabled = true; setLabel("Betöltés…");
         try {
           const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
           const xml = new DOMParser().parseFromString(gpxText, "application/xml");
@@ -654,7 +661,7 @@ async function runAction(act, btn) {
             filename: route.name || "utvonalterv",
           });
         } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
-        finally { btn.disabled = false; btn.textContent = origLabel; }
+        finally { btn.disabled = false; btn.innerHTML = origLabel; }
       } else if (act === "delete") {
         if (!confirm(`Biztosan törlöd: „${route.name}"?`)) return;
         await _api.deleteRoute(route.id);

@@ -97,6 +97,30 @@
           <!-- ===== TERVEZÉS PANEL ===== -->
           <div class="tab-panel" id="tabPlan">
 
+            <!-- Mobil összefoglaló (Apple Térkép-szerű lap teteje) – asztalon rejtve -->
+            <section class="m-plan-summary" id="mPlanSummary" aria-label="Útvonal összefoglaló">
+              <div id="mSearchSlot"></div>
+              <div class="m-sum-stats" id="mSumStats" hidden>
+                <div class="cs-stat"><b id="mSumDist">—</b><span>Táv</span></div>
+                <div class="cs-stat"><b id="mSumTime">—</b><span>Becsült idő</span></div>
+                <div class="cs-stat"><b id="mSumAsc">—</b><span>Emelkedés</span></div>
+                <button type="button" class="m-save-btn" id="mSaveBtn"><i data-lucide="save" aria-hidden="true"></i>Mentés</button>
+              </div>
+              <button type="button" class="m-sum-elev" id="mSumElev" title="Szintprofil megnyitása" hidden></button>
+              <div class="wp-modes m-modes" id="mModes" role="radiogroup" aria-label="Tervezési mód"></div>
+              <label class="wp-switch m-loop" id="mLoopRow" hidden>
+                <span><b>Körtúra</b><small>az útvonal visszaér a rajthoz</small></span>
+                <span class="toggle-switch"><input type="checkbox" id="mLoopToggle"><span class="toggle-track"></span></span>
+              </label>
+              <div class="m-tools" id="mTools" hidden>
+                <button type="button" data-proxy="gradeLegendChartBtnPlan"><i data-lucide="mountain" aria-hidden="true"></i><span>Szintprofil</span></button>
+                <button type="button" data-proxy="reverseRouteButton"><i data-lucide="arrow-left-right" aria-hidden="true"></i><span>Fordítás</span></button>
+                <button type="button" data-proxy="roundTripButton"><i data-lucide="repeat" aria-hidden="true"></i><span>Oda-vissza</span></button>
+                <button type="button" data-proxy="windBtn"><i data-lucide="wind" aria-hidden="true"></i><span>Szél</span></button>
+                <button type="button" data-proxy="resetRouteButton" class="m-tool-danger"><i data-lucide="trash-2" aria-hidden="true"></i><span>Törlés</span></button>
+              </div>
+            </section>
+
             <!-- Tervezési mód -->
             <section class="sidebar-section collapsed-visible">
               <div class="option-row">
@@ -382,6 +406,30 @@
 
             <!-- Fájl részletek -->
             <div id="fileDetails" hidden>
+              <!-- Mobil összefoglaló (az alsó lap teteje) – asztalon rejtve; a mérőszámok a main.js ANALYSIS_METRICS listájából -->
+              <section class="m-file-summary" id="mFileSummary" aria-label="Edzés összefoglaló">
+                <div class="m-file-head">
+                  <span class="m-file-ico"><i data-lucide="bike" aria-hidden="true"></i></span>
+                  <div class="m-file-titles"><div class="m-file-title" id="mFileTitle">—</div><div class="m-file-sub" id="mFileSub"></div></div>
+                </div>
+                <div class="m-sum-stats" id="mFileStats"></div>
+                <div class="m-file-strip" id="mFileStrip" hidden>
+                  <div class="m-file-strip-svg" id="mFileStripSvg"></div>
+                  <div class="m-file-cursor" id="mFileCursor" hidden></div>
+                  <div class="m-file-bubble" id="mFileBubble" hidden></div>
+                </div>
+                <div class="m-file-label">Térkép színezése</div>
+                <div class="m-chips" id="mFileColor" role="radiogroup" aria-label="Térkép színezése"></div>
+                <div class="m-tools m-file-tools" id="mFileTools">
+                  <button type="button" data-proxy="planFromFileBtn" class="m-tool-pri"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>
+                  <button type="button" data-proxy="fileSaveToLibraryButton"><i data-lucide="bookmark-plus" aria-hidden="true"></i><span>Mentés</span></button>
+                  <button type="button" data-proxy="fileExportButton"><i data-lucide="download" aria-hidden="true"></i><span>GPX</span></button>
+                  <button type="button" data-proxy="fileShareButton"><i data-lucide="share-2" aria-hidden="true"></i><span>Megosztás</span></button>
+                  <button type="button" data-proxy="fileClearButton" class="m-tool-danger"><i data-lucide="x" aria-hidden="true"></i><span>Bezárás</span></button>
+                </div>
+                <div class="m-file-label">Grafikonok</div>
+                <div class="m-chips" id="mFileCharts" aria-label="Grafikonok"></div>
+              </section>
               <div class="file-header">
                 <i data-lucide="file-check-2" aria-hidden="true"></i>
                 <span id="importedFileName" class="file-name"></span>
@@ -1201,6 +1249,10 @@
           </div>
         </div>
 
+        <div class="m-map-undo" id="mMapUndo" aria-label="Visszavonás és újra">
+          <button type="button" data-proxy="undoButton" title="Visszavonás" aria-label="Visszavonás"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+          <button type="button" data-proxy="redoButton" title="Újra" aria-label="Újra"><i data-lucide="redo-2" aria-hidden="true"></i></button>
+        </div>
         <div class="map-toolbar" id="mapToolbar">
           <div class="toolbar-drag-handle" id="toolbarDragHandle" title="Mozgatás">
             <i data-lucide="grip-vertical" aria-hidden="true"></i>
@@ -1500,7 +1552,7 @@
               </label>
               <label class="export-mode-btn">
                 <input type="radio" name="libraryEditType" value="hiking">
-                <span><i data-lucide="footprints" aria-hidden="true"></i> Gyalogos</span>
+                <span><i data-lucide="footprints" aria-hidden="true"></i> Túra</span>
               </label>
             </div>
           </div>
@@ -1522,7 +1574,7 @@
     <div id="exportOverlay" class="shortcut-overlay" hidden>
       <div class="export-panel">
         <div class="export-header">
-          <h3>GPX exportálás</h3>
+          <h3>Útvonal mentése</h3>
           <button id="exportClose" class="shortcut-close" type="button" title="Bezárás">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
@@ -2314,7 +2366,7 @@
   <div class="speed-slider-row">
   <div class="speed-slider-info">
   <i data-lucide="footprints" aria-hidden="true"></i>
-  <span>Gyalogos</span>
+  <span>Túra</span>
   <span class="speed-val-wrap"><span id="speedHikingVal">5</span> km/h</span>
   </div>
   <input type="range" id="speedHiking" class="speed-slider" min="1" max="15" value="5" step="1" data-speed-mode="hiking">

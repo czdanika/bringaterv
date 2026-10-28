@@ -60,6 +60,49 @@ export function initMobileShell() {
     }).observe(charts, { attributes: true, attributeFilter: ["hidden"] });
   }
 
+  // Keresés: gépeléskor a lap felugrik, hogy a találatok látsszanak (mint az Apple Térképben)
+  document.getElementById("searchInput")?.addEventListener("focus", () => {
+    if (!MQ.matches) return;
+    if (["mini", "peek"].includes(_shell.dataset.sheet)) setSheet("half");
+  });
+
+  // Pontkártya (Apple Térkép-szerű): a pont adatai a lapban, a lap középállásba ugrik;
+  // bezáráskor az előző állás és tartalom áll vissza
+  let card = null, cardRestore = null;
+  window.addEventListener("bringaterv:wp-card", (e) => {
+    const d = e.detail || {};
+    if (d.open) {
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "sheet-card";
+        _inner.append(card);
+      }
+      card.replaceChildren();
+      const x = document.createElement("button");
+      x.type = "button"; x.className = "sheet-card-close"; x.setAttribute("aria-label", "Bezárás"); x.textContent = "×";
+      x.addEventListener("click", () => window.dispatchEvent(new Event("bringaterv:wp-card-close")));
+      card.append(x, d.el);
+      _shell.classList.add("has-sheet-card");
+      if (!d.keepSheet) {
+        if (cardRestore === null) cardRestore = _shell.dataset.sheet || "peek";
+        setSheet("half");
+        card.scrollTop = 0;
+      }
+      // a lap pont akkora, amekkora a kártya (legfeljebb a középállás)
+      setTimeout(() => {
+        if (!card) return;
+        const want = Math.min(d.el.getBoundingClientRect().height + 22 + 20, heights().half);
+        _inner.style.height = `${Math.round(want)}px`;
+        _shell.style.setProperty("--sheet-h", `${Math.round(want)}px`);
+      }, 30);
+    } else if (card) {
+      card.remove(); card = null;
+      _shell.classList.remove("has-sheet-card");
+      _shell.style.removeProperty("--sheet-h");
+      if (cardRestore !== null) { setSheet(cardRestore); cardRestore = null; }
+    }
+  });
+
   // Útvonalpont-ablak a térképen: amíg nyitva van, a lap a legkisebb állásban
   let popupRestore = null;
   window.addEventListener("bringaterv:map-popup", (e) => {
@@ -95,6 +138,7 @@ export function setSheet(state) {
   if (!_shell || !ORDER.includes(state)) return;
   _shell.dataset.sheet = state;
   _inner.style.removeProperty("height");
+  _shell.style.removeProperty("--sheet-h");
 }
 
 /** Az állások magassága px-ben (a CSS-sel azonos képletek). */

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.18.0 – 2026-10-28 – Megújult mobil nézet
+
+### Verzió
+
+- **Tervezés mobilon – alsó lap az Apple Térkép mintájára:** a lap tetején összefoglaló: kereső, nagy számok (táv, becsült idő, emelkedés) kis „Mentés” gombbal, mini szintprofil (koppintásra a nagy diagram), szürke szegmentált módváltó, Körtúra kapcsoló és ikonos eszközsor (Szintprofil · Fordítás · Oda-vissza · Szél · Törlés). Lejjebb húzva a pontlista, majd a beállítások. A lebegő eszköztár mobilon eltűnt; helyette a térkép jobb szélén Visszavonás / Újra gombpár. Keresés közben a lap felugrik, hogy a találatok látsszanak.
+- **Pontkártya mobilon:** pontra koppintva buborék helyett a lap a pont kártyáját mutatja (a lap akkora, mint a kártya, a pont kiemelve és látható helyre görgetve); szakaszmód-váltáskor nyitva marad és frissül; bezárás ×-szel vagy a térképre koppintva.
+- **Elemzés mobilon:** összefoglaló a lap tetején: név, dátum, három fő szám (a harmadik a színezett adat átlaga), húzható mini szintprofil (a térképen mozog a pont, buborékban km, magasság, pulzus, kadencia, watt), „Térkép színezése” választó (Nincs · Sebesség · Pulzus · Kadencia · Teljesítmény · Szint), ikonos műveletek és grafikon-választó. A 16 adatdoboz helyett tömör kétoszlopos lista. A mérőszámok egy közös listából épülnek – új szenzor esetén csak ott kell felvenni, és csak az adott edzés meglévő adatai jelennek meg.
+- **Könyvtár mobilon:** a lenyitott sor tíz nagy gombja helyett 5×2-es ikonrács rövid feliratokkal; a kártyanézet gombjai visszafogottabbak.
+- **Egységesebb mobil megjelenés:** Statok aláhúzásos fülsorral és doboz nélküli számokkal, Kezdőlap Forma/Sorozatok számai doboz nélkül, tömörebb Beállítások-sorok, mobilon rejtve a felesleges „Eszköztár sorrend” és „Billentyűparancsok”, a rekordkártyákról lekerült az ismétlődő „Első rekord…” szöveg, „Gyalogos” helyett mindenhol „Túra”; a szintprofil fejléce mobilon tördelődik (nem lóg ki); a mentés ablak címe „Útvonal mentése”.
+
+---
+
 ## v1.17.0 – 2026-10-22 – Körtúra kapcsoló, „Rajt ide”, új útvonalpont-ablak
 
 ### Verzió

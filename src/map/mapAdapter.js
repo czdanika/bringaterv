@@ -221,6 +221,8 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   map.on("click", (event) => {
     // Ha popup nyitva van, ne adjunk hozzá új waypointot
     if (_popupIsOpen) return;
+    // Mobilon nyitott pontkártyánál a térképre koppintás csak bezárja a kártyát
+    if (_cardPointId) { closeWaypointCard(); return; }
 
     const { lat, lng } = event.latlng;
     if (activeTool === "measure") {
@@ -247,6 +249,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
   function renderWaypoints(waypoints, globalMode = "asphalt") {
     markers.clearLayers();
+    _reopen = null;
     const isLast = (i) => waypoints.length > 1 && i === waypoints.length - 1;
     // Körtúra: legalább 3 pont, és a cél a rajttól 300 m-en belül van
     const loopGap = waypoints.length >= 3 ? L.latLng(waypoints[0]).distanceTo(L.latLng(waypoints[waypoints.length - 1])) : Infinity;
@@ -273,7 +276,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       });
 
       const isLastWaypoint = isLast(index);
-      const popup = buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint, isLoop, isClosed, waypoints.length);
+      const build = (closeUi) => buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint, isLoop, isClosed, waypoints.length, closeUi);
+      if (useWaypointCard()) {
+        // Mobil: a pont adatai az alsó lapban jelennek meg (Apple Térkép-szerű pontkártya)
+        marker.on("click", () => openWaypointCard(point.id, build, marker));
+        if (_cardPointId === point.id) _reopen = () => openWaypointCard(point.id, build, marker, { keepSheet: true });
+        marker.addTo(markers);
+        return;
+      }
+      const popup = build(() => marker.closePopup());
       // Mobilon a térkép nagy részét a lap és az eszköztár takarja: a lap a legkisebb
       // állásba megy (mobileShell), és a lap animációja után úgy görgetünk, hogy az
       // ablak a látható térképrészbe kerüljön
@@ -317,7 +328,43 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
       marker.addTo(markers);
     });
+    // újrarajzoláskor (pl. szakaszmód-váltás) a nyitott kártya frissül, ha a pont még létezik
+    if (_cardPointId) { if (_reopen) _reopen(); else closeWaypointCard(); }
   }
+
+  // ── Mobil pontkártya ────────────────────────────────────────────────────────
+  let _cardPointId = null, _reopen = null, _cardMarker = null;
+  function useWaypointCard() { return window.matchMedia("(max-width: 768px)").matches; }
+  function openWaypointCard(id, build, marker, { keepSheet = false } = {}) {
+    _cardPointId = id;
+    _cardMarker?.getElement()?.classList.remove("is-selected");
+    _cardMarker = marker;
+    marker.getElement()?.classList.add("is-selected");
+    const el = build(() => closeWaypointCard());
+    el._fillInfo?.();
+    window.dispatchEvent(new CustomEvent("bringaterv:wp-card", { detail: { open: true, el, keepSheet, latlng: marker.getLatLng() } }));
+    // a lap felugrása után a pont a látható térképrész közepére kerüljön
+    if (!keepSheet) setTimeout(() => {
+      if (_cardPointId !== id) return;
+      const sheetTop = document.querySelector(".sidebar-inner")?.getBoundingClientRect().top;
+      const tb = document.querySelector("#mapToolbar");
+      const tbTop = tb?.offsetParent ? tb.getBoundingClientRect().top : Infinity;
+      const mr = map.getContainer().getBoundingClientRect();
+      if (!sheetTop) return;
+      const visTop = 60, visBottom = Math.min(sheetTop, tbTop) - mr.top - 12;
+      const p = map.latLngToContainerPoint(marker.getLatLng());
+      if (p.y < visTop + 20 || p.y > visBottom - 20) map.panBy([0, p.y - (visTop + visBottom) / 2]);
+    }, 480);
+  }
+  function closeWaypointCard() {
+    if (!_cardPointId) return;
+    _cardPointId = null;
+    _cardMarker?.getElement()?.classList.remove("is-selected");
+    _cardMarker = null;
+    window.dispatchEvent(new CustomEvent("bringaterv:wp-card", { detail: { open: false } }));
+  }
+  // a lap bezáró gombja ezt hívja
+  window.addEventListener("bringaterv:wp-card-close", () => closeWaypointCard());
 
   function defaultIcon(label, color = SEGMENT_COLORS.asphalt) {
     return L.divIcon({
@@ -358,7 +405,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
    * meredekség), alatta a következő szakasz módja névvel ellátott gombokkal, legalul
    * lágy gombok. A név és a megjegyzés szerkesztése az „Átnevezés” link mögött van.
    */
-  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false, isLoop = false, isClosed = false, count = 0) {
+  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false, isLoop = false, isClosed = false, count = 0, closeUi = () => marker.closePopup()) {
     const el = document.createElement("div");
     el.className = "marker-popup wp-pop";
     const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -431,7 +478,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     const btn = (cls, html, fn) => {
       const b = document.createElement("button");
       b.type = "button"; b.className = `wp-btn ${cls}`; b.innerHTML = html;
-      b.addEventListener("click", () => { marker.closePopup(); fn(); });
+      b.addEventListener("click", () => { closeUi(); fn(); });
       actions.append(b);
     };
     const I = (d) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -448,7 +495,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       row.className = "wp-switch";
       row.innerHTML = `<span><b>Körtúra</b><small>az útvonal visszaér a rajthoz</small></span>`
         + `<span class="toggle-switch"><input type="checkbox" ${isClosed ? "checked" : ""}><span class="toggle-track"></span></span>`;
-      row.querySelector("input").addEventListener("change", (e) => { marker.closePopup(); onToggleLoop(e.target.checked); });
+      row.querySelector("input").addEventListener("change", (e) => { closeUi(); onToggleLoop(e.target.checked); });
       el.append(row);
     }
 
@@ -464,7 +511,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
           name: edit.querySelector('[data-f="name"]').value.trim(),
           note: edit.querySelector('[data-f="note"]').value.trim(),
         });
-        marker.closePopup();
+        if (!useWaypointCard()) closeUi();   // kártyán maradunk – az újrarajzolás frissíti a nevet
       } else if (a === "copy") {
         const cb = e.target.closest("[data-act]");
         try { await navigator.clipboard.writeText(coord); cb.innerHTML = ICO.check; cb.classList.add("is-done"); } catch {}

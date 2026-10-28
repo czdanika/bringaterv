@@ -189,7 +189,7 @@ function recordCard(label, prog, fmt, { lowerIsBetter = false, extra = "" } = {}
   const prev = prog[prog.length - 2];
   const prevHtml = prev
     ? `<div class="rec-card-prev">Előző: <strong>${fmt(prev.value)}</strong> · ${fmtDate(prev.t)}</div>`
-    : `<div class="rec-card-prev">Első rekord ebben az időszakban</div>`;
+    : "";   // első rekordnál nincs mit összevetni – nem írjuk ki minden kártyára
   return `
     <div class="rec-card stats-record-clickable"${routeAttrs(cur.route)}>
       <div class="rec-card-top">
