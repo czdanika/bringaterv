@@ -12,7 +12,8 @@ import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { fitToGpx } from "./gpx/fit.js";
 import { createToast, formatDistance } from "./ui/dom.js";
-import { searchPlaces, reverseGeocode } from "./ui/search.js";
+import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
+import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
@@ -166,6 +167,7 @@ const elevationTimeDefault = () => localStorage.getItem('bringaterv-elevation-de
 let elevationTimeEnabled = elevationTimeDefault();
 
 function switchTab(name) {
+  if (name !== "plan" && isSuggestActive()) closeSuggest();
   // A Kezdőlap keskeny oldalsávja és a többi fül széles oldalsávja között ne animáljon
   // a rács – különben a térkép a váltás közben méri meg magát, és elcsúszik.
   elements.appShell.classList.add("is-tab-switching");
@@ -695,10 +697,12 @@ const mapAdapter = createMapAdapter({
   getWaypointInfo: (wp) => waypointInfo(wp),
   onMapClick: (point) => {
     if (currentTab === "file") return; // view-only in file tab
+    if (isSuggestActive()) { suggestMapClick(point); return; }   // útvonal-javaslat: rajt / cél
     if (currentTab === "home") switchTab("plan");   // a Kezdőlapról a térképre kattintás = tervezés indul
     addWaypointWithName(point);
   },
   onRouteClick: async ({ lat, lng, geometryIndex }) => {
+    if (isSuggestActive()) { suggestMapClick({ lat, lng }); return; }
     const { waypoints } = store.getState();
     if (waypoints.length < 2) {
       addWaypointWithName({ lat, lng });
@@ -1592,6 +1596,8 @@ if (_sv) setTimeout(() => mapAdapter.setView(_sv.lat, _sv.lng, _sv.zoom), 500);
 
 store.subscribe(async (state) => {
   renderSidebar(state);
+  // Útvonal-javaslat belépő: csak üres tervezésnél
+  document.querySelectorAll("[data-sg-entry]").forEach((el) => { el.hidden = state.waypoints.length > 0; });
   updateHome({ hasRoute: state.waypoints.length > 0 });
   elements.undoButton.disabled = !state.canUndo;
   elements.redoButton.disabled = !state.canRedo;
@@ -2593,6 +2599,21 @@ const ANALYSIS_METRICS = [
   { key: "power", label: "Teljesítmény", legend: "powerLegend", toggle: "powerMapToggle", chart: "powerChartBtn",       avg: "fileAvgPower", avgLabel: "Átl. telj.",   field: "power", unit: "W" },
   { key: "grade", label: "Szint",        legend: "gradeLegend", toggle: "gradeMapToggle", chart: "gradeLegendChartBtn", avg: "fileAscent",   avgLabel: "Emelkedés",    field: "ele",   unit: "m" },
 ];
+
+initRouteSuggest({
+  mapAdapter,
+  reverseTown,
+  showToast,
+  hasRoute: () => store.getState().waypoints.length > 0,
+  // A kiválasztott javaslat szerkeszthető tervként: a burkolatnak megfelelő tervezési mód + pontok
+  onApply: (c) => {
+    setRouteMode(c.mode, { persistDefault: false });
+    store.replaceWaypoints(c.waypoints.map(({ lat, lng }) => ({ lat, lng })), { geometry: c.geometry });
+    geocodeNamelessWaypoints();
+    setTimeout(() => mapAdapter.fitRoute(), 300);
+    showToast("Javaslat betöltve – a pontokat szabadon módosíthatod");
+  },
+});
 
 initAiAnalysis({
   getGeometry: () => activeGeometry,

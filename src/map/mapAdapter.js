@@ -1187,6 +1187,57 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     }
   }
 
+  // Útvonal-javaslathoz: egy BRouter-kérés pontokon át – hibánál kivételt dob (nincs egyenes vonalas tartalék)
+  async function routeStrict(waypoints, mode) {
+    const coordinates = waypoints.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
+    const profile = profileMap[mode] ?? profileMap.asphalt;
+    const response = await fetch(`https://brouter.de/brouter?lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
+    if (!response.ok) throw new Error(`Útvonaltervező hiba (${response.status})`);
+    const feature = (await response.json()).features?.[0];
+    const { coordsList, geometry } = brouterGeometry(feature);
+    if (geometry.length < 2) throw new Error("Nincs útvonal");
+    const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
+    const { ascentMeters, descentMeters } = calcElevation(coordsList);
+    return { geometry, distanceMeters, ascentMeters, descentMeters };
+  }
+
+  // Útvonal-javaslatok rajzolása: a kiválasztott élénken, a többi halványan; rajt + körzet
+  const suggestGroup = L.layerGroup();
+  function showSuggestions(items, selected = 0, { fit = false } = {}) {
+    suggestGroup.clearLayers();
+    const order = items.map((it, i) => i).sort((a, b) => (a === selected) - (b === selected));
+    for (const i of order) {
+      const pts = items[i].geometry.map((p) => [p.lat, p.lng]);
+      if (pts.length < 2) continue;
+      const on = i === selected;
+      if (on) L.polyline(pts, { ...CASING, weight: 9 }).addTo(suggestGroup);
+      L.polyline(pts, { color: items[i].color, weight: on ? 5 : 4, opacity: on ? 1 : 0.5, lineCap: "round", lineJoin: "round", interactive: true })
+        .on("click", () => items[i].onSelect?.())
+        .addTo(suggestGroup);
+    }
+    if (!map.hasLayer(suggestGroup)) suggestGroup.addTo(map);
+    if (fit) {
+      const all = items.flatMap((it) => it.geometry.map((p) => [p.lat, p.lng]));
+      if (all.length) map.fitBounds(all, fitOptions());
+    }
+  }
+  const suggestStartGroup = L.layerGroup();
+  function showSuggestStart(start, radiusM, end = null) {
+    suggestStartGroup.clearLayers();
+    if (start) {
+      if (radiusM) L.circle([start.lat, start.lng], { radius: radiusM, color: "#2f855a", weight: 1.5, opacity: 0.45, dashArray: "4 6", fillColor: "#2f855a", fillOpacity: 0.05, interactive: false }).addTo(suggestStartGroup);
+      L.circleMarker([start.lat, start.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#2f855a", fillOpacity: 1, interactive: false }).addTo(suggestStartGroup);
+    }
+    if (end) L.circleMarker([end.lat, end.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#e8461e", fillOpacity: 1, interactive: false }).addTo(suggestStartGroup);
+    if (!map.hasLayer(suggestStartGroup)) suggestStartGroup.addTo(map);
+  }
+  function clearSuggestions() {
+    suggestGroup.clearLayers(); suggestStartGroup.clearLayers();
+    if (map.hasLayer(suggestGroup)) map.removeLayer(suggestGroup);
+    if (map.hasLayer(suggestStartGroup)) map.removeLayer(suggestStartGroup);
+  }
+  function panTo(p, zoom) { map.setView([p.lat, p.lng], zoom ?? Math.max(map.getZoom(), 11)); }
+
   async function calculateRoute({ waypoints, mode, snapToRoads }, forceSnapOff = false) {
     if (waypoints.length < 2) {
       return {
@@ -1241,6 +1292,11 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
   return {
     calculateRoute,
+    routeStrict,
+    showSuggestions,
+    showSuggestStart,
+    clearSuggestions,
+    panTo,
     invalidateSize: () => map.invalidateSize({ pan: false }),
     fitRoute: () => {
       // Színezett útvonalnál a sima réteg üres – akkor a színezett csoportokból számolunk

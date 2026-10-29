@@ -320,3 +320,38 @@ def analyze_workout_extended(summary: dict, context: str, history: list) -> tupl
         payload["felhasznalo_megjegyzese"] = context[:300]
     data, model, usage = _call(_WORKOUT_EXT_SYSTEM, payload, _WORKOUT_EXT_SCHEMA, max_tokens=8000, effort="medium")
     return clean_extended(data), model, usage
+
+
+# ── Közösségi útvonal leírása (admin) ────────────────────────────────────────
+
+_SAMPLE_SYSTEM = """Egy magyar kerékpáros útvonaltervező alkalmazás közösségi útvonal-gyűjteményébe írsz \
+rövid ismertetőt. Az útvonal adatait JSON-ban kapod: név, táv, szint, kör vagy A → B, érintett \
+települések, megye, burkolat-arányok, típus, és ha van, a jelenlegi leírás.
+
+Írj magyarul:
+- "description": 2–3 mondat (legfeljebb ~45 szó), tárgyilagos, kedvcsináló hangon: milyen jellegű az út \
+  (sík / dombos, burkolat), merre visz (a megadott települések közül 2–4-et említs), kinek ajánlott. \
+  Ne írd bele a pontos km-t és a szintet (azok külön látszanak), és ne használj felkiáltójelet.
+- "difficulty": "easy" | "medium" | "hard" – a táv, a szint és a burkolat alapján.
+- "season": "all" | "spring-autumn" | "summer" | "dry" – burkolatlan, földutas útnál "dry".
+
+Szabályok: csak a megadott adatokra és a megnevezett települések közismert jellemzőire támaszkodj; ne \
+találj ki konkrét látnivalót, kávézót vagy útszakaszt. Ha van jelenlegi leírás, annak tényeit tartsd meg."""
+
+_SAMPLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "description": {"type": "string"},
+        "difficulty": {"type": "string", "enum": ["easy", "medium", "hard"]},
+        "season": {"type": "string", "enum": ["all", "spring-autumn", "summer", "dry"]},
+    },
+    "required": ["description", "difficulty", "season"],
+    "additionalProperties": False,
+}
+
+
+def describe_sample(info: dict) -> tuple[dict, str, object]:
+    data, model, usage = _call(_SAMPLE_SYSTEM, info, _SAMPLE_SCHEMA, max_tokens=3000)
+    return {"description": str(data.get("description") or "").strip()[:600],
+            "difficulty": data.get("difficulty") if data.get("difficulty") in ("easy", "medium", "hard") else "",
+            "season": data.get("season") if data.get("season") in ("all", "spring-autumn", "summer", "dry") else ""}, model, usage

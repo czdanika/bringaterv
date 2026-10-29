@@ -8,6 +8,7 @@
   GET    /api/admin/ai                     beállítás + felhasználás (admin)
   PUT    /api/admin/ai                     API-kulcs, alap napi limit (admin)
   POST   /api/admin/ai/test                kulcs ellenőrzése (admin)
+  POST   /api/admin/ai/sample-description  közösségi útvonal leírása AI-val (admin)
 
 Az API-kulcs csak a szerveren van; a kliens sosem kapja meg.
 """
@@ -180,3 +181,25 @@ def admin_ai_test():
     except ai_service.AIError as exc:
         abort(400, description=str(exc))
     return jsonify({"ok": True})
+
+
+@bp.route("/api/admin/ai/sample-description", methods=["POST"])
+@require_auth
+@require_admin
+def admin_ai_sample_description():
+    """Közösségi útvonal leírása, nehézsége és évszaka AI-javaslatként (a mentést az admin végzi)."""
+    if not ai_service.api_key():
+        abort(503, description="Az AI-funkció nincs beállítva (admin → AI).")
+    data = request.get_json(silent=True) or {}
+    info = {k: data.get(k) for k in ("nev", "tipus", "tav_km", "szint_m", "kor", "megye", "rajt", "telepulesek",
+                                     "burkolat", "jelenlegi_leiras") if data.get(k) not in (None, "", [])}
+    if not info.get("nev"):
+        abort(400, description="Hiányzik az útvonal neve.")
+    if len(str(info)) > 6000:
+        abort(400, description="Túl sok adat.")
+    try:
+        result, model, usage = ai_service.describe_sample(info)
+    except ai_service.AIError as exc:
+        abort(502, description=str(exc))
+    ai_service.log_usage(g.user["id"], "sample_description", str(data.get("id") or "")[:60], model, usage)
+    return jsonify(result)

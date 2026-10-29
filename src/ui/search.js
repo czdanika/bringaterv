@@ -1,3 +1,22 @@
+/** Település neve egy ponthoz (útvonal-javaslat elnevezéséhez); small: inkább kerület / településrész */
+export async function reverseTown(lat, lng, small = false) {
+  try {
+    const url = new URL("https://nominatim.openstreetmap.org/reverse");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lng));
+    url.searchParams.set("zoom", "13");
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const a = (await response.json()).address || {};
+    return small
+      ? a.suburb || a.quarter || a.neighbourhood || a.city_district || a.village || a.hamlet || null
+      : a.city || a.town || a.village || a.municipality || a.suburb || a.hamlet || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function reverseGeocode(lat, lng) {
   try {
     const url = new URL("https://nominatim.openstreetmap.org/reverse");

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.23.0 – 2026-10-29 – Útvonal-javaslat, AI-leírás az adminban, új megosztó kép ablak
+
+### Verzió
+
+- **Útvonal-javaslat:** a Tervezésben (üres tervnél a pontlista alatt, illetve a ⋯ menüben) rajtpont a térképre bökve vagy a saját helyről, táv, kör vagy A → B, burkolat (aszfalt / gravel / vegyes) és szint (sík / dombos / bármi) → 3 javaslat a térképen és kártyákon (táv, szint, aszfalt- és burkolatlan arány, település szerinti név). A kiválasztott szerkeszthető tervként töltődik be a burkolathoz illő tervezési móddal.
+- **Javaslatok minősége:** a zsákutcába eső segédpontok okozta oda-vissza „tüskéket” levágja, az önátfedést bünteti; közeli célnál az A → B körszerűen tervez, és a célnál ér véget. Beállítás változásakor (burkolat, szint, táv, kör / A → B, új rajt vagy cél) automatikusan újratervez.
+- **Admin – AI-leírás:** a közösségi útvonal szerkesztőjében „AI-val kitöltés”: rövid leírás, nehézség és évszak javaslat az útvonal adataiból (táv, szint, települések, burkolat); mentés előtt átírható, a forrásmegjelölés megmarad. A „Szegmensvizsgálat” helyett itt is „Burkolat vizsgálata”.
+- **Megosztó kép ablak:** asztalon két oszlop – bal oldalt végig látható, nagy előnézet, jobbra a beállítások; mobilon az előnézet felül tapad. Az új panelek stílusa: kis nagybetűs címkék, szürke sávos választók, fekete kiemelés.
+
+---
+
 ## v1.22.1 – 2026-10-29 – Részletes AI-elemzés, tárolt burkolat-vizsgálat
 
 ### Verzió

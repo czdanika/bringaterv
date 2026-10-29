@@ -97,9 +97,29 @@
           <!-- ===== TERVEZÉS PANEL ===== -->
           <div class="tab-panel" id="tabPlan">
 
+            <!-- Útvonal-javaslat (routeSuggest.js) – nyitva a tervezés többi része rejtve -->
+            <section class="suggest-panel" id="suggestPanel" hidden aria-label="Útvonal-javaslat">
+              <div class="sg-head">
+                <button type="button" class="sg-back" data-sg-act="close"><i data-lucide="chevron-left" aria-hidden="true"></i>Vissza a tervezéshez</button>
+                <h2 class="plan-title">Útvonal-javaslat</h2>
+              </div>
+              <div class="sg-form" id="sgForm"></div>
+              <input id="sgKm" class="sg-range" type="range" min="10" max="200" step="5" value="50" aria-label="Táv (km)">
+              <div class="sg-opts" id="sgOpts"></div>
+              <p class="sg-hint" id="sgHint"></p>
+              <button type="button" class="sg-go" id="sgGo" data-sg-act="go" disabled><i data-lucide="search" aria-hidden="true"></i>Javaslatok</button>
+              <div class="sg-status" id="sgStatus" hidden></div>
+              <div class="sg-results" id="sgResults"></div>
+            </section>
+
             <!-- Mobil összefoglaló (Apple Térkép-szerű lap teteje) – asztalon rejtve -->
             <section class="m-plan-summary" id="mPlanSummary" aria-label="Útvonal összefoglaló">
               <div id="mSearchSlot"></div>
+              <button type="button" class="sg-entry m-sg-entry" data-open-suggest data-sg-entry>
+                <i data-lucide="route" class="sg-entry-ic" aria-hidden="true"></i>
+                <b>Útvonal-javaslat</b><small>3 kész útvonal a kért távra</small>
+                <i data-lucide="chevron-right" class="sg-entry-chev" aria-hidden="true"></i>
+              </button>
               <div class="m-sum-stats" id="mSumStats" hidden>
                 <div class="cs-stat"><b id="mSumDist">—</b><span>Táv</span></div>
                 <div class="cs-stat"><b id="mSumTime">—</b><span>Becsült idő</span></div>
@@ -130,6 +150,7 @@
                     <i data-lucide="ellipsis" aria-hidden="true"></i>
                   </button>
                   <div id="planMoreMenu" class="plan-pop plan-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" data-open-suggest><i data-lucide="route" aria-hidden="true"></i>Útvonal-javaslat…</button>
                     <button type="button" role="menuitem" data-act="import"><i data-lucide="upload" aria-hidden="true"></i>GPX importálása…</button>
                     <div class="plan-menu-sep"></div>
                     <button type="button" role="menuitem" data-proxy="reverseRouteButton"><i data-lucide="arrow-left-right" aria-hidden="true"></i>Irány megfordítása</button>
@@ -198,6 +219,11 @@
               <p id="emptyState" class="empty-state" data-i18n="route.empty">
                 Kattints a térképre az első pont hozzáadásához.
               </p>
+              <button type="button" class="sg-entry" data-open-suggest data-sg-entry>
+                <i data-lucide="route" class="sg-entry-ic" aria-hidden="true"></i>
+                <b>Útvonal-javaslat</b><small>3 kész útvonal a kért távra</small>
+                <i data-lucide="chevron-right" class="sg-entry-chev" aria-hidden="true"></i>
+              </button>
               <input id="planGpxInput" type="file" accept=".gpx" hidden>
 
               <div class="plan-tools-row">
@@ -2981,6 +3007,8 @@
           <canvas id="shareCardPreview"></canvas>
         </div>
 
+        <!-- Beállítások – asztalon jobb oldali, külön görgetett oszlop -->
+        <div class="sc-settings">
         <!-- Cím -->
         <label class="sc-label" for="shareCardTitle">Cím</label>
         <input id="shareCardTitle" class="sc-input" type="text" placeholder="pl. Balatoni kör, Reggeli tekerés…">
@@ -3061,6 +3089,7 @@
               <button id="sharePhotoReset" class="sc-btn sc-btn--ghost sc-btn--sm" type="button">Visszaállítás</button>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

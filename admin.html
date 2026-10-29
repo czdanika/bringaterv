@@ -288,6 +288,9 @@
       transition: border-color 0.15s;
     }
     .form-input:focus { border-color: var(--brand); }
+    .sample-desc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .sample-desc-head .form-label { margin: 0; }
+    .sample-ai-btn { padding: 4px 9px; font-size: 12px; gap: 5px; color: var(--brand); }
     /* AI fül */
     .ai-state { font-size: 13px; font-weight: 600; }
     .ai-state.is-on { color: var(--green); } .ai-state.is-off { color: var(--muted); }
@@ -775,9 +778,9 @@
           <div id="sampleLpAnalysisResult" class="load-preview-analysis-result" hidden></div>
           <button id="sampleLpAnalyzeBtn" class="load-preview-analyze-btn" type="button">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
-            Szegmensvizsgálat futtatása
+            Burkolat vizsgálata
           </button>
-          <p id="sampleLpAnalyzeHint" class="load-preview-analyze-hint">Az útvonal mentén lekérdezi az OSM útburkolat adatokat és megmutatja a felületi összetételt.</p>
+          <p id="sampleLpAnalyzeHint" class="load-preview-analyze-hint">Megnézi, milyen utakon halad az útvonal (aszfalt, murva, földút) – az adat a nyílt, közösségi OpenStreetMap térképből jön. Mentéskor magától is lefut, és a mintával együtt tárolódik.</p>
         </div>
         <div class="form-group">
           <label class="form-label">Név</label>
@@ -807,7 +810,14 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Leírás</label>
+          <div class="sample-desc-head">
+            <label class="form-label" for="sampleDescription">Leírás</label>
+            <button class="btn btn-ghost sample-ai-btn" id="sampleAiDescBtn" type="button" hidden
+              title="Leírás, nehézség és évszak javaslata az útvonal adataiból (táv, szint, települések, burkolat) – mentés előtt átírható">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+              AI-val kitöltés
+            </button>
+          </div>
           <textarea class="form-input" id="sampleDescription" rows="4" style="resize:vertical"></textarea>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
@@ -1791,6 +1801,11 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       document.querySelector("#sampleSeason").value       = sample?.season      || "";
       document.querySelector("#sampleAuthor").value       = sample?.author      || "";
       fillSampleLoc(sample?.location || {});
+      _sampleSurface = sample?.surface || null;
+      // „AI-val kitöltés”: csak ha az AI be van állítva
+      const aiBtn = document.querySelector("#sampleAiDescBtn");
+      aiBtn.hidden = true;
+      routesApi.aiStatus().then((st) => { aiBtn.hidden = !st?.configured; }).catch(() => {});
       document.querySelector("#sampleLocateBtn").hidden = !sample;
       document.querySelector("#sampleLocNote").hidden = !!sample;
       document.querySelector("#sampleModalError").textContent = "";
@@ -1805,6 +1820,41 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       document.querySelector("#sampleLocPlaces").value     = (loc.places || []).join(", ");
       document.querySelector("#sampleLocLoop").checked     = !!loc.loop;
     }
+    // Közösségi útvonal leírása AI-val: a form adataiból (a mentést az admin végzi)
+    document.querySelector("#sampleAiDescBtn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget, errEl = document.querySelector("#sampleModalError");
+      const descEl = document.querySelector("#sampleDescription");
+      const v = (id) => document.querySelector(id).value.trim();
+      const loc = readSampleLoc();
+      // burkolat-arányok a tárolt / friss vizsgálatból
+      let burkolat;
+      if (_sampleSurface?.segments?.length) {
+        const mix = {}, tot = _sampleSurface.segments.reduce((a, s) => a + (s.distanceKm || 0), 0) || 1;
+        _sampleSurface.segments.forEach((s) => { mix[MODE_LABELS[s.mode] || s.mode] = (mix[MODE_LABELS[s.mode] || s.mode] || 0) + s.distanceKm; });
+        burkolat = Object.fromEntries(Object.entries(mix).map(([k, km]) => [k, `${Math.round(km / tot * 100)}%`]));
+      }
+      const source = (descEl.value.match(/\s*Forrás:.*$/s) || [""])[0];
+      const body = {
+        id: _editSampleId || "", nev: v("#sampleName"), tipus: document.querySelector("#sampleType").selectedOptions[0]?.textContent,
+        tav_km: v("#sampleDistance"), szint_m: v("#sampleElevation"), kor: loc.loop,
+        megye: loc.region, rajt: loc.settlement,
+        telepulesek: loc.places.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 15),
+        burkolat, jelenlegi_leiras: descEl.value.replace(/\s*Forrás:.*$/s, "").trim(),
+      };
+      if (!body.nev) { errEl.textContent = "Előbb adj nevet az útvonalnak."; return; }
+      if (descEl.value.trim() && !confirm("Felülírja a jelenlegi leírást (a forrásmegjelölés megmarad). Folytatod?")) return;
+      btn.disabled = true; errEl.textContent = "";
+      const label = btn.innerHTML;
+      btn.textContent = "Írás…";
+      try {
+        const r = await routesApi.admin.aiSampleDescription(body);
+        descEl.value = r.description + (source ? " " + source.trim() : "");
+        if (r.difficulty && !v("#sampleDifficulty")) document.querySelector("#sampleDifficulty").value = r.difficulty;
+        if (r.season && !v("#sampleSeason")) document.querySelector("#sampleSeason").value = r.season;
+      } catch (ex) { errEl.textContent = ex.message; }
+      finally { btn.disabled = false; btn.innerHTML = label; }
+    });
+
     function readSampleLoc() {
       return {
         country: document.querySelector("#sampleLocCountry").value.trim(),

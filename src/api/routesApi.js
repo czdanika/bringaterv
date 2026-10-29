@@ -310,6 +310,7 @@ export const routesApi = {
     updateUser(id, data)              { return fetchJson(`${BASE}/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }); },
     aiGet()                           { return fetchJson(`${BASE}/admin/ai`); },
     aiPut(data)                       { return fetchJson(`${BASE}/admin/ai`, { method: "PUT", body: JSON.stringify(data) }); },
+    aiSampleDescription(data)         { return fetchJson(`${BASE}/admin/ai/sample-description`, { method: "POST", body: JSON.stringify(data) }); },
     aiTest(apiKey)                    { return fetchJson(`${BASE}/admin/ai/test`, { method: "POST", body: JSON.stringify({ api_key: apiKey || "" }) }); },
     resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },
