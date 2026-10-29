@@ -114,7 +114,7 @@ export function escapeHtml(s) {
 }
 
 function sourceLabel(src) {
-  return { strava: "STRAVA", garmin: "GARMIN", fit: "FIT", manual: "SAJÁT", sample: "KÖZÖSSÉGI" }[src] ?? src?.toUpperCase() ?? "—";
+  return { strava: "Strava", garmin: "Garmin", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
 }
 
 export function libraryRouteSportKey(route) {
@@ -189,23 +189,74 @@ export function renderRouteSvgMini(points) {
   </svg>`;
 }
 
-function renderRouteSvg(points) {
-  if (!points || points.length < 2) return '';
-  const SIZE = 160, PAD = 8;
+// ── Térképes előnézet: halvány alaptérkép-csempék + vékony, kontúros vonal ──
+// Nem Leaflet: csak néhány csempe-kép az útvonal alatt, tört nagyítással, hogy
+// az útvonal kitöltse a dobozt. A csempék egy szinttel élesebbek, kicsinyítve.
+const PREVIEW_TILES = {
+  light: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  dark:  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+};
+const isDarkTheme = () => {
+  const t = document.documentElement.dataset.theme;
+  return t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches);
+};
+const mercator = (lat, lng, z) => {
+  const sz = 256 * 2 ** z, r = lat * Math.PI / 180;
+  return [(lng + 180) / 360 * sz, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * sz];
+};
+let _pvSeq = 0;
+
+function drawRouteMapPreview(slot, points) {
+  const W = slot.clientWidth, H = slot.clientHeight;
+  if (!W || !H || !points || points.length < 2) return false;
+  const small = W < 110;
+  const pad = small ? 9 : 24;
   const lats = points.map(p => p.lat), lngs = points.map(p => p.lng);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-  const midLat = (minLat + maxLat) / 2;
-  const lngScale = Math.cos(midLat * Math.PI / 180);
-  const dLat = maxLat - minLat || 1e-9, dLng = (maxLng - minLng) * lngScale || 1e-9;
-  const scale = (SIZE - 2 * PAD) / Math.max(dLat, dLng);
-  const offX = (SIZE - dLng * scale) / 2, offY = (SIZE - dLat * scale) / 2;
-  const toX = lng => offX + (lng - minLng) * lngScale * scale;
-  const toY = lat => SIZE - offY - (lat - minLat) * scale;
-  const d = points.map((p, i) => (i === 0 ? 'M' : 'L') + toX(p.lng).toFixed(1) + ',' + toY(p.lat).toFixed(1)).join(' ');
-  return `<svg viewBox="0 0 ${SIZE} ${SIZE}" xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
-    <path d="${d}" fill="none" stroke="#e8461e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
+  const n = Math.max(...lats), s = Math.min(...lats), e = Math.max(...lngs), w = Math.min(...lngs);
+  const a0 = mercator(n, w, 0), b0 = mercator(s, e, 0);
+  const zf = Math.min(16, Math.log2(Math.min((W - 2 * pad) / Math.max(b0[0] - a0[0], 1e-9),
+                                              (H - 2 * pad) / Math.max(b0[1] - a0[1], 1e-9))));
+  const z = Math.max(1, Math.min(17, Math.ceil(zf))), k = 2 ** (zf - z), T = 256 * k;
+  const a = mercator(n, w, z), b = mercator(s, e, z);
+  const ox = (a[0] + b[0]) / 2 * k - W / 2, oy = (a[1] + b[1]) / 2 * k - H / 2;
+  const dark = isDarkTheme(), url = dark ? PREVIEW_TILES.dark : PREVIEW_TILES.light;
+  let tiles = "";
+  const max = 2 ** z;
+  for (let tx = Math.floor(ox / T); tx <= Math.floor((ox + W) / T); tx++) {
+    for (let ty = Math.floor(oy / T); ty <= Math.floor((oy + H) / T); ty++) {
+      if (ty < 0 || ty >= max) continue;
+      const src = url.replace("{z}", z).replace("{x}", ((tx % max) + max) % max).replace("{y}", ty);
+      tiles += `<img src="${src}" alt="" loading="lazy" draggable="false" style="left:${(tx * T - ox).toFixed(1)}px;top:${(ty * T - oy).toFixed(1)}px;width:${(T + 0.6).toFixed(1)}px;height:${(T + 0.6).toFixed(1)}px">`;
+    }
+  }
+  const P = points.map(p => { const q = mercator(p.lat, p.lng, z); return [q[0] * k - ox, q[1] * k - oy]; });
+  const d = P.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join("");
+  const st = P[0], en = P[P.length - 1], loop = Math.hypot(st[0] - en[0], st[1] - en[1]) < 8;
+  const id = `pv${++_pvSeq}`;
+  const col = dark ? "#ff6a3d" : "#e8461e";
+  const markers = small ? "" :
+    (loop ? "" : `<circle cx="${en[0].toFixed(1)}" cy="${en[1].toFixed(1)}" r="4.5" fill="#fff" stroke="${dark ? "#eee" : "#111"}" stroke-width="2"/>`) +
+    `<circle cx="${st[0].toFixed(1)}" cy="${st[1].toFixed(1)}" r="5" fill="#2f855a" stroke="#fff" stroke-width="2"/>`;
+  slot.innerHTML = `<div class="lib-pv-tiles">${tiles}</div>
+    <svg class="lib-pv-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <defs>
+        <radialGradient id="${id}v" cx="50%" cy="50%" r="72%"><stop offset="58%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="${dark ? .3 : .15}"/></radialGradient>
+        <filter id="${id}s" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.4" flood-opacity=".28"/></filter>
+      </defs>
+      <rect width="${W}" height="${H}" fill="url(#${id}v)"/>
+      <path d="${d}" fill="none" stroke="${dark ? "#000" : "#fff"}" stroke-opacity="${dark ? .55 : .95}" stroke-width="${small ? 3.6 : 5.5}" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${col}" stroke-width="${small ? 1.8 : 2.6}" stroke-linejoin="round" stroke-linecap="round"${small ? "" : ` filter="url(#${id}s)"`}/>
+      ${markers}
+    </svg>`;
+  slot.classList.add("lib-pv");
+  return true;
+}
+
+/** Előnézet rajzolása; ha a doboz még nincs a DOM-ban (0 méret), megvárja. */
+function renderRouteMapPreview(slot, points) {
+  if (drawRouteMapPreview(slot, points)) return;
+  const ro = new ResizeObserver(() => { if (drawRouteMapPreview(slot, points)) ro.disconnect(); });
+  ro.observe(slot);
 }
 
 // ── GPX statisztikák (expand row-hoz) ─────────────────────────────────────────
@@ -251,16 +302,19 @@ function libDuration(min) {
   return h ? `${h}<small>ó</small> ${m}<small>p</small>` : `${m}<small>p</small>`;
 }
 
+function libMini(label, value, unit = "") {
+  return `<span>${label} <b>${value}</b>${unit ? " " + unit : ""}</span>`;
+}
+
+// A GPX-ből számolt kiegészítő adatok a lenyitott sor halk sorába
 function renderExtendedStats(s) {
   if (!s) return "";
   const rows = [];
-  if (s.avgSpeed != null) rows.push(libStat("Átlagsebesség", num(s.avgSpeed, 1), "km/h"));
-  if (s.maxSpeed != null) rows.push(libStat("Max. sebesség", num(s.maxSpeed, 1), "km/h"));
-  if (s.avgHr != null)    rows.push(libStat("Átlagpulzus", int(s.avgHr), "bpm"));
-  if (s.maxHr != null)    rows.push(libStat("Max. pulzus", int(s.maxHr), "bpm"));
-  if (s.avgCad != null)   rows.push(libStat("Átl. kadencia", int(s.avgCad), "rpm"));
-  if (s.avgPower != null) rows.push(libStat("Átl. teljesítmény (mért)", int(s.avgPower), "W"));
-  if (s.startTime) rows.push(libStat("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
+  if (s.avgHr != null)    rows.push(`<span>Pulzus <b>${int(s.avgHr)}</b>${s.maxHr != null ? ` / ${int(s.maxHr)}` : ""} bpm</span>`);
+  if (s.avgPower != null) rows.push(libMini("Mért teljesítmény", int(s.avgPower), "W"));
+  if (s.avgCad != null)   rows.push(libMini("Kadencia", int(s.avgCad), "rpm"));
+  if (s.maxSpeed != null) rows.push(libMini("Max. sebesség", num(s.maxSpeed, 1), "km/h"));
+  if (s.startTime) rows.push(libMini("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
   return rows.join("");
 }
 
@@ -277,11 +331,12 @@ export async function loadAndRenderExpandPreview(routeId) {
   };
 
   const cached = _geomCache.get(routeId);
-  if (cached) { slot.innerHTML = renderRouteSvg(cached.points); appendExtra(renderExtendedStats(cached.stats)); return; }
-  slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Töltés…</span>';
+  if (cached?.stats) { renderRouteMapPreview(slot, cached.points); appendExtra(renderExtendedStats(cached.stats)); return; }
+  slot.innerHTML = '<span class="lib-pv-msg">Töltés…</span>';
   try {
-    const gpxText = await _api.loadRoute(routeId).catch(() => null)
-                 ?? await _api.loadSample(routeId).catch(() => null);
+    const isSample = _data.samples.some(r => r.id === routeId);
+    const gpxText = isSample ? await _api.loadSample(routeId).catch(() => null)
+                             : await _api.loadRoute(routeId).catch(() => null);
     if (!gpxText) { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Nem elérhető</span>'; return; }
     const xml = new DOMParser().parseFromString(gpxText, "application/xml");
     const nodes = [...xml.getElementsByTagNameNS("*", "trkpt"), ...xml.getElementsByTagNameNS("*", "rtept")];
@@ -302,7 +357,7 @@ export async function loadAndRenderExpandPreview(routeId) {
     if (simplified[simplified.length-1] !== fullPts[fullPts.length-1]) simplified.push(fullPts[fullPts.length-1]);
     _geomCache.set(routeId, { points: simplified, stats });
     setTimeout(() => _geomCache.delete(routeId), 5 * 60 * 1000);
-    slot.innerHTML = renderRouteSvg(simplified);
+    renderRouteMapPreview(slot, simplified);
     appendExtra(renderExtendedStats(stats));
   } catch { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Hiba</span>'; }
 }
@@ -312,7 +367,7 @@ export async function loadCardPreview(routeId, isSample, slotEl = null) {
   const slot = slotEl || document.getElementById(`libCardPreview_${routeId}`);
   if (!slot) return;
   const cached = _geomCache.get(routeId);
-  if (cached) { slot.innerHTML = renderRouteSvgMini(cached.points || cached); return; }
+  if (cached) { renderRouteMapPreview(slot, cached.points || cached); return; }
   try {
     const gpxText = isSample ? await _api.loadSample(routeId).catch(() => null)
                               : await _api.loadRoute(routeId).catch(() => null);
@@ -328,7 +383,7 @@ export async function loadCardPreview(routeId, isSample, slotEl = null) {
     if (simp[simp.length-1] !== pts[pts.length-1]) simp.push(pts[pts.length-1]);
     _geomCache.set(routeId, { points: simp, stats: null });
     setTimeout(() => _geomCache.delete(routeId), 5 * 60 * 1000);
-    if (slot.isConnected) slot.innerHTML = renderRouteSvgMini(simp);
+    renderRouteMapPreview(slot, simp);
   } catch {}
 }
 
@@ -401,23 +456,25 @@ function buildLibraryExpandRow(route, category, isSample) {
   tr.className = "library-list-expand-row";
   const td = document.createElement("td");
   td.colSpan = 10;
-  const previewSlot = `<div class="library-expand-preview" id="libExpPreview_${route.id}">…</div>`;
-  // Statok – a diagramfejlécekkel egyező stílusban
-  const card = libStat;
-  const stats = [];
-  if (route.distance != null)  stats.push(card("Táv", num(route.distance, 1), "km"));
-  if (route.duration != null)  stats.push(card("Idő", libDuration(route.duration)));
-  if (route.elevation != null) stats.push(card("Emelkedés", int(route.elevation), "m"));
-  if (route.calories != null)  stats.push(card("Kalória", int(route.calories), "kcal"));
-  if (route.suffer_score != null) stats.push(card("Relatív terhelés", int(route.suffer_score)));
-  if (route.weighted_avg_watts != null) stats.push(card("Súlyozott telj. (NP)", int(route.weighted_avg_watts), "W"));
-  else if (route.avg_watts != null)     stats.push(card("Átl. teljesítmény", int(route.avg_watts), "W"));
-  if (route.kilojoules != null) stats.push(card("Mechanikai munka", int(route.kilojoules), "kJ"));
-  if (route.pr_count > 0)       stats.push(card("Személyes rekord", route.pr_count));
+  const previewSlot = `<div class="library-expand-preview" id="libExpPreview_${route.id}"></div>`;
+  // Fő számok nagyban (táv, idő, emelkedés, átlagsebesség), a többi halk sorban
+  const big = [];
+  if (route.distance != null)  big.push(libStat("Táv", num(route.distance, 1), "km"));
+  if (route.duration != null)  big.push(libStat("Idő", libDuration(route.duration)));
+  if (route.elevation != null) big.push(libStat("Emelkedés", int(route.elevation), "m"));
+  const avgSpeed = route.avg_speed_kmh ?? ((route.duration && route.distance) ? route.distance / (route.duration / 60) : null);
+  if (category === "workout" && avgSpeed) big.push(libStat("Átlagsebesség", num(avgSpeed, 1), "km/h"));
+  const mini = [];
+  if (route.calories != null)     mini.push(libMini("Kalória", int(route.calories), "kcal"));
+  if (route.suffer_score != null) mini.push(libMini("Terhelés", int(route.suffer_score)));
+  if (route.weighted_avg_watts != null) mini.push(libMini("Teljesítmény (NP)", int(route.weighted_avg_watts), "W"));
+  else if (route.avg_watts != null)     mini.push(libMini("Teljesítmény", int(route.avg_watts), "W"));
+  if (route.kilojoules != null)   mini.push(libMini("Munka", int(route.kilojoules), "kJ"));
+  if (route.pr_count > 0)         mini.push(libMini("Személyes rekord", route.pr_count));
 
   // Fejléc-sor: sport + teljes dátum (+ hely) – a nyers „workout” helyett
   const sportLabel = libraryRouteSport(route);
-  const kindLabel  = category === "workout" ? "Edzés" : category === "sample" ? "Közösségi útvonal" : "Útvonal";
+  const kindLabel  = category === "workout" ? "Edzés" : category === "sample" ? "Közösségi útvonal" : "Útvonalterv";
   const dateSrc    = route.start_time || route.date;
   const dateLabel  = dateSrc ? new Date(dateSrc).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" }) : "";
   const place      = route.location_city ? escapeHtml(route.location_city) + (route.location_country ? ", " + escapeHtml(route.location_country) : "") : "";
@@ -427,7 +484,7 @@ function buildLibraryExpandRow(route, category, isSample) {
   const SEASON = { all: "Egész évben", "spring-autumn": "Tavasztól őszig", summer: "Nyáron", dry: "Száraz időben" };
   const loc = route.location || {};
   const locLine = category === "sample" && (loc.settlement || loc.region) ? [
-    "📍 " + escapeHtml([...new Set([loc.settlement, loc.region, (loc.countries?.length > 1 ? loc.countries.join(", ") : loc.country)].filter(Boolean))].join(" · ")),
+    escapeHtml([...new Set([loc.settlement, loc.region, (loc.countries?.length > 1 ? loc.countries.join(", ") : loc.country)].filter(Boolean))].join(" · ")),
     loc.loop === true ? "körtúra" : loc.loop === false ? "A → B" : "",
   ].filter(Boolean).join(" · ") + (loc.places?.length > 1 ? `<br>Érinti: ${escapeHtml(loc.places.join(", "))}` : "") : "";
   const communityLine = category === "sample" ? [
@@ -437,43 +494,59 @@ function buildLibraryExpandRow(route, category, isSample) {
   ].filter(Boolean).join(" · ") : "";
 
   const isWorkout = category === "workout";
-  // Gomb: asztalon a hosszú felirat, mobilon ikon + rövid felirat
-  const act = (action, icon, long, short, cls = "", attrs = "") =>
-    `<button class="library-card-btn ${cls}" data-action="${action}" ${attrs}><i data-lucide="${icon}" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">${long}</span><span class="m-only">${short}</span></button>`;
+  // Két fő művelet: edzésnél Elemzés (elsődleges) + Tervezés, tervnél fordítva
+  const mainBtn = (act, icon, label, primary) =>
+    `<button class="lib-x-btn${primary ? " is-primary" : ""}" type="button" data-action="${act}"><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}</span></button>`;
+  const first  = isWorkout ? mainBtn("load-file", "chart-line", "Elemzés", true) : mainBtn("load-plan", "map-pin-plus", "Tervezés", true);
+  const second = isWorkout ? mainBtn("load-plan", "map-pin-plus", "Tervezés", false) : mainBtn("load-file", "chart-line", "Elemzés", false);
+  const inStats = route.include_in_stats !== false;
   td.innerHTML = `
-    <div class="library-list-expand-inner">
+    <div class="library-list-expand-inner lib-x">
       ${previewSlot}
       <div class="library-expand-body">
         <div class="library-expand-meta">${metaLine}</div>
         ${communityLine ? `<div class="library-expand-meta">${communityLine}</div>` : ""}
         ${locLine ? `<div class="library-expand-meta">${locLine}</div>` : ""}
-        <div class="library-expand-cards" id="libExpStats_${route.id}">${stats.join("")}</div>
+        <div class="lib-x-big">${big.join("")}</div>
+        <div class="lib-x-mini" id="libExpStats_${route.id}">${mini.join("")}</div>
         ${route.description ? `<div class="library-expand-desc">${escapeHtml(route.description)}</div>` : ""}
-      </div>
-      <div class="library-expand-actions">
-        <div class="library-expand-actions-main">
-          ${act(`load-${isWorkout ? "file" : "plan"}`, isWorkout ? "line-chart" : "map-pin-plus", isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre", isWorkout ? "Elemzés" : "Tervezés", "library-card-btn--primary")}
-          ${!isWorkout ? '' : act("load-plan", "map-pin-plus", "Betöltés tervezésre", "Tervezés")}
-          ${act("share-menu", "share-2", "Megosztás", "Megosztás", "", 'title="Megosztó kép, PDF útvonallap, nyilvános link"')}
-          ${act("download-gpx", "download", "GPX", "GPX")}
-          ${route.has_fit ? act("download-fit", "file-down", "FIT", "FIT") : ''}
-          ${route.strava_id ? act("strava-refresh", "refresh-cw", "Frissítés Stravából", "Frissítés") : ''}
-          ${route.strava_id ? `<a class="library-card-btn" href="https://www.strava.com/activities/${route.strava_id}" target="_blank" rel="noopener"><i data-lucide="external-link" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">Megnyitás Stravában ↗</span><span class="m-only">Strava</span></a>` : ''}
-          ${(!isWorkout && !isSample) ? act("garmin-course", "watch", route.garmin_course_id ? '✓ Garmin – újraküldés' : 'Küldés Garminra', "Garmin", route.garmin_course_id ? 'garmin-uploaded' : '', 'title="Tervezett útvonal feltöltése Garmin Connect course-ként (navigációhoz)"') : ''}
-          ${(route.garmin_course_id) ? `<a class="library-card-btn garmin-course-link" href="https://connect.garmin.com/modern/course/${route.garmin_course_id}" target="_blank" rel="noopener" title="Course megnyitása a Garmin Connectben"><i data-lucide="external-link" class="lib-act-ico" aria-hidden="true"></i><span class="d-only">Garmin course ↗</span><span class="m-only">Course</span></a>` : ''}
+        <div class="lib-x-acts">
+          ${first}${second}
+          <button class="lib-x-icon" type="button" data-action="share-menu" title="Megosztás – kép, PDF, link" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
+          <button class="lib-x-icon" type="button" data-action="more" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
+          ${!isSample ? `<label class="lib-x-stats" title="Beleszámít-e a statisztikákba, rekordokba">
+            <span class="toggle-switch"><input type="checkbox" data-stats-toggle ${inStats ? "checked" : ""}><span class="toggle-track"></span></span>
+            <span>Beleszámít a statisztikába</span>
+          </label>` : ""}
         </div>
-        ${!isSample ? `<div class="library-expand-actions-end">
-          ${act("toggle-stats", route.include_in_stats === false ? "square" : "check-square", route.include_in_stats === false ? '☐ Statisztikán kívül' : '☑ Statisztikában', "Statisztika", `library-stats-toggle${route.include_in_stats === false ? '' : ' is-on'}`)}
-          ${act("submit-community", "users", "Beküldés a közösbe", "Közösbe", "", 'title="Beküldés a közösségi útvonalak közé (admin jóváhagyással)"')}
-          ${act("edit", "pencil", "Szerkesztés", "Módosítás")}
-          ${act("delete", "trash-2", "Törlés", "Törlés", "library-card-btn--danger")}
-        </div>` : ''}
       </div>
     </div>`;
 
+  // statisztika-kapcsoló
+  td.querySelector("[data-stats-toggle]")?.addEventListener("change", async (e) => {
+    const input = e.target, next = input.checked;
+    input.disabled = true;
+    try {
+      await _api.updateRoute(route.id, { include_in_stats: next });
+      route.include_in_stats = next;
+      for (const coll of [_data.routes, _data.workouts]) {
+        const i = coll.findIndex(r => r.id === route.id);
+        if (i >= 0) coll[i].include_in_stats = next;
+      }
+      document.querySelector(`.library-list-row[data-id="${route.id}"]`)?.classList.toggle("is-excluded", !next);
+      _toast(next ? "Beleszámít a statisztikákba" : "Kihagyva a statisztikákból");
+    } catch { input.checked = !next; _toast("Nem sikerült módosítani."); }
+    finally { input.disabled = false; }
+  });
+  td.querySelector('[data-action="more"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openRouteActionMenu(route, category, isSample, e.currentTarget, { compact: true });
+  });
+  td.addEventListener("click", (e) => e.stopPropagation());
+
   const runAction = makeRouteActionRunner(route, isSample);
 
-  td.querySelectorAll("[data-action]").forEach(btn => {
+  td.querySelectorAll("[data-action]:not([data-action=more])").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       runAction(btn.dataset.action, btn);
@@ -730,12 +803,11 @@ export function buildLibraryListRow({ route, category, isSample }) {
   const sportIcon = SPORT_ICONS[sportKey] ?? "bike";
   const source = libraryRouteSource(route, category);
   const srcLbl = sourceLabel(source);
-  const srcCls = { strava: "lib-badge--strava", garmin: "lib-badge--garmin", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
   const dateStr = smartDateTimeFormat(route);
   const effortVal = route.suffer_score != null ? Math.round(route.suffer_score) : (route.calories != null ? Math.round(route.calories / 10) : null);
 
   const tr = document.createElement("tr");
-  tr.className = `library-list-row`;
+  tr.className = `library-list-row${route.include_in_stats === false && category !== "sample" ? " is-excluded" : ""}`;
   tr.dataset.id = route.id;
   tr.dataset.category = category;
   tr.innerHTML = `
@@ -744,7 +816,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
       <span class="lib-date-main">${dateStr.split(' ')[0] ?? dateStr}</span>
       ${dateStr.includes(' ') ? `<span class="lib-date-time">${dateStr.split(' ').slice(1).join(' ')}</span>` : ''}
     </td>
-    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span><span class="lib-row-sub">${[
+    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span>${category === "route" ? '<span class="lib-kind-tag">terv</span>' : ""}<span class="lib-excl-tag">nem számít bele</span><span class="lib-row-sub">${[
       route.distance != null ? num(route.distance, 1) + " km" : "",
       route.duration != null ? libraryFormatDuration(route.duration) : "",
       route.elevation ? int(route.elevation) + " m" : "",
@@ -754,7 +826,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
     <td class="lib-col-num lib-col-elev">${route.elevation != null ? route.elevation + " m" : "—"}</td>
     <td class="lib-col-num lib-col-kcal">${route.calories != null ? Math.round(route.calories) : "—"}</td>
     <td class="lib-col-num lib-col-effort">${effortVal != null ? `<span class="lib-effort-badge">${effortVal}</span>` : "—"}</td>
-    <td class="lib-col-source"><span class="lib-badge ${srcCls}">${srcLbl}</span></td>
+    <td class="lib-col-source"><span class="lib-src lib-src--${source}">${srcLbl}</span></td>
     <td class="lib-col-chev"><i data-lucide="chevron-down" aria-hidden="true" class="lib-chev"></i></td>
   `;
   tr.addEventListener("click", () => toggleLibraryRowExpand(route.id));
@@ -770,7 +842,6 @@ export function createLibraryCard(route, category, isSample) {
   const sportKey = libraryRouteSportKey(route);
   const source = libraryRouteSource(route, category);
   const srcLbl = sourceLabel(source);
-  const srcCls = { strava: "lib-badge--strava", garmin: "lib-badge--garmin", fit: "lib-badge--fit", manual: "lib-badge--saját", sample: "lib-badge--sablon" }[source] ?? "";
 
   card.innerHTML = `
     <div class="library-card-inner">
@@ -789,7 +860,7 @@ export function createLibraryCard(route, category, isSample) {
         ${route.elevation != null ? `<span class="lib-chip">${route.elevation} m</span>` : ""}
       </div>
       <div class="library-card-footer">
-        <span class="lib-badge ${srcCls}">${srcLbl}</span>
+        <span class="lib-src lib-src--${source}">${srcLbl}</span>
         <div class="library-card-actions">
           <button class="library-card-load-btn" data-action="load-${isWorkout ? "file" : "plan"}" title="${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre"}">
             <i data-lucide="${isWorkout ? "chart-line" : "map-pin-plus"}" aria-hidden="true"></i>
@@ -826,12 +897,14 @@ export function createLibraryCard(route, category, isSample) {
 }
 
 // ── „Egyéb” menü a kártyákhoz (ugyanazok a műveletek, mint a lista lenyitott sorában) ──
-function routeActionItems(route, category, isSample) {
+function routeActionItems(route, category, isSample, { compact = false } = {}) {
   const isWorkout = category === "workout";
   const items = [];
-  if (isWorkout) items.push({ act: "load-plan", icon: "map-pin-plus", label: "Betöltés tervezésre" });
-  else items.push({ act: "load-file", icon: "chart-line", label: "Megnyitás az Elemzésben" });
-  items.push({ act: "share-menu", icon: "share-2", label: "Megosztás", hint: "kép, PDF, link" });
+  if (!compact) {
+    if (isWorkout) items.push({ act: "load-plan", icon: "map-pin-plus", label: "Betöltés tervezésre" });
+    else items.push({ act: "load-file", icon: "chart-line", label: "Megnyitás az Elemzésben" });
+    items.push({ act: "share-menu", icon: "share-2", label: "Megosztás", hint: "kép, PDF, link" });
+  }
   items.push({ act: "download-gpx", icon: "download", label: "GPX letöltése" });
   if (route.has_fit) items.push({ act: "download-fit", icon: "file-down", label: "FIT letöltése" });
   if (route.strava_id) {
@@ -845,9 +918,9 @@ function routeActionItems(route, category, isSample) {
     items.push({ href: `https://connect.garmin.com/modern/course/${route.garmin_course_id}`, icon: "external-link", label: "Garmin course megnyitása" });
   }
   if (!isSample) {
-    items.push({ act: "submit-community", icon: "users", label: "Beküldés a közösségi útvonalak közé" });
+    items.push({ act: "submit-community", icon: "users", label: "Beküldés a közösbe" });
     items.push({ sep: true });
-    items.push({ act: "toggle-stats", icon: route.include_in_stats === false ? "square" : "square-check",
+    if (!compact) items.push({ act: "toggle-stats", icon: route.include_in_stats === false ? "square" : "square-check",
                  label: "Beleszámít a statisztikába" });
     items.push({ act: "edit", icon: "pencil", label: "Szerkesztés" });
     items.push({ sep: true });
@@ -864,7 +937,7 @@ function closeRouteActionMenu() {
 }
 function _menuKey(e) { if (e.key === "Escape") closeRouteActionMenu(); }
 
-function openRouteActionMenu(route, category, isSample, anchor) {
+function openRouteActionMenu(route, category, isSample, anchor, opts = {}) {
   closeRouteActionMenu();
   const runAction = makeRouteActionRunner(route, isSample);
   const ov = document.createElement("div");
@@ -876,7 +949,7 @@ function openRouteActionMenu(route, category, isSample, anchor) {
         <button class="lib-menu-close" type="button" aria-label="Bezárás"><i data-lucide="x" aria-hidden="true"></i></button>
       </div>
       <div class="lib-menu-list">
-        ${routeActionItems(route, category, isSample).map((it) => it.sep ? '<div class="lib-menu-sep"></div>'
+        ${routeActionItems(route, category, isSample, opts).map((it) => it.sep ? '<div class="lib-menu-sep"></div>'
           : it.href
             ? `<a class="lib-menu-item" role="menuitem" href="${it.href}" target="_blank" rel="noopener"><i data-lucide="${it.icon}" aria-hidden="true"></i><span>${it.label}</span></a>`
             : `<button class="lib-menu-item${it.danger ? " is-danger" : ""}" role="menuitem" type="button" data-act="${it.act}"><i data-lucide="${it.icon}" aria-hidden="true"></i><span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ""}</button>`
@@ -934,7 +1007,8 @@ export function renderLibraryGrid() {
     ..._data.samples.map(r  => ({ route: r, category: "sample",  isSample: true  })),
   ];
 
-  let filtered = _filter.type === "all" ? all : all.filter(({ category }) => category === _filter.type);
+  // Előbb minden szűrő a típuson kívül – ebből jönnek a típus-fülek számai
+  let filtered = all;
 
   if (_filter.source !== "all") {
     filtered = filtered.filter(({ route, category }) => {
@@ -951,6 +1025,11 @@ export function renderLibraryGrid() {
                  ...(loc.places || []), ...(loc.countries || [])].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
+
+  const counts = { all: filtered.length, workout: 0, route: 0, sample: 0 };
+  for (const x of filtered) counts[x.category]++;
+  document.querySelectorAll("[data-lib-count]").forEach((el) => { el.textContent = counts[el.dataset.libCount] ?? ""; });
+  if (_filter.type !== "all") filtered = filtered.filter(({ category }) => category === _filter.type);
 
   // Helyszín-szűrők (közösségi útvonalaknál)
   if (_filter.type === "sample") {
@@ -989,26 +1068,18 @@ export function renderLibraryGrid() {
   });
 
   if (countEl) countEl.textContent = `${filtered.length} találat`;
+  updateFilterBadge();
 
   if (headerEl && statsEl) {
-    headerEl.hidden = filtered.length === 0;
     const totalKm = filtered.reduce((s, x) => s + (x.route.distance || 0), 0);
     const totalDur = filtered.reduce((s, x) => s + (x.route.duration || 0), 0);
     const totalElev = filtered.reduce((s, x) => s + (x.route.elevation || 0), 0);
     const h = Math.floor(totalDur / 60), m = totalDur % 60;
-    const byCat = { workout: 0, route: 0, sample: 0 };
-    for (const x of filtered) byCat[x.category] = (byCat[x.category] || 0) + 1;
-    const catLegend = _viewMode === "list"
-      ? `<span class="lib-stat-sep">·</span>` +
-        (byCat.workout ? `<span class="lib-cat-pill lib-cat-pill--workout">${byCat.workout} edzés</span>` : "") +
-        (byCat.route   ? `<span class="lib-cat-pill lib-cat-pill--route">${byCat.route} terv</span>` : "") +
-        (byCat.sample  ? `<span class="lib-cat-pill lib-cat-pill--sample">${byCat.sample} közösségi</span>` : "")
-      : "";
     statsEl.innerHTML =
       `<strong>${filtered.length}</strong> elem` +
       `<span class="lib-stat-sep">·</span><strong>${int(totalKm)}</strong> km` +
       `<span class="lib-stat-sep">·</span><strong>${dur(h * 60 + m)}</strong>` +
-      `<span class="lib-stat-sep">·</span><strong>${int(totalElev)}</strong> m szint${catLegend}`;
+      `<span class="lib-stat-sep">·</span><strong>${int(totalElev)}</strong> m szint`;
   }
 
   document.querySelectorAll(".library-view-btn").forEach(btn =>
@@ -1030,6 +1101,47 @@ export function renderLibraryGrid() {
     filtered.forEach(({ route, category, isSample }) => grid.append(createLibraryCard(route, category, isSample)));
     window.lucide?.createIcons({ nodes: [grid] });
   }
+}
+
+// ── Szűrők: aktív darabszám a gombon, törlés ─────────────────────────────────
+function activeFilterCount() {
+  let n = 0;
+  if (_filter.source !== "all") n++;
+  if (_filter.distMin > 0 || _filter.distMax < _DIST_MAX) n++;
+  if (_filter.durMin > 0 || _filter.durMax < _DUR_MAX) n++;
+  if (_filter.type === "sample") n += (_filter.country ? 1 : 0) + (_filter.region ? 1 : 0) + (_filter.shape !== "all" ? 1 : 0);
+  return n;
+}
+function updateFilterBadge() {
+  const n = activeFilterCount();
+  const badge = document.querySelector("#libFiltersBadge");
+  if (badge) { badge.hidden = n === 0; badge.textContent = n; }
+  document.querySelector("#libFiltersBtn")?.classList.toggle("is-active", n > 0);
+  const any = n > 0 || _filter.sport !== "all" || !!_filter.query.trim();
+  const clr = document.querySelector("#libClearAll");
+  if (clr) clr.hidden = !any;
+}
+function setRange(minId, maxId, lo, hi) {
+  const a = document.querySelector(`#${minId}`), b = document.querySelector(`#${maxId}`);
+  if (!a || !b) return;
+  a.value = lo; b.value = hi;
+  a.dispatchEvent(new Event("input"));
+}
+function clearLibraryFilters(all) {
+  Object.assign(_filter, { source: "all", country: "", region: "", shape: "all",
+                           distMin: 0, distMax: _DIST_MAX, durMin: 0, durMax: _DUR_MAX });
+  const reset = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach((c) =>
+    c.classList.toggle("is-active", c.getAttribute(attr) === val));
+  reset("data-lib-source", "all"); reset("data-lib-shape", "all");
+  if (all) {
+    _filter.sport = "all"; _filter.query = "";
+    reset("data-lib-sport", "all");
+    const q = document.querySelector("#librarySearchInput"); if (q) q.value = "";
+  }
+  setRange("libraryDistMin", "libraryDistMax", 0, _DIST_MAX);
+  setRange("libraryDurMin", "libraryDurMax", 0, _DUR_MAX);
+  updateLocationFilters();
+  renderLibraryGrid();
 }
 
 // ── Event listeners ────────────────────────────────────────────────────────────
@@ -1080,6 +1192,23 @@ function _registerListeners() {
       fileInput.value = "";
     });
   }
+
+  // Szűrők panel (asztalon lenyíló, mobilon alsó lap – CSS)
+  const fBtn = document.querySelector("#libFiltersBtn"), fPop = document.querySelector("#libFiltersPop");
+  const setPop = (open) => {
+    if (!fPop) return;
+    fPop.hidden = !open; fBtn?.setAttribute("aria-expanded", String(open));
+  };
+  fBtn?.addEventListener("click", (e) => { e.stopPropagation(); setPop(fPop.hidden); });
+  document.querySelector("#libFiltersClose")?.addEventListener("click", () => setPop(false));
+  document.querySelector("#libFiltersDone")?.addEventListener("click", () => setPop(false));
+  document.addEventListener("click", (e) => {
+    if (!fPop || fPop.hidden || fPop.contains(e.target) || fBtn?.contains(e.target)) return;
+    setPop(false);
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setPop(false); });
+  document.querySelectorAll("[data-lib-clear]").forEach((b) =>
+    b.addEventListener("click", () => clearLibraryFilters(b.dataset.libClear === "all")));
 
   // Szűrők
   document.querySelector("#librarySearchInput")?.addEventListener("input", e => {

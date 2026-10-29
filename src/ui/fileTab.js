@@ -500,7 +500,7 @@ export async function processImportedFile(file) {
 
   let imported;
   try {
-    imported = await importGpx(gpxFile, { sampleWaypoints: _elements.gpxSampleWaypoints?.checked });
+    imported = await importGpx(gpxFile, { sampleWaypoints: (_elements.gpxSampleWaypointsSettings ?? _elements.gpxSampleWaypoints)?.checked });
   } catch (err) {
     _showToast(isFit
       ? "Nem sikerült betölteni a FIT fájlt."

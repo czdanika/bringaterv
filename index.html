@@ -121,12 +121,34 @@
               </div>
             </section>
 
-            <!-- Tervezési mód -->
-            <section class="sidebar-section collapsed-visible">
-              <div class="option-row">
-                <span class="option-label-wrap">
-                  <span class="option-label">Tervezési mód</span>
-                  <button class="hint-btn" type="button" data-hint-title="Tervezési mód" data-hint="Milyen úton tervezzen az útvonaltervező. Aszfalt: kerékpárutak és szilárd burkolatú utak. Gravel: földutakat, murvát is használ. MTB: erdei ösvények, terep. Túra: gyalogos útvonalak. A mód az útvonal vonalvezetését és a becsült időt is befolyásolja. Egy-egy szakasz módját az útvonalpont melletti színes pötty megnyomásával külön is átállíthatod." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+            <!-- Útvonal: fejléc (⋯ menü), mód, pontok, kereső + Körtúra + ⚙ -->
+            <section class="sidebar-section route-section">
+              <div class="plan-head">
+                <h2 class="plan-title" data-i18n="sections.route">Útvonal</h2>
+                <div class="plan-menu-wrap">
+                  <button id="planMoreBtn" class="icon-button plan-more-btn" type="button" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu" aria-expanded="false">
+                    <i data-lucide="ellipsis" aria-hidden="true"></i>
+                  </button>
+                  <div id="planMoreMenu" class="plan-pop plan-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" data-act="import"><i data-lucide="upload" aria-hidden="true"></i>GPX importálása…</button>
+                    <div class="plan-menu-sep"></div>
+                    <button type="button" role="menuitem" data-proxy="reverseRouteButton"><i data-lucide="arrow-left-right" aria-hidden="true"></i>Irány megfordítása</button>
+                    <button type="button" role="menuitem" data-proxy="roundTripButton"><i data-lucide="repeat" aria-hidden="true"></i>Oda-vissza út</button>
+                    <button type="button" role="menuitem" data-proxy="sidebarExportButton"><i data-lucide="save" aria-hidden="true"></i>Mentés, megosztás…</button>
+                    <div class="plan-menu-sep"></div>
+                    <button type="button" role="menuitem" data-proxy="clearRoute" class="is-danger"><i data-lucide="trash-2" aria-hidden="true"></i>Útvonal törlése</button>
+                  </div>
+                </div>
+                <button id="clearRoute" class="icon-button" type="button"
+                  title="Útvonal törlése" aria-label="Útvonal törlése"
+                  data-i18n-title="actions.clear" data-i18n-aria-label="actions.clear">
+                  <i data-lucide="trash-2" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <div class="plan-sub">
+                <span class="plan-sub-label">Pontok
+                  <button class="hint-btn" type="button" data-hint-title="Pontok" data-hint="Pontot a térképre kattintva vagy a keresőből adhatsz hozzá. A sorrendet a bal oldali fogantyúval húzva módosíthatod. A színes pötty az adott szakasz tervezési módja – megnyomva szakaszonként átállíthatod. A jobb oldali gomb az egész útvonal módja (Aszfalt, Gravel, MTB, Túra)." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
                 </span>
                 <div class="route-mode-picker-wrap">
                   <button id="routeModePicker" class="sidebar-style-btn" type="button" title="Tervezési mód váltása">
@@ -170,18 +192,36 @@
                   </div>
                 </div>
               </div>
-            </section>
 
-            <!-- Útvonal beállításai -->
-            <section class="sidebar-section">
-              <h2 class="sidebar-section-title">
-                <span data-i18n="sections.options">Útvonal beállításai</span>
-                <button class="hint-btn" type="button" data-hint="Az útvonaltervezés viselkedését szabályozó kapcsolók. Az itt beállított értékek azonnal érvénybe lépnek, és a Beállítások menüben is megtalálhatók." aria-label="Segítség">
-                  <i data-lucide="info" aria-hidden="true"></i>
+              <!-- Pontok listája -->
+              <ol id="waypointList" class="waypoint-list"></ol>
+              <p id="emptyState" class="empty-state" data-i18n="route.empty">
+                Kattints a térképre az első pont hozzáadásához.
+              </p>
+              <input id="planGpxInput" type="file" accept=".gpx" hidden>
+
+              <div class="plan-tools-row">
+                <!-- Keresés -->
+                <form id="searchForm" class="search-form">
+                <input id="searchInput" class="text-control" type="search" autocomplete="off"
+                  data-i18n-placeholder="search.placeholder" placeholder="Hely keresése">
+                <button id="locateButton" class="locate-btn" type="button"
+                  title="Saját helyzetem" data-i18n-title="actions.locate">
+                  <i data-lucide="crosshair" aria-hidden="true"></i>
                 </button>
-              </h2>
-
-              <div class="option-row">
+              </form>
+                <div id="searchResults" class="search-results" aria-live="polite"></div>
+                <label class="plan-loop" title="Az útvonal mindig visszaér a rajthoz">
+                  <span class="toggle-switch"><input id="loopToggle" type="checkbox"><span class="toggle-track"></span></span>
+                  <span>Körtúra</span>
+                </label>
+                <div class="plan-menu-wrap">
+                  <button id="planSettingsBtn" class="icon-button plan-settings-btn" type="button" title="Tervezési beállítások" aria-label="Tervezési beállítások" aria-haspopup="dialog" aria-expanded="false">
+                    <i data-lucide="sliders-horizontal" aria-hidden="true"></i><span class="m-only">Beállítások</span>
+                  </button>
+                  <div id="planSettingsPop" class="plan-pop plan-settings" hidden>
+                    <div class="plan-pop-title">Tervezés</div>
+                    <div class="option-row">
                 <span class="option-label-wrap">
                   <span data-i18n="controls.snap">Útra illesztés</span>
                   <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal pontjai automatikusan a legközelebbi útra illeszkednek. Kikapcsolva a pontokat légvonalban köti össze." aria-label="Segítség">
@@ -193,21 +233,7 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
-
-              <div class="option-row">
-                <span class="option-label-wrap">
-                  <span>Körtúra</span>
-                  <button class="hint-btn" type="button" data-hint="Bekapcsolva az útvonal mindig visszaér a rajthoz: a végére kerül a rajt, az új pontok a visszaút elé szúródnak be, és a rajt áthelyezésekor a cél is vele mozog." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                </span>
-                <label class="toggle-switch">
-                  <input id="loopToggle" type="checkbox">
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
-
-              <div class="option-row">
+                    <div class="option-row">
                 <span class="option-label-wrap">
                   <span data-i18n="controls.stageInfo">Szakasz infó</span>
                   <button class="hint-btn" type="button" data-hint="Az útvonal egyes szakaszainak részletes adatait (távolság, szintkülönbség) jeleníti meg a térkép alatt." aria-label="Segítség">
@@ -219,52 +245,29 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
-
-              <div class="option-row">
-                <span class="option-label-wrap">
-                  <span data-i18n="controls.gpxSample">GPX köztes pontok</span>
-                  <button class="hint-btn" type="button" data-hint="GPX fájl betöltésekor az útvonalon lévő összes köztes pontot beolvassa. Kikapcsolva csak a kezdő- és végpontot veszi figyelembe." aria-label="Segítség">
-                    <i data-lucide="info" aria-hidden="true"></i>
-                  </button>
-                </span>
-                <label class="toggle-switch">
-                  <input id="gpxSampleWaypoints" type="checkbox">
+                    <div class="plan-pop-title">Időbecslés</div>
+                    <!-- Szintadat alapú időbecslés kapcsoló -->
+              <div class="plan-elev-toggle-row">
+                <span class="plan-elev-toggle-label">Szintadat az időbecsléshez</span>
+                <button class="hint-btn" type="button" data-hint-title="Szintadat az időbecsléshez" data-hint="Bekapcsolva a becsült idő számításánál figyelembe veszi az emelkedőket (lassítanak) és a lejtőket (gyorsítanak). Kikapcsolva csak a táv és az átlagsebesség számít. Az alapértéket a Beállítások menüben adhatod meg." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                <label class="toggle-switch" title="Emelkedő és süllyedő figyelembevétele a becsült időnél">
+                  <input id="planElevTimeToggle" type="checkbox" checked>
                   <span class="toggle-track"></span>
                 </label>
               </div>
-
-
-
-            </section>
-
-            <!-- Útvonal -->
-            <section class="sidebar-section route-section">
-              <div class="sidebar-section-header">
-                <h2 class="sidebar-section-title"><span data-i18n="sections.route">Útvonal</span><button class="hint-btn" type="button" data-hint-title="Útvonal" data-hint="Pontot a térképre kattintva vagy a keresőből adhatsz hozzá. A pontok sorrendjét a bal oldali fogantyúval húzva módosíthatod, a színes pötty az adott szakasz tervezési módja. Alul a teljes táv, a becsült idő és a szintemelkedés látható." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button></h2>
-                <button id="clearRoute" class="icon-button" type="button"
-                  title="Útvonal törlése" aria-label="Útvonal törlése"
-                  data-i18n-title="actions.clear" data-i18n-aria-label="actions.clear">
-                  <i data-lucide="trash-2" aria-hidden="true"></i>
-                </button>
+                    <!-- Szélhatás alapú időbecslés kapcsoló -->
+              <div class="plan-elev-toggle-row" id="planWindTimeRow" hidden>
+                <span class="plan-elev-toggle-label">Szélhatás az időbecsléshez</span>
+                <button class="hint-btn" type="button" data-hint-title="Szélhatás az időbecsléshez" data-hint="Ha lefuttattad a szélelemzést, a becsült időbe beszámítja a szembeszél lassító és a hátszél gyorsító hatását is." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                <label class="toggle-switch" title="A szembeszél / hátszél figyelembevétele a becsült időnél (Open-Meteo szélelemzés alapján).">
+                  <input id="planWindTimeToggle" type="checkbox">
+                  <span class="toggle-track"></span>
+                </label>
               </div>
-
-              <!-- Keresés -->
-              <form id="searchForm" class="search-form">
-                <input id="searchInput" class="text-control" type="search" autocomplete="off"
-                  data-i18n-placeholder="search.placeholder" placeholder="Hely keresése">
-                <button id="locateButton" class="locate-btn" type="button"
-                  title="Saját helyzetem" data-i18n-title="actions.locate">
-                  <i data-lucide="crosshair" aria-hidden="true"></i>
-                </button>
-              </form>
-              <div id="searchResults" class="search-results" aria-live="polite"></div>
-
-              <!-- Pontok listája -->
-              <ol id="waypointList" class="waypoint-list"></ol>
-              <p id="emptyState" class="empty-state" data-i18n="route.empty">
-                Kattints a térképre az első pont hozzáadásához.
-              </p>
-              <input id="planGpxInput" type="file" accept=".gpx" hidden>
+                    <p class="plan-pop-note">Az alapértékek a Beállítások menüben is megvannak.</p>
+                  </div>
+                </div>
+              </div>
 
               <!-- Statisztikák -->
               <div class="stats-panel" aria-label="Route statistics">
@@ -286,25 +289,21 @@
                 </div>
               </div>
 
-<!-- Szintadat alapú időbecslés kapcsoló -->
-              <div class="plan-elev-toggle-row">
-                <span class="plan-elev-toggle-label">Szintadat az időbecsléshez</span>
-                <button class="hint-btn" type="button" data-hint-title="Szintadat az időbecsléshez" data-hint="Bekapcsolva a becsült idő számításánál figyelembe veszi az emelkedőket (lassítanak) és a lejtőket (gyorsítanak). Kikapcsolva csak a táv és az átlagsebesség számít. Az alapértéket a Beállítások menüben adhatod meg." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
-                <label class="toggle-switch" title="Emelkedő és süllyedő figyelembevétele a becsült időnél">
-                  <input id="planElevTimeToggle" type="checkbox" checked>
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
-              <!-- Szélhatás alapú időbecslés kapcsoló -->
-              <div class="plan-elev-toggle-row" id="planWindTimeRow" hidden>
-                <span class="plan-elev-toggle-label">Szélhatás az időbecsléshez</span>
-                <button class="hint-btn" type="button" data-hint-title="Szélhatás az időbecsléshez" data-hint="Ha lefuttattad a szélelemzést, a becsült időbe beszámítja a szembeszél lassító és a hátszél gyorsító hatását is." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
-                <label class="toggle-switch" title="A szembeszél / hátszél figyelembevétele a becsült időnél (Open-Meteo szélelemzés alapján).">
-                  <input id="planWindTimeToggle" type="checkbox">
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
 
+              <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
+                <i data-lucide="save" aria-hidden="true"></i>
+                <span>Mentés</span>
+              </button>
+            </section>
+
+            <!-- Útvonal színezése: egy választó a Szintprofil / Szélelemzés blokkok helyett -->
+            <section class="sidebar-section plan-color-section" id="planColorSection" hidden>
+              <h2 class="sidebar-section-title"><span>Útvonal színezése</span></h2>
+              <div class="plan-color-seg" id="planColorSeg" role="radiogroup" aria-label="Útvonal színezése">
+                <button type="button" role="radio" data-color="none">Nincs</button>
+                <button type="button" role="radio" data-color="grade">Szintprofil</button>
+                <button type="button" role="radio" data-color="wind">Szélelemzés</button>
+              </div>
               <!-- Szintprofil / Lejtő térkép — tervezésnél -->
               <div id="gradeLegendPlan" class="speed-legend" hidden>
                 <div class="speed-legend-header">
@@ -379,17 +378,6 @@
                   <div id="windStatusPlan" class="wind-status"></div>
                 </div>
               </div>
-
-              <!-- Akciók: GPX import + Mentés (a szekció aljára kerül átláthatóság miatt) -->
-              <button id="planImportBtn" class="plan-import-btn" type="button">
-                <i data-lucide="upload" aria-hidden="true"></i>
-                <span>GPX importálása tervezéshez</span>
-              </button>
-              <button id="sidebarExportButton" class="sidebar-export-btn" type="button" hidden>
-                <i data-lucide="save" aria-hidden="true"></i>
-                <span>Mentés</span>
-              </button>
-
             </section>
 
           </div><!-- /tabPlan -->
@@ -699,121 +687,7 @@
           <!-- ===== KÖNYVTÁR PANEL ===== -->
           <div class="tab-panel" id="tabLibrary" hidden>
 
-            <!-- Betöltés állapot -->
-            <div id="libraryLoading" class="library-loading" hidden>
-              <i data-lucide="loader-circle" class="library-loading-icon" aria-hidden="true"></i>
-              <span>Betöltés…</span>
-            </div>
-
-            <!-- API nem elérhető -->
-            <div id="libraryOffline" class="library-offline" hidden>
-              <i data-lucide="wifi-off" aria-hidden="true"></i>
-              <p>Az útvonalkönyvtár nem érhető el.</p>
-              <p class="library-offline-hint">Győződj meg róla, hogy a <code>routes-api</code> konténer fut.</p>
-              <button id="libraryRetryBtn" class="library-retry-btn" type="button">
-                <i data-lucide="refresh-cw" aria-hidden="true"></i> Újrapróbálás
-              </button>
-            </div>
-
-            <!-- Szűrő panel (akkor látható, ha API elérhető) -->
-            <div id="libraryFilterPanel" class="library-filter-panel" hidden>
-              <div class="library-search-wrap">
-                <i data-lucide="search" aria-hidden="true"></i>
-                <input id="librarySearchInput" class="library-search-input" type="search" placeholder="Keresés…" autocomplete="off">
-              </div>
-              <div class="library-filter-group">
-                <span class="library-filter-label">Típus</span>
-                <div class="library-type-chips">
-                  <button class="lib-type-chip is-active" data-lib-type="all" type="button">Összes</button>
-                  <button class="lib-type-chip" data-lib-type="route" type="button">Útvonal</button>
-                  <button class="lib-type-chip" data-lib-type="workout" type="button">Edzés</button>
-                  <button class="lib-type-chip" data-lib-type="sample" type="button">Közösségi</button>
-                </div>
-              </div>
-              <!-- Helyszín – csak a Közösségi típusnál látszik -->
-              <div class="library-filter-group" id="libraryLocationGroup" hidden>
-                <span class="library-filter-label">Helyszín</span>
-                <div class="library-loc-row">
-                  <select id="libraryCountrySelect" class="library-loc-select" aria-label="Ország" hidden></select>
-                  <select id="libraryRegionSelect" class="library-loc-select" aria-label="Régió (megye)"></select>
-                </div>
-                <div class="library-type-chips">
-                  <button class="lib-type-chip is-active" data-lib-shape="all" type="button">Mind</button>
-                  <button class="lib-type-chip" data-lib-shape="loop" type="button">Körtúra</button>
-                  <button class="lib-type-chip" data-lib-shape="ab" type="button">A → B</button>
-                </div>
-              </div>
-              <div class="library-filter-group">
-                <span class="library-filter-label">Forrás</span>
-                <div class="library-type-chips">
-                  <button class="lib-type-chip is-active" data-lib-source="all" type="button">Mind</button>
-                  <button class="lib-type-chip" data-lib-source="manual" type="button">Saját</button>
-                  <button class="lib-type-chip" data-lib-source="strava" type="button" title="Strava-ról szinkronizált">Strava</button>
-                  <button class="lib-type-chip" data-lib-source="garmin" type="button" title="Garmin Connectről szinkronizált">Garmin</button>
-                  <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
-                </div>
-              </div>
-              <div class="library-filter-group">
-                <span class="library-filter-label">Sport</span>
-                <div class="library-type-chips">
-                  <button class="lib-type-chip is-active" data-lib-sport="all" type="button">Mind</button>
-                  <button class="lib-type-chip" data-lib-sport="cycling" type="button" title="Kerékpározás"><i data-lucide="bike" aria-hidden="true"></i>Bringa</button>
-                  <button class="lib-type-chip" data-lib-sport="run" type="button" title="Futás"><i data-lucide="footprints" aria-hidden="true"></i>Futás</button>
-                  <button class="lib-type-chip" data-lib-sport="hike" type="button" title="Túra"><i data-lucide="mountain-snow" aria-hidden="true"></i>Túra</button>
-                  <button class="lib-type-chip" data-lib-sport="walk" type="button" title="Gyaloglás"><i data-lucide="footprints" aria-hidden="true"></i>Gyaloglás</button>
-                  <button class="lib-type-chip" data-lib-sport="other" type="button" title="Egyéb"><i data-lucide="activity" aria-hidden="true"></i>Egyéb</button>
-                </div>
-              </div>
-              <div class="library-filter-group">
-                <div class="library-filter-label-row">
-                  <span class="library-filter-label">Távolság</span>
-                  <span id="libraryDistLabel" class="library-range-label">Bármely</span>
-                </div>
-                <div class="library-range-wrap">
-                  <div class="range-track"><div class="range-fill" id="libraryDistFill"></div></div>
-                  <input type="range" id="libraryDistMin" class="range-input" min="0" max="500" value="0" step="5">
-                  <input type="range" id="libraryDistMax" class="range-input" min="0" max="500" value="500" step="5">
-                </div>
-              </div>
-              <div class="library-filter-group">
-                <div class="library-filter-label-row">
-                  <span class="library-filter-label">Edzésidő</span>
-                  <span id="libraryDurLabel" class="library-range-label">Bármely</span>
-                </div>
-                <div class="library-range-wrap">
-                  <div class="range-track"><div class="range-fill" id="libraryDurFill"></div></div>
-                  <input type="range" id="libraryDurMin" class="range-input" min="0" max="600" value="0" step="10">
-                  <input type="range" id="libraryDurMax" class="range-input" min="0" max="600" value="600" step="10">
-                </div>
-              </div>
-              <div class="library-filter-group">
-                <span class="library-filter-label">Sorrend</span>
-                <div class="library-type-chips library-sort-chips">
-                  <button class="lib-type-chip is-active" data-lib-sort="newest" type="button" title="Legújabb először">
-                    <i data-lucide="arrow-down-narrow-wide" aria-hidden="true"></i> Dátum
-                  </button>
-                  <button class="lib-type-chip" data-lib-sort="oldest" type="button" title="Legrégebbi először">
-                    <i data-lucide="arrow-up-narrow-wide" aria-hidden="true"></i> Dátum
-                  </button>
-                  <button class="lib-type-chip" data-lib-sort="name" type="button" title="Név szerint">
-                    <i data-lucide="a-large-small" aria-hidden="true"></i> A–Z
-                  </button>
-                  <button class="lib-type-chip" data-lib-sort="distance" type="button" title="Távolság szerint">
-                    <i data-lucide="route" aria-hidden="true"></i> km
-                  </button>
-                  <button class="lib-type-chip" data-lib-sort="duration" type="button" title="Edzésidő szerint">
-                    <i data-lucide="clock" aria-hidden="true"></i> idő
-                  </button>
-                </div>
-              </div>
-              <div class="library-filter-footer">
-                <span id="libraryResultCount" class="library-result-count"></span>
-                <button id="libraryRefreshBtn" class="library-refresh-btn" type="button" title="Frissítés">
-                  <i data-lucide="refresh-cw" aria-hidden="true"></i>
-                </button>
-              </div>
-            </div>
-
+            <!-- A könyvtár szűrői a fő területen vannak (#libraryFilterPanel) -->
           </div><!-- /tabLibrary -->
 
           <!-- ===== STATISZTIKÁK SIDEBAR ===== -->
@@ -874,10 +748,24 @@
       <!-- LIBRARY MAIN (card grid / list view, replaces map in library mode) -->
       <div id="libraryMain" class="library-main" hidden>
         <!-- Header: stat összegzés + nézet-váltó -->
-        <div id="libraryMainHeader" class="library-main-header" hidden>
-          <div class="library-main-stats" id="libraryMainStats">
-            <span class="library-main-stats-text"></span>
-          </div>
+        <div id="libraryLoading" class="library-loading" hidden>
+              <i data-lucide="loader-circle" class="library-loading-icon" aria-hidden="true"></i>
+              <span>Betöltés…</span>
+            </div>
+        <div id="libraryOffline" class="library-offline" hidden>
+              <i data-lucide="wifi-off" aria-hidden="true"></i>
+              <p>Az útvonalkönyvtár nem érhető el.</p>
+              <p class="library-offline-hint">Győződj meg róla, hogy a <code>routes-api</code> konténer fut.</p>
+              <button id="libraryRetryBtn" class="library-retry-btn" type="button">
+                <i data-lucide="refresh-cw" aria-hidden="true"></i> Újrapróbálás
+              </button>
+            </div>
+        <div id="libraryMainHeader" class="library-main-header">
+          <div class="lib-head-row">
+            <h1 class="lib-title">Könyvtár</h1>
+            <div class="library-main-stats" id="libraryMainStats">
+              <span class="library-main-stats-text"></span>
+            </div>
           <div class="library-main-actions">
             <div class="library-import-wrap">
               <button id="libraryImportBtn" class="library-import-btn" type="button" title="Új útvonal vagy edzés importálása">
@@ -914,7 +802,92 @@
               </button>
             </div>
           </div>
+          </div>
           <input id="libraryImportFileInput" type="file" hidden>
+          <div id="libraryFilterPanel" class="lib-filterbar" hidden>
+            <div class="lib-type-tabs" role="tablist" aria-label="Típus">
+              <button class="lib-type-tab is-active" data-lib-type="all" type="button" role="tab">Összes<em data-lib-count="all"></em></button>
+              <button class="lib-type-tab" data-lib-type="workout" type="button" role="tab">Edzés<em data-lib-count="workout"></em></button>
+              <button class="lib-type-tab" data-lib-type="route" type="button" role="tab">Terv<em data-lib-count="route"></em></button>
+              <button class="lib-type-tab" data-lib-type="sample" type="button" role="tab">Közösségi<em data-lib-count="sample"></em></button>
+            </div>
+            <div class="lib-filter-row">
+              <div class="library-search-wrap">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input id="librarySearchInput" class="library-search-input" type="search" placeholder="Keresés név vagy hely szerint…" autocomplete="off">
+              </div>
+              <div class="lib-sport-chips" role="group" aria-label="Sport">
+                <button class="lib-type-chip is-active" data-lib-sport="all" type="button">Minden sport</button>
+                <button class="lib-type-chip" data-lib-sport="cycling" type="button" title="Kerékpározás"><i data-lucide="bike" aria-hidden="true"></i>Bringa</button>
+                  <button class="lib-type-chip" data-lib-sport="run" type="button" title="Futás"><i data-lucide="footprints" aria-hidden="true"></i>Futás</button>
+                  <button class="lib-type-chip" data-lib-sport="hike" type="button" title="Túra"><i data-lucide="mountain-snow" aria-hidden="true"></i>Túra</button>
+                  <button class="lib-type-chip" data-lib-sport="walk" type="button" title="Gyaloglás"><i data-lucide="footprints" aria-hidden="true"></i>Gyaloglás</button>
+                  <button class="lib-type-chip" data-lib-sport="other" type="button" title="Egyéb"><i data-lucide="activity" aria-hidden="true"></i>Egyéb</button>
+              </div>
+              <div class="lib-filter-end">
+                <div class="lib-filter-pop-wrap">
+                  <button id="libFiltersBtn" class="lib-filters-btn" type="button" aria-haspopup="dialog" aria-expanded="false">
+                    <i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>Szűrők</span><b id="libFiltersBadge" class="lib-filters-badge" hidden></b>
+                  </button>
+                  <div id="libFiltersPop" class="lib-filters-pop" role="dialog" aria-label="Szűrők" hidden>
+                    <div class="lib-pop-head"><b>Szűrők</b><button type="button" class="lib-pop-close" id="libFiltersClose" aria-label="Bezárás"><i data-lucide="x" aria-hidden="true"></i></button></div>
+                    <div class="library-filter-group" id="libraryLocationGroup" hidden>
+                <span class="library-filter-label">Helyszín</span>
+                <div class="library-loc-row">
+                  <select id="libraryCountrySelect" class="library-loc-select" aria-label="Ország" hidden></select>
+                  <select id="libraryRegionSelect" class="library-loc-select" aria-label="Régió (megye)"></select>
+                </div>
+                <div class="library-type-chips">
+                  <button class="lib-type-chip is-active" data-lib-shape="all" type="button">Mind</button>
+                  <button class="lib-type-chip" data-lib-shape="loop" type="button">Körtúra</button>
+                  <button class="lib-type-chip" data-lib-shape="ab" type="button">A → B</button>
+                </div>
+              </div>
+                    <div class="library-filter-group" id="librarySourceGroup">
+                      <span class="library-filter-label">Forrás</span>
+                      <div class="library-type-chips">
+                  <button class="lib-type-chip is-active" data-lib-source="all" type="button">Mind</button>
+                  <button class="lib-type-chip" data-lib-source="manual" type="button">Saját</button>
+                  <button class="lib-type-chip" data-lib-source="strava" type="button" title="Strava-ról szinkronizált">Strava</button>
+                  <button class="lib-type-chip" data-lib-source="garmin" type="button" title="Garmin Connectről szinkronizált">Garmin</button>
+                  <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
+                </div>
+                    </div>
+                    <div class="library-filter-group">
+                <div class="library-filter-label-row">
+                  <span class="library-filter-label">Távolság</span>
+                  <span id="libraryDistLabel" class="library-range-label">Bármely</span>
+                </div>
+                <div class="library-range-wrap">
+                  <div class="range-track"><div class="range-fill" id="libraryDistFill"></div></div>
+                  <input type="range" id="libraryDistMin" class="range-input" min="0" max="500" value="0" step="5">
+                  <input type="range" id="libraryDistMax" class="range-input" min="0" max="500" value="500" step="5">
+                </div>
+              </div>
+                    <div class="library-filter-group">
+                <div class="library-filter-label-row">
+                  <span class="library-filter-label">Edzésidő</span>
+                  <span id="libraryDurLabel" class="library-range-label">Bármely</span>
+                </div>
+                <div class="library-range-wrap">
+                  <div class="range-track"><div class="range-fill" id="libraryDurFill"></div></div>
+                  <input type="range" id="libraryDurMin" class="range-input" min="0" max="600" value="0" step="10">
+                  <input type="range" id="libraryDurMax" class="range-input" min="0" max="600" value="600" step="10">
+                </div>
+              </div>
+                    <div class="lib-pop-foot">
+                      <button type="button" class="lib-clear-link" data-lib-clear="pop">Szűrők törlése</button>
+                      <button type="button" class="lib-pop-done" id="libFiltersDone"><span id="libraryResultCount" class="library-result-count"></span></button>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="lib-clear-link" id="libClearAll" data-lib-clear="all" hidden>Törlés</button>
+                <button id="libraryRefreshBtn" class="library-refresh-btn" type="button" title="Frissítés a szerverről" aria-label="Frissítés">
+                  <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="libraryGrid" class="library-grid"></div>

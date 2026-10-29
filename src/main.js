@@ -2232,6 +2232,107 @@ function setLoopStart(id) {
   showToast(`Új rajt: ${start.name || "kijelölt pont"}`);
 }
 
+// ── Tervezés oldalsáv: ⋯ menü, ⚙ beállítások, útvonal színezése ─────────────
+(function initPlanSidebar() {
+  const $id = (i) => document.getElementById(i);
+  const pops = [["planMoreBtn", "planMoreMenu"], ["planSettingsBtn", "planSettingsPop"]];
+
+  // fix pozíció – az oldalsáv görgető tartalma levágná az abszolút panelt
+  const place = (btn, pop) => {
+    if (mobileMQ.matches) { pop.style.cssText = ""; return; }
+    const r = btn.getBoundingClientRect();
+    pop.style.top = `${r.bottom + 6}px`;
+    pop.style.left = `${Math.max(8, r.right - pop.offsetWidth)}px`;
+  };
+  const closeAll = (except) => pops.forEach(([b, p]) => {
+    if (p === except) return;
+    const pop = $id(p); if (!pop || pop.hidden) return;
+    pop.hidden = true; $id(b)?.setAttribute("aria-expanded", "false");
+  });
+  const refreshMenu = () => {
+    const hasRoute = store.getState().waypoints.length > 0;
+    $id("planMoreMenu")?.querySelectorAll("[data-proxy]").forEach((item) => {
+      const src = $id(item.dataset.proxy);
+      item.disabled = !src || src.disabled || (item.dataset.proxy === "sidebarExportButton" ? src.hidden : false)
+        || (item.dataset.proxy === "clearRoute" && !hasRoute);
+    });
+  };
+  pops.forEach(([b, p]) => {
+    const btn = $id(b), pop = $id(p);
+    btn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = pop.hidden;
+      closeAll(pop);
+      if (open && p === "planMoreMenu") refreshMenu();
+      pop.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      if (open) place(btn, pop);
+    });
+  });
+  document.addEventListener("click", (e) => {
+    if (pops.some(([b, p]) => $id(b)?.contains(e.target) || $id(p)?.contains(e.target))) return;
+    closeAll();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
+  window.addEventListener("resize", () => closeAll());
+  $id("tabPlan")?.addEventListener("scroll", () => { if (!mobileMQ.matches) closeAll(); }, true);
+
+  $id("planMoreMenu")?.addEventListener("click", (e) => {
+    const item = e.target.closest("button"); if (!item || item.disabled) return;
+    closeAll();
+    if (item.dataset.act === "import") $id("planGpxInput")?.click();
+    else $id(item.dataset.proxy)?.click();
+  });
+
+  // üres útvonalnál mobilon az összefoglaló elég (kereső + mód)
+  const routeSection = document.querySelector("#tabPlan > .route-section");
+  const markEmpty = () => routeSection?.classList.toggle("is-empty", store.getState().waypoints.length === 0);
+  store.subscribe(markEmpty);
+  markEmpty();
+
+  // Színezés: a meglévő Szintprofil / Szél kapcsolókat állítja, azok logikája fut tovább
+  const section = $id("planColorSection"), seg = $id("planColorSeg");
+  const grade = elements.gradeMapTogglePlan, wind = elements.windMapTogglePlan;
+  const gradeLeg = elements.gradeLegendPlan, windLeg = elements.windLegendPlan;
+  if (!section || !seg) return;
+  const set = (input, val) => {
+    if (!input || input.checked === val) return;
+    input.checked = val;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const sync = () => {
+    const gradeOk = gradeLeg && !gradeLeg.hidden, windOk = windLeg && !windLeg.hidden;
+    section.hidden = !gradeOk && !windOk;
+    const active = grade?.checked && gradeOk ? "grade" : wind?.checked && windOk ? "wind" : "none";
+    seg.querySelectorAll("button").forEach((b) => {
+      const on = b.dataset.color === active;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-checked", String(on));
+      b.disabled = (b.dataset.color === "grade" && !gradeOk) || (b.dataset.color === "wind" && !windOk);
+    });
+    gradeLeg?.classList.toggle("is-shown", active === "grade");
+    windLeg?.classList.toggle("is-shown", active === "wind");
+  };
+  seg.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-color]"); if (!b || b.disabled) return;
+    const c = b.dataset.color;
+    if (c !== "grade") set(grade, false);
+    if (c !== "wind") set(wind, false);
+    if (c === "grade") set(grade, true);
+    if (c === "wind") {
+      set(wind, true);
+      // az indulási idő és a sebesség rögtön látszódjon
+      const ex = windLeg?.querySelector(".speed-legend-expand");
+      if (ex?.getAttribute("aria-expanded") === "false") ex.click();
+    }
+    sync();
+  });
+  [grade, wind].forEach((i) => i?.addEventListener("change", () => setTimeout(sync, 0)));
+  [gradeLeg, windLeg].forEach((l) => l && new MutationObserver(sync).observe(l, { attributes: true, attributeFilter: ["hidden"] }));
+  store.subscribe(() => setTimeout(sync, 0));
+  sync();
+})();
+
 // ── Mobil tervezési összefoglaló (a lap teteje) ──────────────────────────────
 (function initMobilePlanSummary() {
   const box = document.getElementById("mPlanSummary");

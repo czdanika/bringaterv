@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.19.0 – 2026-10-29 – Letisztultabb tervezés és könyvtár
+
+### Verzió
+
+- **Tervezés oldalsáv átrendezve:** felül „Útvonal” cím ⋯ menüvel (GPX importálása, Irány megfordítása, Oda-vissza út, Mentés/megosztás, Útvonal törlése), alatta „Pontok” a tervezési mód kis választójával, majd a pontlista. A pontok alatt a kereső, mellette a Körtúra kapcsoló és egy ⚙ gomb: ebben a ritkán állított beállítások (Útra illesztés, Szakasz infó, szintadat és szélhatás az időbecsléshez). A statok dobozok nélkül, tömören. Mobilon ugyanez a lapban nyílik („Beállítások”), üres útvonalnál csak a kereső és a módválasztó látszik.
+- **Útvonal színezése:** a Szintprofil és Szélelemzés nagy blokkjai helyett egy választó (Nincs · Szintprofil · Szélelemzés); szélelemzésnél rögtön lenyílik az indulási idő és a sebesség.
+- **„GPX köztes pontok”:** a kapcsoló kikerült a tervezésből (csak az Elemzés fájlbetöltésére hat) – a Beállítások menüben állítható.
+- **Könyvtár szűrők a lista fölött:** a bal oldali szűrősáv helyett típusfülek darabszámmal (Összes · Edzés · Terv · Közösségi), kereső és sportchipek; a Forrás, Távolság, Edzésidő (és közösségi útvonalaknál a Helyszín) a „Szűrők” gombban, rajta az aktív szűrők száma, mellette „Törlés”. Rendezés az oszlopfejlécekkel. Mobilon a Szűrők alsó lapként nyílik.
+- **Könyvtár lenyitott sora:** térképes előnézet (halvány alaptérkép, vékony vonal fehér kontúrral, zöld rajt), négy fő szám és egy halk sor a többi adattal; két fő gomb (Elemzés, Tervezés), Megosztás és ⋯ menü (GPX, Strava, Garmin, közösbe küldés, Szerkesztés, Törlés); „Beleszámít a statisztikába” kapcsoló. A kártyanézet kis előnézetei is térképesek.
+- **Könyvtár lista:** a forrás halk felirat a színes címke helyett, a tervek mellett „terv” jelölés, a statisztikából kizárt sorok halványak; a színes bal szegély megszűnt.
+- **Javítás:** a lebegő szerkesztő menü összecsukva nem nyúlik magas, üres oszloppá.
+
+---
+
 ## v1.18.0 – 2026-10-28 – Megújult mobil nézet
 
 ### Verzió

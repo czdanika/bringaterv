@@ -2003,6 +2003,7 @@ body.is-drag-over::after {
 }
 .map-toolbar.is-collapsed .toolbar-content {
   max-width: 0;
+  flex-wrap: nowrap;   /* tördelve a gombok egymás alá esnének → magas üres oszlop */
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
@@ -7370,3 +7371,203 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   .library-card-load-btn { background: color-mix(in srgb, var(--brand) 12%, transparent); color: color-mix(in srgb, var(--brand) 85%, #000);
     border-color: transparent; }
 }
+
+/* ── Tervezés oldalsáv (Komoot-ötletekkel): fejléc ⋯ menüvel, pontok + mód, kereső/Körtúra/⚙ egy sorban ── */
+#tabPlan > .route-section { padding-top: 14px; }
+.plan-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 4px 16px; }
+.plan-title { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.plan-head #clearRoute { display: none; }
+.plan-menu-wrap { position: relative; }
+.plan-more-btn, .plan-settings-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; }
+.plan-more-btn svg { width: 19px; height: 19px; }
+.plan-settings-btn { border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); }
+.plan-settings-btn svg { width: 16px; height: 16px; }
+.plan-settings-btn[aria-expanded="true"], .plan-more-btn[aria-expanded="true"] { background: var(--accent-soft); }
+
+.plan-sub { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 16px 8px; }
+.plan-sub-label { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 700; color: var(--text); }
+.plan-sub .sidebar-style-btn { border-radius: 999px; border-color: transparent; font-weight: 600; padding: 6px 11px 6px 10px; }
+
+.plan-tools-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 16px 0; }
+.plan-tools-row .search-form { flex: 1 1 100%; min-width: 0; margin: 0; padding: 0; grid-template-columns: 1fr auto; }
+.plan-tools-row .plan-loop { margin-right: auto; }
+.plan-tools-row .search-results { flex: 1 1 100%; margin: 0; padding: 0; }
+.plan-tools-row .search-results:empty { display: none; }
+.plan-loop { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; white-space: nowrap; }
+
+/* lenyíló panelek (⋯ menü, ⚙ beállítások) */
+.plan-pop { position: fixed; z-index: 1200; background: var(--panel-bg); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.08); }
+.plan-pop[hidden] { display: none; }
+.plan-menu { min-width: 236px; padding: 6px; }
+.plan-menu button { display: flex; align-items: center; gap: 12px; width: 100%; height: 38px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left; }
+.plan-menu button:hover:not(:disabled) { background: var(--panel-strong); }
+.plan-menu button:disabled { opacity: .4; cursor: default; }
+.plan-menu button svg { width: 17px; height: 17px; color: var(--text-muted); flex: none; }
+.plan-menu button.is-danger, .plan-menu button.is-danger svg { color: var(--danger); }
+.plan-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+.plan-settings { width: 320px; padding: 10px 0 8px; }
+.plan-pop-title { padding: 6px 16px 2px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
+.plan-settings .option-row { border-bottom: 0; }
+.plan-settings .plan-elev-toggle-row { padding: 0 16px; min-height: 38px; font-size: 13px; font-weight: 500; color: var(--text); }
+.plan-settings .plan-elev-toggle-row[hidden] { display: none; }
+.plan-pop-note { margin: 6px 16px 2px; font-size: 11.5px; color: var(--text-muted); }
+
+/* statok: dobozok nélkül, egy sorban */
+#tabPlan .route-section > .stats-panel { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-top: 12px; padding: 12px 16px 0; border-top: 1px solid var(--line); border-bottom: 0; }
+#tabPlan .route-section > .stats-panel[hidden] { display: none; }
+#tabPlan .route-section > .stats-panel .stat-card { padding: 0; border: 0; background: none; flex-direction: column-reverse; gap: 0; }
+#tabPlan .route-section > .stats-panel .stat-card[hidden] { display: none; }
+#tabPlan .route-section > .stats-panel .stat-card span { font-size: 11.5px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+#tabPlan .route-section > .stats-panel .stat-card strong { font-size: 19px; letter-spacing: -.01em; }
+#sidebarExportButton { display: none !important; }   /* Mentés: lebegő eszköztár + ⋯ menü */
+
+/* útvonal színezése */
+.plan-color-section[hidden] { display: none; }
+.plan-color-seg { display: flex; gap: 18px; margin: 4px 16px 0; border-bottom: 1px solid var(--line); }
+.plan-color-seg button { position: relative; padding: 7px 0 9px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.plan-color-seg button.is-active { color: var(--text); }
+.plan-color-seg button.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--brand); }
+.plan-color-seg button:disabled { opacity: .4; cursor: default; }
+.plan-color-section .speed-legend:not(.is-shown) { display: none !important; }
+.plan-color-section .speed-legend { margin-top: 10px; }
+.plan-color-section .speed-legend-header > .toggle-switch { display: none; }
+
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* mobilon a mód és a Körtúra az összefoglalóban van; a lenyílók a lapban nyílnak le */
+  .plan-sub, .plan-loop, #tabPlan > .route-section.is-empty { display: none !important; }
+  #tabPlan > .route-section { padding-top: 10px; }
+  .plan-head, .plan-tools-row { flex-wrap: wrap; }
+  .plan-tools-row { justify-content: flex-end; padding-top: 6px; }
+  .plan-menu-wrap { display: contents; }
+  .plan-settings-btn { width: auto; padding: 0 12px; gap: 6px; display: inline-flex; align-items: center; font: inherit; font-size: 13px; font-weight: 600; }
+  .plan-pop { position: static; flex: 0 0 100%; width: auto; margin-top: 8px; box-shadow: none; border-radius: 12px; }
+}
+
+/* ── Könyvtár (Komoot-ötletekkel): szűrők a lista fölött, oldalsáv nélkül ───── */
+.app-shell.is-library-mode { grid-template-columns: 52px 1fr; }
+.app-shell.is-library-mode .sidebar-inner { display: none; }
+.library-main-header { display: block; padding: 18px 24px 0; border-bottom: 1px solid var(--line); background: var(--panel-bg); }
+.lib-head-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.lib-title { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.lib-head-row .library-main-stats { flex: 1; min-width: 0; color: var(--text-muted); font-size: 13px; }
+.lib-head-row .library-main-stats-text strong { color: var(--text); font-weight: 600; }
+.lib-head-row .library-main-stats-text .lib-stat-sep { margin: 0 6px; }
+.lib-filterbar[hidden] { display: none; }
+.lib-type-tabs { display: flex; gap: 22px; margin-top: 12px; }
+.lib-type-tab { position: relative; padding: 8px 0 11px; border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+.lib-type-tab em { font-style: normal; font-weight: 500; margin-left: 5px; color: var(--text-muted); opacity: .75; }
+.lib-type-tab:hover { color: var(--text); }
+.lib-type-tab.is-active { color: var(--text); }
+.lib-type-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--brand); }
+.lib-filter-row { display: flex; align-items: center; gap: 10px; padding: 12px 0 14px; border-top: 1px solid var(--line); }
+.lib-filter-row .library-search-wrap { width: 270px; flex: none; padding: 7px 11px; border-radius: 10px; background: var(--panel-bg); }
+.lib-sport-chips { display: flex; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.lib-sport-chips::-webkit-scrollbar { display: none; }
+.lib-sport-chips .lib-type-chip { border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap; flex: none; }
+.lib-filter-end { display: flex; align-items: center; gap: 10px; flex: none; }
+.lib-filter-pop-wrap { position: relative; }
+.lib-filters-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel-bg); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.lib-filters-btn svg { width: 15px; height: 15px; }
+.lib-filters-btn.is-active { border-color: var(--text); }
+.lib-filters-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; }
+.lib-filters-badge[hidden] { display: none; }
+.lib-clear-link { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.lib-clear-link[hidden] { display: none; }
+.lib-clear-link:hover { color: var(--text); }
+.lib-filters-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 2100; width: 340px; padding: 14px 16px 14px;
+  background: var(--panel-bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.08);
+  display: flex; flex-direction: column; gap: 16px; }
+.lib-filters-pop[hidden] { display: none; }
+.lib-pop-head { display: none; align-items: center; justify-content: space-between; }
+.lib-pop-head b { font-size: 17px; }
+.lib-pop-close { width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--panel-strong); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.lib-pop-close svg { width: 15px; height: 15px; }
+.lib-pop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 4px; }
+.lib-pop-done { height: 34px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--text); color: var(--panel-bg); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.lib-filters-pop .library-filter-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+.lib-filters-pop .library-type-chips .lib-type-chip { border-radius: 999px; }
+.library-main-header .library-refresh-btn { width: 34px; height: 34px; border-radius: 10px; }
+
+/* lista: halk forrás, típus-címke, statisztikából kizárt sor */
+.library-list-row > td:first-child { box-shadow: none !important; }
+.lib-src { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+.lib-src--strava::before, .lib-src--garmin::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.lib-src--strava::before { background: #fc4c02; }
+.lib-src--garmin::before { background: #007cc3; }
+.lib-kind-tag, .lib-excl-tag { margin-left: 8px; font-size: 11.5px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+.lib-excl-tag { display: none; }
+.library-list-row.is-excluded > td { opacity: .55; }
+.library-list-row.is-excluded .lib-excl-tag { display: inline; }
+
+/* lenyitott sor: térképes előnézet | meta, 4 fő szám, halk sor, gombok */
+.library-list-expand-row .lib-x { grid-template-columns: 300px 1fr; gap: 18px 28px; padding: 18px 24px 20px 22px; }
+.library-list-expand-row .lib-x .library-expand-preview { width: 300px; height: 200px; }
+.lib-pv { position: relative; overflow: hidden; display: block !important; padding: 0 !important; }
+.lib-pv-tiles { position: absolute; inset: 0; opacity: .7; }
+.lib-pv-tiles img { position: absolute; max-width: none; user-select: none; pointer-events: none; }
+.lib-pv-svg { position: absolute; inset: 0; display: block; width: 100% !important; height: 100% !important; }
+.lib-pv-msg { color: var(--text-muted); font-size: 11.5px; }
+[data-theme="dark"] .lib-pv-tiles { opacity: .85; }
+.lib-x .library-expand-body { gap: 0; }
+.lib-x-big { display: flex; flex-wrap: wrap; gap: 10px 34px; margin-top: 10px; }
+.lib-x-big .cs-stat > b { font-size: 23px; }
+.lib-x-mini { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+.lib-x-mini:empty { display: none; }
+.lib-x-mini b { color: var(--text); font-weight: 600; }
+.lib-x .library-expand-desc { margin-top: 12px; }
+.lib-x-acts { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 18px; flex-wrap: wrap; }
+.lib-x-btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--panel-strong); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.lib-x-btn svg { width: 16px; height: 16px; }
+.lib-x-btn:hover { background: color-mix(in srgb, var(--text) 10%, var(--panel-strong)); }
+.lib-x-btn.is-primary { background: var(--text); color: var(--panel-bg); }
+.lib-x-btn.is-primary:hover { background: color-mix(in srgb, var(--text) 85%, var(--panel-bg)); }
+.lib-x-icon { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-bg); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.lib-x-icon:hover { background: var(--panel-strong); }
+.lib-x-icon svg { width: 17px; height: 17px; }
+.lib-x-stats { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+
+/* kártyanézet: kis térképes előnézet */
+.library-card-preview.lib-pv { border-radius: 10px; }
+
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .app-shell.is-library-mode .sidebar-inner { display: none !important; }
+  .app-shell.is-library-mode .library-main { padding-bottom: 0; }
+  .library-main-header { padding: 12px 16px 0; }
+  .lib-title { font-size: 20px; }
+  .lib-head-row { gap: 6px 10px; }
+  .lib-head-row .library-main-stats { order: 3; flex-basis: 100%; font-size: 12px; }
+  .lib-head-row .library-main-actions { margin-left: auto; }
+  .lib-type-tabs { gap: 16px; overflow-x: auto; scrollbar-width: none; margin-top: 8px; }
+  .lib-type-tab { font-size: 13px; }
+  .lib-filter-row { flex-wrap: wrap; gap: 8px; padding: 10px 0 12px; }
+  .lib-filter-row .library-search-wrap { flex: 1; width: auto; min-width: 0; order: 1; }
+  .lib-filter-end { order: 2; }
+  .lib-sport-chips { order: 3; flex-basis: 100%; }
+  .lib-filters-btn > span { display: none; }
+  .library-main-header .library-refresh-btn { display: none; }
+  /* Szűrők: alsó lap */
+  /* az alsó navigációs sáv fölött nyílik (az a lap fölé kerülne) */
+  .lib-filters-pop { position: fixed; left: 0; right: 0; top: auto; bottom: var(--nav-h, 0px); width: auto; z-index: 3000;
+    border-radius: 18px 18px 0 0; padding: 14px 16px 16px; max-height: calc(100dvh - var(--nav-h, 0px) - var(--top-h, 0px) - 24px); overflow-y: auto;
+    box-shadow: 0 -10px 40px rgba(0,0,0,.22); border-bottom: 0; }
+  .lib-pop-head { display: flex; }
+  .lib-pop-foot { gap: 8px; }
+  .lib-pop-foot .lib-clear-link { flex: 1; height: 42px; border-radius: 10px; background: var(--panel-strong); text-decoration: none; color: var(--text); }
+  .lib-pop-done { flex: 1.4; height: 42px; }
+  /* lenyitott elem */
+  .library-list-expand-row .lib-x { grid-template-columns: 1fr; padding: 4px 16px 16px; gap: 12px; }
+  .library-list-expand-row .lib-x .library-expand-preview { width: 100%; height: 160px; max-width: none; aspect-ratio: auto; margin: 0; }
+  .lib-x-big { gap: 8px 22px; margin-top: 8px; }
+  .lib-x-big .cs-stat > b { font-size: 19px; }
+  .lib-x-mini { font-size: 12px; gap: 3px 14px; }
+  .lib-x-acts { padding-top: 14px; }
+  .lib-x-btn { flex: 1; justify-content: center; height: 40px; }
+  .lib-x-icon { width: 40px; height: 40px; background: var(--panel-strong); border: 0; }
+  .lib-x-stats { margin-left: 0; flex-basis: 100%; justify-content: space-between; flex-direction: row-reverse; padding-top: 6px; color: var(--text); }
+  .lib-kind-tag, .lib-excl-tag { display: none !important; }
+}
+.lib-pop-done .library-result-count { color: inherit; font-size: inherit; font-weight: inherit; }
