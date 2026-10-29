@@ -11,7 +11,7 @@ import geo_location
 
 from auth import require_admin, require_auth
 from config import CUSTOM_SAMPLES_DIR, SAMPLES_DIR
-from utils import _safe_id
+from utils import _clean_surface, _safe_id
 
 bp = Blueprint("api_samples", __name__)
 
@@ -42,6 +42,7 @@ def _sample_entry(sid: str, meta: dict, custom: bool) -> dict:
         "author":      meta.get("author", ""),
         "community":   bool(meta.get("community")),
         "location":    meta.get("location") or {},
+        "surface":     meta.get("surface"),      # tárolt burkolat-vizsgálat (ha van)
         "custom":      custom,
     }
 
@@ -133,6 +134,13 @@ def admin_create_sample():
     for key in ("difficulty", "season", "author"):
         if request.form.get(key):
             meta[key] = request.form.get(key).strip()[:80]
+    if request.form.get("surface"):
+        try:
+            surface = _clean_surface(json.loads(request.form["surface"]))
+        except ValueError:
+            surface = None
+        if surface:
+            meta["surface"] = surface
     json_path = os.path.join(CUSTOM_SAMPLES_DIR, f"{sid}.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
@@ -157,6 +165,10 @@ def admin_update_sample(sample_id: str):
     for key in ("name", "type", "description", "difficulty", "season", "author"):
         if key in data:
             meta[key] = data[key]
+    if "surface" in data:
+        surface = _clean_surface(data["surface"])
+        if surface: meta["surface"] = surface
+        else: meta.pop("surface", None)
     if isinstance(data.get("location"), dict):
         from api_submissions import _clean_location
         meta["location"] = _clean_location({**(meta.get("location") or {}), **data["location"]})

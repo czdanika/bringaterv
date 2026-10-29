@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.22.1 – 2026-10-29 – Részletes AI-elemzés, tárolt burkolat-vizsgálat
+
+### Verzió
+
+- **AI-elemzés csak elvégzett edzésre:** útvonaltervnél, közösségi mintánál és időadat nélküli fájlnál nem jelenik meg (a szerver is ellenőrzi). A Kezdőlapról megnyitott edzésnél is elérhető.
+- **Részletes AI-elemzés:** a rövid mellé külön kérésre hosszabb változat felugró ablakban – fejezetek (tempó és erőbeosztás, pulzus és terhelés, terep, összevetés a korábbiakkal) és javaslatok a következő edzésekre; az edzéssel együtt mentődik.
+- **Rövidebb alapelemzés:** egy mondatos összefoglaló és 3 rövid pont, összecsukva soronként, „Részletek” lenyitással. A szakaszok tempója mozgásidőből számol, a megállás külön szerepel.
+- **Újragenerálás elrejtve:** a kártyáról kikerült; szerkesztés módban, az elavult elemzésnél és a részletes ablakban érhető el, mindig megerősítéssel.
+- **Saját terv betöltése ablak nélkül:** a Bringatervben tervezett és mentett útvonal a mentett tervezési módokkal azonnal betöltődik.
+- **Tárolt burkolat-vizsgálat:** a közösségi minták (26 megyei minta előre vizsgálva) és a saját feltöltött GPX-ek vizsgálata eltárolódik – betöltéskor azonnal látszik, újravizsgálni csak kérésre kell. Admin: „Burkolat pótlása” gomb (hiányzóknál, illetve teljes újravizsgálat); új minta feltöltésekor automatikusan lefut.
+- **Megbízhatóbb burkolat-vizsgálat:** hosszú útvonalnál darabokban kérdez, túlterhelt térképadat-szervernél szünet után újrapróbál, és a hibás üres választ nem veszi „nincs útadat”-nak.
+
+---
+
 ## v1.22.0 – 2026-10-29 – AI-edzéselemzés, gyorsabb burkolatvizsgálat
 
 ### Verzió

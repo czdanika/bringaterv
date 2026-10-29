@@ -28,5 +28,19 @@
       46.80161,
       16.38419
     ]
+  },
+  "surface": {
+    "analyzed_at": "2026-10-29T18:23:53Z",
+    "totalDistKm": 24.63,
+    "segments": [
+      {
+        "mode": "asphalt",
+        "fromKm": 0.0,
+        "toKm": 24.63,
+        "distanceKm": 24.63,
+        "lat": 46.801606,
+        "lng": 16.384187
+      }
+    ]
   }
 }

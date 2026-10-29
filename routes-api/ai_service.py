@@ -149,7 +149,7 @@ def _client():
     return anthropic, anthropic.Anthropic(api_key=key, timeout=90.0, max_retries=2)
 
 
-def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000):
+def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000, effort: str = "low"):
     """Egy Claude-hívás strukturált (JSON) válasszal. Visszaad: (dict, model, usage)."""
     anthropic, client = _client()
     try:
@@ -159,7 +159,7 @@ def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000):
             # elutasítás esetén a szerver automatikusan egy másik modellel próbálja újra
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
-            output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
+            output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
             system=system,
             messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
         )
@@ -268,3 +268,55 @@ def analyze_workout(summary: dict, context: str, history: list) -> tuple[dict, s
         payload["felhasznalo_megjegyzese"] = context[:300]
     data, model, usage = _call(_WORKOUT_SYSTEM, payload, _WORKOUT_SCHEMA)
     return clean_analysis(data), model, usage
+
+
+# ── Részletes edzéselemzés (külön kérésre) ───────────────────────────────────
+
+_WORKOUT_EXT_SYSTEM = """Te egy tapasztalt, barátságos kerékpáros és állóképességi edző vagy egy magyar \
+útvonaltervező és edzésnapló alkalmazásban. A felhasználó egy edzésének összesített adatait kapod \
+JSON-ban (táv, idő, tempó, pulzus- és egyéb zónák, szakaszonkénti bontás mozgásidőből, megállások, \
+szint), néhány korábbi hasonló edzését összehasonlításként, és opcionálisan egy saját megjegyzést.
+
+Most RÉSZLETES elemzést kér, magyarul, tegezve:
+- "sections": 3–5 rövid fejezet, mindegyik "title" (2–4 szó) és "text" (2–4 mondat, konkrét számokkal). \
+  Javasolt fejezetek, ha van rá adat: Tempó és erőbeosztás · Pulzus és terhelés · Terep és szint · \
+  Összevetés a korábbiakkal · Megállások és ritmus. Ami nem releváns vagy nincs rá adat, hagyd ki.
+- "tips": 2–3 rövid, gyakorlatias javaslat a következő edzésekhez (egy-egy mondat).
+
+Szabályok: csak a kapott adatokra támaszkodj, ne találj ki számot vagy helyet. A megállást ne értékeld \
+lassú tekerésnek. Ha a felhasználó szerint szándékosan könnyű edzés volt, ne kérd számon a tempót. \
+Ne adj orvosi tanácsot. Kerüld a túlzó dicséretet és az általánosságokat. Számoknál magyar formátum."""
+
+_WORKOUT_EXT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"title": {"type": "string"}, "text": {"type": "string"}},
+                "required": ["title", "text"],
+                "additionalProperties": False,
+            },
+        },
+        "tips": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["sections", "tips"],
+    "additionalProperties": False,
+}
+
+
+def clean_extended(data: dict) -> dict:
+    def txt(v, n): return str(v or "").strip()[:n]
+    sections = [{"title": txt(s.get("title"), 60), "text": txt(s.get("text"), 900)}
+                for s in (data.get("sections") or [])[:6] if isinstance(s, dict) and txt(s.get("text"), 900)]
+    tips = [txt(t, 300) for t in (data.get("tips") or [])[:4] if txt(t, 300)]
+    return {"sections": sections, "tips": tips}
+
+
+def analyze_workout_extended(summary: dict, context: str, history: list) -> tuple[dict, str, object]:
+    payload = {"edzes": summary, "korabbi_hasonlo_edzesek": history[:8]}
+    if context:
+        payload["felhasznalo_megjegyzese"] = context[:300]
+    data, model, usage = _call(_WORKOUT_EXT_SYSTEM, payload, _WORKOUT_EXT_SCHEMA, max_tokens=8000, effort="medium")
+    return clean_extended(data), model, usage

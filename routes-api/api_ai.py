@@ -2,7 +2,7 @@
 
   GET    /api/ai/status                    a bejelentkezett felhasználó AI-állapota, napi kerete
   PUT    /api/ai/me                        saját kikapcsolás / bekapcsolás ({enabled})
-  POST   /api/ai/workout/<id>              edzés elemzése (az összesítőt a kliens számolja)
+  POST   /api/ai/workout/<id>              edzés elemzése ({mode: "extended"} → részletes); az összesítőt a kliens számolja
   PATCH  /api/ai/workout/<id>              az elemzés kézi szerkesztése
   DELETE /api/ai/workout/<id>              az elemzés törlése
   GET    /api/admin/ai                     beállítás + felhasználás (admin)
@@ -40,6 +40,11 @@ def ai_me():
     return jsonify(ai_service.status(g.user))
 
 
+def _is_workout(entry: dict) -> bool:
+    """Elvégzett edzés (nem útvonalterv) – ugyanaz a feltétel, mint a könyvtárban."""
+    return entry.get("type") == "workout" or bool(entry.get("strava_id")) or bool(entry.get("start_time"))
+
+
 def _route_entry(route_id: str):
     _, idx = _resolve_dirs()
     index = _load_index(idx)
@@ -72,21 +77,28 @@ def ai_workout(route_id: str):
     history = data.get("history") if isinstance(data.get("history"), list) else []
     context = str(data.get("context") or "").strip()[:300]
 
+    extended = data.get("mode") == "extended"
     index, idx, entry = _route_entry(route_id)
+    if not _is_workout(entry):
+        abort(400, description="AI-elemzés csak elvégzett edzéshez kérhető.")
     try:
-        analysis, model, usage = ai_service.analyze_workout(summary, context, history)
+        if extended:
+            analysis, model, usage = ai_service.analyze_workout_extended(summary, context, history)
+        else:
+            analysis, model, usage = ai_service.analyze_workout(summary, context, history)
     except ai_service.AIError as exc:
         abort(502, description=str(exc))
-    ai_service.log_usage(g.user["id"], "workout", route_id, model, usage)
+    ai_service.log_usage(g.user["id"], "workout_ext" if extended else "workout", route_id, model, usage)
 
-    entry["ai_analysis"] = {**analysis, "context": context, "model": model, "created_at": _now_dt(),
-                            "data_sig": str(data.get("data_sig") or "")[:80], "edited": False}
+    field = "ai_analysis_ext" if extended else "ai_analysis"
+    entry[field] = {**analysis, "context": context, "model": model, "created_at": _now_dt(),
+                    "data_sig": str(data.get("data_sig") or "")[:80], "edited": False}
     try:
         _save_index(index, idx)
     except OSError:
         abort(500)
-    log.info("AI edzéselemzés: %s / %s", g.user["email"], route_id)
-    return jsonify({"analysis": entry["ai_analysis"], "status": ai_service.status(g.user)})
+    log.info("AI edzéselemzés%s: %s / %s", " (részletes)" if extended else "", g.user["email"], route_id)
+    return jsonify({"analysis": entry[field], "status": ai_service.status(g.user)})
 
 
 @bp.route("/api/ai/workout/<route_id>", methods=["PATCH"])
@@ -110,6 +122,7 @@ def ai_workout_delete(route_id: str):
     route_id = _safe_id(route_id)
     index, idx, entry = _route_entry(route_id)
     entry.pop("ai_analysis", None)
+    entry.pop("ai_analysis_ext", None)
     _save_index(index, idx)
     return jsonify({"ok": True})
 

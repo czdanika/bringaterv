@@ -1,17 +1,19 @@
 // ── AI-edzéselemzés (Claude API, a szerveren keresztül) ──────────────────────
-// Az Elemzés oldalon egy kártya: ha az edzés még nincs elemezve, „Edzés elemzése”
-// gomb (opcionális megjegyzéssel és a napi keretből hátralévő számmal); utána a
-// mentett elemzés. Az összesítőt itt számoljuk a nyomvonalból – a szerver és a
-// modell nem a nyers GPX-et kapja. Az API-kulcs csak a szerveren van.
+// Az Elemzés oldalon egy kártya (csak elvégzett edzésnél, útvonaltervnél nem): ha
+// még nincs elemezve, „Edzés elemzése” gomb (opcionális megjegyzéssel és a napi
+// keretből hátralévő számmal); utána a rövid elemzés, és külön kérésre egy részletes
+// változat felugró ablakban. Az összesítőt itt számoljuk a nyomvonalból – a szerver
+// és a modell nem a nyers GPX-et kapja. Az API-kulcs csak a szerveren van.
 
 import { routesApi } from "../api/routesApi.js";
 import { calcHrZoneStats } from "./settings.js";
 import { escapeHtml } from "./library.js";
 
-let _deps = null;          // { getGeometry, getLoadedId, isSample, findEntry, listWorkouts, showToast }
+let _deps = null;          // { getGeometry, getLoadedId, isSample, findEntry, listWorkouts, ensureLibrary, showToast }
 let _status = null;        // /api/ai/status
 let _statusLoading = null;
-let _busy = false;
+let _busy = false;         // false | "short" | "extended"
+let _libRequested = "";    // ennél az azonosítónál már kértük a könyvtár betöltését
 let _editing = false;
 let _expanded = false;     // a pontok teljes szövege lenyitva
 let _lastKey = "";
@@ -67,32 +69,40 @@ export function refreshAiCard() {
   const id = _deps.getLoadedId();
   const entry = id && !_deps.isSample() ? _deps.findEntry(id) : null;
   const a = entry?.ai_analysis;
-  const key = [available(), id, !!entry, _deps.isSample(), a?.created_at, a?.edited, _status?.remaining, _busy, _editing, _expanded,
+  const key = [available(), id, !!entry, _deps.isSample(), a?.created_at, a?.edited, entry?.ai_analysis_ext?.created_at, _status?.remaining, _busy, _editing, _expanded,
                dataSig(_deps.getGeometry())].join("|");
   if (key === _lastKey) return;
   _lastKey = key;
 
-  if (!available() || _deps.isSample()) { box.hidden = true; box.innerHTML = ""; return; }
+  const g = _deps.getGeometry();
+  const hasTime = !!g?.some((p) => p.time);
+  // Elmentett azonosító, de a könyvtár még nincs betöltve (pl. a Kezdőlapról nyitva) → betöltjük
+  if (id && !entry && _libRequested !== id && available()) { _libRequested = id; _deps.ensureLibrary(); }
+  // Csak elvégzett edzésre: útvonaltervnél, mintánál és időadat nélküli fájlnál nincs kártya
+  if (!available() || _deps.isSample() || !hasTime || (id && !entry)) { box.hidden = true; box.innerHTML = ""; return; }
   box.hidden = false;
   const head = (right) => `<div class="f-ai-h"><span class="f-ai-ico"><i data-lucide="sparkles" aria-hidden="true"></i></span>AI-elemzés<small>${right}</small></div>`;
 
   if (!entry) {
     box.innerHTML = head("") + `<p class="f-ai-intro">Mentsd el az edzést a könyvtárba, és rövid AI-értékelést kérhetsz róla.</p>`;
   } else if (_busy) {
-    box.innerHTML = head("") + `<div class="f-ai-busy"><span class="spinner-inline"></span> Elemzés készül… (10–30 mp)</div>`;
+    box.innerHTML = head("") + `<div class="f-ai-busy"><span class="spinner-inline"></span> ${_busy === "extended"
+      ? "Részletes elemzés készül… (fél–egy perc)" : "Elemzés készül… (10–30 mp)"}</div>`;
   } else if (!a) {
     const left = _status.remaining;
     box.innerHTML = head(`ma még ${left}`) +
       `<p class="f-ai-intro">Rövid értékelés az edzésről: tempó, pulzus, szint, összevetés a korábbi hasonló edzéseiddel.</p>
        <input class="f-ai-ctx" id="fAiCtx" type="text" maxlength="300" placeholder="Pár szó az edzésről (nem kötelező) – pl. „regeneráló kör”">
        <button type="button" class="f-ai-go" data-ai="run" ${left > 0 ? "" : "disabled"}>
-         <i data-lucide="sparkles" aria-hidden="true"></i>${left > 0 ? "Edzés elemzése" : "Mára elfogyott az AI-keret"}</button>`;
+         <i data-lucide="sparkles" aria-hidden="true"></i>${left > 0 ? "Edzés elemzése" : "Mára elfogyott az AI-keret"}</button>
+       ${left > 0 ? `<button type="button" class="f-ai-more f-ai-alt" data-ai="ext">vagy rögtön részletes elemzés</button>` : ""}`;
   } else if (_editing) {
     box.innerHTML = head("szerkesztés") +
       `<label class="f-ai-lbl">Összefoglaló<textarea id="fAiLead" rows="3">${escapeHtml(a.lead || "")}</textarea></label>
        <label class="f-ai-lbl">Pontok (soronként egy)<textarea id="fAiPoints" rows="5">${escapeHtml((a.points || []).map((p) => p.text).join("\n"))}</textarea></label>
        <div class="f-ai-foot"><button type="button" class="f-ai-link is-strong" data-ai="save">Mentés</button><button type="button" class="f-ai-link" data-ai="cancel">Mégse</button>
-       <button type="button" class="f-ai-link is-danger" data-ai="delete">Elemzés törlése</button></div>`;
+       <button type="button" class="f-ai-link is-danger" data-ai="delete">Elemzés törlése</button></div>
+       <button type="button" class="f-ai-more f-ai-alt" data-ai="rerun" ${_status.remaining > 0 ? "" : "disabled"}>Új elemzés kérése (ma még ${_status.remaining})</button>`;
   } else {
     const date = a.created_at ? new Date(a.created_at).toLocaleDateString("hu-HU", { month: "short", day: "numeric" }) : "";
     const stale = a.data_sig && a.data_sig !== dataSig(_deps.getGeometry());
@@ -102,7 +112,8 @@ export function refreshAiCard() {
        <ul class="f-ai-points${_expanded ? "" : " is-collapsed"}">${(a.points || []).map((p) => `<li class="is-${escapeHtml(p.tone)}"><i></i><span>${escapeHtml(p.text)}</span></li>`).join("")}</ul>
        ${(a.points || []).length ? `<button type="button" class="f-ai-more" data-ai="toggle" aria-expanded="${_expanded}">${_expanded ? "Kevesebb" : "Részletek"}<i data-lucide="chevron-${_expanded ? "up" : "down"}" aria-hidden="true"></i></button>` : ""}
        <div class="f-ai-foot">
-         <button type="button" class="f-ai-link" data-ai="rerun" ${_status.remaining > 0 ? "" : "disabled"} title="Új elemzés – a napi keretből számít (ma még ${_status.remaining})"><i data-lucide="refresh-cw" aria-hidden="true"></i>Újra</button>
+         <button type="button" class="f-ai-link" data-ai="ext" ${entry.ai_analysis_ext || _status.remaining > 0 ? "" : "disabled"}
+           title="${entry.ai_analysis_ext ? "A részletes elemzés megnyitása" : `Hosszabb elemzés fejezetekkel és javaslatokkal – a napi keretből számít (ma még ${_status.remaining})`}"><i data-lucide="file-text" aria-hidden="true"></i>Részletes</button>
          <button type="button" class="f-ai-link" data-ai="edit"><i data-lucide="pencil" aria-hidden="true"></i>Szerkesztés</button>
          <span class="f-ai-tag">${a.edited ? "AI-generált, szerkesztve" : "AI-generált"}</span>
        </div>` +
@@ -119,9 +130,14 @@ async function onClick(e) {
   const entry = id ? _deps.findEntry(id) : null;
   if (!entry) return;
   const act = b.dataset.ai;
+  if (act === "rerun" && !confirmRerun("elemzést")) return;
   if (act === "run" || act === "rerun") {
+    _editing = false;
     const ctx = act === "run" ? (document.getElementById("fAiCtx")?.value || "").trim() : (entry.ai_analysis?.context || "");
     await run(id, entry, ctx);
+  } else if (act === "ext") {
+    if (entry.ai_analysis_ext) openExtended(id, entry);
+    else if (await run(id, entry, (document.getElementById("fAiCtx")?.value || "").trim() || entry.ai_analysis?.context || "", "extended")) openExtended(id, entry);
   } else if (act === "toggle") { _expanded = !_expanded; refreshAiCard(); }
   else if (act === "edit") { _editing = true; refreshAiCard(); }
   else if (act === "cancel") { _editing = false; refreshAiCard(); }
@@ -143,22 +159,73 @@ async function onClick(e) {
   }
 }
 
-async function run(id, entry, context) {
+async function run(id, entry, context, mode = "short") {
   const g = _deps.getGeometry();
-  if (!g?.length) return;
-  _busy = true; refreshAiCard();
+  if (!g?.length) return false;
+  _busy = mode; refreshAiCard();
   try {
     const r = await routesApi.aiAnalyzeWorkout(id, {
-      summary: buildSummary(g, entry), history: buildHistory(entry), context, data_sig: dataSig(g),
+      mode, summary: buildSummary(g, entry), history: buildHistory(entry), context, data_sig: dataSig(g),
     });
-    entry.ai_analysis = r.analysis;
+    if (mode === "extended") entry.ai_analysis_ext = r.analysis; else entry.ai_analysis = r.analysis;
     _status = r.status;
+    return true;
   } catch (err) {
     _deps.showToast(err.message || "Nem sikerült az elemzés.", 6000);
     await loadStatus();
+    return false;
   } finally {
     _busy = false; _lastKey = ""; refreshAiCard();
   }
+}
+
+function confirmRerun(what) {
+  return confirm(`Új ${what} kérsz? A mostani felülíródik, és a napi AI-keretből számít (ma még ${_status?.remaining ?? 0}).`);
+}
+
+// ── Részletes elemzés: felugró ablak (hosszabb szöveg, görgethető) ──────────
+function openExtended(id, entry) {
+  const x = entry.ai_analysis_ext;
+  if (!x) return;
+  document.getElementById("aiExtOverlay")?.remove();
+  const date = x.created_at ? new Date(x.created_at).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : "";
+  const stale = x.data_sig && x.data_sig !== dataSig(_deps.getGeometry());
+  const ov = document.createElement("div");
+  ov.id = "aiExtOverlay";
+  ov.className = "ai-ext-overlay";
+  ov.innerHTML = `<div class="ai-ext" role="dialog" aria-modal="true" aria-labelledby="aiExtTitle">
+    <div class="ai-ext-head">
+      <span class="f-ai-ico"><i data-lucide="sparkles" aria-hidden="true"></i></span>
+      <div><div class="ai-ext-title" id="aiExtTitle">Részletes AI-elemzés</div><div class="ai-ext-sub">${escapeHtml([entry.name, date].filter(Boolean).join(" · "))}</div></div>
+      <button type="button" class="ai-ext-x" data-x="close" aria-label="Bezárás"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <div class="ai-ext-body">
+      ${x.context ? `<div class="f-ai-ctxchip">„${escapeHtml(x.context)}”</div>` : ""}
+      ${stale ? `<div class="f-ai-stale"><i data-lucide="info" aria-hidden="true"></i><span>Az edzés azóta módosult – az elemzés a korábbi adatokon készült.</span></div>` : ""}
+      ${(x.sections || []).map((s) => `<section><h4>${escapeHtml(s.title)}</h4><p>${escapeHtml(s.text)}</p></section>`).join("")}
+      ${(x.tips || []).length ? `<section class="ai-ext-tips"><h4>Következő edzésekre</h4><ul>${x.tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></section>` : ""}
+    </div>
+    <div class="ai-ext-foot">
+      <button type="button" class="f-ai-link" data-x="rerun" ${_status?.remaining > 0 ? "" : "disabled"} title="Új részletes elemzés – a napi keretből számít (ma még ${_status?.remaining ?? 0})"><i data-lucide="refresh-cw" aria-hidden="true"></i>Újragenerálás</button>
+      <span class="f-ai-tag">AI-generált</span>
+      <button type="button" class="ai-ext-close" data-x="close">Bezárás</button>
+    </div>
+  </div>`;
+  const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  ov.addEventListener("click", async (e) => {
+    if (e.target === ov || e.target.closest('[data-x="close"]')) return close();
+    const rb = e.target.closest('[data-x="rerun"]');
+    if (rb && !rb.disabled) {
+      if (!confirmRerun("részletes elemzést")) return;
+      close();
+      if (await run(id, entry, x.context || "", "extended")) openExtended(id, entry);
+    }
+  });
+  document.body.append(ov);
+  window.lucide?.createIcons({ nodes: [ov] });
+  ov.querySelector(".ai-ext-x")?.focus();
 }
 
 // ── Összesítő a modellnek ────────────────────────────────────────────────────

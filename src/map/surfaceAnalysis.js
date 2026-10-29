@@ -219,21 +219,31 @@ const OVERPASS_ENDPOINTS = [
 ];
 async function overpassQuery(query) {
   let lastErr = null;
-  for (const url of OVERPASS_ENDPOINTS) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 50000);
-    try {
-      const resp = await fetch(url, {
-        method: "POST",
-        body: `data=${encodeURIComponent(query)}`,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        signal: ctrl.signal,
-      });
-      if (!resp.ok) { lastErr = new Error(`a térképadat-szerver (OpenStreetMap) hibát jelzett (${resp.status}) – próbáld újra kicsit később.`); continue; }
-      return await resp.json();
-    } catch (err) {
-      lastErr = err.name === "AbortError" ? new Error("a térképadat-szerver (OpenStreetMap) nem válaszolt időben – próbáld újra kicsit később.") : err;
-    } finally { clearTimeout(timer); }
+  // Túlterheltségnél (502/504/429) rövid szünet után még egy kör a szervereken
+  for (let round = 0; round < 2; round++) {
+    if (round) await new Promise((r) => setTimeout(r, 5000));
+    for (const url of OVERPASS_ENDPOINTS) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 35000);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          body: `data=${encodeURIComponent(query)}`,
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          signal: ctrl.signal,
+        });
+        if (!resp.ok) { lastErr = new Error(`a térképadat-szerver (OpenStreetMap) hibát jelzett (${resp.status}) – próbáld újra kicsit később.`); continue; }
+        const json = await resp.json();
+        // Túlterhelt szerver „sikeres”, de üres választ is adhat, a hibát a remark mezőben jelzi
+        if (json.remark && /error|timed out|out of memory|runtime/i.test(json.remark)) {
+          lastErr = new Error("a térképadat-szerver (OpenStreetMap) túlterhelt – próbáld újra kicsit később.");
+          continue;
+        }
+        return json;
+      } catch (err) {
+        lastErr = err.name === "AbortError" ? new Error("a térképadat-szerver (OpenStreetMap) nem válaszolt időben – próbáld újra kicsit később.") : err;
+      } finally { clearTimeout(timer); }
+    }
   }
   throw lastErr ?? new Error("a térképadat-szerver (OpenStreetMap) most nem érhető el – próbáld újra kicsit később.");
 }
@@ -248,20 +258,31 @@ export async function analyzeSurface(geometry) {
   const totalDistKm = samples[samples.length - 1].distM / 1000;
 
   // 2. Overpass: csak a nyomvonal ~30 m-es sávjában lévő utak (nem a teljes befoglaló
-  //    téglalap – az egy nagy körnél több tízezer utat jelentett). A sáv vonala ritkított
-  //    mintapontokból áll (~150 m-enként, legfeljebb ~1500 pont), hogy a kérés kicsi maradjon.
-  const stride = Math.max(1, Math.ceil(samples.length / 1500));
-  const line = samples.filter((_, i) => i % stride === 0 || i === samples.length - 1)
-    .map((s) => `${s.point.lat.toFixed(5)},${s.point.lng.toFixed(5)}`).join(",");
-  const query = `[out:json][timeout:45];
+  //    téglalap – az egy nagy körnél több tízezer utat jelentett). A sáv vonala a ~150 m-es
+  //    mintapontokból áll; hosszú útvonalnál ~45 km-es darabokban kérdezünk (egyben a
+  //    szerver időtúllépéssel válaszolt), a darabok egy ponttal átfednek.
+  const CHUNK = 300;
+  const ways = [];
+  const seen = new Set();
+  for (let start = 0; start < samples.length - 1; start += CHUNK) {
+    const part = samples.slice(start, Math.min(samples.length, start + CHUNK + 1));
+    const line = part.map((s) => `${s.point.lat.toFixed(5)},${s.point.lng.toFixed(5)}`).join(",");
+    const query = `[out:json][timeout:45];
 way["highway"](around:30,${line});
 out tags geom qt;`;
-
-  const data = await overpassQuery(query);
-
-  const ways = data.elements
-    .filter(el => el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2)
-    .map(el => ({ mode: wayMode(el.tags) ?? "asphalt", geometry: el.geometry }));
+    // Egy nyomvonal 30 m-es sávjában mindig van út – az üres válasz túlterhelt szervert jelent
+    let data = await overpassQuery(query);
+    if (!data.elements?.length) {
+      await new Promise((r) => setTimeout(r, 4000));
+      data = await overpassQuery(query);
+      if (!data.elements?.length) throw new Error("a térképadat-szerver (OpenStreetMap) most nem adott választ – próbáld újra kicsit később.");
+    }
+    for (const el of data.elements) {
+      if (el.type !== "way" || seen.has(el.id) || !Array.isArray(el.geometry) || el.geometry.length < 2) continue;
+      seen.add(el.id);
+      ways.push({ mode: wayMode(el.tags) ?? "asphalt", geometry: el.geometry });
+    }
+  }
 
   if (ways.length === 0) throw new Error("ezen a területen a térképen nincs útadat.");
 

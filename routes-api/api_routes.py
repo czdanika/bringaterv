@@ -11,7 +11,7 @@ from config import log
 from db import _db
 from storage import _resolve_dirs
 from strava_service import _add_strava_deny
-from utils import _load_index, _now_date, _now_dt, _safe_id, _save_index
+from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index
 
 bp = Blueprint("api_routes", __name__)
 
@@ -218,6 +218,10 @@ def update_route(route_id: str):
     if "type"        in data: entry["type"]        = data["type"]
     if "description" in data: entry["description"] = (data["description"] or "").strip()
     if "include_in_stats" in data: entry["include_in_stats"] = bool(data["include_in_stats"])
+    if "surface" in data:
+        surface = _clean_surface(data["surface"])
+        if surface: entry["surface"] = surface
+        else: entry.pop("surface", None)
     try:
         _save_index(index, idx)
     except OSError:

@@ -27,5 +27,35 @@
       46.85526,
       17.54101
     ]
+  },
+  "surface": {
+    "analyzed_at": "2026-10-29T18:23:55Z",
+    "totalDistKm": 18.74,
+    "segments": [
+      {
+        "mode": "asphalt",
+        "fromKm": 0.0,
+        "toKm": 10.85,
+        "distanceKm": 10.85,
+        "lat": 46.855263,
+        "lng": 17.541014
+      },
+      {
+        "mode": "gravel",
+        "fromKm": 10.85,
+        "toKm": 13.74,
+        "distanceKm": 2.89,
+        "lat": 46.89164,
+        "lng": 17.603674
+      },
+      {
+        "mode": "asphalt",
+        "fromKm": 13.74,
+        "toKm": 18.74,
+        "distanceKm": 5.0,
+        "lat": 46.886934,
+        "lng": 17.570532
+      }
+    ]
   }
 }

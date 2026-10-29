@@ -563,6 +563,7 @@
       <div class="panel-header">
         <span class="panel-title">Közösségi útvonalak</span>
         <button class="btn btn-ghost" id="locateSamplesBtn" type="button" title="Ország, régió, település és érintett települések kiszámolása ott, ahol még hiányzik">Helyadatok pótlása</button>
+        <button class="btn btn-ghost" id="surfaceSamplesBtn" type="button" title="Burkolat-vizsgálat (aszfalt / gravel / MTB szakaszok) ott, ahol még nincs; ha mindenhol van, felajánlja a teljes újravizsgálatot. Utána a felhasználók betöltéskor azonnal látják.">Burkolat pótlása</button>
         <button class="btn btn-primary" id="addSampleBtn" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Új útvonal
@@ -1837,6 +1838,16 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     }
 
     let _sampleImported = null;
+    let _sampleSurface  = null;   // a burkolat-vizsgálat tárolható eredménye (új mintánál elmentjük)
+    const packSurface = (segments, totalDistKm) => ({
+      analyzed_at: new Date().toISOString(),
+      totalDistKm: Math.round(totalDistKm * 100) / 100,
+      segments: segments.map((s) => ({
+        mode: s.mode, fromKm: Math.round(s.fromKm * 100) / 100, toKm: Math.round(s.toKm * 100) / 100,
+        distanceKm: Math.round(s.distanceKm * 100) / 100,
+        lat: Math.round(s.geomPoint.lat * 1e6) / 1e6, lng: Math.round(s.geomPoint.lng * 1e6) / 1e6,
+      })),
+    });
 
     document.querySelector("#sampleGpxFile").addEventListener("change", async (e) => {
       console.log("[sample] file change event fired", e.target.files);
@@ -1848,6 +1859,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       const hintEl     = document.querySelector("#sampleLpAnalyzeHint");
 
       _sampleImported = null;
+      _sampleSurface = null;
       if (!file) { previewEl.hidden = true; return; }
 
       // azonnali feedback: panel megjelenik loading állapottal
@@ -1920,10 +1932,11 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       analyzeBtn.disabled = true;
       hintEl.hidden = true;
       analysisEl.hidden = false;
-      analysisEl.innerHTML = `<div class="load-preview-spinner"><span class="spinner-inline"></span> OSM adatok lekérdezése…</div>`;
+      analysisEl.innerHTML = `<div class="load-preview-spinner"><span class="spinner-inline"></span> Útburkolat lekérdezése a térképadatokból…</div>`;
 
       try {
         const { segments, totalDistKm } = await analyzeSurface(_sampleImported.geometry);
+        _sampleSurface = packSurface(segments, totalDistKm);
 
         const barSegs = segments.map(seg => {
           const pct   = (seg.distanceKm / totalDistKm * 100).toFixed(1);
@@ -1995,6 +2008,17 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
           fd.append("difficulty", document.querySelector("#sampleDifficulty").value);
           fd.append("season",     document.querySelector("#sampleSeason").value);
           fd.append("author",     document.querySelector("#sampleAuthor").value.trim());
+          // A burkolatot egyszer vizsgáljuk meg, és a mintával együtt tároljuk – a felhasználóknál
+          // betöltéskor már nem kell várni rá
+          if (!_sampleSurface && _sampleImported) {
+            errEl.innerHTML = `<span style="color:var(--muted)">Burkolat vizsgálata… (fél perc is lehet)</span>`;
+            try {
+              const { segments, totalDistKm } = await analyzeSurface(_sampleImported.geometry);
+              _sampleSurface = packSurface(segments, totalDistKm);
+            } catch (err) { console.warn("Minta burkolat-vizsgálat sikertelen:", err); }
+            errEl.textContent = "";
+          }
+          if (_sampleSurface) fd.append("surface", JSON.stringify(_sampleSurface));
           await routesApi.admin.createSample(fd);
         }
         sampleModal.hidden = true;
@@ -2343,6 +2367,42 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
         alert(err.message); btn.textContent = "Helyadatok pótlása";
       } finally {
         setTimeout(() => { btn.disabled = false; btn.textContent = "Helyadatok pótlása"; }, 4000);
+      }
+    });
+
+    // Burkolat-vizsgálat a még nem vizsgált mintákra – egyenként, a böngészőben
+    document.querySelector("#surfaceSamplesBtn")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget, label = "Burkolat pótlása";
+      btn.disabled = true;
+      let ok = 0, failed = 0;
+      try {
+        const all = await routesApi.admin.listSamples();
+        let todo = all.filter((sm) => !sm.surface);
+        // ha mindegyik vizsgálva van: felajánljuk a teljes újravizsgálatot (a térkép időnként változik)
+        if (!todo.length) {
+          const oldest = all.map((sm) => sm.surface?.analyzed_at).filter(Boolean).sort()[0];
+          const when = oldest ? new Date(oldest).toLocaleDateString("hu-HU") : "";
+          if (!confirm(`Minden útvonalnak van már burkolat-vizsgálata${when ? ` (a legrégebbi: ${when})` : ""}.\nÚjravizsgálod mind a ${all.length}-at? Útvonalanként fél perc is lehet.`)) {
+            btn.disabled = false; return;
+          }
+          todo = all;
+        }
+        for (const [i, sm] of todo.entries()) {
+          btn.textContent = `Vizsgálat… ${i + 1}/${todo.length}`;
+          try {
+            const gpx = await routesApi.loadSample(sm.id);
+            const imp = await importGpx(new Blob([gpx], { type: "application/gpx+xml" }));
+            const { segments, totalDistKm } = await analyzeSurface(imp.geometry);
+            await routesApi.admin.updateSample(sm.id, { surface: packSurface(segments, totalDistKm) });
+            ok++;
+          } catch (err) { console.warn("Burkolat-vizsgálat:", sm.id, err); failed++; }
+        }
+        btn.textContent = todo.length ? `✓ Kész (${ok}${failed ? `, ${failed} sikertelen` : ""})` : "✓ Mindenhol megvan";
+        loadSamples();
+      } catch (err) {
+        alert(err.message); btn.textContent = label;
+      } finally {
+        setTimeout(() => { btn.disabled = false; btn.textContent = label; }, 5000);
       }
     });
 
