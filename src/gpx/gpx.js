@@ -16,7 +16,7 @@ export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", m
 
   const waypointNodes = waypoints
     .map((point, index) => {
-      const label = escapeXml(point.name || `Point ${index + 1}`);
+      const label = escapeXml(point.name || `${index + 1}. pont`);
       const wptDesc = point.note ? `\n    <desc>${escapeXml(point.note)}</desc>` : "";
       const segExt  = point.segmentMode
         ? `\n    <extensions><bringaterv:segmentMode>${escapeXml(point.segmentMode)}</bringaterv:segmentMode></extensions>`
@@ -42,6 +42,13 @@ ${trackPoints}
     </trkseg>
   </trk>
 </gpx>`;
+}
+
+// Régebbi (és más appokból jövő) angol pontnevek magyarul
+const NAME_HU = { start: "Rajt", finish: "Cél", end: "Cél", destination: "Cél" };
+function localizeName(n) {
+  const t = (n || "").trim();
+  return NAME_HU[t.toLowerCase()] ?? t;
 }
 
 export function downloadGpx(filename, content) {
@@ -145,7 +152,7 @@ function nodesToPoints(nodes) {
       hr: hr != null && Number.isFinite(hr) && hr > 0 ? hr : null,
       cad: cad != null && Number.isFinite(cad) && cad >= 0 ? cad : null,
       power: power != null && Number.isFinite(power) && power >= 0 ? power : null,
-      name: node.querySelector("name")?.textContent || `Point ${index + 1}`,
+      name: localizeName(node.querySelector("name")?.textContent) || `${index + 1}. pont`,
       note: node.querySelector("desc")?.textContent || "",
       segmentMode,
     };
@@ -193,7 +200,7 @@ export function calcElevationFromGeometry(geometry) {
 
 function summarizeGeometryAsWaypoints(geometry, sampleCount = 0) {
   if (!geometry.length) return [];
-  if (geometry.length === 1) return [{ ...geometry[0], name: "Start" }];
+  if (geometry.length === 1) return [{ ...geometry[0], name: "Rajt" }];
   if (sampleCount > 2) {
     const count = Math.min(sampleCount, geometry.length);
     const step = (geometry.length - 1) / (count - 1);
@@ -203,8 +210,8 @@ function summarizeGeometryAsWaypoints(geometry, sampleCount = 0) {
     });
   }
   return [
-    { ...geometry[0], name: "Start" },
-    { ...geometry[geometry.length - 1], name: "Finish" },
+    { ...geometry[0], name: "Rajt" },
+    { ...geometry[geometry.length - 1], name: "Cél" },
   ];
 }
 

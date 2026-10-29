@@ -147,7 +147,8 @@ function roundRect(ctx, x, y, w, h, r) {
  *     minRange,       – legalább ekkora függőleges tartomány (pl. szintnél 20 m)
  *     zeroBase,       – a függőleges tengely 0-tól induljon (pl. szélerősség)
  *   }
- *   markers: [{ dist, label, color, line }] – felül kis kör felirattal; line → szaggatott függőleges
+ *   markers: [{ dist, label, color, line, name }] – felül kis kör felirattal; line → szaggatott függőleges;
+ *            name → rámutatáskor (a jelölő közelében) a címke első sorában
  */
 export function initElevationChart(canvas, { onHover, onLeave } = {}) {
   let _data = [];
@@ -331,13 +332,16 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
         ctx.lineWidth = 2; ctx.strokeStyle = (colorFn && colorFn(pt.value, pt)) || color; ctx.stroke();
 
         if (_hoverLocal) {
-          const lines = (_opts.formatTip?.(pt) || [`${num(pt.dist / 1000, 2)} km · ${Math.round(pt.value)} ${_opts.unit || ""}`])
+          let lines = (_opts.formatTip?.(pt) || [`${num(pt.dist / 1000, 2)} km · ${Math.round(pt.value)} ${_opts.unit || ""}`])
             .filter(Boolean);
+          // útvonalpont közelében: a pont jele és neve az első sorban
+          const mk = markerNear(x, xOf);
+          if (mk) lines = [`${mk.label} · ${mk.name || (mk.label === "A" ? "Rajt" : mk.label === "B" ? "Cél" : "Útvonalpont")}`, ...lines];
           ctx.font = "700 12px Inter, system-ui, sans-serif";
           const w1 = ctx.measureText(lines[0]).width;
           ctx.font = "11.5px Inter, system-ui, sans-serif";
-          const w2 = lines[1] ? ctx.measureText(lines[1]).width : 0;
-          const bw = Math.max(w1, w2) + 20, bh = lines[1] ? 38 : 24;
+          const w2 = Math.max(0, ...lines.slice(1).map((l) => ctx.measureText(l).width));
+          const bw = Math.max(w1, w2) + 20, bh = 24 + (lines.length - 1) * 15;
           let bx = x + 10;
           if (bx + bw > W - 4) bx = x - 10 - bw;
           let by = y - bh - 8;
@@ -348,15 +352,24 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
           ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
           ctx.fillStyle = "#fff";
           ctx.font = "700 12px Inter, system-ui, sans-serif";
-          ctx.fillText(lines[0], bx + 10, by + (lines[1] ? 16 : 16));
-          if (lines[1]) {
-            ctx.fillStyle = "#d1d5db";
-            ctx.font = "11.5px Inter, system-ui, sans-serif";
-            ctx.fillText(lines[1], bx + 10, by + 31);
-          }
+          ctx.fillText(lines[0], bx + 10, by + 16);
+          ctx.fillStyle = "#d1d5db";
+          ctx.font = "11.5px Inter, system-ui, sans-serif";
+          lines.slice(1).forEach((l, i) => ctx.fillText(l, bx + 10, by + 31 + i * 15));
         }
       }
     }
+  }
+
+  const SNAP_PX = 8;
+  function markerNear(x, xOfFn) {
+    let best = null, bd = SNAP_PX + 0.5;
+    for (const m of _markers) {
+      if (m.dist == null) continue;
+      const d = Math.abs(xOfFn(m.dist) - x);
+      if (d < bd) { bd = d; best = m; }
+    }
+    return best;
   }
 
   function getIdxAtX(canvasX) {
@@ -365,8 +378,13 @@ export function initElevationChart(canvas, { onHover, onLeave } = {}) {
     const PAD = pad();
     const innerW = W - PAD.left - PAD.right;
     const x = canvasX - PAD.left;
-    if (x < 0 || x > innerW || !_data.length) return -1;
-    return getIdxByDist((x / innerW) * _data[_data.length - 1].dist);
+    if (x < -SNAP_PX || x > innerW + SNAP_PX || !_data.length) return -1;
+    const maxD = _data[_data.length - 1].dist;
+    // útvonalpont közelében a jelölőre ugrik (a címkében a neve látszik)
+    const mk = markerNear(canvasX, (dist) => PAD.left + (Math.max(0, Math.min(maxD, dist)) / maxD) * innerW);
+    if (mk) return getIdxByDist(Math.max(0, Math.min(maxD, mk.dist)));
+    if (x < 0 || x > innerW) return -1;
+    return getIdxByDist((x / innerW) * maxD);
   }
 
   function getIdxByDist(dist) {

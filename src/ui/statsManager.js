@@ -10,10 +10,11 @@
  */
 
 import {
-  renderStats, renderMonthlyTable,
+  renderMonthlyTable,
   renderEddington, renderTrainingLoad,
 } from './statsPanel.js';
 import { renderRecordsView } from './recordsView.js';
+import { renderOverview, renderJournal, renderYearReview } from './statsOverview.js';
 import { mobileMQ } from '../layout.js';
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
@@ -51,24 +52,53 @@ function _placeControls() {
   if (!side || !main) return;
   const nav = side.querySelector(".stats-nav") || main.querySelector(".stats-nav");
   const filters = ["statsFilterPeriodSection", "statsFilterSportSection"].map((id) => document.getElementById(id)).filter(Boolean);
+  // a fülsor és a szűrők gépen és mobilon is a Statok tetején (a bal oldali sáv megszűnt)
   let bar = document.getElementById("statsMobileBar");
-  if (mobileMQ.matches) {
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "statsMobileBar";
-      bar.className = "stats-mobile-bar";
-      main.prepend(bar);
-    }
-    if (nav) bar.appendChild(nav);
-    const row = bar.querySelector(".stats-mobile-filters") || bar.appendChild(Object.assign(document.createElement("div"), { className: "stats-mobile-filters" }));
-    filters.forEach((f) => row.appendChild(f));
-    bar.hidden = false;
-    _centerActiveTab();
-  } else {
-    if (nav) side.prepend(nav);
-    filters.forEach((f) => side.appendChild(f));
-    if (bar) bar.hidden = true;
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "statsMobileBar";
+    bar.className = "stats-mobile-bar";
+    bar.innerHTML = '<h1 class="st-title">Statisztikák</h1>';
+    main.prepend(bar);
   }
+  if (nav) bar.appendChild(nav);
+  const row = bar.querySelector(".stats-mobile-filters") || bar.appendChild(Object.assign(document.createElement("div"), { className: "stats-mobile-filters" }));
+  filters.forEach((f) => row.appendChild(f));
+  bar.hidden = false;
+  _addYearChips();
+  if (mobileMQ.matches) _centerActiveTab();
+}
+
+/** Időszak: a korábbi évek (amikből van adat) is választhatók. */
+function _addYearChips() {
+  const group = document.querySelector("#statsFilterPeriodSection .stats-chip-group");
+  if (!group) return;
+  const now = new Date().getFullYear();
+  const years = [...new Set(_allStatsRoutes().map((r) => new Date(r.start_time || r.date).getFullYear()))]
+    .filter((y) => y < now && y > 1990).sort((a, b) => b - a).slice(0, 4);
+  group.querySelectorAll("[data-year-chip]").forEach((b) => { if (!years.includes(Number(b.dataset.yearChip))) b.remove(); });
+  const allBtn = group.querySelector('[data-stats-period="all"]');
+  years.forEach((y) => {
+    if (group.querySelector(`[data-year-chip="${y}"]`)) return;
+    const b = document.createElement("button");
+    b.className = "stats-chip"; b.dataset.statsPeriod = `y${y}`; b.dataset.yearChip = y; b.textContent = y;
+    b.addEventListener("click", () => _setPeriod(b.dataset.statsPeriod));
+    group.insertBefore(b, allBtn);
+  });
+}
+
+function _setPeriod(p) {
+  _statsPeriod = p;
+  document.querySelectorAll("[data-stats-period]").forEach((b) =>
+    b.classList.toggle("stats-chip--active", b.dataset.statsPeriod === _statsPeriod));
+  if (_statsView === "overview") renderOverview(_allStatsRoutes(), { period: _statsPeriod, sport: _statsSport });
+}
+
+function _userFirstName() {
+  try {
+    const u = JSON.parse(localStorage.getItem("bringaterv_user") || "{}");
+    return (u.first_name || String(u.name || "").trim().split(/\s+/).pop() || "").trim();
+  } catch { return ""; }
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -85,27 +115,32 @@ function _allStatsRoutes() {
 
 // ── Nézet váltás ─────────────────────────────────────────────────────────────
 export function switchStatsView(view) {
+  // régi nézetnevek (pl. a Kezdőlap linkjeiből): az Edzésterhelés és az Eddington a Forma fülön
+  if (view === "training" || view === "eddington") view = "form";
   _statsView = view;
   document.querySelectorAll("[data-stats-view]").forEach(b =>
     b.classList.toggle("stats-nav-item--active", b.dataset.statsView === view));
   // mobilon a kiválasztott fül görgetődjön a fülsor közepére
   if (mobileMQ.matches) _centerActiveTab();
-  ["overview","monthly","records","eddington","training","heatmap"].forEach(v => {
+  const shown = { overview: ["overview"], monthly: ["monthly"], records: ["records"], form: ["training", "eddington"],
+                  heatmap: ["heatmap"], year: ["year"] }[view] || [view];
+  ["overview","monthly","records","eddington","training","heatmap","year"].forEach(v => {
     const el = document.getElementById("statsView" + v.charAt(0).toUpperCase() + v.slice(1));
-    if (el) el.hidden = v !== view;
+    if (el) el.hidden = !shown.includes(v);
   });
+  document.getElementById("statsMain")?.classList.toggle("is-form", view === "form");
   const periodSection = document.getElementById("statsFilterPeriodSection");
   if (periodSection) periodSection.hidden = view !== "overview";
   const sportSection  = document.getElementById("statsFilterSportSection");
-  if (sportSection)  sportSection.hidden  = ["records","eddington","training","heatmap"].includes(view);
+  if (sportSection)  sportSection.hidden  = !["overview", "monthly"].includes(view);
 
   const all = _allStatsRoutes();
-  if (view === "overview")  renderStats(all, { period: _statsPeriod, sport: _statsSport });
-  if (view === "monthly")   renderMonthlyTable(all, { sport: _statsSport });
+  if (view === "overview")  { _addYearChips(); renderOverview(all, { period: _statsPeriod, sport: _statsSport }); }
+  if (view === "monthly")   { renderJournal(all, { sport: _statsSport }); renderMonthlyTable(all, { sport: _statsSport }); }
   if (view === "records")   renderRecordsView(all, { api: _api, sport: _statsSport });
-  if (view === "eddington") renderEddington(all);
-  if (view === "training")  renderTrainingLoad(all, { months: _trainingRange });
+  if (view === "form")      { renderTrainingLoad(all, { months: _trainingRange }); renderEddington(all); }
   if (view === "heatmap")   showHeatmap();
+  if (view === "year")      renderYearReview(all, { userName: _userFirstName() });
 }
 
 // ── Betöltés + render ─────────────────────────────────────────────────────────
@@ -158,13 +193,7 @@ function _registerListeners() {
 
   // Időszak szűrő
   document.querySelectorAll("[data-stats-period]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      _statsPeriod = btn.dataset.statsPeriod;
-      document.querySelectorAll("[data-stats-period]").forEach(b =>
-        b.classList.toggle("stats-chip--active", b.dataset.statsPeriod === _statsPeriod));
-      if (_statsView === "overview")
-        renderStats(_allStatsRoutes(), { period: _statsPeriod, sport: _statsSport });
-    });
+    btn.addEventListener("click", () => _setPeriod(btn.dataset.statsPeriod));
   });
 
   // Sport szűrő
@@ -174,8 +203,8 @@ function _registerListeners() {
       document.querySelectorAll("[data-stats-sport]").forEach(b =>
         b.classList.toggle("stats-chip--active", b.dataset.statsSport === _statsSport));
       const all = _allStatsRoutes();
-      if (_statsView === "overview") renderStats(all, { period: _statsPeriod, sport: _statsSport });
-      if (_statsView === "monthly")  renderMonthlyTable(all, { sport: _statsSport });
+      if (_statsView === "overview") renderOverview(all, { period: _statsPeriod, sport: _statsSport });
+      if (_statsView === "monthly")  { renderJournal(all, { sport: _statsSport }); renderMonthlyTable(all, { sport: _statsSport }); }
     });
   });
 

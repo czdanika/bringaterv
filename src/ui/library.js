@@ -153,7 +153,9 @@ export function smartDateFormat(isoDate) {
   if (!isoDate) return "";
   try {
     const d = new Date(isoDate); const now = new Date();
-    const diffD = Math.floor((now - d) / 86400000);
+    // naptári napok különbsége (nem 24 órás időszakok – a tegnap délutáni ne legyen „Ma”)
+    const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diffD = Math.round((day(now) - day(d)) / 86400000);
     if (diffD === 0) return "Ma";
     if (diffD === 1) return "Tegnap";
     if (diffD < 7)  return `${diffD} napja`;
@@ -253,7 +255,7 @@ function drawRouteMapPreview(slot, points) {
 }
 
 /** Előnézet rajzolása; ha a doboz még nincs a DOM-ban (0 méret), megvárja. */
-function renderRouteMapPreview(slot, points) {
+export function renderRouteMapPreview(slot, points) {
   if (drawRouteMapPreview(slot, points)) return;
   const ro = new ResizeObserver(() => { if (drawRouteMapPreview(slot, points)) ro.disconnect(); });
   ro.observe(slot);
@@ -311,7 +313,7 @@ function renderExtendedStats(s) {
   if (!s) return "";
   const rows = [];
   if (s.avgHr != null)    rows.push(`<span>Pulzus <b>${int(s.avgHr)}</b>${s.maxHr != null ? ` / ${int(s.maxHr)}` : ""} bpm</span>`);
-  if (s.avgPower != null) rows.push(libMini("Mért teljesítmény", int(s.avgPower), "W"));
+  if (s.avgPower != null && !s.hasRoutePower) rows.push(libMini("Teljesítmény", int(s.avgPower), "W"));
   if (s.avgCad != null)   rows.push(libMini("Kadencia", int(s.avgCad), "rpm"));
   if (s.maxSpeed != null) rows.push(libMini("Max. sebesség", num(s.maxSpeed, 1), "km/h"));
   if (s.startTime) rows.push(libMini("Indulás", s.startTime.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })));
@@ -351,6 +353,8 @@ export async function loadAndRenderExpandPreview(routeId) {
     }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
     if (fullPts.length < 2) { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">—</span>'; return; }
     const stats = aggregateGpxStats(fullPts);
+    const r = [..._data.routes, ..._data.workouts, ..._data.samples].find((x) => x.id === routeId);
+    stats.hasRoutePower = r?.avg_watts != null || r?.weighted_avg_watts != null;
     const step = Math.max(1, Math.floor(fullPts.length / 200));
     const simplified = [];
     for (let i = 0; i < fullPts.length; i += step) simplified.push(fullPts[i]);
@@ -807,7 +811,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
   const effortVal = route.suffer_score != null ? Math.round(route.suffer_score) : (route.calories != null ? Math.round(route.calories / 10) : null);
 
   const tr = document.createElement("tr");
-  tr.className = `library-list-row${route.include_in_stats === false && category !== "sample" ? " is-excluded" : ""}`;
+  tr.className = `library-list-row${route.include_in_stats === false && category === "workout" ? " is-excluded" : ""}`;
   tr.dataset.id = route.id;
   tr.dataset.category = category;
   tr.innerHTML = `

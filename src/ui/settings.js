@@ -27,6 +27,7 @@ export function initSettings({ mapAdapter, store, showToast, getActiveGeometry, 
   _initZoneMultiSliders();
   _initChartColorSettings();
   _initDirectionArrowsToggle();
+  _initRouteFlowToggle();
   _initCyclistProfileSettings();
   _initBackupRestore();
 
@@ -906,6 +907,19 @@ function _initDirectionArrowsToggle() {
     } else {
       _mapAdapter.clearDirectionArrows?.();
     }
+  });
+}
+
+// ── Futó animáció az útvonalon ───────────────────────────────────────────────
+function _initRouteFlowToggle() {
+  const toggle = document.getElementById("routeFlowToggle");
+  if (!toggle) return;
+  toggle.checked = localStorage.getItem("bringaterv.routeFlow") !== "false";
+  toggle.addEventListener("change", () => {
+    localStorage.setItem("bringaterv.routeFlow", String(toggle.checked));
+    const g = _getActiveGeometry?.();
+    if (toggle.checked && g?.length >= 2) _mapAdapter.renderRouteFlow?.(g);
+    else _mapAdapter.clearRouteFlow?.();
   });
 }
 

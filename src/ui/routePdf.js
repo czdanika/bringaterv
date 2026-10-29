@@ -424,7 +424,7 @@ function drawWaypoints(pdf, x, y, w, waypoints, maxRows = 12) {
     const col = isFirst ? "#16a34a" : isLast ? "#dc2626" : NAVY;
     pdf.setFillColor(...hexToRgb(col));
     pdf.circle(x + 1.3, yy, 1.3, "F");
-    const name = wp.name || (isFirst ? "Start" : isLast ? "Cél" : `Pont ${i + 1}`);
+    const name = wp.name || (isFirst ? "Rajt" : isLast ? "Cél" : `Pont ${i + 1}`);
     pdf.setFont(FONT, "normal").setFontSize(8.5).setTextColor(...hexToRgb(INK));
     pdf.text(pdf.splitTextToSize(name, w - 8)[0], x + 5, yy, { baseline: "middle" });
     yy += 5;

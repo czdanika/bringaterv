@@ -136,7 +136,7 @@
         <p>Az alkalmazás öt fő részből áll, amelyek között a bal oldali sávval (telefonon az alsó navigációval) válthatsz:</p>
         <table>
           <tr><th>Fül</th><th>Mire való?</th></tr>
-          <tr><td class="path">Kezdő</td><td>Indításkor ez nyílik: gyors indítás (útvonal tervezése, edzés elemzése, közösségi utak, statisztikák), összesítő (e hét, a hónap, az év), forma, sorozatok, Eddington-szám, következő célok, aktivitás-naptár és a legutóbbi útvonalak / edzések egy kattintással betölthetően.</td></tr>
+          <tr><td class="path">Kezdő</td><td>Indításkor ez nyílik: gyors műveletek (új útvonal, GPX / FIT betöltése, Könyvtár, Közösségi utak, Statisztikák), a legutóbbi edzésed térképpel és egy kattintásos Elemzéssel, a mai / holnapi tekerési időjárás szél-ajánlással, a mentett terveid, összesítő a céljaiddal, forma (Eddington-számmal, sorozattal), „egy éve ezen a napon” emlék és aktivitás-naptár.</td></tr>
           <tr><td class="path">Tervezés</td><td>Új útvonal tervezése a térképen: pontok, tervezési módok, becsült idő, szint- és szélelemzés, mentés.</td></tr>
           <tr><td class="path">Elemzés</td><td>Egy rögzített edzés (GPX / FIT) részletes elemzése: adatok, színezett térkép, diagramok, pulzuszónák.</td></tr>
           <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin), megosztás.</td></tr>
@@ -146,7 +146,21 @@
         <h3>Súgó („i”) gombok</h3>
         <p>A legtöbb beállítás és szakasz mellett van egy kis <b>ⓘ</b> gomb. Koppints rá: rövid magyarázat nyílik az adott funkcióról. Újabb koppintás, a dobozon kívüli koppintás vagy az <kbd>Esc</kbd> bezárja.</p>
         <h3>Mobil nézet</h3>
-        <p>Telefonon (és fekvő telefonon) saját elrendezés jelenik meg: teljes képernyős térkép, alul a négy fül, a panel tartalma pedig alulról felhúzható. A panel tetején lévő fogantyúval négy magasság között válthatsz (koppintással léptet, húzással szabadon állítható). iPaden álló és fekvő helyzetben az asztali elrendezés látszik.</p>
+        <p>Telefonon (és fekvő telefonon) saját elrendezés jelenik meg: teljes képernyős térkép, alul az öt fül, a panel tartalma pedig alulról felhúzható (a lap tetején mindig a legfontosabb: tervezésnél kereső, számok, mód és eszközök; elemzésnél a fő számok és a színezés). A panel tetején lévő fogantyúval négy magasság között válthatsz (koppintással léptet, húzással szabadon állítható). iPaden álló és fekvő helyzetben az asztali elrendezés látszik.</p>
+      </section>
+
+      <section id="kezdo">
+        <h2>Kezdőlap</h2>
+        <ul>
+          <li><b>Gyors műveletek</b> – egy sorban: <b>Új útvonal</b>, <b>GPX / FIT betöltése</b> (Elemzés), <b>Könyvtár</b> (az elemek számával), <b>Közösségi utak</b>, <b>Statisztikák</b>. Telefonon vízszintesen görgethető.</li>
+          <li><b>Legutóbbi edzés</b> – térképes előnézet, a fő számok (táv, idő, emelkedés, átlag), alattuk pulzus, teljesítmény, terhelés; az <b>Elemzés</b> gombbal azonnal megnyílik, a <b>Tervezés</b> gombbal útvonal lesz belőle.</li>
+          <li><b>Mai / holnapi tekerés</b> – az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> előrejelzése a legutóbbi edzésed rajtjánál: hőmérséklet, szélirány és -erősség, lökések, eső, órás sáv (zöld = tekerésre jó idő), és egy ajánlás – pl. „indulj szél ellen, hazafelé hátszeled lesz”. Délután 3 után már a holnapi napot mutatja.</li>
+          <li><b>Mentett terveid</b> – a három legutóbbi tervezett útvonal kis térképpel; kattintásra betöltődik a Tervezésbe.</li>
+          <li><b>Összesítő és célok</b> – e hét, a hónap és az év kilométerei, edzésszáma, szintje, ideje; alatta a céljaid csíkja (<b>Célok</b> gomb: heti táv, éves táv, éves szint – üresen automatikus cél).</li>
+          <li><b>Forma</b> – fittség, fáradtság, forma, Eddington-szám és hány hete edzel megszakítás nélkül; a <b>Részletek</b> a Statok edzésterhelés nézetébe visz.</li>
+          <li><b>Egy éve ezen a napon</b> – ha egy éve (±3 nap) volt edzésed, egy kis emlékkártya mutatja, egy kattintással megnyitható.</li>
+          <li><b>Aktivitás</b> – naptár az elmúlt évről (telefonon az utolsó hetekről), a szín a napi km-t jelzi.</li>
+        </ul>
       </section>
 
       <section id="telepites">
@@ -181,7 +195,7 @@
           <li>A <b>×</b> törli a pontot. A térképen a jelölőre kattintva felugró ablakban átnevezheted, megjegyzést írhatsz hozzá, vagy törölheted.</li>
           <li>A pontok között a szakasz hossza látszik; a <b>színes pötty</b> az adott szakasz tervezési módja – rákattintva szakaszonként átállíthatod.</li>
           <li>Az utolsó pont célzászlóval (sakktábla) jelenik meg.</li>
-          <li>Alul a teljes <b>táv</b>, a <b>becsült idő</b>, az <b>emelkedő</b> és az <b>ereszkedő</b> látható.</li>
+          <li>A pontok alatt a teljes <b>táv</b>, a <b>becsült idő</b>, az <b>emelkedő</b> és az <b>ereszkedő</b> látható.</li>
         </ul>
 
         <h3 id="tervezesi-modok">Tervezési módok (útvonaltípusok)</h3>
@@ -196,13 +210,26 @@
         <p><b>Vegyes mód:</b> egy útvonalon belül szakaszonként más-más mód is lehet – a pontlistában a szakasz melletti színes pöttyre koppintva állítható. A térképen a szakaszok a módjuk színével jelennek meg.</p>
         <p>Az alapsebességek a <span class="path">Beállítások → Tervezési beállítások</span> alatt módosíthatók.</p>
 
-        <h3>Útvonal beállításai (oldalsáv)</h3>
+        <h3 id="oldalsav">A tervezés oldalsávja</h3>
+        <ul>
+          <li><b>Útvonal ⋯ menü</b> (a cím mellett): GPX importálása, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
+          <li><b>Pontok</b> – mellette a tervezési mód választója (Aszfalt / Gravel / MTB / Túra), alatta a pontlista.</li>
+          <li>A lista alatt a <b>kereső</b>, a <b>Körtúra</b> kapcsoló és a <b>⚙</b> gomb a ritkábban állított beállításokkal (lásd lent).</li>
+          <li><b>Útvonal színezése</b> – egy választóval: <b>Nincs</b>, <b>Szintprofil</b> (meredekség), <b>Szélelemzés</b>, <b>Burkolat</b>. Egyszerre egy lehet aktív.</li>
+        </ul>
         <table>
-          <tr><th>Kapcsoló</th><th>Hatás</th></tr>
+          <tr><th>⚙ beállítás</th><th>Hatás</th></tr>
           <tr><td class="path">Útra illesztés</td><td>Bekapcsolva a pontokat utakon köti össze; kikapcsolva légvonalban (pl. úttalan terepen).</td></tr>
-          <tr><td class="path">Szakasz információk</td><td>A szakaszok részletes adatait (táv, szint) mutatja a térkép alatt.</td></tr>
-          <tr><td class="path">GPX köztes pontok</td><td>GPX tervezéshez betöltésekor minden köztes pontot útvonalpontként vesz fel; kikapcsolva csak a kezdő- és végpontot.</td></tr>
+          <tr><td class="path">Szakasz információk</td><td>A statok (táv, idő, szint) mutatása a pontok alatt.</td></tr>
+          <tr><td class="path">Szintadat / szélhatás az időbecsléshez</td><td>Lásd <a href="#becsult-ido">Becsült idő</a>.</td></tr>
+          <tr><td class="path">Futó animáció az útvonalon</td><td>Apró fehér jelek futnak végig az útvonalon a haladás irányában (tervezésnél és elemzésnél is). Ha a rendszerben be van kapcsolva a mozgás csökkentése, nem mozog.</td></tr>
+          <tr><td class="path">Útirány-nyilak</td><td>Kis nyilak ~1,5 km-enként a haladási iránnyal.</td></tr>
         </table>
+        <p>Ugyanezek a <span class="path">☰ → Beállítások</span> alatt is megvannak (a két hely együtt változik). Telefonon a ⚙ helyett „Beállítások” gomb van, és a panel a lapon belül nyílik le.</p>
+        <p>A <b>GPX köztes pontok</b> kapcsoló (fájlbetöltéskor a köztes pontok útvonalponttá alakítása) a <span class="path">Beállítások → Tervezési beállítások</span> alatt van.</p>
+
+        <h3 id="burkolat">Burkolat</h3>
+        <p>Az <b>Útvonal színezése → Burkolat</b> megmutatja, milyen utakon vezet az útvonal: <b>Aszfalt</b>, <b>Murva</b>, <b>Földút</b>, <b>Ösvény</b> – arányban (sáv) és km-ben, a térképen pedig a szakaszok burkolat szerint színeződnek (ugyanazokkal a színekkel, mint a tervezési módok pöttyei). Tervezett útvonalnál az adat az útvonaltervezővel együtt érkezik, azonnal; importált GPX-nél az OpenStreetMapből kérdezi le (néhány másodperc). Ahol az OSM-ben nincs megadva burkolat, a közutat aszfaltnak veszi.</p>
 
         <h3 id="becsult-ido">Becsült idő</h3>
         <ul>
@@ -214,7 +241,7 @@
         <h3 id="eszkoztar">Az eszköztár (a térkép alján)</h3>
         <table>
           <tr><th>Gomb</th><th>Funkció</th></tr>
-          <tr><td>⋮⋮ fogantyú</td><td>Asztalon húzással áthelyezhető, koppintásra összecsukható.</td></tr>
+          <tr><td>⋮⋮ fogantyú</td><td>Asztalon húzással áthelyezhető, kattintásra kis gombbá csukható össze (újabb kattintásra kinyílik).</td></tr>
           <tr><td>Tervezési mód</td><td>Az új szakaszok alapértelmezett módja (Aszfalt / Gravel / MTB / Túra).</td></tr>
           <tr><td>Helykeresés</td><td>A kereső megnyitása.</td></tr>
           <tr><td>Import</td><td>GPX / FIT fájl betöltése.</td></tr>
@@ -233,19 +260,20 @@
         <p>A diagram az útvonal magasságát mutatja a táv függvényében. A <b>Szintprofil</b> kapcsolóval a térképen a meredekség szerint színeződik az útvonal (zöld = lejtő, szürke = sík, piros = emelkedő); a jelmagyarázat a térkép bal felső sarkában látszik. A diagramon mozgatott egér vagy ujj a térképen is mutatja a pontot.</p>
         <h3 id="utvonalpont">Útvonalpont</h3>
         <p>Egy útvonalpontra kattintva ablak nyílik: rajttól mért táv (becsült idővel és emelkedéssel), magasság, meredekség, célig hátralévő táv és koordináták (másolható). Itt nevezheted át a pontot, írhatsz hozzá megjegyzést, állíthatod a <b>következő szakasz tervezési módját</b>, és törölheted a pontot. A célpontnál az <b>Oda-vissza</b> is innen indítható.</p>
-        <p><b>Körtúra:</b> a rajt (és a cél) ablakában, illetve a bal oldali <span class="path">Útvonal beállításai</span> között található <b>Körtúra</b> kapcsolóval az útvonal mindig visszaér a rajthoz. Bekapcsolva a végére kerül a rajt, az új pontok a visszaút elé szúródnak be, a rajt elhúzásakor a cél is vele mozog, a rajt törlésekor pedig a következő pont lesz a rajt és a cél. Kikapcsolva a visszaút lekerül.</p>
+        <p><b>Körtúra:</b> a rajt (és a cél) ablakában, illetve a pontlista alatti <b>Körtúra</b> kapcsolóval az útvonal mindig visszaér a rajthoz. Bekapcsolva a végére kerül a rajt, az új pontok a visszaút elé szúródnak be, a rajt elhúzásakor a cél is vele mozog, a rajt törlésekor pedig a következő pont lesz a rajt és a cél. Kikapcsolva a visszaút lekerül.</p>
+        <p><b>Körtúra importált nyomvonalnál</b> (pl. Elemzés → Tervezés ez alapján): a nyomvonal megmarad. Ha a cél a rajttól 300 m-en belül van, a cél a rajtra kerül egy rövid összekötővel; ha messzebb, csak a visszautat tervezi hozzá. Ha csak rajt és cél volt, a nyomvonal rajttól legtávolabbi pontja fordulópontként bekerül. Kikapcsolva visszaáll az eredeti.</p>
         <p><b>Körtúra más ponttól:</b> ha az útvonal kör (a cél a rajttól 300 m-en belül van), bármelyik köztes pont ablakában ott a <b>Rajt ide</b> gomb – a kör ettől a ponttól indul és ide ér vissza, az útvonal ugyanaz marad. Ha a kívánt helyen nincs pont, kattints az útvonalra (köztes pontot szúr be), majd annak ablakában válaszd a Rajt ide-t. Az irányt a <b>Megfordítás</b> gombbal válthatod.</p>
 
         <h3 id="szelelemzes">Szélelemzés</h3>
         <ol>
-          <li>Nyisd meg a szélelemzést (eszköztár vagy az oldalsáv <b>Szélelemzés</b> sora).</li>
+          <li>Nyisd meg a szélelemzést (eszköztár, vagy az oldalsávban <b>Útvonal színezése → Szélelemzés</b> – ilyenkor rögtön lenyílik az indulási idő és a sebesség).</li>
           <li>Add meg az indulás idejét (legfeljebb 7 nappal előre).</li>
           <li>Az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> előrejelzéséből minden szakaszra kiszámolja, mikor érsz oda, és ott épp honnan fúj a szél.</li>
         </ol>
         <p>Eredmény: hátszél / oldalszél / szembeszél arány km-ben és százalékban, szegmenslista, időjárás, és a térképen szél szerinti színezés (zöld = hátszél, sárga = oldalszél, piros = szembeszél). A szél a többi diagramhoz hasonló grafikonon is megjelenik (szélerősség a táv mentén, irány szerint színezve); a szakaszok részletes listája lenyitható. A szélszínezés és a szintprofil-színezés kizárja egymást.</p>
 
         <h3 id="gpx-tervezeshez">GPX importálása tervezéshez</h3>
-        <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz. Betöltéskor egy előnézet jelenik meg:</p>
+        <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz (Útvonal <b>⋯</b> menü → <b>GPX importálása…</b>). Betöltéskor egy előnézet jelenik meg:</p>
         <ul>
           <li><b>Szegmensvizsgálat futtatása</b> – az útvonal mentén lekérdezi az OSM útburkolat-adatokat, és szakaszonként automatikusan beállítja a tervezési módot (aszfalt / gravel / MTB).</li>
           <li><b>Fordulópontok rögzítése</b> – a legfontosabb kanyarokat útvonalpontként rögzíti, hogy módváltáskor az útvonal az eredeti nyomvonalon maradjon (különben rövidebb utat is választhat).</li>
@@ -266,19 +294,20 @@
           <li>Könyvtárból: kattints egy edzés kártyájára.</li>
         </ul>
         <h3>Adatok</h3>
-        <p>Időtartam (és mozgási idő), táv, útvonalpontok, emelkedő / ereszkedő, átlag- és maximális sebesség, pulzus, kadencia, teljesítmény, valamint <b>kalória</b> (Stravából, vagy becslés a kerékpáros profilból – ilyenkor „becsült” a felirat).</p>
+        <p>Felül az edzés neve, sportja és ideje, mellette a <b>⋯</b> menü (GPX letöltése, Megosztás / PDF, a trackpontok száma, Bezárás). Alatta a négy fő szám: <b>táv, idő</b> (mozgási idő, ha van), <b>átlagsebesség, emelkedés</b>; egy halk sorban a többi: max. sebesség, pulzus és kadencia (átlag / max), teljesítmény, lejtés, <b>kalória</b> (Stravából, vagy becslés a kerékpáros profilból), és pulzusnál a TRIMP / Edwards-pont.</p>
+        <p>A térképen az útvonal fölé húzva az egeret egy buborék mutatja az adott pont sebességét, pulzusát, kadenciáját, teljesítményét és magasságát.</p>
         <h3 id="terkep-szinezes">Térkép színezése</h3>
-        <p>Az oldalsáv soraiban (<b>Sebesség térkép, Kadencia térkép, Pulzuselemzés, Teljesítmény térkép, Szintprofil</b>):</p>
         <ul>
-          <li>a <b>kapcsoló</b> a térképen az adott adat szerint színezi az útvonalat – egyszerre egy lehet aktív;</li>
-          <li>a <b>diagram gomb</b> megnyitja a grafikont a térkép alján (több is lehet nyitva egymás alatt);</li>
-          <li>a <b>címre</b> kattintva lenyílik a jelmagyarázat; a színsávok a térkép sarkában is megjelennek (koppintásra összecsukható).</li>
+          <li>A <b>Térkép színezése</b> választóval: <b>Nincs, Sebesség, Pulzus, Kadencia, Teljesítmény, Szint</b> – csak az jelenik meg, amihez az edzésben van adat; egyszerre egy lehet aktív.</li>
+          <li>Alatta a <b>zónaeloszlás-sáv</b>: mennyi időt töltöttél az egyes zónákban (pulzusnál a pulzuszónák Z1–Z5, sebességnél, kadenciánál és teljesítménynél az adatzónák szerint).</li>
+          <li>A <b>Grafikonok</b> chipekkel nyithatók meg a diagramok a térkép alján (több is lehet nyitva egymás alatt).</li>
+          <li>A színskála a térkép sarkában is megjelenik (koppintásra összecsukható).</li>
         </ul>
         <p>A sebesség-, kadencia- és teljesítménysávok a <span class="path">Beállítások → Adatzónák</span> alatt, a pulzuszónák az <span class="path">Elemzési beállítások</span> alatt állíthatók.</p>
         <h3>Diagramok</h3>
         <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény és szél – mind egységes kinézetű. Fejlécük a legfontosabb számokat mutatja (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és tempó; a többinél átlag és maximum). A <b>Zónaszín</b> gombbal a vonal a zónák / lejtés szerint színeződik, ilyenkor jelmagyarázat is megjelenik. Az egérrel (telefonon az ujjaddal vízszintesen húzva) mozogva minden nyitott diagramon és a térképen is ugyanaz a pont látszik; a címke csak azon a diagramon jelenik meg, amelyiken mozogsz. Tervezésnél a rajt (A), a cél (B) és a közbenső útvonalpontok is jelölve vannak. Függőlegesen húzva továbbra is görgethető az oldal.</p>
         <h3 id="pulzuselemzes">Pulzuselemzés</h3>
-        <p>Megmutatja, mennyi időt töltöttél az egyes pulzuszónákban (idő és százalék), valamint két terhelésmutatót:</p>
+        <p>A <b>Pulzus</b> színezésnél a zónasáv megmutatja, mennyi időt töltöttél az egyes pulzuszónákban; a fő számok alatt két terhelésmutató is látszik:</p>
         <ul>
           <li><b>TRIMP</b> (Banister) – az edzés időtartamát és intenzitását (a pulzustartalék arányában) együtt súlyozó terhelésszám.</li>
           <li><b>Edwards-pont</b> – zónánként: perc × zóna sorszáma (Z1 = 1 … Z5 = 5).</li>
@@ -286,9 +315,10 @@
         <p>A zónák számítási módja: lásd <a href="#pulzus">Pulzuszónák és pulzusszámítás</a>.</p>
         <h3>Műveletek</h3>
         <ul>
-          <li><b>Tervezés ez alapján</b> – az edzés nyomvonalából szerkeszthető útvonal lesz a Tervezés fülön.</li>
-          <li><b>GPX export</b>, <b>Mentés</b> a könyvtárba (helyi fájlnál), <b>Megosztás</b>.</li>
-          <li><b>Törlés</b> – bezárja a betöltött edzést (megerősítést kér). A könyvtárból <i>nem</i> törli.</li>
+          <li><b>Mentés</b> – a könyvtárba (helyi fájlnál).</li>
+          <li><b>Tervezés</b> – az edzés nyomvonalából szerkeszthető útvonal lesz a Tervezés fülön.</li>
+          <li><b>Megosztás</b> (ikon) – kép, PDF, link.</li>
+          <li><b>⋯ → Bezárás</b> – bezárja a betöltött edzést (megerősítést kér). A könyvtárból <i>nem</i> törli.</li>
         </ul>
       </section>
 
@@ -298,11 +328,15 @@
         <ul>
           <li><b>Rács- és listanézet</b> a jobb felső kapcsolókkal. A rácsnézet kártyáin útvonal-bélyegkép, a listanézetben oszloponként rendezhető táblázat, lenyitható részletekkel.</li>
           <li><b>Térképes nézet</b> (a nézetváltó középső gombja): a szűrt elemek nyomvonala egy térképen – narancs az edzés, kék a tervezett útvonal, lila a közösségi. Rámutatva kiemelődik, kattintásra listát kapsz az ott futó elemekről, és innen betöltheted vagy a „⋯” menüt is elérheted.</li>
-          <li><b>Szűrők</b>: típus (Összes / Útvonal / Edzés / Közösségi), forrás (Saját, Strava, Garmin, FIT), sport (Bringa, Futás, Túra, Gyaloglás, Egyéb), táv és edzésidő csúszkával, keresés névre, rendezés (dátum, név, km, idő).</li>
-          <li><b>Forrásjelölők</b>: SAJÁT (kézzel mentett), STRAVA, GARMIN, FIT.</li>
+          <li><b>Típusfülek</b> a lista fölött, darabszámmal: <b>Összes · Edzés · Terv · Közösségi</b>.</li>
+          <li>Alattuk a <b>kereső</b> (név és hely szerint) és a <b>sport</b> chipek (Bringa, Futás, Túra, Gyaloglás, Egyéb).</li>
+          <li>A <b>Szűrők</b> gomb (rajta az aktív szűrők száma): forrás (Saját, Strava, Garmin, FIT), táv és edzésidő csúszkával, közösségi útvonalaknál helyszín. Mellette a <b>Törlés</b> minden szűrőt visszaállít. Telefonon a Szűrők alulról nyíló lapként jelenik meg.</li>
+          <li><b>Rendezés</b> a lista oszlopfejléceire kattintva (dátum, név, idő, táv, kcal, terhelés).</li>
+          <li>A <b>forrás</b> halk felirat (Saját, Strava, Garmin, FIT); a tervek mellett „terv” jelölés; a statisztikából kizárt edzések halványak, „nem számít bele” felirattal.</li>
           <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
         </ul>
         <h3>Egy elem műveletei</h3>
+        <p>A listában egy sorra kattintva lenyílik: <b>térképes előnézet</b> (halvány alaptérkép, zöld rajt), a négy fő szám és egy halk sor a többi adattal, két fő gomb (<b>Elemzés</b>, <b>Tervezés</b>), <b>Megosztás</b> és a <b>⋯</b> menü a ritkább műveletekkel, valamint a <b>Beleszámít a statisztikába</b> kapcsoló. Kártyanézetben a kártya gombja és ⋯ menüje ugyanezt kínálja.</p>
         <table>
           <tr><th>Művelet</th><th>Leírás</th></tr>
           <tr><td>Megnyitás</td><td>Edzés → Elemzés fül; útvonal → Tervezés fül.</td></tr>
@@ -320,15 +354,15 @@
 
       <section id="kozossegi">
         <h2>Közösségi útvonalak</h2>
-        <p>A Könyvtárban a <b>Közösségi</b> szűrővel érhetők el azok az útvonalak, amelyeket a felhasználók ajánlottak, és az admin jóváhagyott. Bármelyik megnyitható, betölthető tervezésbe, letölthető. A lenyitott sorban a nehézség, az ajánlott évszak, a helyszín (település, megye, ország, körtúra vagy A→B, érintett települések) és (ha engedte) a beküldő neve is látszik.</p>
+        <p>A Könyvtárban a <b>Közösségi</b> fülön (vagy a Kezdőlap <b>Közösségi utak</b> gombjával) érhetők el azok az útvonalak, amelyeket a felhasználók ajánlottak, és az admin jóváhagyott. Bármelyik megnyitható, betölthető tervezésbe, letölthető. A lenyitott sorban a nehézség, az ajánlott évszak, a helyszín (település, megye, ország, körtúra vagy A→B, érintett települések) és (ha engedte) a beküldő neve is látszik.</p>
         <ul>
-          <li><b>Helyszín szerint</b>: a Közösségi típusnál megjelenik a <b>Régió / megye</b> választó (és ha több országból is van útvonal, az <b>Ország</b>), valamint a <b>Körtúra / A → B</b> szűrő.</li>
+          <li><b>Helyszín szerint</b>: a Közösségi fülön a <b>Szűrők</b> panelben megjelenik a <b>Régió / megye</b> választó (és ha több országból is van útvonal, az <b>Ország</b>), valamint a <b>Körtúra / A → B</b> szűrő.</li>
           <li>A <b>kereső</b> a településekben is keres – pl. „Visegrád” beírására azok az útvonalak is megjelennek, amelyek csak áthaladnak rajta.</li>
           <li>A helyadatot a Bringaterv automatikusan számolja a nyomvonalból (OpenStreetMap), magyar nevekkel (pl. Bécs, Pozsony); határon átnyúló útvonalnál minden érintett ország szűrésénél megjelenik.</li>
         </ul>
         <h3>Saját útvonal beküldése</h3>
         <ul>
-          <li>Egy mentett útvonal vagy edzés <b>⋯</b> menüjében (vagy a lista lenyitott sorában): <span class="path">Beküldés a közösségi útvonalak közé</span>.</li>
+          <li>Egy mentett útvonal vagy edzés <b>⋯</b> menüjében: <span class="path">Beküldés a közösbe</span>.</li>
           <li>Töltsd ki az űrlapot: név, <b>leírás</b> (milyen az út, burkolat, forgalom, emelkedők, látnivalók, kávézók, mire figyeljenek), típus, nehézség, mikor ajánlott, és hogy beküldőként <b>névtelenül</b>, <b>a neveddel</b> vagy egy <b>becenévvel</b> jelenj meg.</li>
           <li>Csak a nyomvonal és a szint kerül át – időpontok, pulzus, sebesség és egyéb személyes adat nem.</li>
           <li>Az admin átnézi (a leírást pontosíthatja), és jóváhagyja vagy elutasítja; az eredményről értesítést kapsz.</li>
@@ -495,13 +529,13 @@
           <tr><td class="path">Mértékegység</td><td>Metrikus (km, m) vagy angolszász (mi, ft).</td></tr>
           <tr><td class="path">Megosztás</td><td>A megosztási linkek és QR-kódok alap-címe (saját domain).</td></tr>
           <tr><td class="path">Értesítések</td><td>Lásd <a href="#ertesitesek">Értesítések</a>.</td></tr>
-          <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Gyalogos 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
+          <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Túra 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
           <tr><td class="path">Induló nézet</td><td>Hol és milyen nagyításon nyíljon meg a térkép (a mostani nézet vagy GPS szerint).</td></tr>
           <tr><td class="path">Eszköztár sorrend</td><td>Az eszköztár gombjainak sorrendje (húzással) és elrejtése (👁).</td></tr>
           <tr><td class="path">Elemzési beállítások</td><td>Személyes adatok és pulzuszónák – lásd <a href="#pulzus">Pulzuszónák</a>.</td></tr>
           <tr><td class="path">Adatzónák</td><td>Sebesség- (km/h), kadencia- (rpm) és teljesítmény- (W) zónahatárok csúszkákkal; az „Egyenlő felosztás” gomb egyenletesen osztja szét őket. Ezek színezik a térképet és (zónaszín módban) a diagramokat.</td></tr>
           <tr><td class="path">Diagram színek</td><td><b>Egyszínű</b>: minden diagram egységes, semleges szürke; <b>Zónaszín</b>: a vonal szakaszonként az adatzónák színeivel rajzolódik (Strava / Garmin-szerűen).</td></tr>
-          <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos).</td></tr>
+          <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos), és a <b>futó animáció</b> (apró fehér jelek futnak az útvonalon a haladás irányába; alapból be van kapcsolva). Mindkettő a tervezés ⚙ paneljében is állítható.</td></tr>
           <tr><td class="path">Kerékpáros profil</td><td>Saját és kerékpár tömege, vezetési pozíció (légellenállás, CdA: városi 0,65 – aero 0,32). A gördülési ellenállás a tervezési módból jön (aszfalt 0,005, gravel 0,010, MTB 0,018). A szélhatás és a kalóriabecslés használja.</td></tr>
           <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>
           <tr><td class="path">Garmin Connect</td><td>Lásd <a href="#garmin">Garmin Connect</a>.</td></tr>

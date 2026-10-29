@@ -57,6 +57,13 @@ export const MODE_LABELS = {
   hiking:  "Túra",
 };
 
+/** BRouter „WayTags” szövegből („highway=track surface=gravel …”) a burkolat-osztály. */
+export function modeFromWayTags(tagStr) {
+  const tags = {};
+  String(tagStr || "").split(/\s+/).forEach((kv) => { const i = kv.indexOf("="); if (i > 0) tags[kv.slice(0, i)] = kv.slice(i + 1); });
+  return wayMode(tags) ?? "asphalt";
+}
+
 function wayMode(tags) {
   if (!tags) return null;
   const surface = tags.surface;
@@ -181,6 +188,32 @@ function mergeShortSegments(segs, minKm) {
  * @returns {Promise<object>} – { segments, totalDistKm }
  *   segments: [{ mode, fromKm, toKm, distanceKm, geomPoint, geomIdx }]
  */
+// A fő Overpass-szerver gyakran túlterhelt (502/504) – időkorláttal, tartalék szerverrel
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+async function overpassQuery(query) {
+  let lastErr = null;
+  for (const url of OVERPASS_ENDPOINTS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 35000);
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        body: `data=${encodeURIComponent(query)}`,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        signal: ctrl.signal,
+      });
+      if (!resp.ok) { lastErr = new Error(`Overpass API hiba (${resp.status}).`); continue; }
+      return await resp.json();
+    } catch (err) {
+      lastErr = err.name === "AbortError" ? new Error("Az OSM-szerver nem válaszolt időben.") : err;
+    } finally { clearTimeout(timer); }
+  }
+  throw lastErr ?? new Error("Az OSM-szerver nem érhető el.");
+}
+
 export async function analyzeSurface(geometry) {
   if (geometry.length < 2) {
     throw new Error("Nincs elegendő trackpont az elemzéshez.");
@@ -202,13 +235,7 @@ export async function analyzeSurface(geometry) {
 );
 out tags geom qt;`;
 
-  const resp = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    body: `data=${encodeURIComponent(query)}`,
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-  if (!resp.ok) throw new Error(`Overpass API hiba (${resp.status}).`);
-  const data = await resp.json();
+  const data = await overpassQuery(query);
 
   const ways = data.elements
     .filter(el => el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2)

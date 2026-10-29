@@ -31,7 +31,7 @@ import { initAbout } from "./ui/about.js";
 import { initFeedback } from "./ui/feedback.js";
 import { initAccount } from "./ui/account.js";
 import {
-  initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis,
+  initSettings, getHrZoneSettings, resolveZones, buildHrZoneColorFn, renderHrZoneAnalysis, calcHrZoneStats,
   getCyclistProfile, gradeColorForGrade, getChartColors, getZoneColor, getZoneBoundaries, rebuildZoneLegend,
   ZONE_COLORS,
 } from "./ui/settings.js";
@@ -578,8 +578,66 @@ function distMeters(a, b) {
 function isClosedLoop(wps = store.getState().waypoints) {
   return wps.length >= 3 && distMeters(wps[0], wps[wps.length - 1]) < LOOP_CLOSE_M;
 }
+// Importált nyomvonal (pl. „Tervezés ez alapján”) körré zárása: a nyomvonal marad,
+// csak a cél→rajt szakasz kerül hozzá – új pont hozzáadása az egészet újratervezné.
+const LOOP_SNAP_M = 300;
+let _loopRestore = null;   // kikapcsoláskor az eredeti nyomvonal visszaállításához
+async function closeImportedLoop(st) {
+  const wps = st.waypoints, g = st.routeGeometry || [];
+  const first = wps[0], last = wps[wps.length - 1];
+  const gap = distMeters(first, last);
+  let leg = [{ lat: last.lat, lng: last.lng, ele: null }, { lat: first.lat, lng: first.lng, ele: null }];
+  if (gap >= LOOP_SNAP_M && st.snapToRoads) {
+    const r = await mapAdapter.calculateRoute({ waypoints: [last, first], mode: st.mode, snapToRoads: true });
+    if (r.geometry?.length > 1) leg = r.geometry;
+  }
+  let legM = 0;
+  for (let i = 1; i < leg.length; i++) legM += distMeters(leg[i - 1], leg[i]);
+  const geometry = [...g, ...leg.slice(1)];
+  const startCopy = { lat: first.lat, lng: first.lng, name: first.name, note: first.note };
+  let next;
+  if (wps.length >= 3) {
+    // közeli cél: a rajtra kerül; távoli cél: megmarad, utána jön a visszaút
+    next = gap < LOOP_SNAP_M ? [...wps.slice(0, -1), startCopy] : [...wps, startCopy];
+  } else {
+    // csak rajt és cél: a nyomvonal rajttól legtávolabbi pontja lesz a fordulópont
+    let far = 0, farD = -1;
+    g.forEach((p, i) => { const d = distMeters(first, p); if (d > farD) { farD = d; far = i; } });
+    const turn = g[far] || last;
+    next = gap < LOOP_SNAP_M
+      ? [first, { lat: turn.lat, lng: turn.lng, name: "" }, startCopy]
+      : [first, last, startCopy];
+  }
+  _loopRestore = { waypoints: wps.map((w) => ({ ...w })), geometry: g, distanceMeters: st.distanceMeters, closed: geometry };
+  store.replaceWaypoints(next, { geometry, importedRoute: true, sourcePointCount: st.sourcePointCount });
+  store.setState({ distanceMeters: (st.distanceMeters || 0) + legM });
+  geocodeNamelessWaypoints();
+  showToast(gap < LOOP_SNAP_M
+    ? "Körtúra: a cél a rajtra került, a nyomvonal megmaradt"
+    : "Körtúra: a visszaút a rajthoz hozzáadva");
+}
+
 function setLoop(on) {
-  const wps = store.getState().waypoints;
+  const st = store.getState();
+  const wps = st.waypoints;
+  const imported = st.importedRoute && (st.routeGeometry?.length ?? 0) > 1;
+  if (on && imported && !isClosedLoop(wps) && wps.length >= 2) {
+    closeImportedLoop(st);
+    return;
+  }
+  if (!on && imported && isClosedLoop(wps)) {
+    const g = st.routeGeometry, c = _loopRestore?.closed;
+    const same = c && g.length === c.length && g.at(-1).lat === c.at(-1).lat && g.at(-1).lng === c.at(-1).lng;
+    if (same) {
+      const r = _loopRestore; _loopRestore = null;
+      store.replaceWaypoints(r.waypoints, { geometry: r.geometry, importedRoute: true, sourcePointCount: st.sourcePointCount });
+      store.setState({ distanceMeters: r.distanceMeters });
+    } else {
+      store.replaceWaypoints(wps.slice(0, -1), { geometry: st.routeGeometry, importedRoute: true, sourcePointCount: st.sourcePointCount });
+    }
+    showToast("Körtúra kikapcsolva");
+    return;
+  }
   if (on && !isClosedLoop(wps) && wps.length >= 2) {
     const first = wps[0];
     store.addWaypoint({ lat: first.lat, lng: first.lng, name: first.name });
@@ -913,6 +971,7 @@ const visibleSections = new Set();
 
 function updateElevationButton(geometry) {
   activeGeometry = geometry ?? [];
+  document.dispatchEvent(new CustomEvent("bringaterv:geometry"));
   if (currentTab !== "file") renderMobileElevStrip(activeGeometry);
   const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
   if (elements.elevationBtn) elements.elevationBtn.disabled = !hasEle;
@@ -938,6 +997,12 @@ function updateElevationButton(geometry) {
     } else {
       mapAdapter.clearDirectionArrows?.();
     }
+  }
+  // Futó animáció az útvonalon (alapból be; Beállítások → Útirány a térképen)
+  if (mapAdapter.renderRouteFlow) {
+    const flow = localStorage.getItem("bringaterv.routeFlow") !== "false";
+    if (flow && activeGeometry.length >= 2) mapAdapter.renderRouteFlow(activeGeometry);
+    else mapAdapter.clearRouteFlow?.();
   }
   // Wind sidebar legend csak tervezési kontextusban (nem importált fájl)
   if (elements.windLegendPlan) {
@@ -1258,8 +1323,9 @@ function chartMarkers(data) {
   if (!data?.length) return [];
   const st = store.getState();
   const last = data[data.length - 1].dist;
-  const wps = (!st.importedRoute && st.waypoints?.length >= 2) ? st.waypoints : null;
-  if (!wps) return [{ dist: 0, label: "A", color: "#16a34a" }, { dist: last, label: "B", color: "#1a1d23" }];
+  const wps = st.waypoints?.length >= 2 && st.waypoints.length <= 80 ? st.waypoints : null;
+  if (!wps) return [{ dist: 0, label: "A", color: "#16a34a", name: st.waypoints?.[0]?.name },
+                    { dist: last, label: "B", color: "#1a1d23", name: st.waypoints?.at(-1)?.name }];
   const nearestDist = (wp) => {
     let best = 0, bd = Infinity;
     for (const p of data) {
@@ -1268,9 +1334,9 @@ function chartMarkers(data) {
     }
     return best;
   };
-  return wps.map((wp, i) => i === 0 ? { dist: 0, label: "A", color: "#16a34a" }
-    : i === wps.length - 1 ? { dist: last, label: "B", color: "#1a1d23" }
-    : { dist: nearestDist(wp), label: String(i + 1), color: "#2563eb", line: true });
+  return wps.map((wp, i) => i === 0 ? { dist: 0, label: "A", color: "#16a34a", name: wp.name }
+    : i === wps.length - 1 ? { dist: last, label: "B", color: "#1a1d23", name: wp.name }
+    : { dist: nearestDist(wp), label: String(i + 1), color: "#2563eb", line: true, name: wp.name });
 }
 
 // ── Színezés-kapcsoló a fejlécekben (egyszínű ↔ zónák szerint, minden grafikonra) ──
@@ -1535,6 +1601,14 @@ store.subscribe(async (state) => {
     // Az aktív toggle határozza meg a megjelenítést
     // routeRequestId növelése hogy az esetleg folyamatban lévő korábbi routing kérés ne írja felül
     routeRequestId++;
+    // Megfordítás / körré zárás / új rajt után a nyomvonal változik: a vonal, a km-jelölők,
+    // az útirány és a futó animáció is kövesse
+    const g = state.routeGeometry || [];
+    const changed = g.length > 1 && (g.length !== activeGeometry.length || g[0] !== activeGeometry[0] || g[g.length - 1] !== activeGeometry[activeGeometry.length - 1]);
+    if (changed && currentTab !== "file") {
+      mapAdapter.renderRoute(g, state.mode);
+      updateElevationButton(g);
+    }
     return;
   }
   const routeSignature = JSON.stringify({
@@ -2284,6 +2358,19 @@ function setLoopStart(id) {
     else $id(item.dataset.proxy)?.click();
   });
 
+  // Térkép-kapcsolók a ⚙ panelben – a Beállítások menü azonos kapcsolóját a sajátjával együtt állítják
+  [["planRouteFlowToggle", "routeFlowToggle", "bringaterv.routeFlow", true],
+   ["planArrowsToggle", "directionArrowsToggle", "bringaterv.directionArrows", false]].forEach(([own, main, key, def]) => {
+    const a = $id(own), b = $id(main);
+    if (!a) return;
+    const read = () => { const v = localStorage.getItem(key); return v == null ? def : v === "true"; };
+    a.checked = read();
+    a.addEventListener("change", () => {
+      if (b) { b.checked = a.checked; b.dispatchEvent(new Event("change")); }
+    });
+    b?.addEventListener("change", () => { a.checked = b.checked; });
+  });
+
   // üres útvonalnál mobilon az összefoglaló elég (kereső + mód)
   const routeSection = document.querySelector("#tabPlan > .route-section");
   const markEmpty = () => routeSection?.classList.toggle("is-empty", store.getState().waypoints.length === 0);
@@ -2300,22 +2387,92 @@ function setLoopStart(id) {
     input.checked = val;
     input.dispatchEvent(new Event("change", { bubbles: true }));
   };
+  // Burkolat: igény szerint (Overpass), útvonal-változáskor késleltetve újra
+  const surfaceBox = $id("planSurface");
+  let surfaceOn = false, surfaceKey = "", surfaceRun = 0, surfaceTimer = null;
+  const SURFACE_LABELS = { asphalt: "Aszfalt", gravel: "Murva", mtb: "Földút", hiking: "Ösvény" };
+  const geomKey = (g) => g.length < 2 ? "" : `${g.length}|${g[0].lat.toFixed(5)},${g[0].lng.toFixed(5)}|${g.at(-1).lat.toFixed(5)},${g.at(-1).lng.toFixed(5)}|${g[g.length >> 1].lat.toFixed(5)}`;
+  const renderSurface = (segments, totalKm) => {
+    const byMode = {};
+    segments.forEach((sg) => { byMode[sg.mode] = (byMode[sg.mode] || 0) + sg.distanceKm; });
+    const order = ["asphalt", "gravel", "mtb", "hiking"].filter((m) => byMode[m] >= 0.05 && byMode[m] / totalKm >= 0.005);
+    $id("planSurfaceBar").innerHTML = order.map((m) =>
+      `<span style="flex:${byMode[m]};background:${SEGMENT_COLORS[m]}" title="${SURFACE_LABELS[m]}: ${num(byMode[m], 1)} km"></span>`).join("");
+    $id("planSurfaceLegend").innerHTML = order.map((m) =>
+      `<span><i style="background:${SEGMENT_COLORS[m]}"></i><b>${SURFACE_LABELS[m]}</b> ${Math.round(byMode[m] / totalKm * 100)}%<em>${num(byMode[m], 1)} km</em></span>`).join("");
+    $id("planSurfaceStatus").textContent = "";
+  };
+  const surfaceFromGeometry = (g) => {
+    const tagged = g.filter((p) => p.surf).length;
+    if (tagged < g.length * 0.9) return null;
+    const segments = [];
+    let acc = 0;
+    for (let i = 0; i < g.length; i++) {
+      if (i > 0) acc += distMeters(g[i - 1], g[i]) / 1000;
+      const m = g[i].surf ?? segments.at(-1)?.mode ?? "asphalt";
+      const cur = segments.at(-1);
+      if (!cur || cur.mode !== m) {
+        if (cur) cur.distanceKm = acc - cur.fromKm;
+        segments.push({ mode: m, geomIdx: i, fromKm: acc });
+      }
+    }
+    const last = segments.at(-1);
+    if (last) last.distanceKm = acc - last.fromKm;
+    return segments.length ? { segments, totalDistKm: acc } : null;
+  };
+  const runSurface = async () => {
+    const g = activeGeometry, key = geomKey(g);
+    if (!surfaceOn || !key) return;
+    if (key === surfaceKey) return;
+    const run = ++surfaceRun;
+    surfaceKey = key;
+    mapAdapter.clearSurfaceRoute();
+    $id("planSurfaceBar").innerHTML = ""; $id("planSurfaceLegend").innerHTML = "";
+    $id("planSurfaceStatus").innerHTML = '<span class="spinner-inline"></span> Burkolat lekérdezése…';
+    try {
+      // tervezett útvonalnál a BRouter már megadta pontonként (surf) – különben OSM-lekérdezés
+      const { segments, totalDistKm } = surfaceFromGeometry(g) ?? await analyzeSurface(g);
+      if (run !== surfaceRun || !surfaceOn) return;
+      renderSurface(segments, totalDistKm);
+      mapAdapter.renderSurfaceRoute(g, segments);
+    } catch (err) {
+      if (run !== surfaceRun) return;
+      surfaceKey = "";
+      $id("planSurfaceStatus").textContent = `Nem sikerült lekérdezni: ${err.message}`;
+    }
+  };
+  const setSurface = (on) => {
+    surfaceOn = on;
+    if (surfaceBox) surfaceBox.hidden = !on;
+    if (on) runSurface();
+    else { surfaceRun++; surfaceKey = ""; mapAdapter.clearSurfaceRoute(); }
+  };
   const sync = () => {
     const gradeOk = gradeLeg && !gradeLeg.hidden, windOk = windLeg && !windLeg.hidden;
-    section.hidden = !gradeOk && !windOk;
-    const active = grade?.checked && gradeOk ? "grade" : wind?.checked && windOk ? "wind" : "none";
+    const surfaceOk = activeGeometry.length > 1;
+    if (surfaceOn && (!surfaceOk || grade?.checked || wind?.checked)) setSurface(false);
+    section.hidden = !gradeOk && !windOk && !surfaceOk;
+    const active = surfaceOn ? "surface" : grade?.checked && gradeOk ? "grade" : wind?.checked && windOk ? "wind" : "none";
     seg.querySelectorAll("button").forEach((b) => {
       const on = b.dataset.color === active;
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-checked", String(on));
-      b.disabled = (b.dataset.color === "grade" && !gradeOk) || (b.dataset.color === "wind" && !windOk);
+      b.disabled = (b.dataset.color === "grade" && !gradeOk) || (b.dataset.color === "wind" && !windOk)
+        || (b.dataset.color === "surface" && !surfaceOk);
     });
     gradeLeg?.classList.toggle("is-shown", active === "grade");
     windLeg?.classList.toggle("is-shown", active === "wind");
+    // útvonal-változáskor a burkolat újra (késleltetve, hogy húzás közben ne kérdezzen)
+    if (surfaceOn && geomKey(activeGeometry) !== surfaceKey) {
+      mapAdapter.clearSurfaceRoute();
+      clearTimeout(surfaceTimer);
+      surfaceTimer = setTimeout(runSurface, 1200);
+    }
   };
   seg.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-color]"); if (!b || b.disabled) return;
     const c = b.dataset.color;
+    if (c !== "surface" && surfaceOn) setSurface(false);
     if (c !== "grade") set(grade, false);
     if (c !== "wind") set(wind, false);
     if (c === "grade") set(grade, true);
@@ -2325,11 +2482,13 @@ function setLoopStart(id) {
       const ex = windLeg?.querySelector(".speed-legend-expand");
       if (ex?.getAttribute("aria-expanded") === "false") ex.click();
     }
+    if (c === "surface") setSurface(true);
     sync();
   });
   [grade, wind].forEach((i) => i?.addEventListener("change", () => setTimeout(sync, 0)));
   [gradeLeg, windLeg].forEach((l) => l && new MutationObserver(sync).observe(l, { attributes: true, attributeFilter: ["hidden"] }));
   store.subscribe(() => setTimeout(sync, 0));
+  document.addEventListener("bringaterv:geometry", () => setTimeout(sync, 0));
   sync();
 })();
 
@@ -2420,8 +2579,8 @@ const ANALYSIS_METRICS = [
   const available = () => ANALYSIS_METRICS.filter((m) => visible(m.legend));
   const activeColor = () => available().find((m) => $id(m.toggle)?.checked) || null;
 
-  // műveletek: a (mobilon rejtett) nagy gombokat nyomják meg
-  box.querySelectorAll("#mFileTools [data-proxy]").forEach((b) => {
+  // műveletek: a (rejtett) eredeti gombokat nyomják meg
+  box.querySelectorAll("#mFileTools [data-proxy], #fFileActs [data-proxy], #fFileMenu [data-proxy]").forEach((b) => {
     const src = $id(b.dataset.proxy);
     if (!src) { b.hidden = true; return; }
     b.addEventListener("click", () => src.click());
@@ -2430,18 +2589,43 @@ const ANALYSIS_METRICS = [
     sync();
   });
 
+  const val = (id) => ($id(id)?.textContent || "").trim();
+  // „123 / 149 bpm” – az átlag mértékegysége elhagyható, ha utána jön a maximum
+  const mini = (label, id, maxId) => {
+    if (!visible(id + "Row")) return "";
+    const max = maxId && visible(maxId + "Row") ? val(maxId) : "";
+    const avg = max ? val(id).replace(/\s*[^\d\s,.]+$/, "") : val(id);
+    return `<span>${label} <b>${avg}</b>${max ? ` / ${max}` : ""}</span>`;
+  };
+
   function render() {
-    if (!mobileMQ.matches || $id("fileDetails")?.hidden) return;
+    if ($id("fileDetails")?.hidden) return;
+    const desktop = !mobileMQ.matches;
     // fejléc
     const name = $id("fileMetaName")?.textContent?.trim() || $id("importedFileName")?.textContent?.trim() || "Edzés";
     $id("mFileTitle").textContent = name;
-    $id("mFileSub").textContent = [$id("fileMetaStart")?.textContent?.trim(), $id("fileMetaType")?.textContent?.trim()].filter(Boolean).join(" · ");
-    // fő számok: táv, idő, és a színezett adat átlaga (alapból átlagsebesség)
+    $id("mFileSub").textContent = [$id("fileMetaType")?.textContent?.trim(), $id("fileMetaStart")?.textContent?.trim()].filter(Boolean).join(" · ");
+    $id("fFileInfo").textContent = val("filePoints") ? `${val("filePoints")} trackpont${visible("importedFitBadge") ? " · FIT" : ""}` : "";
     const act = activeColor();
-    const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
     const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : ["fileTotalDur", "Időtartam"];
-    const stats = [["fileDistance", "Táv"], timeEl, visible(third.avg + "Row") ? [third.avg, third.avgLabel] : null].filter(Boolean);
+    let stats;
+    if (desktop) {
+      // asztalon: 4 fő szám, a többi halk sorban
+      stats = [["fileDistance", "Táv"], timeEl, visible("fileAvgSpeedRow") ? ["fileAvgSpeed", "Átlagsebesség"] : null,
+               visible("fileAscentRow") ? ["fileAscent", "Emelkedés"] : null].filter(Boolean);
+      const other = visible("fileMovingDurRow") && visible("fileTotalDurRow") ? `<span>Teljes idő <b>${val("fileTotalDur")}</b></span>` : "";
+      const hrScore = [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
+        `<span>${it.querySelector(".hr-score-label")?.textContent} <b>${it.querySelector(".hr-score-value")?.textContent}</b></span>`).join("");
+      $id("fFileMini").innerHTML = [mini("Max. seb.", "fileMaxSpeed"), mini("Pulzus", "fileAvgHr", "fileMaxHr"),
+        mini("Kadencia", "fileAvgCad", "fileMaxCad"), mini("Teljesítmény", "fileAvgPower", "fileMaxPower"),
+        mini("Lejtés", "fileDescent"), mini("Kalória", "fileKcal"), other, hrScore].join("");
+    } else {
+      // mobilon: táv, idő, és a színezett adat átlaga (alapból átlagsebesség)
+      const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
+      stats = [["fileDistance", "Táv"], timeEl, visible(third.avg + "Row") ? [third.avg, third.avgLabel] : null].filter(Boolean);
+    }
     $id("mFileStats").innerHTML = stats.map(([id, l]) => `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${l}</span></div>`).join("");
+    renderZones(act);
     // színezés választó (csak az elérhető adatok)
     const avail = available();
     $id("mFileColor").innerHTML = [`<button type="button" class="m-chip${act ? "" : " is-active"}" data-color="">Nincs</button>`]
@@ -2452,6 +2636,40 @@ const ANALYSIS_METRICS = [
       .map((m) => `<button type="button" class="m-chip${$id(m.chart).classList.contains("is-active") ? " is-active" : ""}" data-chart="${m.key}">${m.label}</button>`).join("");
     renderStrip();
   }
+
+  // zónaeloszlás a kiválasztott színezéshez (pulzusnál a beállított pulzuszónák)
+  function renderZones(act) {
+    const wrap = $id("fFileZones");
+    const g = activeGeometry || [];
+    let items = [];
+    if (act?.key === "hr") {
+      items = (calcHrZoneStats(g).zones || []).map((z) => ({ color: z.color, label: z.name.split(" ")[0], title: z.name, pct: z.pct }));
+    } else if (act && ["speed", "cad", "power"].includes(act.key)) {
+      const unit = { speed: "km/h", cad: "rpm", power: "W" }[act.key];
+      items = mapAdapter.zoneDistribution(act.key, g).map((z) => ({ ...z, label: `${z.label} ${unit}` }));
+    }
+    items = items.filter((z) => z.pct >= 0.5);
+    wrap.hidden = !items.length;
+    if (!items.length) return;
+    $id("fFileZoneBar").innerHTML = items.map((z) => `<span style="flex:${z.pct};background:${z.color}" title="${z.label}: ${Math.round(z.pct)}%"></span>`).join("");
+    $id("fFileZoneLegend").innerHTML = items.map((z) => `<span title="${z.title || z.label}"><i style="background:${z.color}"></i><b>${z.label}</b> ${Math.round(z.pct)}%</span>`).join("");
+  }
+
+  // ⋯ menü
+  const moreBtn = $id("fFileMoreBtn"), menu = $id("fFileMenu");
+  const closeMenu = () => { menu.hidden = true; moreBtn.setAttribute("aria-expanded", "false"); };
+  moreBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = menu.hidden;
+    menu.hidden = !open; moreBtn.setAttribute("aria-expanded", String(open));
+    if (open && !mobileMQ.matches) {
+      const r = moreBtn.getBoundingClientRect();
+      menu.style.top = `${r.bottom + 6}px`; menu.style.left = `${Math.max(8, r.right - menu.offsetWidth)}px`;
+    } else { menu.style.top = menu.style.left = ""; }
+  });
+  menu.addEventListener("click", (e) => { if (e.target.closest("button")) closeMenu(); });
+  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target) && !moreBtn.contains(e.target)) closeMenu(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 
   $id("mFileColor").addEventListener("click", (e) => {
     const b = e.target.closest("[data-color]"); if (!b) return;

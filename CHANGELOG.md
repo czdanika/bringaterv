@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.20.0 – 2026-10-29 – Új kezdőoldal, Statok és Elemzés, burkolat, futó animáció
+
+### Verzió
+
+- **Új Kezdőlap:** gyors műveletek (Új útvonal, GPX / FIT betöltése, Könyvtár és Közösségi utak darabszámmal, Statisztikák); a legutóbbi edzés térképes előnézettel, fő számokkal, egy kattintásos Elemzéssel; „Mai / holnapi tekerés” – Open-Meteo előrejelzés a legutóbbi edzés rajtjánál (hőmérséklet, szél, lökések, eső, órás sáv) és ajánlás, merre indulj; a mentett tervek kis térképpel; összesítő a célokkal egy kártyán; forma Eddington-számmal és sorozattal; „Egy éve ezen a napon” emlék; aktivitás-naptár.
+- **Új Statok:** a bal oldali sáv helyett felül fülek (Áttekintés · Napló · Rekordok · Forma · Hőtérkép · Évösszefoglaló) és egy sor szűrő (időszak – korábbi évek is –, sport). Áttekintés: fő számok a tavalyihoz mért változással, évek összehasonlítása (halmozott km, egymásra rajzolva), melyik napon és napszakban tekersz, heti km az utolsó 52 hétre átlagvonallal, táv-eloszlás, sportágak, mérföldkövek. Napló: könnyű hónapnaptár (a km-mel arányos körök), alatta a havi táblázat. Forma: edzésterhelés és Eddington egy helyen. Új Évösszefoglaló: az év egy oldalon, szemléletes hasonlatokkal, havi oszlopokkal, legaktívabb hónap, leghosszabb túra, kedvenc nap, legtöbbet járt hely – és sztori méretű megosztó kép.
+- **Elemzés asztalon:** név és ⋯ menü (GPX, megosztás / PDF, trackpontok, bezárás), négy fő szám és halk sor a többi adattal (pulzus és kadencia átlag / max, TRIMP, Edwards), Mentés / Tervezés gomb; a 4–5 kapcsolós blokk helyett egy „Térkép színezése” választó, alatta új zónaeloszlás-sáv (pulzuszónák, illetve sebesség-, kadencia-, teljesítményzónák); grafikonok chipekkel. Mobilon a műveletek a színezés fölé kerültek, és ott is megjelenik a zónasáv.
+- **Burkolat a tervezésben:** az „Útvonal színezése → Burkolat” mutatja, milyen utakon vezet az útvonal (aszfalt, murva, földút, ösvény – arányban, km-ben és a térképen). Tervezett útvonalnál azonnal (az útvonaltervező adataiból), importált GPX-nél OSM-lekérdezéssel – időkorláttal és tartalék szerverrel.
+- **Futó animáció:** apró fehér jelek futnak az útvonalon a haladás irányába (tervezésnél és elemzésnél is); a tervezés ⚙ paneljében és a Beállításokban kapcsolható, az útirány-nyilakkal együtt.
+- **Grafikon:** útvonalpont közelében a buborék a pontra ugrik, és mutatja a nevét (importált útvonalnál is a köztes pontokkal).
+- **Térképi buborék:** az emojik helyett vonalas ikonok, félkövér értékek.
+- **Körtúra importált nyomvonalnál** (pl. Elemzés → Tervezés): a nyomvonal megmarad – közeli célnál a cél a rajtra kerül, távolinál a visszaút hozzátervezve, két pontnál egy fordulópont is bekerül; kikapcsolva visszaáll.
+- **Javítások:** importált útvonal megfordításakor a vonal, a km-jelölők, az irány és az animáció is megfordul; „Rajt” és „Cél” a „Start” / „Finish” helyett (régi mentéseknél is); a könyvtárban a tegnap délutáni edzés nem „Ma”; a tervek nem kapnak „nem számít bele” jelölést; nem szerepel kétszer a teljesítmény; a lebegő menü összecsukva kis gomb marad.
+- **Súgó és bemutató oldal:** az új funkciókkal frissítve, új képernyőképekkel (demó adatokkal).
+
+---
+
 ## v1.19.0 – 2026-10-29 – Letisztultabb tervezés és könyvtár
 
 ### Verzió

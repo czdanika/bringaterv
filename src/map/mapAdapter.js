@@ -1,5 +1,6 @@
 import { num } from "../format.js";
 import { isMobileLayout } from "../layout.js";
+import { modeFromWayTags } from "./surfaceAnalysis.js";
 const profileMap = {
   asphalt: "fastbike",
   gravel:  "gravel",
@@ -127,12 +128,22 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (routeClickEnabled && !nearRouteFlag) { map.getContainer().style.cursor = "crosshair"; nearRouteFlag = true; }
     else if (!routeClickEnabled && nearRouteFlag) { map.getContainer().style.cursor = ""; nearRouteFlag = false; }
 
+    // vonalas ikon + félkövér érték + kis mértékegység (a diagramfejlécek stílusában)
+    const part = (icon, val, unit) =>
+      `<span class="hv-item"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg><b>${String(val).replace(".", ",")}</b><small>${unit}</small></span>`;
+    const ICON = {
+      speed: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+      power: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+      hr:    '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+      cad:   '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+      ele:   '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+    };
     const parts = [];
-    if (nearest.speed != null) parts.push(`🚴 ${nearest.speed} km/h`);
-    if (nearest.power != null) parts.push(`⚡ ${Math.round(nearest.power)} W`);
-    if (nearest.hr != null) parts.push(`❤️ ${nearest.hr} bpm`);
-    if (nearest.cad != null) parts.push(`⚙️ ${nearest.cad} rpm`);
-    if (nearest.ele != null) parts.push(`⛰ ${Math.round(nearest.ele)} m`);
+    if (nearest.speed != null) parts.push(part(ICON.speed, nearest.speed, "km/h"));
+    if (nearest.power != null) parts.push(part(ICON.power, Math.round(nearest.power), "W"));
+    if (nearest.hr != null) parts.push(part(ICON.hr, nearest.hr, "bpm"));
+    if (nearest.cad != null) parts.push(part(ICON.cad, nearest.cad, "rpm"));
+    if (nearest.ele != null) parts.push(part(ICON.ele, Math.round(nearest.ele), "m"));
 
     const latlng = [nearest.lat, nearest.lng];
     if (!hoverMarker) {
@@ -144,7 +155,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     }
 
     // Tooltip: magasság és adatok mutatása
-    hoverTooltip.setContent(parts.length ? parts.join("  ·  ") : "").setLatLng(latlng);
+    hoverTooltip.setContent(parts.length ? `<span class="hv-row">${parts.join("")}</span>` : "").setLatLng(latlng);
     if (!map.hasLayer(hoverTooltip)) hoverTooltip.addTo(map);
   });
 
@@ -550,6 +561,28 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     return ZONE_PALETTE[b.length]; // utolsó (legmagasabb) sáv
   }
 
+  // Zónaeloszlás egy adathoz (idő szerint súlyozva, ha van időbélyeg) – az Elemzés sávjához
+  function zoneDistribution(kind, geometry) {
+    const b = readZoneBoundaries(kind);
+    if (!b || !geometry?.length) return [];
+    const sums = new Array(b.length + 1).fill(0);
+    for (let i = 1; i < geometry.length; i++) {
+      const v = geometry[i][kind];
+      if (v == null || !Number.isFinite(v)) continue;
+      const t0 = geometry[i - 1].time, t1 = geometry[i].time;
+      const w = (t0 && t1) ? Math.min(Math.max((new Date(t1) - new Date(t0)) / 1000, 0), 60) : 1;
+      let z = b.findIndex((x) => v < x); if (z < 0) z = b.length;
+      sums[z] += w;
+    }
+    const total = sums.reduce((a, x) => a + x, 0);
+    if (!total) return [];
+    return sums.map((w, i) => ({
+      color: ZONE_PALETTE[i],
+      label: i === 0 ? `< ${b[0]}` : i === b.length ? `${b[b.length - 1]}+` : `${b[i - 1]}–${b[i]}`,
+      pct: w / total * 100,
+    }));
+  }
+
   // Speed-colored route
   const coloredRouteGroup = L.layerGroup();
 
@@ -589,6 +622,22 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   const gradeRouteGroup = L.layerGroup();
 
   // Útirány-nyilak
+  // Futó animáció: vékony, fehér szaggatás a vonalak fölött, a haladás irányába mozog (CSS)
+  map.createPane("routeFlowPane");
+  map.getPane("routeFlowPane").style.zIndex = 450;
+  map.getPane("routeFlowPane").style.pointerEvents = "none";
+  const flowRenderer = L.svg({ pane: "routeFlowPane" });
+  let flowLine = null;
+  function renderRouteFlow(geometry) {
+    clearRouteFlow();
+    if (!geometry || geometry.length < 2) return;
+    flowLine = L.polyline(geometry.map((p) => [p.lat, p.lng]), {
+      renderer: flowRenderer, pane: "routeFlowPane", className: "route-flow", interactive: false,
+      color: "#fff", weight: 2.5, opacity: 0.9, dashArray: "4 12", lineCap: "round", lineJoin: "round",
+    }).addTo(map);
+  }
+  function clearRouteFlow() { flowLine?.remove(); flowLine = null; }
+
   const directionArrowGroup = L.layerGroup().addTo(map);
 
   function renderDirectionArrows(geometry, intervalKm = 1.5) {
@@ -730,6 +779,26 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   function clearWindRoute() {
     windRouteGroup.clearLayers();
     if (map.hasLayer(windRouteGroup)) map.removeLayer(windRouteGroup);
+  }
+
+  // Burkolat szerinti színezés (a tervezés „Útvonal színezése → Burkolat” választója)
+  const surfaceRouteGroup = L.layerGroup();
+  function renderSurfaceRoute(geometry, segments) {
+    surfaceRouteGroup.clearLayers();
+    if (!geometry?.length || !segments?.length) { clearSurfaceRoute(); return; }
+    const parts = segments.map((seg, i) => ({
+      mode: seg.mode,
+      pts: geometry.slice(seg.geomIdx, (segments[i + 1]?.geomIdx ?? geometry.length - 1) + 1).map(p => [p.lat, p.lng]),
+    })).filter(p => p.pts.length >= 2);
+    parts.forEach(p => L.polyline(p.pts, { ...CASING, weight: 8 }).addTo(surfaceRouteGroup));
+    parts.forEach(p => L.polyline(p.pts, {
+      color: SEGMENT_COLORS[p.mode] ?? "#888", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false,
+    }).addTo(surfaceRouteGroup));
+    if (!map.hasLayer(surfaceRouteGroup)) surfaceRouteGroup.addTo(map);
+  }
+  function clearSurfaceRoute() {
+    surfaceRouteGroup.clearLayers();
+    if (map.hasLayer(surfaceRouteGroup)) map.removeLayer(surfaceRouteGroup);
   }
 
   function cadColor(cad) { return zoneColor('cad', cad); }
@@ -1065,6 +1134,36 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     map.setView(latLng, Math.max(map.getZoom(), 15));
   }
 
+  // BRouter GeoJSON → pontok; a „messages” WayTags oszlopából minden pont megkapja
+  // a burkolat-osztályát (surf), így a burkolat külön lekérdezés nélkül ismert
+  function brouterGeometry(feature) {
+    const coordsList = feature?.geometry?.coordinates ?? [];
+    const geometry = coordsList.map(([lng, lat, ele]) => ({ lat, lng, ele: ele ?? null }));
+    const msgs = feature?.properties?.messages;
+    if (Array.isArray(msgs) && msgs.length > 1 && geometry.length > 1) {
+      const head = msgs[0], iLon = head.indexOf("Longitude"), iLat = head.indexOf("Latitude"), iTags = head.indexOf("WayTags");
+      if (iLon >= 0 && iLat >= 0 && iTags >= 0) {
+        // a sor koordinátája annak a szakasznak a vége, amelyre a címkék vonatkoznak
+        let gi = 0;
+        for (const row of msgs.slice(1)) {
+          const lon = Number(row[iLon]) / 1e6, lat = Number(row[iLat]) / 1e6;
+          const surf = modeFromWayTags(row[iTags]);
+          let end = gi;
+          for (let k = gi; k < geometry.length; k++) {
+            if (Math.abs(geometry[k].lng - lon) < 2e-6 && Math.abs(geometry[k].lat - lat) < 2e-6) { end = k; break; }
+            end = -1;
+          }
+          if (end < 0) continue;
+          for (let k = gi; k <= end; k++) geometry[k].surf = surf;
+          gi = end + 1;
+        }
+        const last = geometry[gi - 1]?.surf;
+        for (let k = gi; k < geometry.length; k++) geometry[k].surf = last;
+      }
+    }
+    return { coordsList, geometry };
+  }
+
   async function routeSegment(from, to, segMode) {
     try {
       const profile = profileMap[segMode] ?? profileMap.asphalt;
@@ -1074,8 +1173,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       if (!response.ok) throw new Error("Segment routing failed");
       const data = await response.json();
       const feature = data.features?.[0];
-      const coordsList = feature?.geometry?.coordinates ?? [];
-      const geometry = coordsList.map(([lng, lat, ele]) => ({ lat, lng, ele: ele ?? null }));
+      const { coordsList, geometry } = brouterGeometry(feature);
       const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
       const { ascentMeters, descentMeters } = calcElevation(coordsList);
       if (geometry.length < 2) throw new Error("No geometry");
@@ -1129,8 +1227,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       if (!response.ok) throw new Error("Routing failed");
       const data = await response.json();
       const feature = data.features?.[0];
-      const coords = feature?.geometry?.coordinates ?? [];
-      const geometry = coords.map(([lng, lat, ele]) => ({ lat, lng, ele: ele ?? null }));
+      const { coordsList: coords, geometry } = brouterGeometry(feature);
       const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
       const { ascentMeters, descentMeters } = calcElevation(coords);
 
@@ -1209,6 +1306,11 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     clearPowerRoute,
     renderWindRoute,
     clearWindRoute,
+    renderSurfaceRoute,
+    clearSurfaceRoute,
+    renderRouteFlow,
+    clearRouteFlow,
+    zoneDistribution,
     renderKmMarkers,
     clearKmMarkers,
     renderDirectionArrows,
