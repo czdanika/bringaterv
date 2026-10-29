@@ -8,3 +8,4 @@ requests==2.32.3
 garminconnect==0.3.5
 pywebpush>=2.0,<3
 tzdata
+anthropic>=1.17,<2

@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -294,6 +294,31 @@ def _db_init_locked() -> None:
                 conn.execute("ALTER TABLE invites ADD COLUMN sent_at TEXT")
             conn.execute("PRAGMA user_version = 14")
             log.info("DB migrálva v14-re (meghívó e-mailben)")
+        if ver < 15:
+            # v15: AI-funkciók – admin által állítható be/ki és napi limit, a felhasználó saját
+            # kikapcsolása, valamint a hívások naplója (limit számítás, költségkijelzés)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+            if "ai_enabled" not in cols:
+                conn.execute("ALTER TABLE users ADD COLUMN ai_enabled INTEGER NOT NULL DEFAULT 1")
+            if "ai_daily_limit" not in cols:
+                conn.execute("ALTER TABLE users ADD COLUMN ai_daily_limit INTEGER")   # NULL = alapérték
+            if "ai_user_off" not in cols:
+                conn.execute("ALTER TABLE users ADD COLUMN ai_user_off INTEGER NOT NULL DEFAULT 0")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS ai_usage (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id       TEXT    NOT NULL,
+                    created_at    TEXT    NOT NULL,
+                    kind          TEXT    NOT NULL,
+                    ref_id        TEXT,
+                    model         TEXT,
+                    input_tokens  INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    cost_usd      REAL    NOT NULL DEFAULT 0
+                )""")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_ai_usage_user ON ai_usage(user_id, created_at)")
+            conn.execute("PRAGMA user_version = 15")
+            log.info("DB migrálva v15-re (AI-keret és -napló)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

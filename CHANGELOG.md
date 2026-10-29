@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.22.0 – 2026-10-29 – AI-edzéselemzés, gyorsabb burkolatvizsgálat
+
+### Verzió
+
+- **AI-edzéselemzés (Claude):** mentett edzésnél az Elemzés oldalon „AI-elemzés” kártya – egy gombnyomásra rövid értékelés (egy mondatos összefoglaló és 3 pont: tempó, pulzus-drift, szint, összevetés a korábbi hasonló edzésekkel), opcionális saját megjegyzéssel („regeneráló kör volt”). Az elemzés az edzéssel együtt mentődik, szerkeszthető, újrakérhető; ha az edzés később változik, jelzi, hogy elavult. A modell az összesített adatokat kapja (mozgásidős szakaszok, megállások külön), nem a nyers GPX-et.
+- **AI-keret és adatvédelem:** az API-kulcs csak a szerveren van. Admin → új „AI” fül: kulcs és kapcsolatteszt, alap napi limit, felhasználónként be/ki és saját limit, napi / havi felhasználás és becsült költség. A felhasználó a Beállításokban magának is kikapcsolhatja. Kulcs nélkül sehol nem jelenik meg AI-elem.
+- **Könyvtár:** a közösségi kártyákon rövid leírás, nehézség és évszak; a Körtúra / A → B választó a szűrősáv jobb oldalára került (mobilon nem kell oldalra görgetni).
+- **Burkolat vizsgálata:** nagy útvonalnál sem fagy le – csak a nyomvonal sávját kérdezi le, és gyors térbeli kereséssel párosít; pontosabb is (a címke nélküli aszfaltutakat is figyelembe veszi).
+- **Érthetőbb feliratok:** „Szegmensvizsgálat” helyett „Burkolat vizsgálata”, az „OSM” rövidítés helyett „térképadatok (OpenStreetMap)”, barátságosabb hibaüzenetek.
+
+---
+
 ## v1.21.0 – 2026-10-29 – Megyénkénti minta-útvonalak, körtúra-szűrő
 
 ### Verzió

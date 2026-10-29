@@ -288,6 +288,25 @@
       transition: border-color 0.15s;
     }
     .form-input:focus { border-color: var(--brand); }
+    /* AI fül */
+    .ai-state { font-size: 13px; font-weight: 600; }
+    .ai-state.is-on { color: var(--green); } .ai-state.is-off { color: var(--muted); }
+    .ai-hint { font-size: 12.5px; color: var(--muted); }
+    .ai-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 0 20px; }
+    .ai-field { flex: 1 1 320px; min-width: 0; }
+    .ai-field-sm { flex: 0 1 220px; }
+    .ai-form-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+    #aiError { padding: 0 20px; }
+    .ai-sum { display: flex; gap: 32px; flex-wrap: wrap; margin: 6px 20px 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .ai-sum b { display: block; font-size: 20px; }
+    .ai-sum span { font-size: 12px; color: var(--muted); }
+    .ai-limit { width: 120px; padding: 6px 9px; font-size: 13px; }
+    .ai-switch { position: relative; display: inline-block; width: 36px; height: 20px; cursor: pointer; }
+    .ai-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .ai-switch span { position: absolute; inset: 0; border-radius: 999px; background: #cfcfcf; transition: background .15s; }
+    .ai-switch span::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+    .ai-switch input:checked + span { background: var(--brand); }
+    .ai-switch input:checked + span::after { left: 18px; }
     .form-select { appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center; }
     .form-error { font-size: 12px; color: var(--red); margin-top: 4px; min-height: 16px; }
 
@@ -449,6 +468,7 @@
       <button class="admin-tab" data-section="feedback" role="tab" type="button">Visszajelzések <span class="tab-count" id="fbNewCount" hidden></span></button>
       <button class="admin-tab" data-section="submissions" role="tab" type="button">Beküldések <span class="tab-count" id="subPendingCount" hidden></span></button>
       <button class="admin-tab" data-section="samples" role="tab" type="button">Közösségi útvonalak</button>
+      <button class="admin-tab" data-section="ai" role="tab" type="button">AI</button>
       <button class="admin-tab" data-section="help" role="tab" type="button">Súgó</button>
     </nav>
 
@@ -499,6 +519,41 @@
         </div>
         <p class="panel-desc">Meghívó linkkel bárki regisztrálhat – a saját jelszavát ő adja meg. Küldd el üzenetben, e-mailben vagy QR-kóddal; a link lejár, és visszavonható.</p>
         <div id="invitesWrap" style="overflow-x:auto"><div class="loading">Betöltés…</div></div>
+      </div>
+    </section>
+
+    <!-- AI-funkciók: API-kulcs, alap napi limit, felhasználónkénti be/ki és limit -->
+    <section class="admin-section" data-section="ai" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">AI-beállítások</span>
+          <span id="aiState" class="ai-state"></span>
+        </div>
+        <p class="panel-desc">Az edzések AI-elemzéséhez (Claude, Anthropic). A kulcs csak a szerveren tárolódik, a felhasználók böngészője sosem kapja meg. Kulcs nélkül sehol nem jelenik meg AI-funkció.</p>
+        <div class="ai-form">
+          <label class="ai-field">
+            <span class="form-label">Anthropic API-kulcs</span>
+            <input class="form-input" id="aiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+          </label>
+          <label class="ai-field ai-field-sm">
+            <span class="form-label">Alap napi limit (elemzés / fő)</span>
+            <input class="form-input" id="aiDefaultLimit" type="number" min="0" max="1000">
+          </label>
+          <div class="ai-form-acts">
+            <button class="btn btn-primary" id="aiSaveBtn" type="button">Mentés</button>
+            <button class="btn btn-ghost" id="aiTestBtn" type="button">Kapcsolat tesztelése</button>
+            <button class="btn btn-ghost" id="aiRemoveKeyBtn" type="button" hidden>Kulcs törlése</button>
+          </div>
+        </div>
+        <p class="form-error" id="aiError"></p>
+        <div class="ai-sum" id="aiSum"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Felhasználók – AI</span>
+          <span class="ai-hint">üres limit = alapérték · 0 = tiltva</span>
+        </div>
+        <div id="aiUsersWrap" style="overflow-x:auto"><div class="loading">Betöltés…</div></div>
       </div>
     </section>
 
@@ -1952,6 +2007,87 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
     // (Strava app config: már nem az admin panelben, hanem per-user a Beállításokban)
 
+    // ── AI ────────────────────────────────────────────────────────────────────
+    let _ai = null;
+    const usd = (v) => `$${(v || 0).toFixed(2)}`;
+    function renderAi() {
+      const st = document.querySelector("#aiState");
+      st.textContent = _ai.configured ? `● Beállítva (${_ai.key_hint})` : "● Nincs API-kulcs";
+      st.className = "ai-state " + (_ai.configured ? "is-on" : "is-off");
+      document.querySelector("#aiKeyInput").placeholder = _ai.configured ? `${_ai.key_hint} – új kulcs megadásához írd be` : "sk-ant-…";
+      document.querySelector("#aiDefaultLimit").value = _ai.default_limit;
+      document.querySelector("#aiRemoveKeyBtn").hidden = !_ai.configured;
+      const t = _ai.usage.total;
+      document.querySelector("#aiSum").innerHTML = `
+        <div><b>${t.today}</b><span>hívás ma</span></div>
+        <div><b>${t.month}</b><span>hívás ebben a hónapban</span></div>
+        <div><b>${usd(t.cost_month)}</b><span>becsült költség (hónap)</span></div>
+        <div><b>${escHtml(_ai.model)}</b><span>modell</span></div>`;
+      const users = _users || [];
+      document.querySelector("#aiUsersWrap").innerHTML = users.length ? `
+        <table class="user-table ai-users">
+          <thead><tr><th>Felhasználó</th><th style="width:1%">AI</th><th style="width:1%;white-space:nowrap">Napi limit</th>
+            <th style="width:1%;text-align:right">Ma</th><th style="width:1%;text-align:right">Hónap</th><th style="width:1%;text-align:right">Költség</th></tr></thead>
+          <tbody>${users.map((u) => {
+            const us = _ai.usage.per_user[u.id] || { today: 0, month: 0, cost_month: 0 };
+            return `<tr data-id="${u.id}">
+              <td><div class="user-name">${escHtml(u.name)}</div><div class="user-email">${u.ai_user_off ? "saját maga kikapcsolta" : escHtml(u.email)}</div></td>
+              <td data-label="AI"><label class="ai-switch"><input type="checkbox" data-ai-enabled ${u.ai_enabled ? "checked" : ""}><span></span></label></td>
+              <td data-label="Napi limit"><input class="form-input ai-limit" type="number" min="0" max="1000" data-ai-limit
+                value="${u.ai_daily_limit ?? ""}" placeholder="alap (${_ai.default_limit})" ${u.ai_enabled ? "" : "disabled"}></td>
+              <td data-label="Ma" style="text-align:right">${us.today}</td>
+              <td data-label="Hónap" style="text-align:right">${us.month}</td>
+              <td data-label="Költség" style="text-align:right;white-space:nowrap">${usd(us.cost_month)}</td>
+            </tr>`; }).join("")}</tbody></table>` : `<div class="loading">Nincs felhasználó.</div>`;
+    }
+    async function loadAi() {
+      try {
+        [_ai, _users] = await Promise.all([routesApi.admin.aiGet(), routesApi.admin.listUsers()]);
+        renderAi();
+      } catch (e) {
+        document.querySelector("#aiError").textContent = e.message;
+      }
+    }
+    async function saveAi(body, btn) {
+      const err = document.querySelector("#aiError");
+      err.textContent = "";
+      if (btn) btn.disabled = true;
+      try {
+        _ai = await routesApi.admin.aiPut(body);
+        document.querySelector("#aiKeyInput").value = "";
+        renderAi();
+        return true;
+      } catch (e) { err.textContent = e.message; return false; }
+      finally { if (btn) btn.disabled = false; }
+    }
+    document.querySelector("#aiSaveBtn").addEventListener("click", (e) => {
+      const key = document.querySelector("#aiKeyInput").value.trim();
+      saveAi({ ...(key ? { api_key: key } : {}), default_limit: parseInt(document.querySelector("#aiDefaultLimit").value || "0", 10) }, e.currentTarget);
+    });
+    document.querySelector("#aiTestBtn").addEventListener("click", async (e) => {
+      const err = document.querySelector("#aiError"), btn = e.currentTarget;
+      err.textContent = ""; btn.disabled = true;
+      try { await routesApi.admin.aiTest(document.querySelector("#aiKeyInput").value.trim()); err.innerHTML = `<span style="color:var(--green)">A kapcsolat rendben.</span>`; }
+      catch (ex) { err.textContent = ex.message; }
+      finally { btn.disabled = false; }
+    });
+    document.querySelector("#aiRemoveKeyBtn").addEventListener("click", (e) => {
+      if (confirm("Törlöd az API-kulcsot? Az AI-funkciók mindenkinél eltűnnek.")) saveAi({ api_key: "" }, e.currentTarget);
+    });
+    document.querySelector("#aiUsersWrap").addEventListener("change", async (e) => {
+      const tr = e.target.closest("tr[data-id]");
+      if (!tr) return;
+      const body = e.target.matches("[data-ai-enabled]") ? { ai_enabled: e.target.checked }
+        : e.target.matches("[data-ai-limit]") ? { ai_daily_limit: e.target.value === "" ? null : parseInt(e.target.value, 10) } : null;
+      if (!body) return;
+      try {
+        const u = await routesApi.admin.updateUser(tr.dataset.id, body);
+        const cur = _users.find((x) => x.id === tr.dataset.id);
+        if (cur) Object.assign(cur, { ai_enabled: u.ai_enabled, ai_daily_limit: u.ai_daily_limit });
+        renderAi();
+      } catch (ex) { document.querySelector("#aiError").textContent = ex.message; }
+    });
+
     // ── Fülek (Felhasználók / Meghívók / Minta útvonalak) ─────────────────────
     function showSection(name) {
       document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("is-active", t.dataset.section === name));
@@ -1959,6 +2095,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (name === "invites") loadInvites();
       if (name === "feedback") loadFeedback();
       if (name === "submissions") loadSubmissions();
+      if (name === "ai") loadAi();
       try { history.replaceState(null, "", "#" + name); } catch {}
     }
     document.querySelectorAll(".admin-tab").forEach(t => t.addEventListener("click", () => showSection(t.dataset.section)));

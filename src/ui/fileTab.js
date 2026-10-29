@@ -188,6 +188,7 @@ export function getImportedHrGeometry()       { return _importedHrGeometry; }
 export function getImportedCadGeometry()      { return _importedCadGeometry; }
 export function getImportedPowerGeometry()    { return _importedPowerGeometry; }
 export function getLoadedLibraryRouteId()     { return _loadedLibraryRouteId; }
+export function getLoadedIsSample()           { return _loadedIsSample; }
 export function getImportedFileName()         { return _importedFileName; }
 export function getImportedGpxText()          { return _importedGpxText; }
 

@@ -191,6 +191,23 @@ export const routesApi = {
   },
 
 
+  // ── AI (a kulcs a szerveren van; itt csak a saját keret és az elemzések) ────
+
+  aiStatus() { return fetchJson(`${BASE}/ai/status`); },
+  aiSetEnabled(enabled) {
+    return fetchJson(`${BASE}/ai/me`, { method: "PUT", body: JSON.stringify({ enabled }) });
+  },
+  aiAnalyzeWorkout(id, body) {
+    return fetchJson(`${BASE}/ai/workout/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify(body) });
+  },
+  aiEditWorkout(id, fields) {
+    return fetchJson(`${BASE}/ai/workout/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(fields) });
+  },
+  aiDeleteWorkout(id) {
+    return fetchJson(`${BASE}/ai/workout/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+
+
   // ── Minta útvonalak ─────────────────────────────────────────────────────────
 
   /**
@@ -291,6 +308,9 @@ export const routesApi = {
     createUser(data)                  { return fetchJson(`${BASE}/admin/users`, { method: "POST", body: JSON.stringify(data) }); },
     getUser(id)                       { return fetchJson(`${BASE}/admin/users/${id}`); },
     updateUser(id, data)              { return fetchJson(`${BASE}/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }); },
+    aiGet()                           { return fetchJson(`${BASE}/admin/ai`); },
+    aiPut(data)                       { return fetchJson(`${BASE}/admin/ai`, { method: "PUT", body: JSON.stringify(data) }); },
+    aiTest(apiKey)                    { return fetchJson(`${BASE}/admin/ai/test`, { method: "POST", body: JSON.stringify({ api_key: apiKey || "" }) }); },
     resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },
     deleteUser(id, confirmEmail)      { return fetchJson(`${BASE}/admin/users/${id}`, { method: "DELETE", body: JSON.stringify({ confirm_email: confirmEmail }) }); },

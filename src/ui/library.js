@@ -60,6 +60,7 @@ export async function loadRouteLibrary() {
     _data.samples  = samples;
     if (elFilter) elFilter.hidden = false;
     renderLibraryGrid();
+    window.dispatchEvent(new CustomEvent("bringaterv:libraryLoaded"));
   } catch (err) {
     console.error("Könyvtár betöltési hiba:", err);
     elOffline.hidden = false;
@@ -846,6 +847,12 @@ export function createLibraryCard(route, category, isSample) {
   const sportKey = libraryRouteSportKey(route);
   const source = libraryRouteSource(route, category);
   const srcLbl = sourceLabel(source);
+  // Közösségi útvonal: rövid leírás és nehézség / évszak a kártyán is (mint a listában és a térképen)
+  const SAMPLE_DIFF = { easy: "Könnyű", medium: "Közepes", hard: "Nehéz" };
+  const SAMPLE_SEASON = { all: "Egész évben", "spring-autumn": "Tavasztól őszig", summer: "Nyáron", dry: "Száraz időben" };
+  const sampleDesc = category === "sample" ? (route.description || "").replace(/\s*Forrás:.*$/s, "").trim() : "";
+  const sampleFoot = category === "sample"
+    ? [SAMPLE_DIFF[route.difficulty], SAMPLE_SEASON[route.season]].filter(Boolean).join(" · ") : "";
 
   card.innerHTML = `
     <div class="library-card-inner">
@@ -863,8 +870,9 @@ export function createLibraryCard(route, category, isSample) {
         ${route.duration  != null ? `<span class="lib-chip">${libraryFormatDuration(route.duration)}</span>` : ""}
         ${route.elevation != null ? `<span class="lib-chip">${route.elevation} m</span>` : ""}
       </div>
+      ${sampleDesc ? `<div class="library-card-desc">${escapeHtml(sampleDesc)}</div>` : ""}
       <div class="library-card-footer">
-        <span class="lib-src lib-src--${source}">${srcLbl}</span>
+        <span class="lib-src lib-src--${source}">${sampleFoot ? escapeHtml(sampleFoot) : srcLbl}</span>
         <div class="library-card-actions">
           <button class="library-card-load-btn" data-action="load-${isWorkout ? "file" : "plan"}" title="${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre"}">
             <i data-lucide="${isWorkout ? "chart-line" : "map-pin-plus"}" aria-hidden="true"></i>
@@ -1136,7 +1144,9 @@ function clearLibraryFilters(all) {
                            distMin: 0, distMax: _DIST_MAX, durMin: 0, durMax: _DUR_MAX });
   const reset = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach((c) =>
     c.classList.toggle("is-active", c.getAttribute(attr) === val));
-  reset("data-lib-source", "all"); reset("data-lib-shape", "all");
+  reset("data-lib-source", "all");
+  const shapeSel = document.querySelector("#libShapeSelect");
+  if (shapeSel) { shapeSel.value = "all"; shapeSel.closest(".lib-shape-wrap")?.classList.remove("is-active"); }
   if (all) {
     _filter.sport = "all"; _filter.query = "";
     reset("data-lib-sport", "all");
@@ -1233,13 +1243,10 @@ function _registerListeners() {
   document.querySelector("#libraryRegionSelect")?.addEventListener("change", (e) => {
     _filter.region = e.target.value; renderLibraryGrid();
   });
-  document.querySelectorAll("[data-lib-shape]").forEach(chip => {
-    chip.addEventListener("click", () => {
-      // Kapcsolóként működik: újra rákattintva visszaáll „mind”-re
-      _filter.shape = _filter.shape === chip.dataset.libShape ? "all" : chip.dataset.libShape;
-      document.querySelectorAll("[data-lib-shape]").forEach(c => c.classList.toggle("is-active", c.dataset.libShape === _filter.shape));
-      renderLibraryGrid();
-    });
+  document.querySelector("#libShapeSelect")?.addEventListener("change", (e) => {
+    _filter.shape = e.target.value;
+    e.target.closest(".lib-shape-wrap")?.classList.toggle("is-active", _filter.shape !== "all");
+    renderLibraryGrid();
   });
   document.querySelectorAll("[data-lib-source]").forEach(chip => {
     chip.addEventListener("click", () => {

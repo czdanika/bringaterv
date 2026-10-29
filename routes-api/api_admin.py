@@ -6,6 +6,7 @@ import uuid
 
 from flask import Blueprint, abort, g, jsonify, request
 
+import ai_service
 import mail_templates
 import mailer
 import notify
@@ -29,12 +30,15 @@ def admin_list_users():
                    role, active, created_at,
                    last_login_at, login_count,
                    quota_routes, quota_workouts, quota_mb,
-                   contact_email, email_verified_at
+                   contact_email, email_verified_at,
+                   ai_enabled, ai_daily_limit, ai_user_off
             FROM users ORDER BY created_at DESC
         """).fetchall()
     result = []
+    ai_usage = ai_service.usage_summary()["per_user"]
     for r in rows:
         u = dict(r)
+        u["ai_usage"] = ai_usage.get(u["id"], {"today": 0, "month": 0, "cost_month": 0})
         u["stats"] = _user_storage_stats(u["id"])
         try:
             u["push_devices"] = len(notify.load(u["id"]).get("subscriptions") or [])
@@ -98,6 +102,15 @@ def admin_update_user(user_id: str):
     allowed = {"name", "first_name", "last_name", "role", "active",
                "quota_routes", "quota_workouts", "quota_mb"}
     updates = {k: v for k, v in data.items() if k in allowed}
+    # AI: be/ki és napi limit (üres / null = az alapérték)
+    if "ai_enabled" in data:
+        updates["ai_enabled"] = 1 if data["ai_enabled"] else 0
+    if "ai_daily_limit" in data:
+        lim = data["ai_daily_limit"]
+        try:
+            updates["ai_daily_limit"] = None if lim in (None, "") else max(0, min(1000, int(lim)))
+        except (TypeError, ValueError):
+            abort(400, description="Érvénytelen AI-limit")
     new_email    = (data.get("email") or "").strip().lower() or None
     new_password = (data.get("password") or "").strip() or None
 
@@ -157,7 +170,8 @@ def admin_update_user(user_id: str):
                          [*updates.values(), user_id])
         row = conn.execute(
             "SELECT id, email, name, first_name, last_name, role, active, "
-            "quota_routes, quota_workouts, quota_mb, contact_email, email_verified_at FROM users WHERE id = ?",
+            "quota_routes, quota_workouts, quota_mb, contact_email, email_verified_at, "
+            "ai_enabled, ai_daily_limit, ai_user_off FROM users WHERE id = ?",
             (user_id,)
         ).fetchone()
     if not row:

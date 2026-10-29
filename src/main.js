@@ -45,8 +45,9 @@ import {
   updateFileSaveButtonState, setLoadedRoute, setImportedGeometries, clearImportedGeometries,
   getHasImportedFile, getImportedColoredGeometry, getImportedHrGeometry,
   getImportedCadGeometry, getImportedPowerGeometry, getLoadedLibraryRouteId,
-  getImportedFileName, getImportedGpxText,
+  getImportedFileName, getImportedGpxText, getLoadedIsSample,
 } from "./ui/fileTab.js";
+import { initAiAnalysis, refreshAiCard } from "./ui/aiAnalysis.js";
 // Kalóriaszámítás modul (calories.js) – elérhető, de a UI-on jelenleg nincs használva.
 // Jövőbeli újra-aktiváláshoz: import + render a sidebar és file tabon.
 import { renderStats, renderMonthlyTable, renderEddington, renderTrainingLoad } from "./ui/statsPanel.js";
@@ -2593,6 +2594,15 @@ const ANALYSIS_METRICS = [
   { key: "grade", label: "Szint",        legend: "gradeLegend", toggle: "gradeMapToggle", chart: "gradeLegendChartBtn", avg: "fileAscent",   avgLabel: "Emelkedés",    field: "ele",   unit: "m" },
 ];
 
+initAiAnalysis({
+  getGeometry: () => activeGeometry,
+  getLoadedId: () => getLoadedLibraryRouteId(),
+  isSample:    () => getLoadedIsSample(),
+  findEntry:   (id) => [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find((r) => r.id === id) || null,
+  listWorkouts: () => _libraryData.workouts || [],
+  showToast,
+});
+
 (function initMobileFileSummary() {
   const box = document.getElementById("mFileSummary");
   if (!box) return;
@@ -2649,6 +2659,7 @@ const ANALYSIS_METRICS = [
     }
     $id("mFileStats").innerHTML = stats.map(([id, l]) => `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${l}</span></div>`).join("");
     renderZones(act);
+    refreshAiCard();
     // színezés választó (csak az elérhető adatok)
     const avail = available();
     $id("mFileColor").innerHTML = [`<button type="button" class="m-chip${act ? "" : " is-active"}" data-color="">Nincs</button>`]
@@ -3263,7 +3274,7 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters) {
       analyzeHint.hidden  = true;
       analysisEl.hidden   = false;
       analysisEl.innerHTML = `<div class="load-preview-spinner">
-        <span class="spinner-inline"></span> OSM adatok lekérdezése…
+        <span class="spinner-inline"></span> Útburkolat lekérdezése a térképadatokból…
       </div>`;
 
       try {

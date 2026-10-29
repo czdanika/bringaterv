@@ -24,6 +24,7 @@ DB_PATH             = os.environ.get("DB_PATH",             "/data/bringaterv.db
 MULTI_DATA_DIR      = os.environ.get("MULTI_DATA_DIR",      "/data/users")
 STRAVA_APP_CONFIG   = os.environ.get("STRAVA_APP_CONFIG",   "/data/strava_app_config.json")
 STRAVA_REDIRECT_URI = os.environ.get("STRAVA_REDIRECT_URI", "")  # ha üres, request-ből derivelődik
+AI_CONFIG           = os.environ.get("AI_CONFIG",           "/data/ai_config.json")  # Anthropic API-kulcs, alap napi limit
 
 ADMIN_EMAIL     = os.environ.get("ADMIN_EMAIL",    "admin@bringaterv.local")
 ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "password123")

@@ -33,6 +33,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 import api_account
+import api_ai
 import api_admin
 import api_auth
 import api_backup
@@ -70,6 +71,7 @@ app.register_blueprint(api_records.bp)
 app.register_blueprint(api_notify.bp)
 app.register_blueprint(api_invite.bp)
 app.register_blueprint(api_feedback.bp)
+app.register_blueprint(api_ai.bp)
 
 # Automatikus Strava import – háttérszál (több worker közül csak egy dolgozik)
 from strava_sync import start_scheduler  # noqa: E402

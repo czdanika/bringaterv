@@ -429,6 +429,8 @@
                 </div>
                 <div class="m-sum-stats" id="mFileStats"></div>
                 <div class="f-mini" id="fFileMini"></div>
+                <!-- AI-elemzés (aiAnalysis.js) – csak ha az AI be van állítva és engedélyezve -->
+                <div class="f-ai" id="fFileAi" hidden></div>
                 <div class="f-acts" id="fFileActs">
                   <button type="button" class="lib-x-btn is-primary" data-proxy="fileSaveToLibraryButton"><i data-lucide="bookmark-plus" aria-hidden="true"></i><span>Mentés</span></button>
                   <button type="button" class="lib-x-btn" data-proxy="planFromFileBtn"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>
@@ -861,11 +863,16 @@
                   <button class="lib-type-chip" data-lib-sport="hike" type="button" title="Túra"><i data-lucide="mountain-snow" aria-hidden="true"></i>Túra</button>
                   <button class="lib-type-chip" data-lib-sport="walk" type="button" title="Gyaloglás"><i data-lucide="footprints" aria-hidden="true"></i>Gyaloglás</button>
                   <button class="lib-type-chip" data-lib-sport="other" type="button" title="Egyéb"><i data-lucide="activity" aria-hidden="true"></i>Egyéb</button>
-                  <span class="lib-chip-sep" data-shape-only hidden></span>
-                  <button class="lib-type-chip" data-lib-shape="loop" data-shape-only type="button" title="Csak körtúrák (a rajt és a cél egy helyen)" hidden><i data-lucide="refresh-cw" aria-hidden="true"></i>Körtúra</button>
-                  <button class="lib-type-chip" data-lib-shape="ab" data-shape-only type="button" title="Csak A → B útvonalak" hidden><i data-lucide="move-right" aria-hidden="true"></i>A → B</button>
               </div>
               <div class="lib-filter-end">
+                <label class="lib-shape-wrap" data-shape-only hidden title="Útvonal formája: körtúra (a rajt és a cél egy helyen) vagy A → B">
+                  <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                  <select id="libShapeSelect" class="lib-shape-select" aria-label="Útvonal formája">
+                    <option value="all">Kör és A → B</option>
+                    <option value="loop">Körtúra</option>
+                    <option value="ab">A → B</option>
+                  </select>
+                </label>
                 <div class="lib-filter-pop-wrap">
                   <button id="libFiltersBtn" class="lib-filters-btn" type="button" aria-haspopup="dialog" aria-expanded="false">
                     <i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>Szűrők</span><b id="libFiltersBadge" class="lib-filters-badge" hidden></b>
@@ -1783,9 +1790,9 @@
           <!-- Vizsgálat gomb -->
           <button id="loadPreviewAnalyzeBtn" class="load-preview-analyze-btn" type="button">
             <i data-lucide="scan-line" aria-hidden="true"></i>
-            Szegmensvizsgálat futtatása
+            Burkolat vizsgálata
           </button>
-          <p class="load-preview-analyze-hint">Az útvonal mentén lekérdezi az OSM útburkolat adatokat és automatikusan beállítja a tervezési módokat.</p>
+          <p class="load-preview-analyze-hint">Megnézi, milyen utakon halad a nyomvonal (aszfalt, murva, földút), és szakaszonként ehhez állítja a tervezési módot. Az adat a nyílt, közösségi OpenStreetMap térképből jön – néhány másodperc, nagy útvonalnál fél perc is lehet.</p>
 
           <!-- Rögzítő pontok (Douglas-Peucker) -->
           <div id="loadPreviewAnchorSection" class="load-preview-anchor-section" hidden>
@@ -2243,6 +2250,25 @@
   <input id="shareBaseInput" class="export-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
          placeholder="https://bringaterv.example.hu">
   <p class="settings-field-hint">Üresen hagyva az aktuális címet használja. A QR-kódok a <code>/view.html?route=…</code> publikus nézőoldalra mutatnak.</p>
+  </div>
+  </section>
+
+  <!-- AI-elemzés (csak ha az admin beállította és engedélyezte) -->
+  <section class="settings-section" data-settings-section="ai" id="aiSettingsSection" hidden>
+  <h4 class="settings-section-title">
+  <i data-lucide="sparkles" aria-hidden="true"></i>
+  AI-elemzés
+  <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+  </h4>
+  <div class="settings-section-body">
+    <div class="plan-elev-toggle-row" style="margin:0">
+      <span class="plan-elev-toggle-label">AI-funkciók használata</span>
+      <label class="toggle-switch" title="AI-elemzés be/ki">
+        <input id="aiUserToggle" type="checkbox" checked>
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <p class="settings-field-hint">Az edzésről kért AI-elemzéshez az edzés összesített adatai (táv, idő, tempó, pulzus, szakaszok) az Anthropic szolgáltatásához kerülnek feldolgozásra. Kikapcsolva az AI-gombok nem jelennek meg.</p>
   </div>
   </section>
 
