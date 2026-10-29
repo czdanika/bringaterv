@@ -1,0 +1,32 @@
+{
+  "name": "Győr–Pannonhalma",
+  "distance": 16.4,
+  "duration": 60,
+  "elevation": 54,
+  "type": "cycling",
+  "description": "Aszfaltos kerékpárút Győrből Nyúlon át a pannonhalmi dombok lábáig. Célpont a bencés főapátság és a borvidék. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Győr-Moson-Sopron megye",
+    "settlement": "Győr",
+    "places": [
+      "Győr",
+      "Győrújbarát",
+      "Nyúl",
+      "Écs",
+      "Pannonhalma"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.66384,
+      17.65008
+    ]
+  }
+}

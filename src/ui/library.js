@@ -820,7 +820,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
       <span class="lib-date-main">${dateStr.split(' ')[0] ?? dateStr}</span>
       ${dateStr.includes(' ') ? `<span class="lib-date-time">${dateStr.split(' ').slice(1).join(' ')}</span>` : ''}
     </td>
-    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span>${category === "route" ? '<span class="lib-kind-tag">terv</span>' : ""}<span class="lib-excl-tag">nem számít bele</span><span class="lib-row-sub">${[
+    <td class="lib-col-name"><span class="lib-name-text">${escapeHtml(route.name ?? "")}</span>${category === "route" ? '<span class="lib-kind-tag">terv</span>' : category === "sample" && route.location?.loop ? '<span class="lib-kind-tag lib-loop-tag">körtúra</span>' : ""}<span class="lib-excl-tag">nem számít bele</span><span class="lib-row-sub">${[
       route.distance != null ? num(route.distance, 1) + " km" : "",
       route.duration != null ? libraryFormatDuration(route.duration) : "",
       route.elevation ? int(route.elevation) + " m" : "",
@@ -853,7 +853,7 @@ export function createLibraryCard(route, category, isSample) {
         <div class="library-card-meta">
           <span class="library-card-name">${escapeHtml(route.name ?? "")}</span>
           <span class="library-card-date">${category === "sample" && route.location?.settlement
-            ? escapeHtml([...new Set([route.location.settlement, route.location.region].filter(Boolean))].join(" · "))
+            ? escapeHtml([...new Set([route.location.settlement, route.location.region].filter(Boolean)), route.location.loop ? "körtúra" : ""].filter(Boolean).join(" · "))
             : smartDateTimeFormat(route)}</span>
         </div>
         <div class="library-card-preview library-card-preview-slot" id="libCardPreview_${route.id}"></div>
@@ -1113,7 +1113,7 @@ function activeFilterCount() {
   if (_filter.source !== "all") n++;
   if (_filter.distMin > 0 || _filter.distMax < _DIST_MAX) n++;
   if (_filter.durMin > 0 || _filter.durMax < _DUR_MAX) n++;
-  if (_filter.type === "sample") n += (_filter.country ? 1 : 0) + (_filter.region ? 1 : 0) + (_filter.shape !== "all" ? 1 : 0);
+  if (_filter.type === "sample") n += (_filter.country ? 1 : 0) + (_filter.region ? 1 : 0);
   return n;
 }
 function updateFilterBadge() {
@@ -1121,7 +1121,7 @@ function updateFilterBadge() {
   const badge = document.querySelector("#libFiltersBadge");
   if (badge) { badge.hidden = n === 0; badge.textContent = n; }
   document.querySelector("#libFiltersBtn")?.classList.toggle("is-active", n > 0);
-  const any = n > 0 || _filter.sport !== "all" || !!_filter.query.trim();
+  const any = n > 0 || _filter.sport !== "all" || !!_filter.query.trim() || (_filter.type === "sample" && _filter.shape !== "all");
   const clr = document.querySelector("#libClearAll");
   if (clr) clr.hidden = !any;
 }
@@ -1235,8 +1235,10 @@ function _registerListeners() {
   });
   document.querySelectorAll("[data-lib-shape]").forEach(chip => {
     chip.addEventListener("click", () => {
-      document.querySelectorAll("[data-lib-shape]").forEach(c => c.classList.toggle("is-active", c === chip));
-      _filter.shape = chip.dataset.libShape; renderLibraryGrid();
+      // Kapcsolóként működik: újra rákattintva visszaáll „mind”-re
+      _filter.shape = _filter.shape === chip.dataset.libShape ? "all" : chip.dataset.libShape;
+      document.querySelectorAll("[data-lib-shape]").forEach(c => c.classList.toggle("is-active", c.dataset.libShape === _filter.shape));
+      renderLibraryGrid();
     });
   });
   document.querySelectorAll("[data-lib-source]").forEach(chip => {
@@ -1299,6 +1301,8 @@ function updateLocationFilters() {
   const group = document.querySelector("#libraryLocationGroup");
   if (!group) return;
   group.hidden = _filter.type !== "sample";
+  // Körtúra / A → B gombok a fő szűrősávban – csak közösségi útvonalaknál
+  document.querySelectorAll("[data-shape-only]").forEach((el) => { el.hidden = group.hidden; });
   if (group.hidden) return;
   const locs = (_data.samples || []).map((r) => r.location || {}).filter((l) => l.country || l.region);
   const countries = [...new Set(locs.flatMap((l) => l.countries?.length ? l.countries : [l.country]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "hu"));
@@ -1368,6 +1372,25 @@ function libItemInfo({ route, category }) {
   return { kind, where, stats };
 }
 
+// Rámutatáskor: név, kulcsszámok, hely, nehézség és rövid leírás
+function libMapTipHtml(it) {
+  const r = it.route;
+  const { kind, where } = libItemInfo(it);
+  const DIFF = { easy: "Könnyű", medium: "Közepes", hard: "Nehéz" };
+  const stats = [
+    r.distance != null ? `<b>${num(r.distance, 1)}</b> km` : "",
+    r.duration ? `<b>${escapeHtml(formatRouteDuration(r.duration))}</b>` : "",
+    r.elevation ? `<b>${int(r.elevation)}</b> m szint` : "",
+  ].filter(Boolean).join('<span class="lib-map-tip-sep"></span>');
+  const shape = r.location?.loop === true ? "körtúra" : r.location?.loop === false ? "A → B" : "";
+  const meta = [kind, where, shape, DIFF[r.difficulty] || ""].filter(Boolean).join(" · ");
+  const desc = (r.description || "").replace(/\s*Forrás:.*$/s, "").trim();
+  return `<div class="lib-map-tip-name">${escapeHtml(r.name || "Névtelen")}</div>`
+    + (stats ? `<div class="lib-map-tip-stats">${stats}</div>` : "")
+    + (meta ? `<div class="lib-map-tip-meta">${escapeHtml(meta)}</div>` : "")
+    + (desc ? `<div class="lib-map-tip-desc">${escapeHtml(desc)}</div>` : "");
+}
+
 async function renderLibraryMap(items) {
   const map = ensureLibraryMap();
   if (!map) return;
@@ -1390,7 +1413,7 @@ async function renderLibraryMap(items) {
     const entry = { it, pts, line };
     drawn.push(entry);
     hit.on("mouseover", () => { line.setStyle({ weight: 6, opacity: 1 }); line.bringToFront();
-      hit.bindTooltip(escapeHtml(it.route.name || "Névtelen"), { sticky: true, direction: "top", className: "lib-map-tip" }).openTooltip(); });
+      hit.bindTooltip(libMapTipHtml(it), { sticky: true, direction: "top", className: "lib-map-tip" }).openTooltip(); });
     hit.on("mouseout", () => { line.setStyle({ weight: 3, opacity: 0.75 }); hit.closeTooltip(); });
     hit.on("click", (e) => openLibraryMapPopup(e.latlng, drawn));
   }

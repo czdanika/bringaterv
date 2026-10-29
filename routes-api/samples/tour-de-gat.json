@@ -1,0 +1,32 @@
+{
+  "name": "Tour de Gát",
+  "distance": 16.2,
+  "duration": 54,
+  "elevation": 4,
+  "type": "cycling",
+  "description": "Sík gátkorona-út Olcsva és Kocsord között, végig aszfalt. Autómentes, nyugodt tekerés a folyó mentén. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Szabolcs-Szatmár-Bereg megye",
+    "settlement": "Olcsva",
+    "places": [
+      "Olcsva",
+      "Nagydobos",
+      "Ópályi",
+      "Mátészalka",
+      "Kocsord"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      48.08211,
+      22.33316
+    ]
+  }
+}

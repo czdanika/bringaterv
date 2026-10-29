@@ -1,0 +1,32 @@
+{
+  "name": "Belső-őrségi körtúra",
+  "distance": 24.6,
+  "duration": 103,
+  "elevation": 213,
+  "type": "cycling",
+  "description": "Aszfaltos kör Bajánsenyéről Veleméren át. Szeres települések, erdők, harangláb és árpád-kori templom – az Őrség szíve. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Vas megye",
+    "settlement": "Bajánsenye",
+    "places": [
+      "Bajánsenye",
+      "Magyarszombatfa",
+      "Velemér",
+      "Szentgyörgyvölgy",
+      "Magyarföld"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": true,
+    "start": [
+      46.80161,
+      16.38419
+    ]
+  }
+}

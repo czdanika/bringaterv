@@ -49,3 +49,12 @@ A GPX fájlokat az alábbi forrásokból lehet begyűjteni:
    docker compose build routes-api
    docker compose up -d routes-api
    ```
+
+## OpenStreetMap-alapú minták
+
+A megyénkénti minta-útvonalak (pl. `bokoz-zoldut`, `orseg-6`, `kali-medence-kor`) az
+OpenStreetMap kerékpáros útvonal-relációiból készültek (lekérés: Waymarked Trails),
+a magasságadat az Open-Meteo domborzati adataiból származik. A leírások saját szövegek.
+
+Térképadatok © OpenStreetMap közreműködők, [ODbL](https://opendatacommons.org/licenses/odbl/) licenc alatt.
+A GPX fájlok `<metadata>` része is tartalmazza a forrást és a licencet.

@@ -1,0 +1,29 @@
+{
+  "name": "Hódmezővásárhely–Maroslele",
+  "distance": 16.7,
+  "duration": 56,
+  "elevation": 4,
+  "type": "cycling",
+  "description": "Tökéletesen sík, aszfaltos kerékpárút a vásárhelyi pusztán át Maroslele felé. Rövid, gyors, kezdőknek is. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Csongrád-Csanád megye",
+    "settlement": "Hódmezővásárhely",
+    "places": [
+      "Hódmezővásárhely",
+      "Maroslele"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      46.40432,
+      20.3477
+    ]
+  }
+}

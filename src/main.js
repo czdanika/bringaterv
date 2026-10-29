@@ -770,6 +770,7 @@ const mapAdapter = createMapAdapter({
 
 let routeRequestId = 0;
 let lastRouteSignature = "";
+let lastNameSignature = "";
 let units = localStorage.getItem("route4meUnits") || "metric";
 let dragSrcIndex = null;
 let activeTool = "route";
@@ -1326,13 +1327,18 @@ function chartMarkers(data) {
   const wps = st.waypoints?.length >= 2 && st.waypoints.length <= 80 ? st.waypoints : null;
   if (!wps) return [{ dist: 0, label: "A", color: "#16a34a", name: st.waypoints?.[0]?.name },
                     { dist: last, label: "B", color: "#1a1d23", name: st.waypoints?.at(-1)?.name }];
+  // Sorban haladva keresünk (az előző pont után): körtúránál, ahol a nyomvonal a rajt
+  // közelében visszatér, a záró szakasz pontja ne a 0 km-hez ragadjon
+  let from = 0;
   const nearestDist = (wp) => {
-    let best = 0, bd = Infinity;
-    for (const p of data) {
+    let bi = from, bd = Infinity;
+    for (let k = from; k < data.length; k++) {
+      const p = data[k];
       const d = (p.lat - wp.lat) ** 2 + ((p.lng - wp.lng) * Math.cos(wp.lat * Math.PI / 180)) ** 2;
-      if (d < bd) { bd = d; best = p.dist; }
+      if (d < bd) { bd = d; bi = k; }
     }
-    return best;
+    from = bi;
+    return data[bi].dist;
   };
   return wps.map((wp, i) => i === 0 ? { dist: 0, label: "A", color: "#16a34a", name: wp.name }
     : i === wps.length - 1 ? { dist: last, label: "B", color: "#1a1d23", name: wp.name }
@@ -1597,6 +1603,14 @@ store.subscribe(async (state) => {
   if (elements.fileSaveToLibraryButton) elements.fileSaveToLibraryButton.disabled = !hasPoints;
   if (elements.sidebarExportButton) elements.sidebarExportButton.hidden = !hasPoints;
   mapAdapter.renderWaypoints(state.waypoints, state.mode);
+  // A pontnév a címkeresés után, külön frissítésben érkezik: a grafikon-jelölők is kövessék
+  const nameSignature = state.waypoints.map((wp) => wp.name || "").join("\u0001");
+  if (nameSignature !== lastNameSignature) {
+    lastNameSignature = nameSignature;
+    for (const t of ["elevation", "speed", "hr", "cad", "power"]) {
+      if (visibleSections.has(t)) renderChartSection(t);
+    }
+  }
   if (state.importedRoute) {
     // Az aktív toggle határozza meg a megjelenítést
     // routeRequestId növelése hogy az esetleg folyamatban lévő korábbi routing kérés ne írja felül
@@ -2314,9 +2328,18 @@ function setLoopStart(id) {
   // fix pozíció – az oldalsáv görgető tartalma levágná az abszolút panelt
   const place = (btn, pop) => {
     if (mobileMQ.matches) { pop.style.cssText = ""; return; }
-    const r = btn.getBoundingClientRect();
-    pop.style.top = `${r.bottom + 6}px`;
-    pop.style.left = `${Math.max(8, r.right - pop.offsetWidth)}px`;
+    const r = btn.getBoundingClientRect(), vh = window.innerHeight, M = 8;
+    pop.style.maxHeight = "";
+    pop.style.left = `${Math.max(M, r.right - pop.offsetWidth)}px`;
+    const h = pop.offsetHeight, below = vh - r.bottom - 6 - M, above = r.top - 6 - M;
+    // alul nincs hely (sok útvonalpont → a gomb lent van): felfelé nyílik; ha úgy sem fér ki, görgethető
+    if (h <= below || below >= above) {
+      pop.style.top = `${r.bottom + 6}px`;
+      if (h > below) pop.style.maxHeight = `${below}px`;
+    } else {
+      pop.style.top = `${Math.max(M, r.top - 6 - Math.min(h, above))}px`;
+      if (h > above) pop.style.maxHeight = `${above}px`;
+    }
   };
   const closeAll = (except) => pops.forEach(([b, p]) => {
     if (p === except) return;

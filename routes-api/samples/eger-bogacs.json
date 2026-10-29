@@ -1,0 +1,30 @@
+{
+  "name": "Eger–Bogács",
+  "distance": 17.2,
+  "duration": 92,
+  "elevation": 344,
+  "type": "cycling",
+  "description": "Aszfaltos, dombos útvonal a Bükkalján Bogács, Noszvaj és Eger között. Szőlőhegyek, pincék, a végén termálfürdő. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Borsod-Abaúj-Zemplén megye",
+    "settlement": "Bogács",
+    "places": [
+      "Bogács",
+      "Noszvaj",
+      "Eger"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.90604,
+      20.53174
+    ]
+  }
+}

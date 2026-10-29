@@ -1,0 +1,28 @@
+{
+  "name": "Kaposvár–Deseda",
+  "distance": 17.2,
+  "duration": 74,
+  "elevation": 166,
+  "type": "cycling",
+  "description": "Kaposvárról a Deseda-tóhoz vezető, nagyrészt aszfaltos kerékpáros útvonal. A tó körül arborétum és pihenőhelyek. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Somogy megye",
+    "settlement": "Kaposvár",
+    "places": [
+      "Kaposvár"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      46.37127,
+      17.79665
+    ]
+  }
+}

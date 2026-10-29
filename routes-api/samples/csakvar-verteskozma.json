@@ -1,0 +1,29 @@
+{
+  "name": "Csákvár–Vérteskozma",
+  "distance": 13.5,
+  "duration": 71,
+  "elevation": 257,
+  "type": "cycling",
+  "description": "Rövid, de emelkedős szakasz a Vértes peremén Csákvártól Gánton át. Részben erdei, burkolatlan út – száraz időben ajánlott. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "dry",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Fejér megye",
+    "settlement": "Csákvár",
+    "places": [
+      "Csákvár",
+      "Gánt"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.39896,
+      18.45367
+    ]
+  }
+}

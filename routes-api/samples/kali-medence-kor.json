@@ -1,0 +1,31 @@
+{
+  "name": "Káli-medence kör",
+  "distance": 18.7,
+  "duration": 77,
+  "elevation": 150,
+  "type": "cycling",
+  "description": "Kör a Káli-medencében Káptalantóti és Köveskál között. Kőtengerek, tanúhegyek, présházak; néhány rövid, burkolatlan rész. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Veszprém megye",
+    "settlement": "Káptalantóti",
+    "places": [
+      "Káptalantóti",
+      "Kővágóörs",
+      "Köveskál",
+      "Mindszentkálla"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": true,
+    "start": [
+      46.85526,
+      17.54101
+    ]
+  }
+}

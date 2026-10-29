@@ -1,0 +1,36 @@
+{
+  "name": "Kaposvár–Balatonlelle",
+  "distance": 45.0,
+  "duration": 174,
+  "elevation": 240,
+  "type": "cycling",
+  "description": "Aszfaltos kerékpárút a belső-somogyi dombokon át a Balaton déli partjáig. Hullámzó terep, kevés forgalom. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Somogy megye",
+    "settlement": "Balatonlelle",
+    "places": [
+      "Balatonlelle",
+      "Látrány",
+      "Somogytúr",
+      "Somogybabod",
+      "Gamás",
+      "Felsőmocsolád",
+      "Mernye",
+      "Somogyaszaló",
+      "Kaposvár"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      46.78659,
+      17.69636
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Horhosok útja",
+  "distance": 20.8,
+  "duration": 118,
+  "elevation": 489,
+  "type": "cycling",
+  "description": "Zalaegerszegi kör a zalai dombok mélyutjain (horhosain) át. Meredek emelkedők, nagyrészt földút – inkább MTB/gravel terep. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "hard",
+  "season": "dry",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Zala megye",
+    "settlement": "Zalaegerszeg",
+    "places": [
+      "Zalaegerszeg",
+      "Pethőhenye",
+      "Zalaszentiván"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": true,
+    "start": [
+      46.84965,
+      16.89264
+    ]
+  }
+}

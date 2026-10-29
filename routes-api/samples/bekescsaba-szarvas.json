@@ -1,0 +1,33 @@
+{
+  "name": "Békéscsaba–Szarvas–Békésszentandrás",
+  "distance": 54.5,
+  "duration": 184,
+  "elevation": 23,
+  "type": "cycling",
+  "description": "Hosszú, sík, aszfaltos alföldi szakasz Békéscsabától Kondoroson át a Körös-partig. Nyílt terep, a szél a fő ellenfél. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Békés megye",
+    "settlement": "Békéscsaba",
+    "places": [
+      "Békéscsaba",
+      "Kétsoprony",
+      "Kondoros",
+      "Kardos",
+      "Szarvas",
+      "Békésszentandrás"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      46.68636,
+      21.08917
+    ]
+  }
+}

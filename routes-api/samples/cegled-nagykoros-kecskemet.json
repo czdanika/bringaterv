@@ -1,0 +1,30 @@
+{
+  "name": "Cegléd–Nagykőrös–Kecskemét",
+  "distance": 32.7,
+  "duration": 111,
+  "elevation": 22,
+  "type": "cycling",
+  "description": "Teljesen sík, aszfaltos alföldi kerékpárút három mezőváros között. Gyors tempóhoz, edzéshez vagy vonattal kombinált túrához ideális. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Pest megye",
+    "settlement": "Cegléd",
+    "places": [
+      "Cegléd",
+      "Nagykőrös",
+      "Kecskemét"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.16898,
+      19.79461
+    ]
+  }
+}

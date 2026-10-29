@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.21.0 – 2026-10-29 – Megyénkénti minta-útvonalak, körtúra-szűrő
+
+### Verzió
+
+- **26 új közösségi minta-útvonal 18 megyéből:** az OpenStreetMap kerékpáros útvonalaiból (pl. Bőköz Zöldút, Őrség 6, Káli-medence kör, Budapest–Balaton, Eger–Bogács, Tour de Gát) – magasságadattal, saját leírással, nehézséggel, ajánlott évszakkal és előre kitöltött helyadattal (megye, érintett települések, kör / A → B). Forrás: OpenStreetMap közreműködők (ODbL).
+- **Körtúra-szűrő:** a Könyvtár Közösségi fülén a sport-gombok mellett „Körtúra” és „A → B” kapcsoló; a körtúrák a listában, a kártyán és a térképen is jelölve.
+- **Térképes könyvtár:** útvonal fölé mutatva buborék a fő adatokkal – táv, idő, szint, hely, kör / A → B, nehézség és rövid leírás.
+- **Felugró ablakok kisebb kijelzőn:** a tervezés ⚙ panelje sok pontnál felfelé nyílik és görgethető; az admin és az alkalmazás felugró ablakai (pl. új útvonal betöltése) laptop-kijelzőn is kiférnek, a tartalmuk görgethető.
+- **Javítás:** a grafikonon az útvonalpont neve akkor is megjelenik, ha a címkeresés később érkezik; körtúránál a rajt közelébe visszatérő pont nem ugrik a 0 km-hez.
+
+---
+
 ## v1.20.0 – 2026-10-29 – Új kezdőoldal, Statok és Elemzés, burkolat, futó animáció
 
 ### Verzió

@@ -1,0 +1,32 @@
+{
+  "name": "Őrség 6 – Kondorfa kör",
+  "distance": 34.0,
+  "duration": 165,
+  "elevation": 516,
+  "type": "cycling",
+  "description": "Dombos körtúra Kondorfáról Szentgotthárd érintésével. Többnyire aszfalt, kisebb burkolatlan szakaszokkal; folyamatos hullámzás. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Vas megye",
+    "settlement": "Kondorfa",
+    "places": [
+      "Kondorfa",
+      "Őriszentpéter",
+      "Szalafő",
+      "Szentgotthárd",
+      "Csörötnek"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": true,
+    "start": [
+      46.88864,
+      16.39618
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Görömböly–Majláth kerékpárút",
+  "distance": 14.0,
+  "duration": 61,
+  "elevation": 142,
+  "type": "cycling",
+  "description": "Miskolcot átszelő városi kerékpárút Görömbölytől Majláthig, a Bükk kapujáig. Szinte végig aszfalt, enyhe emelkedés a hegy felé. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Borsod-Abaúj-Zemplén megye",
+    "settlement": "Miskolc",
+    "places": [
+      "Miskolc"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      48.10674,
+      20.67538
+    ]
+  }
+}

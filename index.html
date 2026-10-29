@@ -861,6 +861,9 @@
                   <button class="lib-type-chip" data-lib-sport="hike" type="button" title="Túra"><i data-lucide="mountain-snow" aria-hidden="true"></i>Túra</button>
                   <button class="lib-type-chip" data-lib-sport="walk" type="button" title="Gyaloglás"><i data-lucide="footprints" aria-hidden="true"></i>Gyaloglás</button>
                   <button class="lib-type-chip" data-lib-sport="other" type="button" title="Egyéb"><i data-lucide="activity" aria-hidden="true"></i>Egyéb</button>
+                  <span class="lib-chip-sep" data-shape-only hidden></span>
+                  <button class="lib-type-chip" data-lib-shape="loop" data-shape-only type="button" title="Csak körtúrák (a rajt és a cél egy helyen)" hidden><i data-lucide="refresh-cw" aria-hidden="true"></i>Körtúra</button>
+                  <button class="lib-type-chip" data-lib-shape="ab" data-shape-only type="button" title="Csak A → B útvonalak" hidden><i data-lucide="move-right" aria-hidden="true"></i>A → B</button>
               </div>
               <div class="lib-filter-end">
                 <div class="lib-filter-pop-wrap">
@@ -874,11 +877,6 @@
                 <div class="library-loc-row">
                   <select id="libraryCountrySelect" class="library-loc-select" aria-label="Ország" hidden></select>
                   <select id="libraryRegionSelect" class="library-loc-select" aria-label="Régió (megye)"></select>
-                </div>
-                <div class="library-type-chips">
-                  <button class="lib-type-chip is-active" data-lib-shape="all" type="button">Mind</button>
-                  <button class="lib-type-chip" data-lib-shape="loop" type="button">Körtúra</button>
-                  <button class="lib-type-chip" data-lib-shape="ab" type="button">A → B</button>
                 </div>
               </div>
                     <div class="library-filter-group" id="librarySourceGroup">

@@ -1,0 +1,37 @@
+{
+  "name": "Budapest–Balaton kerékpárút",
+  "distance": 106.9,
+  "duration": 437,
+  "elevation": 810,
+  "type": "cycling",
+  "description": "A főváros határától a Velencei-tavon át Balatonakarattyáig tartó hosszú távú kerékpárút. Szinte végig aszfalt; a táv és a szint miatt egész napos túra. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "hard",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Pest megye",
+    "settlement": "Budaörs",
+    "places": [
+      "Budaörs",
+      "Biatorbágy",
+      "Etyek",
+      "Tordas",
+      "Pázmánd",
+      "Pákozd",
+      "Székesfehérvár",
+      "Szabadbattyán",
+      "Polgárdi",
+      "Balatonakarattya"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.43968,
+      18.96693
+    ]
+  }
+}

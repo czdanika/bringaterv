@@ -1,0 +1,36 @@
+{
+  "name": "Fertő–Hanság összekötő",
+  "distance": 59.4,
+  "duration": 210,
+  "elevation": 116,
+  "type": "cycling",
+  "description": "Hosszú, sík, aszfaltos út a Hanság lápvidékén át Fertődig, az Esterházy-kastélyig. Madárvilág, nádasok; a táv miatt közepes. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Győr-Moson-Sopron megye",
+    "settlement": "Ásványráró",
+    "places": [
+      "Ásványráró",
+      "Mosonszentmiklós",
+      "Lébény",
+      "Tárnokréti",
+      "Bősárkány",
+      "Csorna",
+      "Osli",
+      "Kapuvár",
+      "Fertőd"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.80058,
+      17.50535
+    ]
+  }
+}

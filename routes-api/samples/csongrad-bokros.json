@@ -1,0 +1,28 @@
+{
+  "name": "Csongrád–Bokros",
+  "distance": 13.0,
+  "duration": 47,
+  "elevation": 34,
+  "type": "cycling",
+  "description": "Rövid, sík aszfaltos út Csongrádtól a Tisza-parti Bokrosig. Holtágak, ártéri erdők – nyári fürdős kirándulásnak kiváló. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Csongrád-Csanád megye",
+    "settlement": "Csongrád",
+    "places": [
+      "Csongrád"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      46.71519,
+      20.17795
+    ]
+  }
+}

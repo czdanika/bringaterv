@@ -1,0 +1,36 @@
+{
+  "name": "Felső-Tisza-vidék és Nyírség",
+  "distance": 59.1,
+  "duration": 199,
+  "elevation": 24,
+  "type": "cycling",
+  "description": "Hosszú, sík, aszfaltos útvonal a Szatmári-síkságon, falvakon és a Tisza mentén át. Kevés forgalom, sok templom és népi építészet. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Szabolcs-Szatmár-Bereg megye",
+    "settlement": "Kisar",
+    "places": [
+      "Kisar",
+      "Szatmárcseke",
+      "Kölcse",
+      "Sonkád",
+      "Csaholc",
+      "Kisszekeres",
+      "Zsarolyán",
+      "Jánkmajtis",
+      "Szamosújlak"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      48.05532,
+      22.51608
+    ]
+  }
+}

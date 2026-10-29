@@ -1,0 +1,35 @@
+{
+  "name": "Bőköz Zöldút",
+  "distance": 32.4,
+  "duration": 112,
+  "elevation": 44,
+  "type": "cycling",
+  "description": "Sík, végig aszfaltos zöldút a Dél-Baranyai síkságon Harkány érintésével Kémesig. Ormánsági falvak, csendes mellékutak – családdal is jól tekerhető. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Baranya megye",
+    "settlement": "Drávacsehi",
+    "places": [
+      "Drávacsehi",
+      "Drávaszabolcs",
+      "Harkány",
+      "Márfa",
+      "Rádfalva",
+      "Kórós",
+      "Adorjás",
+      "Kémes"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      45.81013,
+      18.15747
+    ]
+  }
+}

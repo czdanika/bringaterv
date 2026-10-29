@@ -1,0 +1,31 @@
+{
+  "name": "Oroszlány–Tatabánya",
+  "distance": 15.9,
+  "duration": 56,
+  "elevation": 26,
+  "type": "cycling",
+  "description": "Sík, aszfaltos összekötő két bányaváros között Környén át, a Vértes és a Gerecse közötti völgyben. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Komárom-Esztergom megye",
+    "settlement": "Oroszlány",
+    "places": [
+      "Oroszlány",
+      "Kecskéd",
+      "Környe",
+      "Tatabánya"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.49265,
+      18.31976
+    ]
+  }
+}

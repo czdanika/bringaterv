@@ -1,0 +1,29 @@
+{
+  "name": "Székesfehérvár–Velencei-tó",
+  "distance": 17.5,
+  "duration": 66,
+  "elevation": 75,
+  "type": "cycling",
+  "description": "Aszfaltos kerékpárút Székesfehérvárról Pákozdig, a Velencei-tó partjához. Csatlakozik a tavat megkerülő körhöz. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "all",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Fejér megye",
+    "settlement": "Székesfehérvár",
+    "places": [
+      "Székesfehérvár",
+      "Pákozd"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.21349,
+      18.35106
+    ]
+  }
+}

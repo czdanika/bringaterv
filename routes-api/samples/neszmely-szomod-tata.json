@@ -1,0 +1,30 @@
+{
+  "name": "Neszmély–Szomód–Tata",
+  "distance": 13.3,
+  "duration": 64,
+  "elevation": 193,
+  "type": "cycling",
+  "description": "Tatáról a Duna-parti Neszmélyig vezető, végig aszfaltos út. A Gerecse nyúlványain át néhány érezhető emelkedővel. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "medium",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Komárom-Esztergom megye",
+    "settlement": "Tata",
+    "places": [
+      "Tata",
+      "Szomód",
+      "Neszmély"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      47.65748,
+      18.34058
+    ]
+  }
+}

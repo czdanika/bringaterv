@@ -1,0 +1,31 @@
+{
+  "name": "Bóly–Villány kerékpárút",
+  "distance": 14.9,
+  "duration": 57,
+  "elevation": 75,
+  "type": "cycling",
+  "description": "Rövid, aszfaltos összekötő a bólyi síkságtól a villányi borvidékig. Enyhe hullámok, a végén pincesor – jó félnapos kirándulás. Forrás: OpenStreetMap közreműködők (ODbL).",
+  "difficulty": "easy",
+  "season": "spring-autumn",
+  "author": "OpenStreetMap",
+  "location": {
+    "country": "Magyarország",
+    "country_code": "hu",
+    "region": "Baranya megye",
+    "settlement": "Bóly",
+    "places": [
+      "Bóly",
+      "Borjád",
+      "Kisbudmér",
+      "Villány"
+    ],
+    "countries": [
+      "Magyarország"
+    ],
+    "loop": false,
+    "start": [
+      45.96452,
+      18.51236
+    ]
+  }
+}
