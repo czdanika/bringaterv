@@ -709,6 +709,18 @@
 
         <h3 id="admin-mintak">Közösségi útvonalak</h3>
         <p>A felhasználók által látott közös útvonalak (korábban: minta útvonalak): a jóváhagyott beküldések és a kézzel feltöltött GPX-ek. A listában látszik a helyszín (település, megye, ország, körtúra). A <b>Szerkeszt</b> ablakban minden adat módosítható, ugyanúgy, mint beküldéskor: név, típus, táv, idő, emelkedő, leírás, nehézség, ajánlott évszak, megjelenő név és a helyszín. A <b>↻ Hely</b> gomb (vagy a szerkesztőben az <b>Újraszámolás</b>) a nyomvonalból újraszámolja a helyadatot – ez felülírja a kézi javítást. Új útvonal feltöltésekor a helyadat magától kiszámolódik.</p>
+        <p><b>Burkolat:</b> új útvonal mentésekor a burkolat-vizsgálat (aszfalt / gravel / földút szakaszok) magától lefut, és az útvonallal együtt tárolódik – a felhasználók betöltéskor azonnal látják, nem kell várniuk. A <b>Burkolat pótlása</b> gomb végigmegy a még nem vizsgált útvonalakon; ha mindenhol van, felajánlja a teljes újravizsgálatot (a térkép időnként változik). Útvonalanként fél perc is lehet; ha a térképadat-szerver túlterhelt, hibát jelez – később próbáld újra.</p>
+        <p><b>AI-val kitöltés:</b> a szerkesztőben a Leírás mellett (ha az AI be van állítva) rövid leírást, nehézséget és évszakot javasol az útvonal adataiból (táv, szint, települések, burkolat). A szöveg csak a mezőbe kerül – átírhatod, és a Mentéssel te mented; a meglévő forrásmegjelölés megmarad, a kitöltött nehézséget / évszakot nem írja felül.</p>
+
+        <h3 id="admin-ai">AI</h3>
+        <p>Az <b>AI</b> fülön állíthatók az AI-funkciók (edzéselemzés, közösségi leírás – Claude, Anthropic):</p>
+        <ul>
+          <li><b>Anthropic API-kulcs</b> – mentéskor a szerver ellenőrzi. Csak a szerveren tárolódik, a felhasználók böngészője sosem kapja meg. Kulcs nélkül sehol nem jelenik meg AI-funkció. <b>Kapcsolat tesztelése</b>, <b>Kulcs törlése</b>.</li>
+          <li><b>Alap napi limit</b> – hány elemzést kérhet egy felhasználó naponta (magyar idő szerint), ha nála nincs külön megadva. Az új felhasználók is ezt kapják.</li>
+          <li><b>Felhasználók – AI</b> táblázat: felhasználónként <b>be / ki</b> kapcsoló (kikapcsolva az AI-gombok el is tűnnek, és a szerver is elutasítja a hívást), <b>napi limit</b> (üres = alapérték, 0 = tiltva), a mai és havi hívásszám és a becsült költség. Ha a felhasználó maga kapcsolta ki a Beállításokban, az is látszik.</li>
+          <li>Fent az összesítő: hívások ma, ebben a hónapban, becsült havi költség (USD, a tokenek alapján).</li>
+        </ul>
+        <p>Az AI az edzés <b>összesített adatait</b> kapja (táv, idő, tempó, pulzus- és szakaszadatok, néhány korábbi hasonló edzés), a nyers nyomvonalat nem. Az elemzés az edzéssel együtt mentődik, újranyitáskor nem kér új hívást. A közösségi leírás az admin felhasználásába számít, a napi limit nem korlátozza.</p>
       </div>
     </div>
     </section>

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.23.1 – 2026-10-29 – Súgó és bemutató az új funkciókkal
+
+### Verzió
+
+- **Súgó:** új alfejezetek – „Útvonal-javaslat” (lépésről lépésre, a kártyák, az automatikus újratervezés) és „AI-elemzés” (rövid és részletes elemzés, megjegyzés, mentés és szerkesztés, napi keret, adatvédelem, kikapcsolás); kiegészítve a tervezés ⋯ menüje, a GPX-betöltés (saját terv ablak nélkül, tárolt burkolat-vizsgálat), a közösségi útvonalak szűrői és a Beállítások.
+- **Admin súgó:** új „AI” rész (kulcs, alap és felhasználónkénti napi limit, költség), valamint a „Burkolat pótlása” és az „AI-val kitöltés” leírása.
+- **Bemutató oldal:** új szakaszok az útvonal-javaslatról és az AI-edzéselemzésről, új asztali és mobil képernyőképekkel; az adatvédelmi megjegyzés pontosítva az opcionális AI-elemzéssel.
+
+---
+
 ## v1.23.0 – 2026-10-29 – Útvonal-javaslat, AI-leírás az adminban, új megosztó kép ablak
 
 ### Verzió

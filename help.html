@@ -189,6 +189,18 @@
           <li><b>Közbeszúrás</b> – kattints magára az útvonal vonalára: oda kerül egy új pont a két meglévő közé.</li>
           <li><b>Pont mozgatása</b> – húzd a jelölőt a térképen; a neve automatikusan frissül.</li>
         </ul>
+        <h3 id="utvonal-javaslat">Útvonal-javaslat</h3>
+        <p>Ha nem akarsz pontonként tervezni, a Bringaterv ad <b>3 kész útvonalat</b> a kért távra. Üres tervezésnél a pontlista alatt (telefonon a kereső alatt) az <b>Útvonal-javaslat</b> sorral, egyébként az Útvonal <b>⋯</b> menüjéből nyílik.</p>
+        <ol>
+          <li><b>Rajt:</b> bökj a térképre, vagy használd a <b>Saját helyem</b> gombot. Alatta megjelenik a település neve, a térképen zöld pont és egy halvány körzet.</li>
+          <li><b>Kör vagy A → B:</b> körnél az útvonal visszaér a rajthoz. A → B-nél a következő bökés a <b>célt</b> állítja be (a Rajt / Cél sorra kattintva válthatsz, melyiket módosítod). Ha a cél nagyon közel van a rajthoz, körszerű útvonalat kapsz, ami a célnál ér véget.</li>
+          <li><b>Táv</b> (10–200 km), <b>burkolat</b> (Aszfalt / Gravel / Vegyes) és <b>szint</b> (Sík / Dombos / Bármi).</li>
+          <li><b>Javaslatok</b> – fél–egy perc, a számolás állása látszik.</li>
+        </ol>
+        <p>Az eredmény 3 kártya: név (a legtávolabbi vagy a félúton érintett település), táv, szint, az aszfalt és a burkolatlan rész aránya és egy burkolatsáv. A térképen a kiválasztott élénken, a többi halványan látszik – kártyára vagy vonalra kattintva választasz. Az <b>Ezt választom</b> szerkeszthető tervként tölti be (a burkolathoz illő tervezési móddal), utána pontonként tovább alakíthatod. Ha már volt útvonalad, előtte rákérdez.</p>
+        <p>Ha a javaslatok után átállítod a burkolatot, a szintet, a távot, a kör / A → B-t vagy áthelyezed a rajtot, automatikusan újratervez (a régi kártyák addig halványan látszanak).</p>
+        <p class="tip"><b>Hogyan készül?</b>Az útvonalakat a BRouter rajzolja (OpenStreetMap-adatokból), a Bringaterv csak a segédpontokat helyezi el, és a legjobb 3-at választja ki: a táv-eltérés, a burkolat, a szint és a visszafordulás alapján. A zsákutcába eső segédpontokat a tüske tövébe helyezi át, hogy ne legyen oda-vissza szakasz.</p>
+
         <h3>Az útvonalpontok listája</h3>
         <ul>
           <li>A pontokat a bal oldali fogantyúval (<b>⋮⋮</b>) húzva rendezheted át.</li>
@@ -212,7 +224,7 @@
 
         <h3 id="oldalsav">A tervezés oldalsávja</h3>
         <ul>
-          <li><b>Útvonal ⋯ menü</b> (a cím mellett): GPX importálása, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
+          <li><b>Útvonal ⋯ menü</b> (a cím mellett): <a href="#utvonal-javaslat">Útvonal-javaslat</a>, GPX importálása, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
           <li><b>Pontok</b> – mellette a tervezési mód választója (Aszfalt / Gravel / MTB / Túra), alatta a pontlista.</li>
           <li>A lista alatt a <b>kereső</b>, a <b>Körtúra</b> kapcsoló és a <b>⚙</b> gomb a ritkábban állított beállításokkal (lásd lent).</li>
           <li><b>Útvonal színezése</b> – egy választóval: <b>Nincs</b>, <b>Szintprofil</b> (meredekség), <b>Szélelemzés</b>, <b>Burkolat</b>. Egyszerre egy lehet aktív.</li>
@@ -273,9 +285,9 @@
         <p>Eredmény: hátszél / oldalszél / szembeszél arány km-ben és százalékban, szegmenslista, időjárás, és a térképen szél szerinti színezés (zöld = hátszél, sárga = oldalszél, piros = szembeszél). A szél a többi diagramhoz hasonló grafikonon is megjelenik (szélerősség a táv mentén, irány szerint színezve); a szakaszok részletes listája lenyitható. A szélszínezés és a szintprofil-színezés kizárja egymást.</p>
 
         <h3 id="gpx-tervezeshez">GPX importálása tervezéshez</h3>
-        <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz (Útvonal <b>⋯</b> menü → <b>GPX importálása…</b>). Betöltéskor egy előnézet jelenik meg:</p>
+        <p>Egy meglévő GPX-útvonalat szerkeszthetővé tehetsz (Útvonal <b>⋯</b> menü → <b>GPX importálása…</b>). A Bringatervben tervezett és mentett útvonal (a könyvtárból) ablak nélkül, a mentett tervezési módokkal azonnal betöltődik. Más útvonalnál egy előnézet jelenik meg:</p>
         <ul>
-          <li><b>Burkolat vizsgálata</b> – az útvonal mentén lekérdezi az útburkolatot az OpenStreetMap nyílt, közösségi térképéből, és szakaszonként automatikusan beállítja a tervezési módot (aszfalt / gravel / MTB).</li>
+          <li><b>Burkolat vizsgálata</b> – az útvonal mentén lekérdezi az útburkolatot az OpenStreetMap nyílt, közösségi térképéből, és szakaszonként automatikusan beállítja a tervezési módot (aszfalt / gravel / MTB). Az eredmény eltárolódik: a közösségi útvonalaknál és a már egyszer megvizsgált saját útvonalaknál azonnal látszik („Tárolt burkolat-vizsgálat”), az <b>Újravizsgálat</b> csak kérésre fut. Ha a térképadat-szerver épp túlterhelt, kicsit később próbáld újra.</li>
           <li><b>Fordulópontok rögzítése</b> – a legfontosabb kanyarokat útvonalpontként rögzíti, hogy módváltáskor az útvonal az eredeti nyomvonalon maradjon (különben rövidebb utat is választhat).</li>
           <li><b>Betöltés</b> – gyors betöltés vizsgálat nélkül, a beállított móddal. A burkolat vizsgálata után két gomb közül választhatsz: <b>Csak betöltés</b> (a vizsgálat eredménye nélkül) vagy <b>Betöltés burkolat szerint</b> (a szakaszok a vizsgálat szerinti tervezési móddal töltődnek be).</li>
         </ul>
@@ -313,6 +325,17 @@
           <li><b>Edwards-pont</b> – zónánként: perc × zóna sorszáma (Z1 = 1 … Z5 = 5).</li>
         </ul>
         <p>A zónák számítási módja: lásd <a href="#pulzus">Pulzuszónák és pulzusszámítás</a>.</p>
+        <h3 id="ai-elemzes">AI-elemzés</h3>
+        <p>Ha az üzemeltető bekapcsolta, mentett <b>edzésnél</b> (tervezett útvonalnál nem) a fő számok alatt megjelenik az <b>AI-elemzés</b> kártya.</p>
+        <ul>
+          <li><b>Edzés elemzése</b> – egy gombnyomásra rövid értékelés: egy mondatos összefoglaló és 3 pont (pl. hol esett a tempó, nőtt-e a pulzus azonos tempónál, hogyan hatottak az emelkedők, és hogyan viszonyul a korábbi hasonló edzéseidhez). A pontok elé tett színes pötty: zöld = erősség, sárga = figyelendő, kék = érdekesség. Összecsukva a pontok egysorosak, a <b>Részletek</b> lenyitja őket.</li>
+          <li><b>Pár szó az edzésről</b> (nem kötelező) – pl. „regeneráló kör volt”, „fáradt voltam”. Az AI ezt figyelembe veszi, nem kéri számon a szándékosan könnyű tempót.</li>
+          <li><b>Részletes</b> – hosszabb elemzés felugró ablakban, fejezetekkel (tempó és erőbeosztás, pulzus és terhelés, terep, összevetés a korábbiakkal) és 2–3 javaslattal a következő edzésekre.</li>
+          <li>Az elemzés az edzéssel együtt <b>mentődik</b>: újranyitáskor ott van, nem kér új elemzést. A <b>Szerkesztés</b> alatt átírhatod vagy törölheted, és ott kérhetsz újat is (megerősítéssel). Ha az edzés később módosul, egy sárga sáv jelzi, hogy az elemzés a korábbi adatokon készült.</li>
+          <li><b>Napi keret:</b> a gomb mellett látszik, hány elemzés kérhető még aznap („ma még 4”). A keretet az üzemeltető állítja be.</li>
+        </ul>
+        <p class="tip"><b>Adatvédelem</b>Az elemzéshez az edzés összesített adatai (táv, idő, tempó, pulzus- és szakaszonkénti adatok, megállások, néhány korábbi hasonló edzés) kerülnek a Claude (Anthropic) AI-szolgáltatáshoz – a nyers GPX és a pontos helyek nem. A <span class="path">Beállítások → AI-elemzés</span> alatt kikapcsolhatod; ilyenkor AI-gomb sehol nem jelenik meg.</p>
+
         <h3>Műveletek</h3>
         <ul>
           <li><b>Mentés</b> – a könyvtárba (helyi fájlnál).</li>
@@ -356,7 +379,9 @@
         <h2>Közösségi útvonalak</h2>
         <p>A Könyvtárban a <b>Közösségi</b> fülön (vagy a Kezdőlap <b>Közösségi utak</b> gombjával) érhetők el azok az útvonalak, amelyeket a felhasználók ajánlottak, és az admin jóváhagyott. Bármelyik megnyitható, betölthető tervezésbe, letölthető. A lenyitott sorban a nehézség, az ajánlott évszak, a helyszín (település, megye, ország, körtúra vagy A→B, érintett települések) és (ha engedte) a beküldő neve is látszik.</p>
         <ul>
-          <li><b>Helyszín szerint</b>: a Közösségi fülön a <b>Szűrők</b> panelben megjelenik a <b>Régió / megye</b> választó (és ha több országból is van útvonal, az <b>Ország</b>), valamint a <b>Körtúra / A → B</b> szűrő.</li>
+          <li><b>Körtúra / A → B</b>: a Közösségi fülön a szűrősáv jobb oldalán (a Szűrők gomb mellett) egy választó – „Kör és A → B”, „Körtúra” vagy „A → B”. A körtúrák a listában, a kártyán és a térképen is jelölve vannak.</li>
+          <li><b>Helyszín szerint</b>: a <b>Szűrők</b> panelben a <b>Régió / megye</b> választó (és ha több országból is van útvonal, az <b>Ország</b>).</li>
+          <li>A kártyákon a rövid leírás, a nehézség és az évszak is látszik; a térképes nézetben egy útvonal fölé mutatva buborék mutatja a fő adatokat és a leírást.</li>
           <li>A <b>kereső</b> a településekben is keres – pl. „Visegrád” beírására azok az útvonalak is megjelennek, amelyek csak áthaladnak rajta.</li>
           <li>A helyadatot a Bringaterv automatikusan számolja a nyomvonalból (OpenStreetMap), magyar nevekkel (pl. Bécs, Pozsony); határon átnyúló útvonalnál minden érintett ország szűrésénél megjelenik.</li>
         </ul>
@@ -528,6 +553,7 @@
           <tr><td class="path">Térképstílus</td><td>Standard, Kerékpár, Domborzat, Műhold, Hybrid, Világos, Sötét. A térkép jobb felső sarkában is váltható.</td></tr>
           <tr><td class="path">Mértékegység</td><td>Metrikus (km, m) vagy angolszász (mi, ft).</td></tr>
           <tr><td class="path">Megosztás</td><td>A megosztási linkek és QR-kódok alap-címe (saját domain).</td></tr>
+          <tr><td class="path">AI-elemzés</td><td>Az AI-funkciók be- és kikapcsolása magadnak (csak ha az üzemeltető bekapcsolta) – lásd <a href="#ai-elemzes">AI-elemzés</a>.</td></tr>
           <tr><td class="path">Értesítések</td><td>Lásd <a href="#ertesitesek">Értesítések</a>.</td></tr>
           <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Túra 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
           <tr><td class="path">Induló nézet</td><td>Hol és milyen nagyításon nyíljon meg a térkép (a mostani nézet vagy GPS szerint).</td></tr>

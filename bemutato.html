@@ -159,12 +159,12 @@
       <div>
         <span class="eyebrow">Kerékpárosoknak · túrázóknak · futóknak</span>
         <h1>Tervezz, tekerj, <em>fedezd fel!</em></h1>
-        <p class="lead">A Bringaterv útvonaltervező és edzésnapló egy helyen: megtervezed a túrát szintprofillal és szélelemzéssel, elküldöd a Garminodra, utána pedig mindent visszanézhetsz – sebesség, pulzus, teljesítmény, rekordok. Mások kipróbált útvonalait is megtalálod, a Kezdőlapon pedig egy pillantással látod a legutóbbi edzésedet, a formádat, a céljaidat – és hogy milyen idő lesz a következő tekeréshez. Gépen és telefonon is.</p>
+        <p class="lead">A Bringaterv útvonaltervező és edzésnapló egy helyen: megtervezed a túrát szintprofillal és szélelemzéssel – vagy kérsz 3 kész útvonalat a kívánt távra –, elküldöd a Garminodra, utána pedig mindent visszanézhetsz – sebesség, pulzus, teljesítmény, rekordok, és ha kéred, rövid AI-értékelést is kapsz az edzésedről. Mások kipróbált útvonalait is megtalálod, a Kezdőlapon pedig egy pillantással látod a legutóbbi edzésedet, a formádat, a céljaidat – és hogy milyen idő lesz a következő tekeréshez. Gépen és telefonon is.</p>
         <div class="hero-cta">
           <a class="btn btn-primary" href="./login.html">Belépés</a>
           <a class="btn btn-ghost" href="#hogyan">Hogyan csatlakozhatok?</a>
         </div>
-        <p class="hero-note">Ingyenes, reklám nélkül – az adataid nem kerülnek harmadik félhez.</p>
+        <p class="hero-note">Ingyenes, reklám nélkül – az adataid nem kerülnek harmadik félhez (kivéve az opcionális, kikapcsolható AI-elemzést, amihez csak az edzés összesítője megy).</p>
       </div>
       <div class="hero-shot">
         <img class="desk" src="./screenshots/tervezes.jpg" alt="Útvonaltervezés a Bringatervben asztali nézetben" width="1440" height="840">
@@ -185,7 +185,7 @@
         <div class="pillar">
           <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
           <h3>Tervezés</h3>
-          <p>Kattints a térképre, és az útvonal járható utakon vezet – országúti, gravel, MTB vagy túra profillal. Táv, szint, menetidő azonnal.</p>
+          <p>Kattints a térképre, és az útvonal járható utakon vezet – országúti, gravel, MTB vagy túra profillal. Táv, szint, menetidő azonnal. Vagy kérj 3 kész kört a kívánt távra.</p>
         </div>
         <div class="pillar">
           <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></div>
@@ -195,7 +195,7 @@
         <div class="pillar">
           <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
           <h3>Elemzés</h3>
-          <p>Sebesség, pulzus, kadencia, teljesítmény a térképen színezve, pulzuszónák, terhelés, rekordok és statisztikák.</p>
+          <p>Sebesség, pulzus, kadencia, teljesítmény a térképen színezve, pulzuszónák, terhelés, rekordok és statisztikák – és egy gombnyomásra AI-értékelés.</p>
         </div>
       </div>
     </div>
@@ -242,10 +242,29 @@
     </div>
   </section>
 
+  <!-- Útvonal-javaslat -->
+  <section id="javaslat">
+    <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Útvonal-javaslat</span>
+        <h2>Nincs kedved pontokat rakosgatni? Kérj hármat.</h2>
+        <p class="sec-sub" style="color:var(--muted)">Megadod, honnan indulsz és mennyit tekernél – a Bringaterv pedig felrajzol 3 kész útvonalat, amiből válogathatsz.</p>
+        <ul>
+          <li><b>Kör vagy A → B</b> a kívánt távra, 10-től 200 km-ig – a rajt a térképre bökve vagy a saját helyedről</li>
+          <li><b>Burkolat és szint szerint:</b> aszfalt, gravel vagy vegyes; sík, dombos vagy mindegy</li>
+          <li><b>3 javaslat egymás mellett</b> a térképen és kártyákon – táv, szint, az aszfalt és a burkolatlan rész aránya, település szerinti név</li>
+          <li><b>Nincs oda-vissza, nincs zsákutca:</b> a javaslatokat a visszafordulás és a kért adatoktól való eltérés alapján pontozza</li>
+          <li><b>Egy kattintással szerkeszthető terv</b> – utána ugyanúgy alakíthatod, mint bármelyik saját útvonaladat</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/utvonal-javaslat.jpg" alt="Útvonal-javaslat: 3 kör Balatonfüredről 50 km-re a térképen és kártyákon" width="1440" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
   <!-- Elemzés -->
-  <section id="elemzes">
+  <section id="elemzes" class="alt">
     <div class="wrap">
-      <div class="feature">
+      <div class="feature rev">
         <div class="f-text">
           <span class="kicker">Elemzés</span>
           <h2>Minden edzés, minden részlet</h2>
@@ -272,6 +291,25 @@
         <div class="chip"><h4>Szélelemzés</h4><p>Szembe- és hátszél a tervezett útvonalon, a valós időjárás alapján.</p></div>
         <div class="chip"><h4>Kalória</h4><p>A Stravából, vagy becslés a saját kerékpáros profilodból.</p></div>
       </div>
+    </div>
+  </section>
+
+  <!-- AI-edzéselemzés -->
+  <section id="ai">
+    <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">AI-edzéselemzés</span>
+        <h2>Mit mondana az edződ az edzésedről?</h2>
+        <p class="sec-sub" style="color:var(--muted)">Egy gombnyomásra rövid, érthető értékelést kapsz – nem csak számokat, hanem azt is, mit jelentenek.</p>
+        <ul>
+          <li><b>Egy mondatos összefoglaló és 3 pont:</b> hol esett a tempó, nőtt-e a pulzus azonos tempónál, hogyan hatottak az emelkedők</li>
+          <li><b>Összevetés a korábbiakkal:</b> a hasonló edzéseidhez képest gyorsabb, lassabb, könnyebb volt-e</li>
+          <li><b>Részletes elemzés</b> fejezetekkel és javaslatokkal a következő edzésekre, ha kíváncsi vagy rá</li>
+          <li><b>Pár szó tőled</b> („regeneráló kör volt”) – és nem kéri számon a szándékosan könnyű tempót</li>
+          <li><b>Az edzéssel együtt mentődik,</b> átírható, és kikapcsolható – az AI csak az edzés összesítőjét kapja, a nyers nyomvonalat nem</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/elemzes-ai.jpg" alt="AI-elemzés kártya az Elemzés oldalon egy balatoni edzésnél" width="1440" height="840" loading="lazy"></div>
     </div>
   </section>
 
@@ -340,15 +378,16 @@
         <h2>Zsebben is ott van – appként telepíthető</h2>
         <p style="color:var(--muted)">A Bringaterv telefonra szabott felülettel is működik, és App Store nélkül, két koppintással telepíthető a kezdőképernyőre – iPhone-ra, iPadre és Androidra is.</p>
         <ul>
-          <li><b>Tervezés egy hüvelykujjal:</b> Apple Térkép-szerű felhúzható lap – felül a kereső, a számok és a mód, egy koppintásra minden eszköz</li>
+          <li><b>Tervezés egy hüvelykujjal:</b> Apple Térkép-szerű felhúzható lap – felül a kereső, a számok és a mód, egy koppintásra minden eszköz; útvonal-javaslat is</li>
+          <li><b>AI-elemzés</b> az edzés után, akár a parkolóban</li>
           <li><b>Elemzés, könyvtár, statisztikák</b> ugyanúgy, mint gépen</li>
           <li><b>Push értesítés,</b> ha új edzésed jött a Stravából vagy új rekordot értél el</li>
           <li><b>Hibajelentés, ötlet</b> közvetlenül az appból – akár képernyőképpel</li>
         </ul>
       </div>
       <div class="phones">
-        <img src="./screenshots/mobil-tervezes.jpg" alt="Tervezés telefonon" width="780" height="1688" loading="lazy">
-        <img src="./screenshots/mobil-elemzes.jpg" alt="Edzéselemzés telefonon, pulzus szerint színezve" width="780" height="1688" loading="lazy">
+        <img src="./screenshots/mobil-utvonal-javaslat.jpg" alt="Útvonal-javaslat telefonon: 3 kör a térképen, alatta a kártyák" width="780" height="1688" loading="lazy">
+        <img src="./screenshots/mobil-ai-elemzes.jpg" alt="AI-elemzés telefonon egy balatoni edzésnél" width="780" height="1688" loading="lazy">
       </div>
     </div>
   </section>
