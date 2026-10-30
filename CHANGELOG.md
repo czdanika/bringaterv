@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.24.1 – 2026-10-30 – Belépés a felhasználó nevében, szél és burkolat edzésből lett tervnél
+
+### Verzió
+
+- **Admin – belépés a felhasználó nevében:** a felhasználólistában „Belépés” gomb: a felhasználó felülete új lapon nyílik, jelszó nélkül, 2 órára. A lap elszigetelt tárolót használ, így az admin saját munkamenete a többi lapon érintetlen; alul sáv jelzi a nézetet „Kilépés” gombbal. Jelszó, e-mail-cím, fióktörlés, visszaállítás és admin funkciók a nézetben nem érhetők el; minden belépést a szerver naplóz. Admin és tiltott felhasználó nevében nem lehet belépni.
+- **Tervezés ez alapján:** az Elemzésből a Tervezésbe vitt edzésnél a szélelemzés és a színezés gombjai újra aktívak.
+- **Burkolat edzésből lett tervnél:** a könyvtárban tárolt burkolat-vizsgálatot azonnal mutatja; ha még nincs, a lekérdezés eredményét az edzés mellé menti. Hosszú útnál látszik a haladás („2/4 rész”).
+
+---
+
 ## v1.24.0 – 2026-10-30 – Nyílt regisztráció, nyilvános link kapcsoló, fejlesztési fa az adminban
 
 ### Verzió

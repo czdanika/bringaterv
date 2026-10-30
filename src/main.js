@@ -895,6 +895,8 @@ if (elements.fileShareButton) elements.fileShareButton.disabled = true;
 
 // Szintprofil – aktív geometry (tervezett vagy importált)
 let activeGeometry = [];
+// Elemzésből a Tervezésbe vitt könyvtári edzés: a tárolt burkolat-vizsgálat innen jön
+let planSurfaceSource = null;
 let autoOpenElevation = false; // könyvtárból tervezésbe töltéskor automatikusan nyitja a szintprofilt
 
 // ── Útvonalpont-ablak adatai: táv / idő / emelkedés a rajttól, magasság, meredekség ──
@@ -2462,8 +2464,21 @@ function setLoopStart(id) {
     $id("planSurfaceBar").innerHTML = ""; $id("planSurfaceLegend").innerHTML = "";
     $id("planSurfaceStatus").innerHTML = '<span class="spinner-inline"></span> Burkolat lekérdezése…';
     try {
-      // tervezett útvonalnál a BRouter már megadta pontonként (surf) – különben OSM-lekérdezés
-      const { segments, totalDistKm } = surfaceFromGeometry(g) ?? await analyzeSurface(g);
+      // tervezett útvonalnál a BRouter már megadta pontonként (surf); edzésből lett tervnél a
+      // könyvtárban tárolt vizsgálat; különben OSM-lekérdezés (és az eredményt eltároljuk)
+      const src = planSurfaceSource && geomKey(planSurfaceSource.geometry) === key ? planSurfaceSource : null;
+      let res = surfaceFromGeometry(g) ?? (src?.entry?.surface ? restoreSurface(src.entry.surface, g) : null);
+      if (!res) {
+        res = await analyzeSurface(g, { onProgress: (done, total) => {
+          if (run === surfaceRun && total > 1) $id("planSurfaceStatus").innerHTML = `<span class="spinner-inline"></span> Burkolat lekérdezése… ${done}/${total} rész`;
+        } });
+        if (src && !src.isSample && run === surfaceRun) {
+          const surface = packSurface(res.segments, res.totalDistKm);
+          if (src.entry) src.entry.surface = surface;
+          routesApi.updateRoute(src.id, { surface }).catch((err) => console.warn("Burkolat mentése sikertelen:", err));
+        }
+      }
+      const { segments, totalDistKm } = res;
       if (run !== surfaceRun || !surfaceOn) return;
       renderSurface(segments, totalDistKm);
       mapAdapter.renderSurfaceRoute(g, segments);
@@ -3669,6 +3684,11 @@ planGpxInput?.addEventListener("change", async () => {
 document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   // A waypontok már a store-ban vannak (az import feltöltötte)
   // Csak az elemzés-specifikus állapotot töröljük, majd váltunk
+  // A könyvtári edzés tárolt burkolat-vizsgálata a Tervezésben is jó (ne kérdezzen újra)
+  const libId = getLoadedLibraryRouteId(), libSample = getLoadedIsSample();
+  const libEntry = libId && (libSample ? (_libraryData.samples || [])
+    : [...(_libraryData.routes || []), ...(_libraryData.workouts || [])]).find((r) => r.id === libId);
+  planSurfaceSource = libId ? { id: libId, isSample: libSample, entry: libEntry || null, geometry: activeGeometry } : null;
   clearImportedGeometries();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
@@ -3678,6 +3698,8 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   clearFileTab();
   applyRouteLayer(null);
   switchTab("plan");
+  // a szél és a színezés gombjai az Elemzés fülön számolt állapotban maradnának
+  updateElevationButton(activeGeometry);
   showToast("Útvonalpontok betöltve – folytathatod a tervezést");
 });
 

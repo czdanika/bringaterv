@@ -31,6 +31,17 @@ def require_auth(f):
         if not user:
             abort(401, description="Ismeretlen vagy tiltott felhasználó")
         user = dict(user)
+        # Admin a felhasználó nevében: csak amíg az admin aktív admin; a fiók adatai nem módosíthatók
+        g.impersonator = None
+        if payload.get("imp"):
+            with _db() as conn:
+                adm = conn.execute("SELECT id, email FROM users WHERE id = ? AND active = 1 AND role = 'admin'",
+                                   (payload["imp"],)).fetchone()
+            if not adm:
+                abort(401, description="A felhasználó nézete lejárt.")
+            g.impersonator = dict(adm)
+            if request.method != "GET" and request.path.startswith(("/api/account", "/api/auth/", "/api/admin", "/api/user/restore")):
+                abort(403, description="A felhasználó nézetében a fiókadatok nem módosíthatók.")
         # Jelszócsere előtt kiadott token már nem érvényes (a többi eszköz kilép)
         if user.get("pw_changed_at"):
             try:

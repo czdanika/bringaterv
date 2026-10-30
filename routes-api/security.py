@@ -46,5 +46,12 @@ def _make_token(user_id: str, email: str, role: str) -> str:
     )
 
 
+def _make_impersonation_token(user_id: str, email: str, role: str, admin_id: str, hours: int = 2) -> str:
+    """Admin „belépés a felhasználó nevében”: rövid életű, az admin azonosítóját (imp) is hordozza."""
+    now = datetime.now(timezone.utc)
+    return pyjwt.encode({"sub": user_id, "email": email, "role": role, "imp": admin_id,
+                         "iat": now, "exp": now + timedelta(hours=hours)}, JWT_SECRET, algorithm="HS256")
+
+
 def _decode_token(token: str) -> dict:
     return pyjwt.decode(token, JWT_SECRET, algorithms=["HS256"])

@@ -248,7 +248,7 @@ async function overpassQuery(query) {
   throw lastErr ?? new Error("a térképadat-szerver (OpenStreetMap) most nem érhető el – próbáld újra kicsit később.");
 }
 
-export async function analyzeSurface(geometry) {
+export async function analyzeSurface(geometry, { onProgress } = {}) {
   if (geometry.length < 2) {
     throw new Error("Nincs elegendő trackpont az elemzéshez.");
   }
@@ -264,7 +264,9 @@ export async function analyzeSurface(geometry) {
   const CHUNK = 300;
   const ways = [];
   const seen = new Set();
+  const parts = Math.max(1, Math.ceil((samples.length - 1) / CHUNK));
   for (let start = 0; start < samples.length - 1; start += CHUNK) {
+    onProgress?.(start / CHUNK + 1, parts);
     const part = samples.slice(start, Math.min(samples.length, start + CHUNK + 1));
     const line = part.map((s) => `${s.point.lat.toFixed(5)},${s.point.lng.toFixed(5)}`).join(",");
     const query = `[out:json][timeout:45];

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="./src/impersonate.js"></script>
   <script src="./src/version.js"></script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1335,6 +1336,8 @@
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="files" data-id="${u.id}" data-name="${escHtml(u.name)}">Útvonalak</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="backup" data-id="${u.id}" data-email="${escHtml(u.email)}" title="Profil ZIP letöltése">Backup</button>
                     <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="edit" data-id="${u.id}">Szerkeszt</button>
+                    ${u.role !== "admin" && u.active ? `
+                    <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="impersonate" data-id="${u.id}" title="A felhasználó felülete új lapon, jelszó nélkül (2 órán át)">Belépés</button>` : ""}
                     ${u.role !== "admin" ? `
                     <button class="btn ${u.active ? "btn-danger" : "btn-ghost"}" style="padding:5px 10px;font-size:12px" data-action="toggle" data-id="${u.id}" data-active="${u.active}">
                       ${u.active ? "Tiltás" : "Aktivál"}
@@ -1360,8 +1363,27 @@
           if (action === "backup") openBackupModal(btn.dataset.id, btn.dataset.email);
           if (action === "delete") openDeleteModal(user);
           if (action === "message") openMessageModal([user]);
+          if (action === "impersonate") impersonate(user);
         });
       });
+    }
+
+    // Belépés a felhasználó nevében: új lap, a token postMessage-dzsel megy át (nem URL-ben),
+    // a lap elszigetelt tárolót használ (src/impersonate.js) – ez az admin munkamenet marad
+    function impersonate(user) {
+      if (!confirm(`Belépsz ${user.name || user.email} nevében egy új lapon?\n\nA felhasználó felületét látod és kezelheted (2 órán át); a jelszava, e-mail-címe és fiókja nem módosítható. A belépést a szerver naplózza.`)) return;
+      const w = window.open("./impersonate.html", "_blank");
+      if (!w) { alert("A böngésző letiltotta az új lapot – engedélyezd a felugró ablakot ehhez az oldalhoz."); return; }
+      let payload = null, ready = false;
+      const send = () => { if (payload && ready && !w.closed) w.postMessage({ type: "bt-imp", ...payload }, location.origin); };
+      const onMsg = (e) => {
+        if (e.source !== w || e.origin !== location.origin || e.data?.type !== "bt-imp-ready") return;
+        ready = true; window.removeEventListener("message", onMsg); send();
+      };
+      window.addEventListener("message", onMsg);
+      routesApi.admin.impersonate(user.id)
+        .then((d) => { payload = d; send(); })
+        .catch((e) => { payload = { error: e.message || "Nem sikerült belépni." }; send(); });
     }
 
     function escHtml(s) {

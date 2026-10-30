@@ -14,7 +14,7 @@ import notify
 from auth import require_admin, require_auth
 from config import log
 from db import _db, _db_create_user
-from security import _hash_pw
+from security import _hash_pw, _make_impersonation_token
 from storage import _user_routes_dir, _user_storage_stats
 from utils import _load_index, _now_date, _now_dt, _safe_id, _save_index
 
@@ -47,6 +47,28 @@ def admin_list_users():
             u["push_devices"] = 0
         result.append(u)
     return jsonify(result)
+
+
+@bp.route("/api/admin/users/<uid>/impersonate", methods=["POST"])
+@require_auth
+@require_admin
+def admin_impersonate(uid: str):
+    """Belépés a felhasználó nevében (jelszó nélkül), 2 órás tokennel – a kliens külön ablakban,
+    elszigetelt tárolóval használja, így az admin saját munkamenete érintetlen marad."""
+    if g.impersonator:
+        abort(403, description="A felhasználó nézetéből nem lehet tovább lépni.")
+    with _db() as conn:
+        u = conn.execute("SELECT id, email, name, role, active FROM users WHERE id = ?", (uid,)).fetchone()
+    if not u:
+        abort(404, description="A felhasználó nem található.")
+    if not u["active"]:
+        abort(400, description="Tiltott felhasználó nevében nem lehet belépni.")
+    if u["role"] == "admin":
+        abort(400, description="Admin nevében nem lehet belépni.")
+    log.info("Belépés a felhasználó nevében: %s → %s", g.user["email"], u["email"])
+    user = {"id": u["id"], "email": u["email"], "name": u["name"], "role": u["role"]}
+    return jsonify({"token": _make_impersonation_token(u["id"], u["email"], u["role"], g.user["id"]),
+                    "user": user, "admin": {"id": g.user["id"], "email": g.user["email"]}, "hours": 2})
 
 
 @bp.route("/api/admin/users", methods=["POST"])

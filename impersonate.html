@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Felhasználó nézete – Bringaterv</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f5f4; color: #1f2937;
+           font: 15px/1.5 system-ui, -apple-system, sans-serif; }
+    p { margin: 0; padding: 24px; text-align: center; }
+  </style>
+</head>
+<body>
+  <p id="msg">Belépés a felhasználó nézetébe…</p>
+  <script>
+    // Az admin felület postMessage-dzsel adja át a rövid életű tokent (nem kerül URL-be)
+    const msg = document.getElementById("msg");
+    if (!window.opener) {
+      msg.textContent = "Ezt az oldalt az admin felület „Belépés” gombja nyitja meg.";
+    } else {
+      window.addEventListener("message", (e) => {
+        const d = e.data;
+        if (e.origin !== location.origin || e.source !== window.opener || !d || d.type !== "bt-imp") return;
+        if (d.error) { msg.textContent = d.error; return; }
+        sessionStorage.clear();
+        sessionStorage.setItem("bt_imp", JSON.stringify({ user: d.user, admin: d.admin, until: Date.now() + d.hours * 3600e3 }));
+        sessionStorage.setItem("imp:bringaterv_jwt", d.token);
+        sessionStorage.setItem("imp:bringaterv_user", JSON.stringify(d.user));
+        try { window.opener = null; } catch { /* nem baj */ }
+        location.replace("./index.html");
+      });
+      window.opener.postMessage({ type: "bt-imp-ready" }, location.origin);
+    }
+  </script>
+</body>
+</html>
