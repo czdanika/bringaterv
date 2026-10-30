@@ -13,7 +13,7 @@
 const OPEN_METEO_URL  = "https://api.open-meteo.com/v1/forecast";
 const SAMPLE_INTERVAL = 10000;   // m – ~10 km (preferált hosszabb route-on)
 const MIN_SEGMENTS    = 4;       // legalább ennyi szegmens (rövid route-ra is)
-const MAX_SAMPLES     = 30;      // max párhuzamos API hívás
+const MAX_SAMPLES     = 30;      // max mintapont (egy kérésben megy)
 const TZ              = "Europe/Budapest";
 
 export const WIND_MODES  = { TAIL: "tail", CROSS: "cross", HEAD: "head" };
@@ -91,21 +91,49 @@ function sampleGeometry(geometry) {
 
 
 /**
- * Open-Meteo lekérdezés egyetlen koordinátára, 7 napos hourly bontásban.
+ * Open-Meteo előrejelzések a mintapontokra, 7 napos hourly bontásban.
+ * - Egyetlen kérés az összes pontra (az API vesszővel elválasztott koordinátákat fogad) –
+ *   korábban pontonként külön, egyszerre akár 30 kérés ment, amire az Open-Meteo 429-cel válaszolt.
+ * - A pontok ~0,05°-os (kb. 4–5 km) rácsra kerekítve, így a közeli pontok egy előrejelzést
+ *   kapnak (a modell felbontása úgyis ekkora).
+ * - 30 perces gyorsítótár: indulási idő / sebesség / kisebb útvonal-módosítás nem kér újra.
  */
-async function fetchForecast(lat, lng) {
-  const params = new URLSearchParams({
-    latitude:  lat.toFixed(5),
-    longitude: lng.toFixed(5),
-    hourly:    "wind_speed_10m,wind_direction_10m,temperature_2m,precipitation_probability,cloudcover",
-    timezone:  TZ,
-    forecast_days: "7",
-    wind_speed_unit: "kmh",
+const GRID = 0.05;
+const CACHE_MS = 30 * 60 * 1000;
+const _forecastCache = new Map();   // "lat,lng" → { at, data }
+
+const gridKey = (lat, lng) => `${(Math.round(lat / GRID) * GRID).toFixed(2)},${(Math.round(lng / GRID) * GRID).toFixed(2)}`;
+
+async function fetchForecasts(points) {
+  const keys = points.map((p) => gridKey(p.lat, p.lng));
+  const now = Date.now();
+  const missing = [...new Set(keys)].filter((k) => !(_forecastCache.get(k)?.at > now - CACHE_MS));
+  for (let i = 0; i < missing.length; i += 50) {
+    const part = missing.slice(i, i + 50);
+    const params = new URLSearchParams({
+      latitude:  part.map((k) => k.split(",")[0]).join(","),
+      longitude: part.map((k) => k.split(",")[1]).join(","),
+      hourly:    "wind_speed_10m,wind_direction_10m,temperature_2m,precipitation_probability,cloudcover",
+      timezone:  TZ,
+      forecast_days: "7",
+      wind_speed_unit: "kmh",
+    });
+    let res = await fetch(`${OPEN_METEO_URL}?${params}`);
+    if (res.status === 429) {   // pillanatnyi túlterhelés: egy újrapróba rövid várakozás után
+      await new Promise((r) => setTimeout(r, 2500));
+      res = await fetch(`${OPEN_METEO_URL}?${params}`);
+    }
+    if (res.status === 429) throw new Error("az időjárás-szolgáltatás (Open-Meteo) most túl sok kérést kapott – próbáld újra pár perc múlva.");
+    if (!res.ok) throw new Error(`az időjárás-szolgáltatás (Open-Meteo) hibát jelzett (${res.status}).`);
+    const json = await res.json();
+    const list = Array.isArray(json) ? json : [json];
+    part.forEach((k, j) => { if (list[j]) _forecastCache.set(k, { at: now, data: list[j] }); });
+  }
+  return keys.map((k) => {
+    const hit = _forecastCache.get(k);
+    if (!hit) throw new Error("hiányzó előrejelzés.");
+    return hit.data;
   });
-  const url = `${OPEN_METEO_URL}?${params}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
-  return res.json();
 }
 
 
@@ -206,8 +234,8 @@ export async function analyzeWind(geometry, departureTime, avgSpeedKmh) {
   const samples = sampleGeometry(geometry);
   if (samples.length < 2) throw new Error("Túl rövid útvonal a szélelemzéshez.");
 
-  // Párhuzamos API hívások – egy sample = egy forecast
-  const forecasts = await Promise.all(samples.map(s => fetchForecast(s.point.lat, s.point.lng)));
+  // Egyetlen (gyorsítótárazott) Open-Meteo kérés az összes mintapontra
+  const forecasts = await fetchForecasts(samples.map((s) => s.point));
 
   let withinForecast = true;
   const segments = [];

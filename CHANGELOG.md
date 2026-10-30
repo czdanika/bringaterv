@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.25.1 – 2026-10-30 – Szélelemzés: kevesebb időjárás-lekérdezés
+
+### Verzió
+
+- **Szélelemzés:** az útvonal összes pontjára egyetlen Open-Meteo kérés megy (korábban pontonként külön, egyszerre akár 30), a közeli pontok közös előrejelzést kapnak, és fél órás gyorsítótár miatt az indulási idő, a sebesség vagy kisebb útvonal-módosítás nem kér újra. Így megszűnik a „HTTP 429” (túl sok kérés) hiba; ha mégis előfordul, egyszer újrapróbál, és érthető üzenetet ad.
+
+---
+
 ## v1.25.0 – 2026-10-30 – Saját burkolat-adatbázis, pontosabb útvonal-javaslat
 
 ### Verzió
