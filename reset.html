@@ -246,7 +246,7 @@
       <input type="text" id="resetLogin" autocomplete="username" hidden>
       <div class="input-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <input id="password" type="password" placeholder="Új jelszó (min. 8 karakter)" autocomplete="new-password">
+        <input id="password" type="password" placeholder="Új jelszó (8+ karakter, nagybetű, szám, spec. karakter)" autocomplete="new-password">
       </div>
       <div class="input-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -311,7 +311,7 @@
       const btn = e.target.querySelector("button"), err = $("resetError");
       err.textContent = "";
       const pw = $("password").value;
-      if (pw.length < 8) { err.textContent = "A jelszó legalább 8 karakter legyen."; return; }
+      if (pw.length < 8 || !/\p{Lu}/u.test(pw) || !/\d/.test(pw) || !/[^\p{L}\p{N}\s]/u.test(pw)) { err.textContent = "A jelszóhoz kell: legalább 8 karakter, nagybetű, szám és speciális karakter."; return; }
       if (pw !== $("password2").value) { err.textContent = "A két jelszó nem egyezik."; return; }
       btn.disabled = true; btn.textContent = "Mentés…";
       try {

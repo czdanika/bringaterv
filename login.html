@@ -201,6 +201,9 @@
 
     .forgot-link { display: block; margin-top: 14px; text-align: center; font-size: 13px; color: rgba(0,0,0,.55); text-decoration: none; }
     .forgot-link:hover { color: #fc4c02; text-decoration: underline; }
+    .register-link { margin-top: 10px; text-align: center; font-size: 13px; color: rgba(0,0,0,.55); }
+    .register-link a { color: #fc4c02; font-weight: 600; text-decoration: none; }
+    .register-link a:hover { text-decoration: underline; }
     .card-footer {
       margin-top: 14px;
       font-size: 11px;
@@ -250,6 +253,7 @@
 
       <button class="login-btn" type="submit" disabled>Belépés</button>
       <a class="forgot-link" href="./reset">Elfelejtetted a jelszavad?</a>
+      <p class="register-link" id="registerLink" hidden>Nincs fiókod? <a href="./register">Regisztrálj</a></p>
     </form>
 
     <p class="card-footer">Bringaterv &nbsp;·&nbsp; <span id="loginVersion"></span> &nbsp;·&nbsp; © Czibolya Dániel 2026</p>
@@ -273,8 +277,13 @@
     const btn     = form.querySelector(".login-btn");
     const consent = document.getElementById("privacyConsent");
 
+    // „Nincs fiókod? Regisztrálj” – csak ha az admin bekapcsolta a nyílt regisztrációt
+    fetch("/api/register/status").then((r) => r.json()).then((d) => {
+      document.getElementById("registerLink").hidden = !d.open;
+    }).catch(() => {});
+
     // Az adatkezelési tájékoztató verziója – ha változik, újra kell pipálni
-    const PRIVACY_VERSION = "2026-06";
+    const PRIVACY_VERSION = "2026-10";
     const ACCEPT_KEY = "bringaterv.privacyAccepted";
 
     // Korábban elfogadta-e (azonos verziót)? Akkor előre bepipáljuk.

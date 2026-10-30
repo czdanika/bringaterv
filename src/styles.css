@@ -8064,3 +8064,6 @@ body.is-suggesting .map-start-hint { display: none !important; }
   .sc-preview { position: sticky; top: 0; z-index: 2; }
   .sc-preview canvas { max-height: min(36dvh, 340px); }
 }
+/* Megosztó ablak: nyilvános link kapcsoló */
+.share-pub-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.share-pub-off { font-size: 12.5px; color: var(--muted); line-height: 1.45; padding: 8px 10px; border-radius: 10px; background: var(--panel-strong); }

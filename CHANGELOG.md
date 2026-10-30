@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.24.0 – 2026-10-30 – Nyílt regisztráció, nyilvános link kapcsoló, fejlesztési fa az adminban
+
+### Verzió
+
+- **Nyílt regisztráció:** a belépő oldalon „Nincs fiókod? Regisztrálj” link, külön regisztrációs oldal (név, e-mail, jelszó) az adatkezelési tájékoztató kötelező elfogadásával; az admin a „Regisztráció” fülön (korábban „Meghívók”) be- és kikapcsolhatja – kikapcsolva „A regisztráció jelenleg nem elérhető” üzenet jelenik meg. Botvédelem (rejtett csapdamező, óránkénti korlát IP-címenként), új regisztrációról értesítés az adminoknak.
+- **Erős jelszó:** legalább 8 karakter, nagybetű, szám és speciális karakter – regisztrációnál, meghívós regisztrációnál, jelszócserénél és jelszó-visszaállításnál is; a regisztrációs oldalon élő ellenőrzőlista mutatja, mi hiányzik.
+- **Adatkezelési tájékoztató:** átdolgozva – AI-elemzés, külső szolgáltatások (térképek, betűtípusok, push-értesítés, e-mail, Anthropic, közösségi megosztás), az adatkategóriák és a megosztott linkek pontos leírása; új változat (2026. október), amit belépéskor újra el kell fogadni.
+- **Nyilvános link kapcsoló:** a megosztás ablakban ki- és bekapcsolható, hogy a tervhez tartozó link bárki számára megnyitható legyen-e; a PDF és a megosztó kép QR-kódja bekapcsolja. A meglévő megosztott linkek nyilvánosak maradnak.
+- **Admin – Fejlesztések:** új fül a fejlesztési ötletek fájával területenként (kezelőfelület, tervezés, elemzés, könyvtár, statisztika, AI, háttérfeladatok, térképszolgáltatások, üzemeltetés, biztonság, integrációk, dokumentáció); pipával jelölhető, ami elkészült, verziószámmal. Új ötlet, alpont, szerkesztés, áthelyezés másik szülő vagy terület alá, törlés; szűrés és keresés; exportálás és importálás JSON-fájlba.
+- **Ötlet AI-val:** szabad szöveges ötletből az AI javaslatot ad a fába: elhelyezi a megfelelő terület vagy elem alá, megfogalmazza, szükség esetén több elemre bontja, és jelzi, ha már szerepel a fában. Jóváhagyás előtt minden átírható, és semmi nem kerül be.
+- **Szélelemzés betöltött útvonaltervnél:** a Tervezésbe betöltött GPX-tervnél is elérhető (korábban csak a kézzel rakott pontoknál).
+- **AI-hívások:** legfeljebb 85 másodpercig várnak és nem ismétlődnek, így a Cloudflare 100 másodperces korlátja előtt mindig érthető üzenet jön.
+- **Súgó:** a nyilvános link kapcsoló leírása.
+
+---
+
 ## v1.23.1 – 2026-10-29 – Súgó és bemutató az új funkciókkal
 
 ### Verzió

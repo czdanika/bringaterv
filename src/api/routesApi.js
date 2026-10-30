@@ -166,6 +166,10 @@ export const routesApi = {
    * @param {{ name?: string, type?: string, description?: string }} fields
    * @returns {Promise<object>} frissített bejegyzés
    */
+  /** Nyilvános megosztási link állapota / be-ki kapcsolása. */
+  getRoutePublic(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/public`); },
+  setRoutePublic(id, on) { return this.updateRoute(id, { public: !!on }); },
+
   updateRoute(id, fields) {
     return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -308,6 +312,14 @@ export const routesApi = {
     createUser(data)                  { return fetchJson(`${BASE}/admin/users`, { method: "POST", body: JSON.stringify(data) }); },
     getUser(id)                       { return fetchJson(`${BASE}/admin/users/${id}`); },
     updateUser(id, data)              { return fetchJson(`${BASE}/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }); },
+    roadmapList()                     { return fetchJson(`${BASE}/admin/roadmap`); },
+    roadmapCreate(data)               { return fetchJson(`${BASE}/admin/roadmap`, { method: "POST", body: JSON.stringify(data) }); },
+    roadmapUpdate(id, data)           { return fetchJson(`${BASE}/admin/roadmap/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data) }); },
+    roadmapDelete(id)                 { return fetchJson(`${BASE}/admin/roadmap/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+    roadmapAi(idea)                   { return fetchJson(`${BASE}/admin/roadmap/ai`, { method: "POST", body: JSON.stringify({ idea }) }); },
+    roadmapImport(data)               { return fetchJson(`${BASE}/admin/roadmap/import`, { method: "POST", body: JSON.stringify(data) }); },
+    siteGet()                         { return fetchJson(`${BASE}/admin/site`); },
+    sitePut(data)                     { return fetchJson(`${BASE}/admin/site`, { method: "PUT", body: JSON.stringify(data) }); },
     aiGet()                           { return fetchJson(`${BASE}/admin/ai`); },
     aiPut(data)                       { return fetchJson(`${BASE}/admin/ai`, { method: "PUT", body: JSON.stringify(data) }); },
     aiSampleDescription(data)         { return fetchJson(`${BASE}/admin/ai/sample-description`, { method: "POST", body: JSON.stringify(data) }); },

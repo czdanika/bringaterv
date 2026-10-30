@@ -218,6 +218,11 @@ def update_route(route_id: str):
     if "type"        in data: entry["type"]        = data["type"]
     if "description" in data: entry["description"] = (data["description"] or "").strip()
     if "include_in_stats" in data: entry["include_in_stats"] = bool(data["include_in_stats"])
+    if "public" in data:
+        # nyilvános megosztási link be / ki (a /view.html?route=<id> csak bekapcsolva működik)
+        entry["public"] = bool(data["public"])
+        if entry["public"]:
+            entry.setdefault("shared_at", _now_dt())
     if "surface" in data:
         surface = _clean_surface(data["surface"])
         if surface: entry["surface"] = surface
@@ -227,6 +232,18 @@ def update_route(route_id: str):
     except OSError:
         abort(500)
     return jsonify(entry)
+
+
+@bp.route("/api/routes/<route_id>/public", methods=["GET"])
+@require_auth
+def route_public_state(route_id: str):
+    """A nyilvános megosztási link állapota (a megosztó ablak kapcsolójához)."""
+    route_id = _safe_id(route_id)
+    _, idx = _resolve_dirs()
+    entry = next((r for r in _load_index(idx) if r.get("id") == route_id), None)
+    if not entry:
+        abort(404, description="Útvonal nem található.")
+    return jsonify({"public": entry.get("public") is True, "shared_at": entry.get("shared_at")})
 
 
 @bp.route("/api/routes/<route_id>", methods=["DELETE"])

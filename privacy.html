@@ -68,52 +68,80 @@
 
     <div class="card">
       <h1>Adatkezelési tájékoztató</h1>
-      <p class="updated">Hatályos: 2026. június</p>
+      <p class="updated">Hatályos: 2026. október 30.</p>
 
       <p class="lead">
         A Bringaterv <strong>önhosztolt</strong> alkalmazás: az adataidat a szerver
         üzemeltetője (a telepítő) tárolja a saját szerverén – nem egy külső
-        felhőszolgáltatónál. Harmadik félnek marketing célból adatot nem adunk át.
+        felhőszolgáltatónál. Harmadik félnek marketing célból adatot nem adunk át,
+        hirdetést nem jelenítünk meg, és nem követünk analitikai eszközökkel.
       </p>
 
       <h2>Milyen adatokat kezelünk</h2>
       <table>
         <tr><th>Kategória</th><th>Konkrét adatok</th></tr>
-        <tr><td>Fiók</td><td>email-cím, név, jelszó (kizárólag titkosított <em>hash</em> formában), szerepkör. Az e-mail-címre csak a fiókhoz tartozó leveleket küldjük (cím megerősítése, elfelejtett jelszó) – hírlevelet és reklámot nem.</td></tr>
-        <tr><td>Belépési napló</td><td>belépések időpontja és IP-cím</td></tr>
-        <tr><td>Beállítások / biometria</td><td>születési év, testsúly, pulzuszónák (nyugalmi/maximális pulzus); Garmin-mérleg esetén testsúly és testzsír%</td></tr>
-        <tr><td>Útvonalak és edzések</td><td>az általad mentett GPS-nyomvonalak (ezekből helyszínek és szokások kiderülhetnek)</td></tr>
-        <tr><td>Fióktörlés</td><td>ha törlöd a fiókod, minden adatod véglegesen törlődik; csak az általad megadott törlési ok és megjegyzés marad meg az üzemeltetőnél (a neveddel és e-mail-címeddel), a visszajelzésekkel együtt.</td></tr>
+        <tr><td>Fiók</td><td>e-mail-cím, név, jelszó (kizárólag titkosított <em>hash</em> formában), szerepkör, a fiók létrehozásának ideje. Az e-mail-címre csak a fiókhoz tartozó leveleket küldjük (cím megerősítése, elfelejtett jelszó, meghívó, az üzemeltető üzenete) – hírlevelet és reklámot nem.</td></tr>
+        <tr><td>Regisztráció és belépés</td><td>a belépések időpontja és IP-címe; regisztrációkor a regisztráció ténye és IP-címe a szerver naplójában. A visszaélések kiszűrésére az IP-címet rövid ideig (legfeljebb egy óráig) a memóriában is számon tartjuk.</td></tr>
+        <tr><td>Beállítások / biometria</td><td>születési év, testsúly, pulzuszónák (nyugalmi/maximális pulzus), kerékpáros profil; Garmin-mérleg esetén testsúly és testzsír%</td></tr>
+        <tr><td>Útvonalak és edzések</td><td>az általad mentett vagy Stravából / Garminból importált nyomvonalak és edzésadatok (idő, sebesség, pulzus, kadencia, teljesítmény, kalória) – ezekből helyszínek és szokások kiderülhetnek</td></tr>
+        <tr><td>AI-elemzések</td><td>ha kéred, az edzéshez készült AI-értékelés szövege és az általad megadott megjegyzés (az edzéssel együtt tárolva), valamint a kérések naplója (időpont, mennyiség, becsült költség) a napi keret számításához</td></tr>
+        <tr><td>Értesítések</td><td>ha engedélyezed, az eszközeid push-feliratkozási adatai és az értesítési beállításaid</td></tr>
+        <tr><td>Megosztás és közösség</td><td>ha bekapcsolod a nyilvános linket (vagy QR-kódos PDF-et / képet készítesz), aki megkapja a linket, bejelentkezés nélkül megnézheti a nyomvonalat és a fő adatokat; a megosztás útvonalanként bármikor kikapcsolható, az újonnan mentett útvonalak alapból nem nyilvánosak; a közösbe beküldött útvonal nyomvonala, szintje és leírása, a választásod szerint a neveddel, becenévvel vagy névtelenül. Időpontok, pulzus és sebesség nem kerül át.</td></tr>
         <tr><td>Visszajelzések</td><td>az általad küldött hibajelentés / ötlet szövege, az esetleg csatolt képernyőkép, és ha engedted, technikai adatok (verzió, böngésző, képernyőméret). Az üzemeltető e-mailben is megkaphatja.</td></tr>
         <tr><td>Integrációk</td><td>a Strava / Garmin kapcsolat hozzáférési tokenjei – a fiókjaid jelszavát ezeknél <strong>nem</strong> tároljuk</td></tr>
+        <tr><td>Fióktörlés</td><td>ha törlöd a fiókod, minden adatod véglegesen törlődik; csak az általad megadott törlési ok és megjegyzés marad meg az üzemeltetőnél (a neveddel és e-mail-címeddel), a visszajelzésekkel együtt.</td></tr>
       </table>
 
       <h2>Hol és hogyan tároljuk</h2>
       <p>
-        Az adataid a szerveren maradnak – ott, ahová a Bringaterv telepítve van.
-        Nem szinkronizáljuk felhőbe, és nem adjuk tovább külső szolgáltatónak.
+        Az adataid a szerveren maradnak – ott, ahová a Bringaterv telepítve van. Nem
+        szinkronizáljuk őket felhőbe; külső szolgáltatóhoz csak az alább felsorolt
+        esetekben, a feladathoz szükséges mértékben kerül adat.
       </p>
       <p>
         A jelszavadat <strong>soha nem tároljuk olvasható formában</strong>: csak egy
         visszafejthetetlen, titkosított lenyomat készül belőle, így azt még az
         üzemeltető sem látja. A bejelentkezést egy ideiglenes belépési kulcs tartja
-        életben, a Strava- és Garmin-kapcsolat adatai pedig külön, védett fájlban
-        vannak. Éles használatra titkosított (HTTPS) kapcsolat ajánlott.
+        életben, a Strava- és Garmin-kapcsolat adatai, valamint az AI-szolgáltatás
+        kulcsa pedig külön, védett fájlban vannak. Éles használatra titkosított (HTTPS)
+        kapcsolat ajánlott.
+      </p>
+
+      <h2>AI-elemzés</h2>
+      <p>
+        Ha az üzemeltető bekapcsolta, és te kéred, az edzésedről rövid értékelést
+        készíthetsz mesterséges intelligenciával. Ilyenkor az edzés <strong>összesített
+        adatai</strong> – táv, idő, tempó, szint, pulzus- és szakaszonkénti adatok, a
+        megállások, néhány korábbi hasonló edzésed összesítője és az általad beírt
+        megjegyzés – az <strong>Anthropic</strong> (Claude) szolgáltatásához kerülnek
+        feldolgozásra. A nyers nyomvonal és a pontos koordináták nem.
+      </p>
+      <p>
+        Az elemzés csak akkor készül, ha megnyomod a gombot. Az AI-funkciókat a
+        <strong>Beállítások → AI-elemzés</strong> alatt magadnak kikapcsolhatod. Az
+        Anthropic adatkezeléséről a saját tájékoztatója rendelkezik.
       </p>
 
       <h2>Külső szolgáltatások</h2>
       <p>
         Ahhoz, hogy a térkép betöltődjön, az útvonal kiszámolódjon vagy az időjárás
         megjelenjen, az alkalmazás néhány külső szolgáltatáshoz fordul. Ezek csak a
-        feladathoz szükséges adatot kapják (jellemzően koordinátákat és az IP-címedet):</p>
+        feladathoz szükséges adatot kapják (jellemzően koordinátákat és – mivel a
+        kérés a böngésződből indul – az IP-címedet):</p>
       <ul>
-        <li><strong>Térkép-csempék</strong> (OpenStreetMap, Carto, Esri/ArcGIS) – a megjelenített terület koordinátái</li>
-        <li><strong>Open-Meteo</strong> – szél- és időjárás-előrejelzés az útvonal pontjaira</li>
-        <li><strong>BRouter</strong> – útvonaltervezés a megadott pontok között</li>
-        <li><strong>Nominatim</strong> – helykeresés (a beírt keresőszöveg)</li>
-        <li><strong>Overpass</strong> – útburkolat-elemzés koordináták alapján</li>
+        <li><strong>Térkép-csempék</strong> (OpenStreetMap, CyclOSM, OpenTopoMap, Carto, Esri/ArcGIS) – a megjelenített terület</li>
+        <li><strong>BRouter</strong> – útvonaltervezés és útvonal-javaslat a megadott pontok között</li>
+        <li><strong>Nominatim</strong> (OpenStreetMap) – helykeresés (a beírt keresőszöveg), valamint pontok és útvonalak helynevei</li>
+        <li><strong>Overpass</strong> (OpenStreetMap) – útburkolat-vizsgálat a nyomvonal mentén</li>
+        <li><strong>Open-Meteo</strong> – időjárás és szél-előrejelzés a megadott helyekre</li>
+        <li><strong>unpkg</strong> – a térkép-, ikon- és PDF-könyvtárak betöltése</li>
+        <li><strong>Google Fonts</strong> – betűtípusok a belépő, regisztrációs és tájékoztató oldalakon</li>
+        <li><strong>GitHub</strong> – verzióellenőrzés (új kiadás elérhető-e)</li>
+        <li><strong>Push-szolgáltatók</strong> (a böngésződ gyártójáé, pl. Apple, Google, Mozilla) – csak ha engedélyezed az értesítéseket; az értesítés tartalma titkosítva halad át</li>
+        <li><strong>E-mail-szolgáltató</strong> – az üzemeltető által beállított levelezőszerveren mennek ki a fiókhoz tartozó levelek</li>
+        <li><strong>Anthropic</strong> – AI-elemzés, csak ha kéred (lásd fent)</li>
         <li><strong>Strava / Garmin Connect</strong> – csak ha kifejezetten csatlakoztatod a fiókodat</li>
-        <li><strong>GitHub</strong> – verzióellenőrzés</li>
+        <li><strong>Közösségi oldalak</strong> (Facebook, X, WhatsApp, Telegram) – csak ha a megosztás gombbal oda küldesz egy linket</li>
       </ul>
 
       <h2>Megőrzés és a te jogaid</h2>
@@ -121,7 +149,8 @@
       <ul>
         <li><strong>Letöltöd:</strong> a teljes adatodat egyetlen kattintással mentheted (Beállítások → Backup).</li>
         <li><strong>Lecsatolod:</strong> a Strava- és Garmin-kapcsolatot bármikor megszüntetheted a Beállításokban.</li>
-        <li><strong>Törölheted:</strong> a fiókodat és minden adatodat magad is törölheted (Beállítások → Fiók → Fiók törlése), vagy kérheted az üzemeltetőtől.</li>
+        <li><strong>Kikapcsolod:</strong> az AI-elemzést és az értesítéseket a Beállításokban, a nyilvános linket az adott útvonal Megosztás ablakában.</li>
+        <li><strong>Törölheted:</strong> az egyes útvonalakat, edzéseket és AI-elemzéseket egyenként, a fiókodat és minden adatodat pedig egyben (Beállítások → Fiók → Fiók törlése), vagy kérheted az üzemeltetőtől.</li>
       </ul>
 
       <h2 data-contact hidden>Kapcsolat</h2>

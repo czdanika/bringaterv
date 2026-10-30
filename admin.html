@@ -291,6 +291,84 @@
     .sample-desc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
     .sample-desc-head .form-label { margin: 0; }
     .sample-ai-btn { padding: 4px 9px; font-size: 12px; gap: 5px; color: var(--brand); }
+    /* Fejlesztések: fa – törzs a bal oldalon, róla ágaznak a területek és az ötletek */
+    .rm-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 0 20px 6px; }
+    .rm-total { display: flex; align-items: center; gap: 12px; }
+    .rm-total b { font-size: 22px; font-variant-numeric: tabular-nums; }
+    .rm-total small { display: block; color: var(--muted); font-size: 12px; }
+    .rm-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 20px 4px; }
+    .rm-seg { display: flex; background: var(--panel-strong); border-radius: 10px; padding: 3px; }
+    .rm-seg button { border: 0; background: none; padding: 6px 12px; border-radius: 8px; font: inherit; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; }
+    .rm-seg button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .rm-search { flex: 1 1 200px; min-width: 0; height: 34px; padding: 0 12px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13.5px; }
+    .rm-status { padding: 2px 20px; font-size: 12.5px; color: var(--muted); min-height: 18px; }
+    .rm-tree { position: relative; margin: 8px 20px 20px; padding-left: 28px; }
+    .rm-tree::before { content: ""; position: absolute; left: 10px; top: 6px; bottom: 16px; width: 3px; border-radius: 3px; background: #d4d6db; }
+    .rm-root { display: flex; align-items: center; gap: 10px; margin: 0 0 12px -28px; font-weight: 800; }
+    .rm-root i { width: 23px; height: 23px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px var(--panel); }
+    .rm-cat { position: relative; margin-bottom: 12px; }
+    .rm-cat::before { content: ""; position: absolute; left: -18px; top: 21px; width: 18px; height: 3px; background: #d4d6db; border-radius: 3px; }
+    .rm-card { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+    .rm-chead { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; border: 0; background: none; text-align: left; font: inherit; cursor: pointer; }
+    .rm-ico { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: rgba(252,76,2,.10); color: var(--brand); flex: none; }
+    .rm-ico svg { width: 15px; height: 15px; }
+    .rm-ctitle { flex: 1; min-width: 0; }
+    .rm-ctitle b { display: block; font-size: 14.5px; }
+    .rm-ctitle small { color: var(--muted); font-size: 12px; }
+    .rm-prog { display: flex; align-items: center; gap: 8px; flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .rm-meter { width: 80px; height: 6px; border-radius: 999px; background: var(--panel-strong); overflow: hidden; }
+    .rm-meter i { display: block; height: 100%; background: var(--green); }
+    .rm-chev { width: 15px; height: 15px; color: var(--muted); transition: transform .15s; flex: none; }
+    .rm-cat.open .rm-chev { transform: rotate(90deg); }
+    .rm-cbody { padding: 0 14px 12px 20px; }
+    .rm-cat:not(.open) .rm-cbody { display: none; }
+    .rm-items { position: relative; list-style: none; margin: 0; padding: 0 0 0 18px; }
+    .rm-items::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 14px; width: 2px; background: var(--border); }
+    .rm-item { position: relative; padding: 4px 0; }
+    .rm-item::before { content: ""; position: absolute; left: -14px; top: 16px; width: 12px; height: 2px; background: var(--border); }
+    .rm-row { display: flex; align-items: flex-start; gap: 10px; }
+    .rm-check { width: 21px; height: 21px; flex: none; margin-top: 1px; border-radius: 50%; border: 2px solid #9ca3af; background: var(--panel); display: grid; place-items: center; padding: 0; cursor: pointer; }
+    .rm-check svg { width: 12px; height: 12px; opacity: 0; color: #fff; }
+    .rm-item.done > .rm-row .rm-check { background: var(--green); border-color: var(--green); }
+    .rm-item.done > .rm-row .rm-check svg { opacity: 1; }
+    .rm-txt { flex: 1; min-width: 0; font-size: 14px; }
+    .rm-txt .t { font-weight: 600; }
+    .rm-item.done > .rm-row .t { color: var(--muted); }
+    .rm-txt .n { color: var(--muted); font-size: 12.5px; margin-top: 2px; white-space: pre-line; }
+    .rm-tag { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: #dcfce7; color: var(--green); vertical-align: 1px; }
+    .rm-tag.idea { background: rgba(252,76,2,.10); color: var(--brand); }
+    .rm-acts { display: flex; gap: 2px; flex: none; opacity: .45; transition: opacity .15s; }
+    .rm-item:hover > .rm-row .rm-acts, .rm-item:focus-within > .rm-row .rm-acts { opacity: 1; }
+    @media (hover: none) { .rm-acts { opacity: .8; } }
+    .rm-ibtn { border: 0; background: none; color: var(--muted); padding: 4px; border-radius: 6px; display: grid; place-items: center; cursor: pointer; }
+    .rm-ibtn:hover { background: var(--panel-strong); color: var(--text); }
+    .rm-ibtn svg { width: 14px; height: 14px; }
+    .rm-ibtn.danger { color: var(--red); }
+    .rm-items .rm-items { margin-top: 4px; }
+    .rm-add { margin-top: 8px; border: 1px dashed var(--border); background: none; border-radius: 9px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+    .rm-add:hover { color: var(--brand); border-color: var(--brand); }
+    .rm-form { margin-top: 8px; display: grid; gap: 7px; padding: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+    .rm-form input, .rm-form textarea, .rm-form select { width: 100%; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--border); font: inherit; font-size: 13.5px; background: var(--panel); }
+    .rm-form textarea { resize: vertical; min-height: 54px; }
+    .rm-frow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .rm-frow select, .rm-frow input { flex: 1 1 180px; width: auto; }
+    .rm-confirm { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+    .rm-empty { color: var(--muted); font-size: 13px; padding: 4px 0; }
+    .rm-ai { margin: 6px 20px 4px; padding: 12px 14px; border-radius: 12px; background: rgba(252,76,2,.05); border: 1px solid rgba(252,76,2,.25); display: grid; gap: 8px; }
+    .rm-ai-lbl { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--brand); }
+    .rm-ai textarea { width: 100%; padding: 8px 10px; border-radius: 9px; border: 1.5px solid var(--border); font: inherit; font-size: 14px; resize: vertical; background: var(--panel); }
+    .rm-ai-hint { font-size: 12px; color: var(--muted); }
+    .rm-sug { display: grid; gap: 8px; }
+    .rm-sug-h { font-size: 13px; font-weight: 700; }
+    .rm-sug-item { display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); }
+    .rm-sug-item.sub { margin-left: 22px; }
+    .rm-sug-where { font-size: 12px; color: var(--muted); }
+    .rm-sug-where b { color: var(--text); font-weight: 600; }
+    .rm-sug-item input, .rm-sug-item textarea, .rm-sug-item select { width: 100%; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1.5px solid var(--border); font: inherit; font-size: 13.5px; background: var(--panel); }
+    .rm-sug-item input { font-weight: 600; }
+    .rm-sug-item textarea { resize: vertical; min-height: 44px; }
+    .rm-dup { padding: 8px 10px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 12.5px; }
+    .rm-item.rm-new > .rm-row .t { color: var(--brand); }
     /* AI fül */
     .ai-state { font-size: 13px; font-weight: 600; }
     .ai-state.is-on { color: var(--green); } .ai-state.is-off { color: var(--muted); }
@@ -467,11 +545,12 @@
 
     <nav class="admin-tabs" role="tablist">
       <button class="admin-tab is-active" data-section="users" role="tab" type="button">Felhasználók</button>
-      <button class="admin-tab" data-section="invites" role="tab" type="button">Meghívók</button>
+      <button class="admin-tab" data-section="invites" role="tab" type="button">Regisztráció</button>
       <button class="admin-tab" data-section="feedback" role="tab" type="button">Visszajelzések <span class="tab-count" id="fbNewCount" hidden></span></button>
       <button class="admin-tab" data-section="submissions" role="tab" type="button">Beküldések <span class="tab-count" id="subPendingCount" hidden></span></button>
       <button class="admin-tab" data-section="samples" role="tab" type="button">Közösségi útvonalak</button>
       <button class="admin-tab" data-section="ai" role="tab" type="button">AI</button>
+      <button class="admin-tab" data-section="roadmap" role="tab" type="button">Fejlesztések</button>
       <button class="admin-tab" data-section="help" role="tab" type="button">Súgó</button>
     </nav>
 
@@ -512,6 +591,13 @@
 
     <!-- Meghívók -->
     <section class="admin-section" data-section="invites" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Nyílt regisztráció</span>
+          <label class="ai-switch" title="Nyílt regisztráció be / ki"><input type="checkbox" id="regOpenToggle"><span></span></label>
+        </div>
+        <p class="panel-desc" id="regOpenDesc">Bekapcsolva a belépő oldalon megjelenik a „Nincs fiókod? Regisztrálj” link, és bárki létrehozhat fiókot a <b>/register</b> címen (e-mail, jelszó, név; erős jelszó és az adatkezelési tájékoztató elfogadása kötelező, e-mail-megerősítéssel). Kikapcsolva a /register oldal ezt írja ki: „A regisztráció jelenleg nem elérhető.” A meghívós regisztráció mindkét esetben működik. Új regisztrációról push-értesítést kapsz.</p>
+      </div>
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">Meghívók</span>
@@ -557,6 +643,47 @@
           <span class="ai-hint">üres limit = alapérték · 0 = tiltva</span>
         </div>
         <div id="aiUsersWrap" style="overflow-x:auto"><div class="loading">Betöltés…</div></div>
+      </div>
+    </section>
+
+    <!-- Fejlesztési fa: ötletek és megvalósult funkciók területenként -->
+    <section class="admin-section" data-section="roadmap" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Fejlesztések</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost" id="rmExportBtn" type="button" title="Az összes elem letöltése JSON-fájlba (mentéshez, másik szerverre átvitelhez)">Exportálás</button>
+            <button class="btn btn-ghost" id="rmImportBtn" type="button" title="Elemek betöltése JSON-fájlból – az azonos azonosítójúakat frissíti">Importálás…</button>
+            <input type="file" id="rmImportFile" accept="application/json,.json" hidden>
+          </div>
+        </div>
+        <div class="rm-head">
+          <p class="panel-desc" style="padding:0;margin:0;max-width:62ch">Minden ötlet és fejlesztés területenként: ami kész, zöld pipát kap, ami még csak terv, üres kört. Új ötletet bármelyik ághoz felvehetsz, egy elem alá alpontot is.</p>
+          <div class="rm-total">
+            <svg width="54" height="54" viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#eceef1" stroke-width="7"/>
+              <circle id="rmRing" cx="32" cy="32" r="26" fill="none" stroke="#16a34a" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 163.4" transform="rotate(-90 32 32)"/>
+            </svg>
+            <div><b id="rmPct">–</b><small id="rmTotal">betöltés…</small></div>
+          </div>
+        </div>
+        <div class="rm-ai" id="rmAi" hidden>
+          <label class="rm-ai-lbl" for="rmAiIdea">Új ötlet AI-val</label>
+          <textarea id="rmAiIdea" rows="2" maxlength="2000" placeholder="Írd le az ötletet, ahogy eszedbe jut – az AI elhelyezi a fában, szépen megfogalmazza, és ha kell, több elemre bontja."></textarea>
+          <div class="rm-frow"><button class="btn btn-primary" id="rmAiGo" type="button">Feldolgozás AI-val</button><span class="rm-ai-hint" id="rmAiHint">A javaslat jóváhagyás előtt nem kerül a fába.</span></div>
+          <div id="rmAiResult"></div>
+        </div>
+        <div class="rm-bar">
+          <div class="rm-seg" role="radiogroup" aria-label="Szűrés">
+            <button type="button" data-rm-filter="all" class="on">Mind</button>
+            <button type="button" data-rm-filter="todo">Nyitott</button>
+            <button type="button" data-rm-filter="done">Kész</button>
+          </div>
+          <input id="rmSearch" class="rm-search" type="search" placeholder="Keresés az ötletek között…" aria-label="Keresés">
+          <button type="button" class="btn btn-ghost" id="rmToggleAll">Mind becsuk</button>
+        </div>
+        <div class="rm-status" id="rmStatus"></div>
+        <div class="rm-tree"><div class="rm-root"><i></i>Bringaterv</div><div id="rmCats"></div></div>
       </div>
     </section>
 
@@ -2093,6 +2220,273 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
     // (Strava app config: már nem az admin panelben, hanem per-user a Beállításokban)
 
+
+    // ── Fejlesztések (fejlesztési fa) ─────────────────────────────────────────
+    const RM_CATS = [
+      { id: "ui", name: "Kezelőfelület", desc: "Kinézet, navigáció, mobil, felugró ablakok", ico: "M3 4h18v12H3zM8 20h8M12 16v4" },
+      { id: "plan", name: "Tervezés", desc: "Útvonaltervező, javaslatok, burkolat, szél", ico: "M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" },
+      { id: "analysis", name: "Elemzés és edzés", desc: "Edzések elemzése, zónák, grafikonok", ico: "M3 3v18h18M7 14l4-4 4 4 5-6" },
+      { id: "library", name: "Könyvtár és közösség", desc: "Mentett útvonalak, közösségi minták, megosztás", ico: "M5 3h14v18l-7-4-7 4z" },
+      { id: "stats", name: "Statisztika", desc: "Összesítők, rekordok, évösszefoglaló", ico: "M5 20V10M12 20V4M19 20v-7" },
+      { id: "ai", name: "AI-funkciók", desc: "Claude-alapú elemzés és tervezés", ico: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" },
+      { id: "backend", name: "Háttérfeladatok", desc: "Szerveroldali logika, szinkron, ütemezés", ico: "M4 6h16M4 12h16M4 18h16" },
+      { id: "maps", name: "Saját térképszolgáltatások", desc: "Útvonaltervező, térkép, helykeresés saját szerveren", ico: "M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" },
+      { id: "ops", name: "Üzemeltetés és mentés", desc: "Mentés, költözés, méretezés, Cloudflare", ico: "M4 7h16v4H4zM4 13h16v4H4z" },
+      { id: "security", name: "Biztonság és adatvédelem", desc: "Fiókok, regisztráció, adatkezelés", ico: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" },
+      { id: "integr", name: "Integrációk", desc: "Strava, Garmin, értesítések, e-mail", ico: "M8 12h8M12 8v8M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0" },
+      { id: "docs", name: "Dokumentáció és bemutató", desc: "Súgó, bemutató oldal, képernyőképek", ico: "M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4" },
+    ];
+    const RM_ICON = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+    const RMI = { check: RM_ICON("M5 12l5 5L20 7"), chev: RM_ICON("M9 6l6 6-6 6"), sub: RM_ICON("M6 4v10a2 2 0 0 0 2 2h10M14 12l4 4-4 4"),
+                  edit: RM_ICON("M4 20h4L19 9l-4-4L4 16zM14 6l4 4"), del: RM_ICON("M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3") };
+    const rm = { items: new Map(), filter: "all", q: "", open: new Set(RM_CATS.map((c) => c.id)), form: null, edit: null, del: null, loaded: false };
+    try { const o = JSON.parse(localStorage.getItem("rm.open") || "null"); if (Array.isArray(o)) rm.open = new Set(o); } catch {}
+    const rmSaveOpen = () => { try { localStorage.setItem("rm.open", JSON.stringify([...rm.open])); } catch {} };
+    const rmKids = (cat, parent) => [...rm.items.values()].filter((i) => i.cat === cat && (i.parent || null) === (parent || null))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title, "hu"));
+    const rmMatch = (i) => (rm.filter === "all" || (rm.filter === "done") === (i.status === "done"))
+      && (!rm.q || `${i.title} ${i.note}`.toLowerCase().includes(rm.q.toLowerCase()));
+    const rmVisible = (i) => rmMatch(i) || rmKids(i.cat, i.id).some(rmVisible);
+    const rmStatus = (t) => { document.querySelector("#rmStatus").textContent = t || ""; };
+
+    function rmAddForm(cat, parent) {
+      return `<form class="rm-form" data-rm-form="add" data-cat="${cat}" data-parent="${escHtml(parent || "")}">
+        <input name="title" required maxlength="140" placeholder="Az ötlet röviden">
+        <textarea name="note" maxlength="1500" placeholder="Részletek (nem kötelező)"></textarea>
+        <div class="rm-frow"><button class="btn btn-primary" type="submit">Felvétel</button><button class="btn btn-ghost" type="button" data-rm="cancel">Mégse</button></div></form>`;
+    }
+    function rmPlaceOptions(i) {
+      // a saját maga és az alpontjai alá nem tehető
+      const banned = new Set([i.id]), stack = [i.id];
+      while (stack.length) { const id = stack.pop(); for (const x of rm.items.values()) if (x.parent === id && !banned.has(x.id)) { banned.add(x.id); stack.push(x.id); } }
+      const sub = (cat, parent, depth) => rmKids(cat, parent).filter((x) => !banned.has(x.id)).map((x) =>
+        `<option value="item:${escHtml(x.id)}" ${i.parent === x.id ? "selected" : ""}>${"\u00a0\u00a0".repeat(depth)}↳ ${escHtml(x.title.length > 60 ? x.title.slice(0, 58) + "…" : x.title)}</option>` + sub(cat, x.id, depth + 1)).join("");
+      return RM_CATS.map((c) => `<optgroup label="${c.name}"><option value="cat:${c.id}" ${!i.parent && c.id === i.cat ? "selected" : ""}>${c.name} – önálló elemként</option>${sub(c.id, null, 1)}</optgroup>`).join("");
+    }
+    function rmEditForm(i) {
+      return `<form class="rm-form" data-rm-form="edit" data-id="${escHtml(i.id)}">
+        <input name="title" required maxlength="140" value="${escHtml(i.title)}">
+        <textarea name="note" maxlength="1500" placeholder="Részletek">${escHtml(i.note || "")}</textarea>
+        <div class="rm-frow"><select name="place" aria-label="Hova kerüljön">${rmPlaceOptions(i)}</select>
+          <input name="version" maxlength="20" placeholder="Verzió (pl. v1.24.0)" value="${escHtml(i.version || "")}"></div>
+        <div class="rm-frow"><button class="btn btn-primary" type="submit">Mentés</button><button class="btn btn-ghost" type="button" data-rm="cancel">Mégse</button></div></form>`;
+    }
+    function rmItemHtml(i) {
+      const kids = rmKids(i.cat, i.id).filter(rmVisible);
+      const done = i.status === "done";
+      return `<li class="rm-item ${done ? "done" : ""}" data-id="${escHtml(i.id)}">
+        <div class="rm-row">
+          <button type="button" class="rm-check" data-rm="toggle" aria-pressed="${done}" title="${done ? "Megjelölés nyitottként" : "Megjelölés készként"}">${RMI.check}</button>
+          <div class="rm-txt">
+            ${rm.edit === i.id ? rmEditForm(i) : `<div class="t">${escHtml(i.title)}${done && i.version ? `<span class="rm-tag">${escHtml(i.version)}</span>` : ""}${!done && i.idea ? `<span class="rm-tag idea">új ötlet</span>` : ""}</div>
+            ${i.note ? `<div class="n">${escHtml(i.note)}</div>` : ""}`}
+            ${rm.del === i.id ? `<div class="rm-confirm">Törlöd${kids.length ? " az alpontjaival együtt" : ""}?
+              <button type="button" class="btn btn-danger" style="padding:4px 10px;font-size:12px" data-rm="del-yes">Törlés</button>
+              <button type="button" class="btn btn-ghost" style="padding:4px 10px;font-size:12px" data-rm="del-no">Mégse</button></div>` : ""}
+            ${rm.form?.parent === i.id ? rmAddForm(i.cat, i.id) : ""}
+          </div>
+          ${rm.edit === i.id ? "" : `<div class="rm-acts">
+            <button type="button" class="rm-ibtn" data-rm="sub" title="Alpont hozzáadása">${RMI.sub}</button>
+            <button type="button" class="rm-ibtn" data-rm="edit" title="Szerkesztés">${RMI.edit}</button>
+            <button type="button" class="rm-ibtn danger" data-rm="del" title="Törlés">${RMI.del}</button></div>`}
+        </div>
+        ${kids.length ? `<ul class="rm-items">${kids.map(rmItemHtml).join("")}</ul>` : ""}</li>`;
+    }
+    function renderRoadmap() {
+      const all = [...rm.items.values()], done = all.filter((i) => i.status === "done").length;
+      const pct = all.length ? Math.round(done / all.length * 100) : 0;
+      document.querySelector("#rmRing").setAttribute("stroke-dasharray", `${(163.4 * pct / 100).toFixed(1)} 163.4`);
+      document.querySelector("#rmPct").textContent = all.length ? `${pct}%` : "–";
+      document.querySelector("#rmTotal").textContent = all.length ? `${done} kész · ${all.length - done} nyitott` : (rm.loaded ? "még nincs elem – importáld a fájlt" : "betöltés…");
+      document.querySelector("#rmCats").innerHTML = RM_CATS.map((c) => {
+        const items = all.filter((i) => i.cat === c.id), cd = items.filter((i) => i.status === "done").length;
+        const roots = rmKids(c.id, null).filter(rmVisible);
+        if ((rm.filter !== "all" || rm.q) && !roots.length && items.length) return "";
+        const open = rm.open.has(c.id);
+        return `<section class="rm-cat ${open ? "open" : ""}" data-cat="${c.id}"><div class="rm-card">
+          <button type="button" class="rm-chead" data-rm="cat" aria-expanded="${open}">
+            <span class="rm-ico">${RM_ICON(c.ico)}</span>
+            <span class="rm-ctitle"><b>${c.name}</b><small>${c.desc}</small></span>
+            <span class="rm-prog"><span class="rm-meter"><i style="width:${items.length ? cd / items.length * 100 : 0}%"></i></span>${cd}/${items.length}</span>
+            <span class="rm-chev">${RMI.chev}</span></button>
+          <div class="rm-cbody">
+            ${roots.length ? `<ul class="rm-items">${roots.map(rmItemHtml).join("")}</ul>` : `<div class="rm-empty">Ebben az ágban még nincs ötlet.</div>`}
+            ${rm.form && rm.form.cat === c.id && !rm.form.parent ? rmAddForm(c.id, null) : `<button type="button" class="rm-add" data-rm="add">+ Új ötlet</button>`}
+          </div></div></section>`;
+      }).join("");
+      const f = document.querySelector("form[data-rm-form] input[name=title]");
+      if (f && !f.dataset.focused) { f.dataset.focused = "1"; f.focus(); }
+    }
+    // ── AI-ötletdoboz: szabad szöveg → elhelyezett, megfogalmazott elemek, jóváhagyással ──
+    let rmSug = null;   // {items: [{temp_id, cat, parent, title, note}], duplicates: [...]}
+    const rmPath = (cat, parent) => {
+      const names = [RM_CATS.find((c) => c.id === cat)?.name || cat];
+      const chain = [];
+      let p = parent;
+      while (p) {
+        const ex = rm.items.get(p), nw = rmSug?.items.find((x) => x.temp_id === p);
+        if (ex) { chain.unshift(ex.title); p = ex.parent; } else if (nw) { chain.unshift(nw.title + " (új)"); p = nw.parent; } else break;
+      }
+      return [...names, ...chain].map((t) => `<b>${escHtml(t)}</b>`).join(" › ");
+    };
+    function renderRmSug() {
+      const box = document.querySelector("#rmAiResult");
+      if (!rmSug) { box.innerHTML = ""; return; }
+      const dups = rmSug.duplicates.map((d) => `<div class="rm-dup">Már szerepel: <b>${escHtml(d.title)}</b>${d.status === "done" ? ` – kész${d.version ? ` (${escHtml(d.version)})` : ""}` : " – tervben"}. ${escHtml(d.reason)}</div>`).join("");
+      const items = rmSug.items.map((it, i) => `<div class="rm-sug-item ${rmSug.items.some((x) => x.temp_id === it.parent) ? "sub" : ""}" data-sug="${i}">
+          <div class="rm-sug-where">Ide kerül: ${rmPath(it.cat, it.parent)}</div>
+          <input data-f="title" value="${escHtml(it.title)}" maxlength="140" aria-label="Cím">
+          <textarea data-f="note" maxlength="1500" placeholder="Leírás (nem kötelező)" aria-label="Leírás">${escHtml(it.note)}</textarea>
+          <div class="rm-frow">
+            <select data-f="cat" aria-label="Terület" ${it.parent ? "disabled title=\"Alpontként a szülő területén marad\"" : ""}>${RM_CATS.map((c) => `<option value="${c.id}" ${c.id === it.cat ? "selected" : ""}>${c.name}</option>`).join("")}</select>
+            ${it.parent ? `<button type="button" class="btn btn-ghost" data-sug-act="root" style="padding:5px 10px;font-size:12px" title="Ne alpontként, hanem a terület közvetlen elemeként">Önálló elem legyen</button>` : ""}
+            <button type="button" class="btn btn-ghost" data-sug-act="drop" style="padding:5px 10px;font-size:12px">Kihagyom</button>
+          </div></div>`).join("");
+      box.innerHTML = `<div class="rm-sug">
+        ${rmSug.items.length ? `<div class="rm-sug-h">Javaslat (${rmSug.items.length} elem)</div>` : ""}
+        ${dups}${items}
+        <div class="rm-frow">
+          ${rmSug.items.length ? `<button type="button" class="btn btn-primary" data-sug-act="save">Felvétel a fába</button>` : ""}
+          <button type="button" class="btn btn-ghost" data-sug-act="cancel">${rmSug.items.length ? "Elvetés" : "Bezárás"}</button>
+        </div></div>`;
+    }
+    document.querySelector("#rmAiGo").addEventListener("click", async (e) => {
+      const idea = document.querySelector("#rmAiIdea").value.trim();
+      const hint = document.querySelector("#rmAiHint");
+      if (idea.length < 3) { hint.textContent = "Írd le az ötletet."; return; }
+      const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Feldolgozás…";
+      hint.textContent = "Az AI elhelyezi az ötletet a fában (10–30 mp).";
+      try {
+        rmSug = await routesApi.admin.roadmapAi(idea);
+        hint.textContent = rmSug.items.length ? "Nézd át, írd át, ha kell, aztán vedd fel." : "Nincs új elem – lásd lent.";
+        renderRmSug();
+      } catch (ex) { hint.textContent = ex.message; }
+      finally { btn.disabled = false; btn.textContent = "Feldolgozás AI-val"; }
+    });
+    document.querySelector("#rmAiResult").addEventListener("input", (e) => {
+      const el = e.target.closest("[data-f]"), row = e.target.closest("[data-sug]");
+      if (!el || !row) return;
+      rmSug.items[+row.dataset.sug][el.dataset.f] = el.value;
+    });
+    document.querySelector("#rmAiResult").addEventListener("change", (e) => {
+      if (e.target.matches('select[data-f="cat"]')) renderRmSug();
+    });
+    document.querySelector("#rmAiResult").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-sug-act]"); if (!b) return;
+      const act = b.dataset.sugAct, row = b.closest("[data-sug]"), idx = row ? +row.dataset.sug : -1;
+      if (act === "cancel") { rmSug = null; renderRmSug(); return; }
+      if (act === "drop") {
+        const gone = rmSug.items[idx].temp_id;
+        rmSug.items.splice(idx, 1);
+        rmSug.items.forEach((x) => { if (x.parent === gone) x.parent = ""; });   // árva alpontok önállóak lesznek
+        renderRmSug(); return;
+      }
+      if (act === "root") { rmSug.items[idx].parent = ""; renderRmSug(); return; }
+      if (act === "save") {
+        b.disabled = true;
+        const idMap = {};
+        // a szülők előbb – egy új elem alá került új elem a szülője után jön
+        const pending = [...rmSug.items];
+        let guard = 0;
+        try {
+          while (pending.length && guard++ < 20) {
+            for (let i = 0; i < pending.length; i++) {
+              const it = pending[i];
+              const parent = it.parent ? (rm.items.has(it.parent) ? it.parent : idMap[it.parent]) : null;
+              if (it.parent && !parent) continue;            // a szülője még nincs meg
+              const created = await routesApi.admin.roadmapCreate({ cat: parent ? rm.items.get(parent)?.cat || it.cat : it.cat, parent, title: it.title.trim(), note: (it.note || "").trim() });
+              idMap[it.temp_id] = created.id; rm.items.set(created.id, created);
+              pending.splice(i, 1); i--;
+            }
+          }
+          rmStatus(`Felvéve: ${Object.keys(idMap).length} elem.`);
+          document.querySelector("#rmAiIdea").value = "";
+          document.querySelector("#rmAiHint").textContent = "A javaslat jóváhagyás előtt nem kerül a fába.";
+          const cats = new Set(rmSug.items.map((x) => x.cat)); cats.forEach((c) => rm.open.add(c));
+          rmSug = null; renderRmSug(); await loadRoadmap();
+          // az új elemek kiemelése
+          Object.values(idMap).forEach((id) => document.querySelector(`.rm-item[data-id="${id}"]`)?.classList.add("rm-new"));
+        } catch (ex) { rmStatus(ex.message); b.disabled = false; }
+      }
+    });
+
+    async function loadRoadmap() {
+      routesApi.aiStatus().then((st) => { document.querySelector("#rmAi").hidden = !st?.configured; }).catch(() => {});
+      try {
+        const r = await routesApi.admin.roadmapList();
+        rm.items = new Map(r.items.map((i) => [i.id, i]));
+      } catch (e) { rmStatus(e.message); }
+      rm.loaded = true; renderRoadmap();
+    }
+    async function rmCall(fn, okMsg) {
+      try { const r = await fn(); if (okMsg) rmStatus(okMsg); return r || true; }
+      catch (e) { rmStatus(e.message || "A mentés nem sikerült."); return null; }
+    }
+    document.querySelector('[data-section="roadmap"]').addEventListener("click", async (e) => {
+      const fb = e.target.closest("[data-rm-filter]");
+      if (fb) {
+        rm.filter = fb.dataset.rmFilter;
+        document.querySelectorAll("[data-rm-filter]").forEach((x) => x.classList.toggle("on", x === fb));
+        renderRoadmap(); return;
+      }
+      const b = e.target.closest("[data-rm]"); if (!b) return;
+      const act = b.dataset.rm, catEl = b.closest("[data-cat]"), id = b.closest("[data-id]")?.dataset.id, it = id && rm.items.get(id);
+      if (act === "cat") { const c = catEl.dataset.cat; rm.open.has(c) ? rm.open.delete(c) : rm.open.add(c); rmSaveOpen(); renderRoadmap(); }
+      else if (act === "add") { rm.form = { cat: catEl.dataset.cat, parent: null }; rm.edit = null; renderRoadmap(); }
+      else if (act === "sub" && it) { rm.form = { cat: it.cat, parent: it.id }; rm.edit = null; renderRoadmap(); }
+      else if (act === "edit" && it) { rm.edit = it.id; rm.form = null; renderRoadmap(); }
+      else if (act === "cancel") { rm.form = null; rm.edit = null; renderRoadmap(); }
+      else if (act === "del" && it) { rm.del = it.id; renderRoadmap(); }
+      else if (act === "del-no") { rm.del = null; renderRoadmap(); }
+      else if (act === "del-yes" && it) {
+        rm.del = null;
+        if (await rmCall(() => routesApi.admin.roadmapDelete(it.id), "Törölve.")) await loadRoadmap();
+      } else if (act === "toggle" && it) {
+        const next = it.status === "done" ? "todo" : "done";
+        const r = await rmCall(() => routesApi.admin.roadmapUpdate(it.id, { status: next }), next === "done" ? `Kész: ${it.title}` : `Újra nyitott: ${it.title}`);
+        if (r && r.id) { rm.items.set(r.id, r); renderRoadmap(); }
+      }
+    });
+    document.querySelector('[data-section="roadmap"]').addEventListener("submit", async (e) => {
+      const f = e.target.closest("form[data-rm-form]"); if (!f) return;
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(f));
+      if (f.dataset.rmForm === "add") {
+        const r = await rmCall(() => routesApi.admin.roadmapCreate({ cat: f.dataset.cat, parent: f.dataset.parent || null, title: d.title, note: d.note }), `Felvéve: ${d.title}`);
+        if (r && r.id) { rm.items.set(r.id, r); rm.form = null; renderRoadmap(); }
+      } else {
+        const [kind, ref] = String(d.place || "").split(":");
+        const place = kind === "item" ? { parent: ref } : { cat: ref, parent: null };
+        const r = await rmCall(() => routesApi.admin.roadmapUpdate(f.dataset.id, { title: d.title, note: d.note, version: d.version, ...place }), "Mentve.");
+        if (r) { rm.edit = null; if (r.cat) rm.open.add(r.cat); await loadRoadmap(); }
+      }
+    });
+    document.querySelector("#rmSearch").addEventListener("input", (e) => { rm.q = e.target.value.trim(); renderRoadmap(); });
+    document.querySelector("#rmToggleAll").addEventListener("click", (e) => {
+      const allOpen = RM_CATS.every((c) => rm.open.has(c.id));
+      rm.open = new Set(allOpen ? [] : RM_CATS.map((c) => c.id));
+      e.target.textContent = allOpen ? "Mind kinyit" : "Mind becsuk";
+      rmSaveOpen(); renderRoadmap();
+    });
+    document.querySelector("#rmExportBtn").addEventListener("click", () => {
+      const items = [...rm.items.values()].map(({ created_at, updated_at, ...rest }) => rest);
+      const blob = new Blob([JSON.stringify({ format: "bringaterv-roadmap", version: 1, items }, null, 1)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = `bringaterv-fejlesztesek-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+    document.querySelector("#rmImportBtn").addEventListener("click", () => document.querySelector("#rmImportFile").click());
+    document.querySelector("#rmImportFile").addEventListener("change", async (e) => {
+      const file = e.target.files[0]; e.target.value = "";
+      if (!file) return;
+      let data;
+      try { data = JSON.parse(await file.text()); } catch { rmStatus("A fájl nem érvényes JSON."); return; }
+      if (!Array.isArray(data.items)) { rmStatus("A fájlban nincs elemlista."); return; }
+      const replace = rm.items.size > 0 && confirm(`A fájlban ${data.items.length} elem van.\n\nOK: a jelenlegi lista CSERÉJE a fájl tartalmára.\nMégse: összefésülés (az azonos azonosítójúak frissülnek, a többi megmarad).`);
+      const r = await rmCall(() => routesApi.admin.roadmapImport({ items: data.items, mode: replace ? "replace" : "merge" }));
+      if (r) { rmStatus(`Betöltve: ${r.imported} elem.`); await loadRoadmap(); }
+    });
+
     // ── AI ────────────────────────────────────────────────────────────────────
     let _ai = null;
     const usd = (v) => `$${(v || 0).toFixed(2)}`;
@@ -2182,6 +2576,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (name === "feedback") loadFeedback();
       if (name === "submissions") loadSubmissions();
       if (name === "ai") loadAi();
+      if (name === "roadmap") loadRoadmap();
       try { history.replaceState(null, "", "#" + name); } catch {}
     }
     document.querySelectorAll(".admin-tab").forEach(t => t.addEventListener("click", () => showSection(t.dataset.section)));
@@ -2245,7 +2640,20 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     }
     const inviteUrl = (token) => `${shareBase()}/invite?t=${encodeURIComponent(token)}`;
 
+    // Nyílt regisztráció kapcsoló
+    const regToggle = document.querySelector("#regOpenToggle");
+    async function loadSiteSettings() {
+      try { regToggle.checked = !!(await routesApi.admin.siteGet()).registration_open; } catch {}
+    }
+    regToggle.addEventListener("change", async () => {
+      try {
+        const st = await routesApi.admin.sitePut({ registration_open: regToggle.checked });
+        regToggle.checked = !!st.registration_open;
+      } catch (e) { regToggle.checked = !regToggle.checked; alert(e.message); }
+    });
+
     async function loadInvites() {
+      loadSiteSettings();
       const wrap = document.querySelector("#invitesWrap");
       try {
         const list = await routesApi.admin.listInvites();

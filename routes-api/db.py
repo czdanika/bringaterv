@@ -5,7 +5,7 @@ import os
 import sqlite3
 import uuid
 
-from config import ADMIN_EMAIL, ADMIN_PASSWORD, DB_PATH, log
+from config import ADMIN_EMAIL, ADMIN_PASSWORD, DB_PATH, MULTI_DATA_DIR, log
 from security import _hash_pw
 from storage import (
     _migrate_single_routes_to_user,
@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 17
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -319,6 +319,47 @@ def _db_init_locked() -> None:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_ai_usage_user ON ai_usage(user_id, created_at)")
             conn.execute("PRAGMA user_version = 15")
             log.info("DB migrálva v15-re (AI-keret és -napló)")
+        if ver < 16:
+            # v16: a nyilvános megosztás útvonalanként kapcsolható. A már meglévő elemek
+            # nyilvánosak maradnak (a kiküldött linkek / kinyomtatott QR-kódok ne törjenek el);
+            # az újonnan mentettek alapból nem nyilvánosak.
+            import glob as _glob
+            changed = 0
+            for ix in _glob.glob(os.path.join(MULTI_DATA_DIR, "*", "routes", "index.json")):
+                try:
+                    with open(ix, encoding="utf-8") as f:
+                        data = json.load(f)
+                    if not isinstance(data, list):
+                        continue
+                    for e in data:
+                        if isinstance(e, dict) and "public" not in e:
+                            e["public"] = True; changed += 1
+                    tmp = ix + ".tmp"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    os.replace(tmp, ix)
+                except (OSError, json.JSONDecodeError) as exc:
+                    log.warning("v16 migráció hiba (%s): %s", ix, exc)
+            conn.execute("PRAGMA user_version = 16")
+            log.info("DB migrálva v16-ra (nyilvános megosztás jelző, %d meglévő elem nyilvános marad)", changed)
+        if ver < 17:
+            # v17: fejlesztési fa (admin → Fejlesztések): ötletek és megvalósult funkciók területenként
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS roadmap_items (
+                    id          TEXT    PRIMARY KEY,
+                    cat         TEXT    NOT NULL,
+                    parent      TEXT,
+                    title       TEXT    NOT NULL,
+                    note        TEXT    NOT NULL DEFAULT '',
+                    status      TEXT    NOT NULL DEFAULT 'todo',
+                    version     TEXT    NOT NULL DEFAULT '',
+                    ord         INTEGER NOT NULL DEFAULT 0,
+                    idea        INTEGER NOT NULL DEFAULT 0,
+                    created_at  TEXT    NOT NULL,
+                    updated_at  TEXT    NOT NULL
+                )""")
+            conn.execute("PRAGMA user_version = 17")
+            log.info("DB migrálva v17-re (fejlesztési fa)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

@@ -12,6 +12,7 @@
 
 import { exportRoutePdf } from "./routePdf.js";
 import { config } from "../config.js";
+import { routesApi } from "../api/routesApi.js";
 
 /**
  * Publikus megosztási alap-URL feloldása.
@@ -29,6 +30,21 @@ export function resolveShareBase() {
 export function shareRouteUrl(id) {
   return `${resolveShareBase()}/view.html?route=${encodeURIComponent(id)}`;
 }
+
+/** A link útvonal-azonosítója (view.html?route=<id>), vagy null. */
+export function routeIdFromShareUrl(url) {
+  try { return new URL(url).searchParams.get("route"); } catch { return null; }
+}
+
+/** QR-kódos kimenet előtt: a link bekapcsolása, különben a QR „nem található” oldalra vinne. */
+const _madePublic = new Set();
+export async function ensureLinkPublic(url) {
+  const id = url && routeIdFromShareUrl(url);
+  if (!id || _madePublic.has(id)) return;
+  try { await routesApi.setRoutePublic(id, true); _madePublic.add(id); }
+  catch (err) { console.warn("Nyilvános link bekapcsolása sikertelen:", err); }
+}
+export function forgetLinkPublic(id) { _madePublic.delete(id); }
 
 let _ctx = null;
 let _getDefaultMapStyle = () => "standard";
@@ -158,7 +174,9 @@ async function run(preview) {
   if (el.empty) el.empty.hidden = true;
   if (el.loading) { el.loading.hidden = false; el.status.textContent = "Előnézet készítése…"; }
   try {
-    const result = await exportRoutePdf(gatherOpts(preview));
+    const opts = gatherOpts(preview);
+    if (opts.includeQr && opts.shareUrl && !preview) await ensureLinkPublic(opts.shareUrl);
+    const result = await exportRoutePdf(opts);
     if (preview && result) {
       const blob = await (await fetch(result)).blob();
       if (_lastPreviewUrl) { try { URL.revokeObjectURL(_lastPreviewUrl); } catch (_) {} }

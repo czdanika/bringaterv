@@ -7,9 +7,13 @@
  *
  *   openShareModal({ title, url, onImage, onPdf })
  *     url: a publikus nézőoldal linkje, vagy null (pl. minta-útvonalnál)
+ *
+ * A nyilvános link útvonalanként kapcsolható: kikapcsolva a nézőoldal „nem található”.
  */
 
 import { ensureQR, buildQrCanvas } from "./routePdf.js";
+import { routeIdFromShareUrl, forgetLinkPublic } from "./routePdfModal.js";
+import { routesApi } from "../api/routesApi.js";
 
 let _el = null;
 
@@ -61,7 +65,16 @@ function build() {
         </div>
 
         <div class="share-link-block" data-share="link-block">
-          <div class="share-section-title">Nyilvános link</div>
+          <div class="share-section-title share-pub-row">
+            <span>Nyilvános link</span>
+            <label class="toggle-switch" title="Nyilvános link be / ki">
+              <input type="checkbox" data-share="public"><span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="share-pub-off" data-share="pub-off" hidden>
+            <span data-share="pub-off-text">Kikapcsolva: a link és a QR-kód nem működik. Bekapcsolva aki megkapja a linket, bejelentkezés nélkül megnézheti az útvonalat és a fő adatait.</span>
+          </div>
+          <div data-share="pub-on">
           <div class="share-link-row">
             <div class="share-qr" data-share="qr"></div>
             <div class="share-link-main">
@@ -77,6 +90,7 @@ function build() {
             </div>
           </div>
           <div class="share-targets" data-share="targets"></div>
+          </div>
         </div>
         <div class="share-no-link" data-share="no-link" hidden>
           <span data-share="no-link-text"></span>
@@ -147,7 +161,12 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
     saveBtn.querySelector("span").textContent = "Mentés…";
     try {
       const newUrl = await onSaveForLink();
-      if (newUrl) renderLink(newUrl);
+      if (newUrl) {
+        // „Mentés és link”: kifejezetten linket kért → bekapcsoljuk
+        const id = routeIdFromShareUrl(newUrl);
+        if (id) await routesApi.setRoutePublic(id, true).catch(() => {});
+        renderLink(newUrl, { publicOn: true });
+      }
     } catch (err) {
       console.error("Mentés hiba:", err);
       saveBtn.disabled = false;
@@ -159,10 +178,45 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
   ov.hidden = false;
   window.lucide?.createIcons();
 
-  function renderLink(url) {
+  // Nyilvános link kapcsoló: az állapotot a szervertől kérdezzük le
+  function setPublicUi(on) {
+    q("public").checked = on;
+    q("pub-on").hidden = !on;
+    q("pub-off").hidden = on;
+  }
+  async function loadPublicState(id) {
+    const sw = q("public");
+    sw.disabled = true;
+    q("pub-off-text").textContent = "Állapot lekérdezése…";
+    q("pub-off").hidden = false; q("pub-on").hidden = true;
+    try {
+      const st = await routesApi.getRoutePublic(id);
+      q("pub-off-text").textContent = "Kikapcsolva: a link és a QR-kód nem működik. Bekapcsolva aki megkapja a linket, bejelentkezés nélkül megnézheti az útvonalat és a fő adatait.";
+      setPublicUi(!!st.public);
+    } catch {
+      q("pub-off-text").textContent = "Az állapotot most nem sikerült lekérdezni.";
+    } finally { sw.disabled = false; }
+  }
+  q("public").onchange = async (e) => {
+    const id = routeIdFromShareUrl(q("url").value);
+    if (!id) return;
+    const on = e.target.checked;
+    e.target.disabled = true;
+    try {
+      await routesApi.setRoutePublic(id, on);
+      if (!on) forgetLinkPublic(id);
+      setPublicUi(on);
+    } catch {
+      setPublicUi(!on);
+    } finally { e.target.disabled = false; }
+  };
+
+  function renderLink(url, { publicOn } = {}) {
     q("link-block").hidden = !url;
     q("no-link").hidden = !!url;
     if (!url) return;
+    const id = routeIdFromShareUrl(url);
+    if (publicOn) setPublicUi(true); else if (id) loadPublicState(id);
     q("url").value = url;
     q("warn").hidden = !isPrivateHost(url);
     q("targets").innerHTML = targetsHtml(url, title);

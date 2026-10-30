@@ -35,7 +35,7 @@ import mailer
 from auth import require_auth
 from config import log
 from db import _db
-from security import _check_pw, _hash_pw, _make_token
+from security import _check_pw, _hash_pw, _make_token, password_problem
 from utils import _now_dt
 
 bp = Blueprint("api_account", __name__)
@@ -250,8 +250,8 @@ def verify_code():
 def change_password():
     body = request.get_json(silent=True) or {}
     current, new = body.get("current") or "", body.get("password") or ""
-    if len(new) < 8:
-        abort(400, description="Az új jelszó legalább 8 karakter legyen.")
+    if (err := password_problem(new)):
+        abort(400, description=err)
     with _db() as conn:
         row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (g.user["id"],)).fetchone()
         if not _check_pw(current, row["password_hash"]):
@@ -334,8 +334,8 @@ def reset_check(raw: str):
 def reset_password():
     body = request.get_json(silent=True) or {}
     raw, new = body.get("token") or "", body.get("password") or ""
-    if len(new) < 8:
-        abort(400, description="Az új jelszó legalább 8 karakter legyen.")
+    if (err := password_problem(new)):
+        abort(400, description=err)
     with _db() as conn:
         t = _lookup(conn, raw, "reset")
         if not t:

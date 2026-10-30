@@ -213,6 +213,13 @@
     .field-hint { font-size: 11px; color: rgba(0,0,0,.45); margin: -6px 0 12px 4px; text-align: left; }
     .invalid-box { padding: 18px 4px 6px; font-size: 14px; color: rgba(0,0,0,.7); line-height: 1.6; }
     .invalid-box a { color: #fc4c02; font-weight: 600; }
+    /* jelszó-követelmények: gépelés közben pipálódnak ki */
+    .pw-rules { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin: -4px 2px 12px; text-align: left; font-size: 11.5px; color: rgba(0,0,0,.45); }
+    .pw-rules li { display: flex; align-items: center; gap: 5px; }
+    .pw-rules li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.3); flex: none; }
+    .pw-rules li.ok { color: #16a34a; }
+    .pw-rules li.ok::before { background: #16a34a; border-color: #16a34a; }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   </style>
 </head>
 <body>
@@ -223,9 +230,9 @@
       <img src="./src/assets/logo.png" alt="Bringaterv logó" class="logo-img">
       <span class="logo-text">Bringa<span class="accent">terv</span></span>
     </div>
-    <p class="subtitle">Regisztráció meghívóval</p>
+    <p class="subtitle" id="subtitle">Regisztráció meghívóval</p>
 
-    <div id="checking" class="invalid-box">Meghívó ellenőrzése…</div>
+    <div id="checking" class="invalid-box">Ellenőrzés…</div>
     <div id="invalid" class="invalid-box" hidden></div>
 
     <form id="regForm" novalidate hidden>
@@ -241,12 +248,20 @@
       <p class="field-hint">Ezzel fogsz belépni, és ide küldünk egy megerősítő levelet.</p>
       <div class="input-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <input id="password" type="password" placeholder="Jelszó (min. 8 karakter)" autocomplete="new-password">
+        <input id="password" type="password" placeholder="Jelszó" autocomplete="new-password">
       </div>
+      <ul class="pw-rules" id="pwRules" aria-live="polite">
+        <li data-rule="len">legalább 8 karakter</li>
+        <li data-rule="upper">nagybetű</li>
+        <li data-rule="digit">szám</li>
+        <li data-rule="special">speciális karakter (! ? # …)</li>
+      </ul>
       <div class="input-wrap">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <input id="password2" type="password" placeholder="Jelszó újra" autocomplete="new-password">
       </div>
+      <!-- csapdamező a botok ellen – ember nem látja -->
+      <div class="hp" aria-hidden="true"><input id="website" type="text" tabindex="-1" autocomplete="off"></div>
       <div class="consent">
         <input type="checkbox" id="privacyConsent">
         <label for="privacyConsent">Elolvastam és tudomásul vettem az <a href="./privacy.html" target="_blank" rel="noopener">adatkezelési tájékoztatót</a>.</label>
@@ -260,17 +275,45 @@
   <script type="module">
     const JWT_KEY = "bringaterv_jwt", USER_KEY = "bringaterv_user";
     const token = new URLSearchParams(location.search).get("t") || "";
+    const open = !token;   // /register: nyílt regisztráció (ha az admin bekapcsolta)
     const $ = (id) => document.getElementById(id);
     const form = $("regForm"), btn = form.querySelector(".login-btn"), errEl = $("errorMsg");
 
     function invalid(msg) {
       $("checking").hidden = true;
       $("invalid").hidden = false;
-      $("invalid").innerHTML = `${msg}<br><br>Kérj új meghívót attól, aki küldte, vagy <a href="./login.html">jelentkezz be</a>, ha már van fiókod.`;
+      $("invalid").innerHTML = open
+        ? `${msg}<br><br>Ha meghívót kaptál, a levélben lévő linkkel regisztrálhatsz, vagy <a href="./login.html">jelentkezz be</a>, ha már van fiókod.`
+        : `${msg}<br><br>Kérj új meghívót attól, aki küldte, vagy <a href="./login.html">jelentkezz be</a>, ha már van fiókod.`;
     }
 
+    // Jelszóerősség – ugyanaz a szabály, mint a szerveren
+    const RULES = {
+      len: (p) => p.length >= 8, upper: (p) => /\p{Lu}/u.test(p), digit: (p) => /\d/.test(p),
+      special: (p) => /[^\p{L}\p{N}\s]/u.test(p),
+    };
+    const pwOk = (p) => Object.values(RULES).every((f) => f(p));
+    $("password").addEventListener("input", (e) => {
+      document.querySelectorAll("#pwRules [data-rule]").forEach((li) => li.classList.toggle("ok", RULES[li.dataset.rule](e.target.value)));
+    });
+
     (async () => {
-      if (!token) return invalid("Hiányzik a meghívó kódja a linkből.");
+      if (open) {
+        $("subtitle").textContent = "Regisztráció";
+        document.title = "Bringaterv – Regisztráció";
+        try {
+          const r = await fetch("/api/register/status");
+          const d = await r.json().catch(() => ({}));
+          if (!d.open) return invalid("A regisztráció jelenleg nem elérhető.");
+        } catch {
+          return invalid("A szerver most nem érhető el – próbáld újra később.");
+        }
+        $("checking").hidden = true;
+        form.hidden = false;
+        $("inviteInfo").textContent = "Útvonaltervezés és edzésnapló egy helyen – hozd létre a fiókod.";
+        $("lastName").focus();
+        return;
+      }
       try {
         const r = await fetch(`/api/invite/${encodeURIComponent(token)}`);
         const d = await r.json().catch(() => ({}));
@@ -294,22 +337,24 @@
       errEl.textContent = "";
       const pw = $("password").value, pw2 = $("password2").value;
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test($("email").value.trim())) { errEl.textContent = "Adj meg egy érvényes e-mail-címet."; return; }
-      if (pw.length < 8) { errEl.textContent = "A jelszó legalább 8 karakter legyen."; return; }
+      if (open && !$("firstName").value.trim()) { errEl.textContent = "Add meg a keresztneved."; return; }
+      if (!pwOk(pw)) { errEl.textContent = "A jelszóhoz kell: legalább 8 karakter, nagybetű, szám és speciális karakter."; return; }
       if (pw !== pw2) { errEl.textContent = "A két jelszó nem egyezik."; return; }
       btn.disabled = true; btn.textContent = "Regisztráció…";
       try {
-        const r = await fetch(`/api/invite/${encodeURIComponent(token)}/register`, {
+        const r = await fetch(open ? "/api/register" : `/api/invite/${encodeURIComponent(token)}/register`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             first_name: $("firstName").value, last_name: $("lastName").value,
             email: $("email").value, password: pw, consent: $("privacyConsent").checked,
+            website: $("website").value,
           }),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || "A regisztráció nem sikerült.");
         localStorage.setItem(JWT_KEY, d.token);
         localStorage.setItem(USER_KEY, JSON.stringify(d.user));
-        try { localStorage.setItem("bringaterv.privacyAccepted", "2026-06"); } catch {}
+        try { localStorage.setItem("bringaterv.privacyAccepted", "2026-10"); } catch {}
         location.replace("./index.html");
       } catch (err) {
         errEl.textContent = err.message;

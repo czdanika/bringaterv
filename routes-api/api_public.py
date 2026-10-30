@@ -7,7 +7,9 @@ Csak olvasás, szerkesztés nincs.
 A könyvtár forrása a felhasználónkénti index.json (<MULTI_DATA_DIR>/<uid>/routes/),
 ezért elsődlegesen ott keresünk; a régi SQLite `routes` tábla csak tartalék.
 
-Kikapcsolható a PUBLIC_SHARE_ENABLED=false környezeti változóval.
+Csak a felhasználó által nyilvánossá tett elem látszik (index-bejegyzés: "public": true –
+a megosztó ablak kapcsolója állítja, a QR-kódos PDF / kép magától bekapcsolja).
+Teljesen kikapcsolható a PUBLIC_SHARE_ENABLED=false környezeti változóval.
 """
 
 import glob
@@ -17,7 +19,6 @@ import os
 from flask import Blueprint, abort, jsonify
 
 from config import MULTI_DATA_DIR, log
-from db import _db
 from storage import _user_routes_dir
 from utils import _safe_id
 
@@ -84,24 +85,6 @@ def _meta_from_index(e: dict) -> dict:
     }
 
 
-def _find_in_db(rid: str):
-    """Tartalék: a régi SQLite routes tábla."""
-    with _db() as conn:
-        row = conn.execute(
-            "SELECT id, user_id, name, date, distance_m, duration_min, "
-            "elevation_m, route_type, description FROM routes WHERE id = ?",
-            (rid,),
-        ).fetchone()
-    if row is None:
-        return None
-    meta = {
-        "name": row["name"], "date": row["date"], "distanceM": row["distance_m"],
-        "durationMin": row["duration_min"], "elevationM": row["elevation_m"],
-        "type": row["route_type"], "kind": "route", "description": row["description"],
-    }
-    return _user_routes_dir(row["user_id"]), meta
-
-
 @bp.route("/api/public/route/<rid>", methods=["GET"])
 def public_route(rid: str):
     if not PUBLIC_SHARE_ENABLED:
@@ -111,12 +94,12 @@ def public_route(rid: str):
     found = _find_in_indexes(rid)
     if found:
         routes_dir, entry = found
+        if entry.get("public") is not True:
+            return jsonify({"found": False}), 404   # a tulajdonos nem tette nyilvánossá
         meta = _meta_from_index(entry)
     else:
-        found = _find_in_db(rid)
-        if not found:
-            return jsonify({"found": False}), 404
-        routes_dir, meta = found
+        # A régi SQLite tábla elemeinek nincs megosztási jelzője – nem nyilvánosak
+        return jsonify({"found": False}), 404
 
     gpx = _read_gpx(routes_dir, rid)
     if gpx is None:

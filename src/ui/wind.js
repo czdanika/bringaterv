@@ -18,10 +18,13 @@ import { buildTrackDistances } from "./elevationProfile.js";
 let _mapAdapter, _onRenderSidebar, _getActiveGeometry, _getStore;
 let _el, _visibleSections, _applyRouteLayer, _syncElevationBtnState;
 let _windChart = null, _chartMarkers = null;
+// Szélelemzés a Tervezésben – importált (edzésből / GPX-ből lett) útvonalnál is; az Elemzés fülön nem
+let _isPlanContext = () => true;
 
 export function initWind({ mapAdapter, store, onRenderSidebar, getActiveGeometry,
                            elements, visibleSections, applyRouteLayer, syncElevationBtnState,
-                           windChart = null, chartMarkers = null }) {
+                           windChart = null, chartMarkers = null, isPlanContext = null }) {
+  if (isPlanContext) _isPlanContext = isPlanContext;
   _windChart = windChart;
   _chartMarkers = chartMarkers;
   _mapAdapter = mapAdapter;
@@ -61,7 +64,7 @@ export function initWind({ mapAdapter, store, onRenderSidebar, getActiveGeometry
         _mapAdapter.renderWindRoute?.(_getActiveGeometry(), _windResult.segments);
       } else {
         const st = _getStore()?.getState?.();
-        if (!st?.importedRoute && (st?.waypoints?.length ?? 0) >= 2) {
+        if (_isPlanContext() && (st?.waypoints?.length ?? 0) >= 2) {
           runWindAnalysis();
         }
       }
@@ -292,7 +295,7 @@ export function scheduleWindRunIfActive(reason = "input") {
   const geometry = _getActiveGeometry?.();
   if (!geometry || geometry.length < 2) return;
   const st = _getStore?.()?.getState?.();
-  if (st?.importedRoute) return;
+  if (!_isPlanContext()) return;
   if ((st?.waypoints?.length ?? 0) < 2) return;
   if (_windRunDebounce) clearTimeout(_windRunDebounce);
   const delay = reason === "geometry" ? 800 : 400;

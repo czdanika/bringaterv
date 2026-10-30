@@ -18,7 +18,7 @@ import { isSolidChartMode } from './elevationProfile.js';
 import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts } from './shareCard.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
-import { openRoutePdfModal, shareRouteUrl } from './routePdfModal.js';
+import { openRoutePdfModal, shareRouteUrl, ensureLinkPublic } from './routePdfModal.js';
 import { num, int, durMs } from "../format.js";
 import { estimateKcal } from "../calories.js";
 import { getCyclistProfile } from "./settings.js";
@@ -946,6 +946,7 @@ function _initShareCardModal() {
     const span = btn?.querySelector("span");
     if (btn) { btn.disabled = true; if (span) span.textContent = "Generálás…"; }
     try {
+      if (_qrUrl()) await ensureLinkPublic(_qrUrl());   // QR a képen → a link legyen bekapcsolva
       const card = await _buildCard();
       const title = _getShareTitle();
       const filename = `${_safeName(title)}-share.png`;
@@ -973,6 +974,7 @@ function _initShareCardModal() {
     const span  = dlBtn?.querySelector("span");
     if (dlBtn) { dlBtn.disabled = true; if (span) span.textContent = "Generálás…"; }
     try {
+      if (_qrUrl()) await ensureLinkPublic(_qrUrl());   // QR a képen → a link legyen bekapcsolva
       const card = await _buildCard();
       downloadShareCard(card, `${_safeName(_getShareTitle())}-share.png`);
     } finally {

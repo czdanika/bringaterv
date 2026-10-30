@@ -13,6 +13,17 @@ except ImportError as exc:
     ) from exc
 
 
+def password_problem(pw: str) -> str | None:
+    """Jelszóerősség: legalább 8 karakter, nagybetű, szám és speciális karakter.
+    Visszaadja a hibaüzenetet, vagy None-t, ha megfelel."""
+    missing = []
+    if len(pw) < 8: missing.append("legalább 8 karakter")
+    if not any(c.isupper() for c in pw): missing.append("egy nagybetű")
+    if not any(c.isdigit() for c in pw): missing.append("egy szám")
+    if not any(not c.isalnum() and not c.isspace() for c in pw): missing.append("egy speciális karakter (pl. ! ? # - _)")
+    return ("A jelszóhoz még kell: " + ", ".join(missing) + ".") if missing else None
+
+
 def _hash_pw(plain: str) -> str:
     return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 

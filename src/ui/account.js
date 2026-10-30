@@ -213,7 +213,7 @@ async function changePassword() {
   const cur = $("accountPwCurrent").value, pw = $("accountPwNew").value;
   msg.textContent = "";
   if (!cur) { msg.textContent = "Add meg a jelenlegi jelszót."; return; }
-  if (pw.length < 8) { msg.textContent = "Az új jelszó legalább 8 karakter legyen."; return; }
+  if (pw.length < 8 || !/\p{Lu}/u.test(pw) || !/\d/.test(pw) || !/[^\p{L}\p{N}\s]/u.test(pw)) { msg.textContent = "A jelszóhoz kell: legalább 8 karakter, nagybetű, szám és speciális karakter."; return; }
   if (pw !== $("accountPwNew2").value) { msg.textContent = "A két új jelszó nem egyezik."; return; }
   const btn = $("accountPwSave");
   btn.disabled = true;

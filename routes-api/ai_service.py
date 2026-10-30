@@ -146,7 +146,9 @@ def _client():
     key = api_key()
     if not key:
         raise AIError("Az AI-funkció nincs beállítva.")
-    return anthropic, anthropic.Anthropic(api_key=key, timeout=90.0, max_retries=2)
+    # Cloudflare a 100 mp-en túl válaszoló kérést megszakítja (524) – ezért egy próbálkozás,
+    # 85 mp-es korláttal: a felhasználó mindig választ kap, és nem fut le „láthatatlan” hívás
+    return anthropic, anthropic.Anthropic(api_key=key, timeout=85.0, max_retries=0)
 
 
 def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000, effort: str = "low"):
@@ -175,6 +177,8 @@ def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000, effo
     except anthropic.APIStatusError as exc:
         log.warning("AI szerverhiba (%s): %s", exc.status_code, exc)
         raise AIError("Az AI-szolgáltatás most nem érhető el – próbáld újra később.")
+    except anthropic.APITimeoutError:
+        raise AIError("Az AI most túl sokáig dolgozott a válaszon – próbáld újra kicsit később.")
     except anthropic.APIConnectionError:
         raise AIError("Nem sikerült kapcsolódni az AI-szolgáltatáshoz.")
     if resp.stop_reason == "refusal":
@@ -355,3 +359,45 @@ def describe_sample(info: dict) -> tuple[dict, str, object]:
     return {"description": str(data.get("description") or "").strip()[:600],
             "difficulty": data.get("difficulty") if data.get("difficulty") in ("easy", "medium", "hard") else "",
             "season": data.get("season") if data.get("season") in ("all", "spring-autumn", "summer", "dry") else ""}, model, usage
+
+
+# ── Fejlesztési fa: szabad szöveges ötlet → elhelyezett, megfogalmazott elemek (admin) ─────
+
+_ROADMAP_SYSTEM = """Egy magyar kerékpáros útvonaltervező és edzésnapló alkalmazás (Bringaterv) fejlesztési \
+fáját kezeled. Kapsz egy szabad szöveges ötletet, amit az üzemeltető gyorsan leírt, és a jelenlegi fát \
+(elemek: id, terület, szülő, cím, állapot – done = kész, todo = tervben).
+
+Feladat: helyezd el az ötletet a fában, és fogalmazd meg szépen.
+- Bontsd 1–4 elemre, ha több, egymástól függetlenül megvalósítható részből áll; különben 1 elem.
+- Minden elemhez: "cat" (terület azonosítója a listából), "parent" (egy MEGLÉVŐ elem id-ja, ha az ötlet \
+annak a kiegészítése vagy része; vagy egy általad adott "temp_id", ha egy másik új elem alá kerül; vagy \
+üres szöveg, ha a terület közvetlen eleme), "title" (rövid, tárgyilagos, a fa stílusában: főnévi szerkezet, \
+max ~70 karakter, nincs felkiáltójel), "note" (1–2 mondat: mit jelent pontosan, ha az ötletből kiderül; \
+különben üres), "temp_id" (egyedi rövid azonosító, pl. "n1").
+- Ha az ötlet LÉNYEGÉBEN már szerepel a fában, ne duplikáld: add meg a meglévő elem id-ját a "duplicates" \
+listában egy rövid magyarázattal (pl. hogy már kész, vagy már tervben van), és csak az új, eltérő részt \
+vedd fel elemként (ha nincs ilyen, az "items" legyen üres).
+- Magyarul írj, ne találj ki olyat, ami az ötletben nincs benne."""
+
+_ROADMAP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"temp_id": {"type": "string"}, "cat": {"type": "string"}, "parent": {"type": "string"},
+                           "title": {"type": "string"}, "note": {"type": "string"}},
+            "required": ["temp_id", "cat", "parent", "title", "note"], "additionalProperties": False}},
+        "duplicates": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"id": {"type": "string"}, "reason": {"type": "string"}},
+            "required": ["id", "reason"], "additionalProperties": False}},
+    },
+    "required": ["items", "duplicates"],
+    "additionalProperties": False,
+}
+
+
+def roadmap_suggest(idea: str, cats: dict, tree: list) -> tuple[dict, str, object]:
+    payload = {"otlet": idea[:2000], "teruletek": cats, "fa": tree}
+    data, model, usage = _call(_ROADMAP_SYSTEM, payload, _ROADMAP_SCHEMA, max_tokens=4000)
+    return data, model, usage

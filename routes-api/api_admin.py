@@ -7,6 +7,7 @@ import uuid
 from flask import Blueprint, abort, g, jsonify, request
 
 import ai_service
+import site_settings
 import mail_templates
 import mailer
 import notify
@@ -675,3 +676,25 @@ def admin_message():
     res["errors"] = res["errors"][:3]
     log.info("Admin üzenet (%s): %s", g.user["email"], {k: v for k, v in res.items() if k != "errors"})
     return jsonify(res)
+
+
+# ── Oldalbeállítások (nyílt regisztráció) ────────────────────────────────────
+
+@bp.route("/api/admin/site", methods=["GET"])
+@require_auth
+@require_admin
+def admin_site_get():
+    return jsonify(site_settings.load())
+
+
+@bp.route("/api/admin/site", methods=["PUT"])
+@require_auth
+@require_admin
+def admin_site_put():
+    data = request.get_json(silent=True) or {}
+    upd = {}
+    if "registration_open" in data:
+        upd["registration_open"] = bool(data["registration_open"])
+    saved = site_settings.save(upd)
+    log.info("Oldalbeállítás: %s (admin: %s)", upd, g.user["email"])
+    return jsonify(saved)

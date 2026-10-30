@@ -981,10 +981,11 @@ function updateElevationButton(geometry) {
   if (currentTab !== "file") renderMobileElevStrip(activeGeometry);
   const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
   if (elements.elevationBtn) elements.elevationBtn.disabled = !hasEle;
-  // Wind gomb: csak tervezési kontextusban (importált fájl esetén nem releváns)
+  // Wind gomb: tervezési kontextusban – importált (edzésből / GPX-ből lett) útvonalnál is,
+  // az Elemzés fülön viszont nem (múltbeli edzéshez nincs értelme előrejelzést kérni)
   if (elements.windBtn) {
     const st = store?.getState?.();
-    const planning = !st?.importedRoute && (st?.waypoints?.length ?? 0) >= 2;
+    const planning = currentTab !== "file" && (st?.waypoints?.length ?? 0) >= 2;
     elements.windBtn.disabled = !planning;
   }
   // 5 km-es jelölők a térképen
@@ -1010,10 +1011,10 @@ function updateElevationButton(geometry) {
     if (flow && activeGeometry.length >= 2) mapAdapter.renderRouteFlow(activeGeometry);
     else mapAdapter.clearRouteFlow?.();
   }
-  // Wind sidebar legend csak tervezési kontextusban (nem importált fájl)
+  // Wind sidebar legend csak tervezési kontextusban (importált útvonalnál is)
   if (elements.windLegendPlan) {
     const st = store?.getState?.();
-    const planning = !st?.importedRoute && (st?.waypoints?.length ?? 0) >= 2;
+    const planning = currentTab !== "file" && (st?.waypoints?.length ?? 0) >= 2;
     elements.windLegendPlan.hidden = !planning;
     if (planning) {
       initWindPlanInputsIfNeeded();
@@ -1514,6 +1515,7 @@ initWind({
   syncElevationBtnState,
   windChart,
   chartMarkers,
+  isPlanContext: () => currentTab !== "file",
 });
 
 // ── Elemzés (File Tab) ────────────────────────────────────────────────────────
