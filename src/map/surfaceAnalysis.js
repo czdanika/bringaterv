@@ -257,10 +257,45 @@ export async function analyzeSurface(geometry, { onProgress } = {}) {
   const samples = sampleGeometryWithDist(geometry, 150);
   const totalDistKm = samples[samples.length - 1].distM / 1000;
 
-  // 2. Overpass: csak a nyomvonal ~30 m-es sávjában lévő utak (nem a teljes befoglaló
-  //    téglalap – az egy nagy körnél több tízezer utat jelentett). A sáv vonala a ~150 m-es
-  //    mintapontokból áll; hosszú útvonalnál ~45 km-es darabokban kérdezünk (egyben a
-  //    szerver időtúllépéssel válaszolt), a darabok egy ponttal átfednek.
+  // 2–3. Pontonkénti burkolat: először a saját (szerveren tárolt, magyar OSM-kivonatból épített) adatbázis – ha nincs,
+  // vagy az útvonal nagy része nem Magyarországon van, az Overpass-lekérdezés jön
+  let rawModes = await localModes(samples, onProgress);
+  if (!rawModes) rawModes = await overpassModes(samples, onProgress);
+
+  // 4. Simítás (7 pontos ablak ~1 km)
+  const smoothed = smoothModes(rawModes, 7);
+
+  // 5. Összefoglaló szegmensek (egymás utáni azonos módok csoportja)
+  const rawSegs = [];
+  let segStart = 0;
+  for (let i = 1; i <= smoothed.length; i++) {
+    if (i === smoothed.length || smoothed[i] !== smoothed[segStart]) {
+      const fromKm = samples[segStart].distM / 1000;
+      const toKm   = samples[Math.min(i, samples.length - 1)].distM / 1000;
+      rawSegs.push({
+        mode:        smoothed[segStart],
+        fromKm,
+        toKm,
+        distanceKm:  toKm - fromKm,
+        geomPoint:   samples[segStart].point,
+        geomIdx:     samples[segStart].geomIdx,
+      });
+      segStart = i;
+    }
+  }
+
+  // 6. Rövid szegmensek összevonása (< 2 km)
+  const MIN_SEG_KM = 2.0;
+  const segments = mergeShortSegments(rawSegs, MIN_SEG_KM);
+
+  return { segments, totalDistKm };
+}
+
+// Overpass: csak a nyomvonal ~30 m-es sávjában lévő utak (nem a teljes befoglaló téglalap –
+// az egy nagy körnél több tízezer utat jelentett). A sáv vonala a ~150 m-es mintapontokból áll;
+// hosszú útvonalnál ~45 km-es darabokban kérdezünk (egyben a szerver időtúllépéssel válaszolt),
+// a darabok egy ponttal átfednek.
+async function overpassModes(samples, onProgress) {
   const CHUNK = 300;
   const ways = [];
   const seen = new Set();
@@ -290,33 +325,32 @@ out tags geom qt;`;
 
   // 3. Minden mintaponthoz: legközelebbi OSM út módja (rácsos indexszel)
   const index = buildWayIndex(ways);
-  const rawModes = samples.map(s => nearestWayMode(s.point, index) ?? "asphalt");
+  return samples.map(s => nearestWayMode(s.point, index) ?? "asphalt");
+}
 
-  // 4. Simítás (7 pontos ablak ~1 km)
-  const smoothed = smoothModes(rawModes, 7);
-
-  // 5. Összefoglaló szegmensek (egymás utáni azonos módok csoportja)
-  const rawSegs = [];
-  let segStart = 0;
-  for (let i = 1; i <= smoothed.length; i++) {
-    if (i === smoothed.length || smoothed[i] !== smoothed[segStart]) {
-      const fromKm = samples[segStart].distM / 1000;
-      const toKm   = samples[Math.min(i, samples.length - 1)].distM / 1000;
-      rawSegs.push({
-        mode:        smoothed[segStart],
-        fromKm,
-        toKm,
-        distanceKm:  toKm - fromKm,
-        geomPoint:   samples[segStart].point,
-        geomIdx:     samples[segStart].geomIdx,
+/** Saját burkolat-adatbázis (routes-api /api/surface/lookup); null, ha nincs vagy nem használható. */
+async function localModes(samples, onProgress) {
+  const token = (() => { try { return localStorage.getItem("bringaterv_jwt"); } catch { return null; } })();
+  if (!token) return null;
+  const pts = samples.map((s) => [Math.round(s.point.lat * 1e6) / 1e6, Math.round(s.point.lng * 1e6) / 1e6]);
+  const out = [];
+  const STEP = 5000;
+  try {
+    for (let i = 0; i < pts.length; i += STEP) {
+      onProgress?.(i / STEP + 1, Math.ceil(pts.length / STEP));
+      const resp = await fetch("/api/surface/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ points: pts.slice(i, i + STEP) }),
       });
-      segStart = i;
+      if (!resp.ok) return null;
+      out.push(...((await resp.json()).modes || []));
     }
+  } catch {
+    return null;
   }
-
-  // 6. Rövid szegmensek összevonása (< 2 km)
-  const MIN_SEG_KM = 2.0;
-  const segments = mergeShortSegments(rawSegs, MIN_SEG_KM);
-
-  return { segments, totalDistKm };
+  // külföldi (a kivonaton kívüli) útvonal: inkább Overpass
+  const known = out.filter(Boolean).length;
+  if (out.length !== pts.length || known < pts.length * 0.6) return null;
+  return out.map((m) => m ?? "asphalt");
 }

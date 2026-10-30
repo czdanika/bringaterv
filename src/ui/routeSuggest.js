@@ -102,6 +102,7 @@ function renderResults() {
   const r = st.results;
   box.innerHTML = `<div class="sg-res-h"><b>${r.length} javaslat</b><span>${st.km} km körül · ${st.loop ? "kör" : "A → B"}</span></div>` +
     (r[0]?.nearEnd ? `<p class="sg-note">A cél közel van a rajthoz, ezért körszerű útvonalak – a célnál érnek véget.</p>` : "") +
+    (r.every((c) => c.warn?.length) ? `<p class="sg-note">A rajt környékén nem találtam teljesen ${[st.hills === "flat" ? "sík" : "", st.surface === "asphalt" ? "aszfaltos" : ""].filter(Boolean).join(" és ")} ${st.loop ? "kört" : "útvonalat"} – ezek állnak hozzá a legközelebb. Más rajtpont vagy táv segíthet.</p>` : "") +
     r.map((c, i) => {
       const mix = Object.entries(c.mix).filter(([, v]) => v > 0.01).sort((a, b) => b[1] - a[1]);
       return `<div class="sg-card${i === st.selected ? " is-sel" : ""}" data-sg-sel="${i}">
@@ -109,6 +110,7 @@ function renderResults() {
         <div class="sg-nums"><span><b>${num(c.distanceMeters / 1000, 1)}</b> km</span><span><b>${Math.round(c.ascentMeters)}</b> m szint</span>
           <span><b>${Math.round((c.mix.asphalt || 0) * 100)}%</b> aszfalt</span>
           ${1 - (c.mix.asphalt || 0) > 0.05 ? `<span><b>${Math.round((1 - (c.mix.asphalt || 0)) * 100)}%</b> burkolatlan</span>` : ""}</div>
+        ${c.warn?.length ? `<div class="sg-warn">Nem egészen a kérés szerinti: ${c.warn.map(escapeHtml).join(", ")}</div>` : ""}
         <div class="sg-mix">${mix.map(([m, v]) => `<span style="flex:${v};background:${SURF_COLORS[m] || "#999"}" title="${SURF_LABEL[m] || m} ${Math.round(v * 100)}%"></span>`).join("")}</div>
         ${i === st.selected ? `<button type="button" class="sg-use" data-sg-act="use"><i data-lucide="check" aria-hidden="true"></i>Ezt választom</button>` : ""}
       </div>`;

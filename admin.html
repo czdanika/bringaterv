@@ -704,6 +704,14 @@
         <div class="loading">Betöltés…</div>
       </div>
     </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Saját burkolat-adatbázis</span>
+        <button class="btn btn-ghost" id="surfDbBtn" type="button">Építés</button>
+      </div>
+      <p class="panel-desc">A burkolat-vizsgálat (aszfalt / murva / földút / ösvény) a szerveren tárolt magyar OpenStreetMap-kivonatból azonnal megy – a külső, gyakran túlterhelt térképadat-szerver nélkül. Forrás: Geofabrik, kb. 300 MB letöltés; havonta magától frissül. Külföldi útvonalnál továbbra is a külső szerver válaszol.</p>
+      <div class="ai-sum" id="surfDbInfo" style="margin-top:0"></div>
+    </div>
     </section>
 
     <!-- Visszajelzések (hibajelentés, ötlet, kérdés) -->
@@ -2509,6 +2517,37 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (r) { rmStatus(`Betöltve: ${r.imported} elem.`); await loadRoadmap(); }
     });
 
+    // ── Saját burkolat-adatbázis ──────────────────────────────────────────────
+    let _surfTimer = null;
+    function renderSurfDb(st) {
+      const m = st.meta || {}, b = st.build || {};
+      const fmt = (iso) => iso ? new Date(iso).toLocaleString("hu-HU", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+      const phase = b.running
+        ? (b.phase === "download" ? `Letöltés… ${b.done_mb ? `${b.done_mb}${b.total_mb ? ` / ${b.total_mb}` : ""} MB` : ""}`
+          : `Feldolgozás… ${b.ways ? `${Number(b.ways).toLocaleString("hu-HU")} út` : ""}`) : "";
+      document.querySelector("#surfDbInfo").innerHTML = (st.available ? `
+        <div><b>${fmt(m.built_at)}</b><span>utolsó építés</span></div>
+        <div><b>${m.data_timestamp ? fmt(m.data_timestamp) : "–"}</b><span>térképadat állapota</span></div>
+        <div><b>${Number(m.ways || 0).toLocaleString("hu-HU")}</b><span>út</span></div>
+        <div><b>${m.size_mb ?? "–"} MB</b><span>méret</span></div>` : `<div><b>Nincs még</b><span>a vizsgálat addig a külső szerverről megy</span></div>`)
+        + (phase ? `<div><b style="font-size:15px"><span class="spinner-inline"></span> ${phase}</b><span>építés folyamatban (pár perc)</span></div>` : "")
+        + (!b.running && b.phase === "error" ? `<div><b style="font-size:14px;color:var(--red)">${escHtml(b.error || "Hiba")}</b><span>az utolsó építés nem sikerült</span></div>` : "");
+      const btn = document.querySelector("#surfDbBtn");
+      btn.disabled = !!b.running;
+      btn.textContent = st.available ? "Frissítés most" : "Építés";
+      clearTimeout(_surfTimer);
+      if (b.running && !document.querySelector('[data-section="samples"]').hidden) _surfTimer = setTimeout(loadSurfDb, 3000);
+    }
+    async function loadSurfDb() {
+      try { renderSurfDb(await routesApi.admin.surfaceDbStatus()); }
+      catch (e) { document.querySelector("#surfDbInfo").innerHTML = `<div><b style="font-size:14px">${escHtml(e.message)}</b></div>`; }
+    }
+    document.querySelector("#surfDbBtn").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      try { renderSurfDb(await routesApi.admin.surfaceDbBuild()); }
+      catch (ex) { alert(ex.message); loadSurfDb(); }
+    });
+
     // ── AI ────────────────────────────────────────────────────────────────────
     let _ai = null;
     const usd = (v) => `$${(v || 0).toFixed(2)}`;
@@ -2599,6 +2638,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (name === "submissions") loadSubmissions();
       if (name === "ai") loadAi();
       if (name === "roadmap") loadRoadmap();
+      if (name === "samples") loadSurfDb();
       try { history.replaceState(null, "", "#" + name); } catch {}
     }
     document.querySelectorAll(".admin-tab").forEach(t => t.addEventListener("click", () => showSection(t.dataset.section)));

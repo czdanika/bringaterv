@@ -9,3 +9,4 @@ garminconnect==0.3.5
 pywebpush>=2.0,<3
 tzdata
 anthropic>=1.17,<2
+osmium==4.0.2          # burkolat-adatbázis építése az OSM-kivonatból (surface_build.py)

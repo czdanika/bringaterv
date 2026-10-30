@@ -324,6 +324,8 @@ export const routesApi = {
     aiPut(data)                       { return fetchJson(`${BASE}/admin/ai`, { method: "PUT", body: JSON.stringify(data) }); },
     aiSampleDescription(data)         { return fetchJson(`${BASE}/admin/ai/sample-description`, { method: "POST", body: JSON.stringify(data) }); },
     impersonate(userId)               { return fetchJson(`${BASE}/admin/users/${encodeURIComponent(userId)}/impersonate`, { method: "POST" }); },
+    surfaceDbStatus()                 { return fetchJson(`${BASE}/admin/surface-db`); },
+    surfaceDbBuild()                  { return fetchJson(`${BASE}/admin/surface-db`, { method: "POST" }); },
     aiTest(apiKey)                    { return fetchJson(`${BASE}/admin/ai/test`, { method: "POST", body: JSON.stringify({ api_key: apiKey || "" }) }); },
     resetPassword(id, pw)             { return fetchJson(`${BASE}/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: pw }) }); },
     stats()                           { return fetchJson(`${BASE}/admin/stats`); },

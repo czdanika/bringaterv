@@ -1,13 +1,16 @@
 # ── Bringaterv Routes API – Dockerfile ──────────────────────────────────────
 #
-# Egy Alpine alapú Python image, gunicorn-nal futtatva.
+# Debian slim alapú Python image (az osmium csomaghoz kész wheel kell), gunicorn-nal futtatva.
 # Minta GPX fájlok a /samples könyvtárba kerülnek (image-be égetve).
 # Felhasználói adatok: Docker volume → /data/routes (nem kerül az image-be).
 
-FROM python:3.13-alpine
+FROM python:3.13-slim
 
 # Munkakönyvtár
 WORKDIR /app
+
+# Az osmium (burkolat-adatbázis építése) az expat könyvtárat igényli
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
 
 # Függőségek telepítése (külön réteg → Docker layer cache)
 COPY requirements.txt .

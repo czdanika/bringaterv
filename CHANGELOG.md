@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.25.0 – 2026-10-30 – Saját burkolat-adatbázis, pontosabb útvonal-javaslat
+
+### Verzió
+
+- **Saját burkolat-adatbázis:** a burkolat-vizsgálat (aszfalt / murva / földút / ösvény) a szerveren tárolt magyar OpenStreetMap-kivonatból azonnal megy – egy teljes útvonal tizedmásodperc alatt, a külső, gyakran túlterhelt térképadat-szerver nélkül. Külföldi útvonalnál továbbra is a külső szerver válaszol. Az admin a Közösségi útvonalak fülön építi és frissíti (állapot, térképadat dátuma, méret); havonta magától frissül.
+- **Útvonal-javaslat – sík:** a pontozás az átlagos szint mellett a leghosszabb egybefüggő emelkedőt is figyeli, így „sík” kérésnél nem kerül be egy nagy kaptató.
+- **Útvonal-javaslat – aszfalt:** a burkolatlan, főleg a földutas és ösvényes szakaszok már néhány százaléknál is erősen számítanak; szigorú kérésnél több irányt próbál.
+- **Őszinte jelzés:** ha egy javaslat nem felel meg teljesen a kérésnek (pl. emelkedő, burkolatlan szakasz), a kártya jelzi; ha a környéken egyik sem felel meg, erről külön tájékoztat.
+- **Szerver:** a routes-api konténer Debian slim alapra váltott (az OSM-feldolgozó könyvtár miatt).
+
+---
+
 ## v1.24.1 – 2026-10-30 – Belépés a felhasználó nevében, szél és burkolat edzésből lett tervnél
 
 ### Verzió

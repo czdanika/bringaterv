@@ -8037,6 +8037,8 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 body.is-suggesting .map-start-hint { display: none !important; }
 .sg-results.is-stale { opacity: .45; pointer-events: none; transition: opacity .2s; }
 .sg-note { margin: -2px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.sg-warn { margin-top: 6px; font-size: 12px; line-height: 1.35; color: #b45309; }
+[data-theme="dark"] .sg-warn { color: #fbbf24; }
 
 /* ── Megosztó kép: az új panelek stílusa (kis nagybetűs címkék, szürke sávos választók,
       fekete kiemelés), asztalon két oszlop: bal oldalt végig látható előnézet ── */

@@ -107,19 +107,48 @@ function surfaceMix(geometry) {
   return mix;
 }
 
+// Leghosszabb egybefüggő emelkedő (m). A BRouter-magasság zajos, ezért ~200 m-es ablakkal
+// simítunk, és csak a 20 m-nél nagyobb visszaesés zárja le az emelkedőt.
+export function longestClimb(geometry) {
+  const pts = geometry.filter((p) => p.ele != null);
+  if (pts.length < 2) return 0;
+  const cum = cumulative(pts);
+  const sm = [];
+  for (let i = 0, a = 0, b = 0, sum = 0; i < pts.length; i++) {
+    while (b < pts.length && cum[b] <= cum[i] + 100) sum += pts[b++].ele;
+    while (cum[a] < cum[i] - 100) sum -= pts[a++].ele;
+    sm.push(sum / (b - a));
+  }
+  let low = sm[0], high = sm[0], best = 0;
+  for (const e of sm) {
+    if (e > high) { high = e; best = Math.max(best, high - low); }
+    else if (high - e >= 20 || e < low) { low = high = e; }
+  }
+  return Math.round(best);
+}
+
 function score(r, opts, via = []) {
   const km = r.distanceMeters / 1000;
   const mix = surfaceMix(r.geometry);
   const asc = r.ascentMeters / Math.max(1, km);              // m / km
+  const climb = longestClimb(r.geometry);
+  const unpaved = 1 - (mix.asphalt || 0), rough = (mix.mtb || 0) + (mix.hiking || 0);
   let p = 3 * Math.abs(km - opts.km) / opts.km;
-  if (opts.surface === "asphalt") p += 1.2 * (1 - (mix.asphalt || 0));
+  // aszfaltnál a burkolatlan, főleg a földút / ösvény erősen büntetett (néhány % is számít)
+  if (opts.surface === "asphalt") p += 5 * unpaved + 8 * rough;
   if (opts.surface === "gravel") p += 1.2 * (1 - (mix.gravel || 0) - 0.5 * (mix.mtb || 0));
   if (opts.surface === "mixed") p += 0.6 * Math.abs(0.5 - (mix.asphalt || 0));
-  if (opts.hills === "flat") p += Math.min(1, asc / 15);
+  // síknál az átlag mellett az egybefüggő emelkedő is számít (egy 120 m-es kaptató az átlagban elveszne)
+  if (opts.hills === "flat") p += 0.12 * Math.max(0, asc - 4) + 0.02 * Math.max(0, climb - 30);
   if (opts.hills === "hilly") p += Math.max(0, 1 - asc / 12);
   p += 2.5 * overlapRatio(r.geometry);
   p += 4 * spurLength(r.geometry, via) / Math.max(1, r.distanceMeters);   // oda-vissza a segédpontoknál
-  return { penalty: p, mix };
+  // amit a kérésből nem sikerült teljesíteni – a kártyán jelezzük
+  const warn = [];
+  if (opts.hills === "flat" && climb > 50) warn.push(`${climb} m-es egybefüggő emelkedő`);
+  else if (opts.hills === "flat" && asc > 8) warn.push(`dombos (${Math.round(r.ascentMeters)} m szint)`);
+  if (opts.surface === "asphalt" && unpaved > 0.05) warn.push(`${Math.round(unpaved * 100)}% burkolatlan`);
+  return { penalty: p, mix, climb, warn };
 }
 
 // Párhuzamos kérések korlátozása (a nyilvános BRouter-szervert kíméljük)
@@ -153,7 +182,9 @@ export async function generateSuggestions(opts, route, onProgress) {
   const nearEnd = !opts.loop && haversine(opts.start, opts.end) < target * 0.3;
   if (opts.loop || nearEnd) {
     const r0 = target / (2 * Math.PI * ROAD_FACTOR);
-    for (let b = 0; b < 360; b += 60) shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
+    // szigorú kérésnél (sík / aszfalt) több irány – nagyobb az esély egy megfelelőre
+    const step = opts.hills === "flat" || opts.surface === "asphalt" ? 45 : 60;
+    for (let b = 0; b < 360; b += step) shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
   } else {
     const d = haversine(opts.start, opts.end);
     // a kért táv legalább a légvonal ~1,15-szöröse legyen; különben csak kis kitérők
@@ -190,7 +221,7 @@ export async function generateSuggestions(opts, route, onProgress) {
     for (const o of opt) {
       const via = sh.make(o.k);
       const s = score(o.res, opts, via);
-      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, mode });
+      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, climb: s.climb, warn: s.warn, mode });
     }
   });
   // alakonként a legjobb, majd a legjobb 4 különböző alak
@@ -206,7 +237,7 @@ export async function generateSuggestions(opts, route, onProgress) {
     if (!changed) return null;
     const res = await route(ends(via), mode);
     const s = score(res, opts, via);
-    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, mode };
+    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, warn: s.warn, mode };
   }), 3);
   top = top.map((c, i) => (fixed[i] && fixed[i].penalty <= c.penalty + 0.05 ? fixed[i] : c));
   return top.sort((a, b) => a.penalty - b.penalty).slice(0, 3).map((c) => ({
