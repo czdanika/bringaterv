@@ -104,6 +104,7 @@
                 <button type="button" class="sg-back" data-sg-act="close"><i data-lucide="chevron-left" aria-hidden="true"></i>Vissza a tervezéshez</button>
                 <h2 class="plan-title">Útvonal-javaslat</h2>
               </div>
+              <div class="sg-ai" id="sgAi" hidden></div>
               <div class="sg-form" id="sgForm"></div>
               <input id="sgKm" class="sg-range" type="range" min="10" max="200" step="5" value="50" aria-label="Táv (km)">
               <div class="sg-opts" id="sgOpts"></div>
@@ -118,7 +119,7 @@
               <div id="mSearchSlot"></div>
               <button type="button" class="sg-entry m-sg-entry" data-open-suggest data-sg-entry>
                 <i data-lucide="route" class="sg-entry-ic" aria-hidden="true"></i>
-                <b>Útvonal-javaslat</b><small>3 kész útvonal a kért távra</small>
+                <b>Útvonal-javaslat</b><small>kész útvonalak a kért távra vagy időre</small>
                 <i data-lucide="chevron-right" class="sg-entry-chev" aria-hidden="true"></i>
               </button>
               <div class="m-sum-stats" id="mSumStats" hidden>
@@ -222,7 +223,7 @@
               </p>
               <button type="button" class="sg-entry" data-open-suggest data-sg-entry>
                 <i data-lucide="route" class="sg-entry-ic" aria-hidden="true"></i>
-                <b>Útvonal-javaslat</b><small>3 kész útvonal a kért távra</small>
+                <b>Útvonal-javaslat</b><small>kész útvonalak a kért távra vagy időre</small>
                 <i data-lucide="chevron-right" class="sg-entry-chev" aria-hidden="true"></i>
               </button>
               <input id="planGpxInput" type="file" accept=".gpx" hidden>

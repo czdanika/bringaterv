@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.26.0 – 2026-10-31 – Útvonal-javaslat: idő, irány, forgalom, emelkedő és AI-kérés
+
+### Verzió
+
+- **Táv vagy idő:** a javaslatnál a táv helyett idő is megadható („1 óra 30 perc ≈ 34 km”) – az átszámítás a Beállításokban megadott tervezési sebességgel történik.
+- **További beállítások:** irány (É / K / D / Ny – a kör arra induljon), főutak kerülése (aszfaltnál forgalomkerülő tervezés) és a leghosszabb egybefüggő emelkedő felső határa (30 / 60 / 100 m).
+- **Több javaslat:** alapból 3, a „Több javaslat” gombbal 6 különböző irányú útvonal, újraszámolás nélkül.
+- **„Hasonló, de…”:** a kiválasztott javaslatból egy kattintással rövidebb, hosszabb, kevesebb szintes, másik irányú, aszfaltosabb vagy kisebb forgalmú változat.
+- **Kérés AI-val:** szabad szöveggel leírható a túra („másfél órás gravel kör Szentendréről, kevés forgalommal, nagy emelkedő nélkül”) – az AI kitölti a beállításokat, megkeresi a helyet, és jelzi, mit értett és mit nem tud még figyelembe venni (pl. kávézó érintése). A napi AI-keretbe számít.
+- **Kártyák:** jelzik a beállított emelkedő túllépését és a főúton megtett arányt is.
+
+---
+
 ## v1.25.1 – 2026-10-30 – Szélelemzés: kevesebb időjárás-lekérdezés
 
 ### Verzió

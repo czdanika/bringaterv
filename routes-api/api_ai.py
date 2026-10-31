@@ -5,6 +5,7 @@
   POST   /api/ai/workout/<id>              edzés elemzése ({mode: "extended"} → részletes); az összesítőt a kliens számolja
   PATCH  /api/ai/workout/<id>              az elemzés kézi szerkesztése
   DELETE /api/ai/workout/<id>              az elemzés törlése
+  POST   /api/ai/route-request             útvonal-javaslat: szabad szöveges kérés → beállítások
   GET    /api/admin/ai                     beállítás + felhasználás (admin)
   PUT    /api/admin/ai                     API-kulcs, alap napi limit (admin)
   POST   /api/admin/ai/test                kulcs ellenőrzése (admin)
@@ -55,10 +56,8 @@ def _route_entry(route_id: str):
     return index, idx, entry
 
 
-@bp.route("/api/ai/workout/<route_id>", methods=["POST"])
-@require_auth
-def ai_workout(route_id: str):
-    route_id = _safe_id(route_id)
+def _check_quota() -> dict:
+    """A bejelentkezett felhasználó használhatja-e most az AI-t (beállítva, engedélyezve, van kerete)."""
     st = ai_service.status(g.user)
     if not st["configured"]:
         abort(503, description="Az AI-funkció nincs beállítva.")
@@ -68,6 +67,31 @@ def ai_workout(route_id: str):
         abort(403, description="Az AI-funkciót kikapcsoltad a Beállításokban.")
     if st["remaining"] <= 0:
         abort(429, description=f"Elérted a mai AI-keretet ({st['limit']}). Holnap újra próbálhatod.")
+    return st
+
+
+@bp.route("/api/ai/route-request", methods=["POST"])
+@require_auth
+def ai_route_request():
+    _check_quota()
+    data = request.get_json(silent=True) or {}
+    text = str(data.get("text") or "").strip()
+    if len(text) < 3:
+        abort(400, description="Írd le, milyen túrát szeretnél.")
+    try:
+        result, model, usage = ai_service.route_request(text[:500], str(data.get("start_name") or "")[:80],
+                                                        bool(data.get("loop", True)))
+    except ai_service.AIError as exc:
+        abort(502, description=str(exc))
+    ai_service.log_usage(g.user["id"], "route_request", "", model, usage)
+    return jsonify({**result, "status": ai_service.status(g.user)})
+
+
+@bp.route("/api/ai/workout/<route_id>", methods=["POST"])
+@require_auth
+def ai_workout(route_id: str):
+    route_id = _safe_id(route_id)
+    _check_quota()
 
     data = request.get_json(silent=True) or {}
     summary = data.get("summary")

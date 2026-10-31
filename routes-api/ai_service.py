@@ -401,3 +401,65 @@ def roadmap_suggest(idea: str, cats: dict, tree: list) -> tuple[dict, str, objec
     payload = {"otlet": idea[:2000], "teruletek": cats, "fa": tree}
     data, model, usage = _call(_ROADMAP_SYSTEM, payload, _ROADMAP_SCHEMA, max_tokens=4000)
     return data, model, usage
+
+
+# ── Útvonal-javaslat: szabad szöveges kérés → a generátor beállításai ──────────────────────
+
+_ROUTE_SYSTEM = """Egy magyar kerékpáros útvonaltervező (Bringaterv) útvonal-javaslat funkciójához \
+fordítod le a felhasználó szabad szöveges kérését beállításokká. A javaslatot egy algoritmus készíti \
+(körök vagy A → B kitérők, BRouter-tervezés), te csak a beállításokat töltöd ki.
+
+Mezők:
+- "start_place": a rajt helyneve, ha a szöveg megnevezi (pl. "Szentendre", "Budapest, Római part"); \
+különben üres. Ha a kapott "jelenlegi_rajt" már be van állítva és a szöveg nem nevez meg mást, legyen üres.
+- "loop": true, ha körtúra (oda-vissza ugyanoda); false, ha A-ból B-be (ilyenkor "end_place" a cél).
+- "end_place": a cél helyneve A → B esetén; különben üres.
+- "km": kért táv km-ben, ha meg van adva; különben 0. "hours": kért időtartam órában (pl. "másfél óra" → 1.5), \
+ha az időt adja meg; különben 0. Ha egyik sincs, km legyen 0 és hours 0.
+- "surface": "asphalt" (aszfalt, országúti), "gravel" (gravel, murva, földutak), "mixed" (vegyes), \
+vagy "" ha nem derül ki.
+- "hills": "flat" (sík, kevés emelkedő), "hilly" (dombos, szintes, edzés hegyekkel), "any" vagy "" ha nem derül ki.
+- "direction": "N", "E", "S", "W" ha a kör menjen egy égtáj felé (pl. "északra", "a Pilis felé" → a \
+rajthoz képest becsült égtáj); különben "".
+- "avoid_traffic": true, ha kevés forgalmat, kis utakat, főutak kerülését kéri.
+- "max_climb": a leghosszabb egybefüggő emelkedő felső határa méterben, ha erre utal ("nagy emelkedő \
+nélkül" → 40, "max 100 m-es emelkedők" → 100); különben 0.
+- "summary": egy rövid magyar mondat arról, hogyan értetted ("Így értettem: 2 órás gravel kör \
+Szentendréről, kevés forgalommal.").
+- "unsupported": a kérés azon részei rövid magyar kifejezésként, amelyeket a fenti mezők nem fednek le \
+(pl. "kávézó a felénél", "kilátó érintése", "Esztergomon át"); ha nincs ilyen, üres lista.
+Ne találj ki adatot, ami a szövegben nincs benne."""
+
+_ROUTE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "start_place": {"type": "string"}, "loop": {"type": "boolean"}, "end_place": {"type": "string"},
+        "km": {"type": "number"}, "hours": {"type": "number"},
+        "surface": {"type": "string", "enum": ["asphalt", "gravel", "mixed", ""]},
+        "hills": {"type": "string", "enum": ["flat", "hilly", "any", ""]},
+        "direction": {"type": "string", "enum": ["N", "E", "S", "W", ""]},
+        "avoid_traffic": {"type": "boolean"}, "max_climb": {"type": "number"},
+        "summary": {"type": "string"},
+        "unsupported": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["start_place", "loop", "end_place", "km", "hours", "surface", "hills", "direction",
+                 "avoid_traffic", "max_climb", "summary", "unsupported"],
+    "additionalProperties": False,
+}
+
+
+def route_request(text: str, current_start: str, loop: bool) -> tuple[dict, str, object]:
+    payload = {"keres": text[:500], "jelenlegi_rajt": current_start or "", "jelenleg_kor": loop}
+    data, model, usage = _call(_ROUTE_SYSTEM, payload, _ROUTE_SCHEMA, max_tokens=1500)
+    num = lambda v, hi: max(0.0, min(hi, float(v or 0)))
+    params = {
+        "start_place": str(data.get("start_place") or "").strip()[:80],
+        "loop": bool(data.get("loop", True)),
+        "end_place": str(data.get("end_place") or "").strip()[:80],
+        "km": num(data.get("km"), 300), "hours": num(data.get("hours"), 12),
+        "surface": data.get("surface") or "", "hills": data.get("hills") or "",
+        "direction": data.get("direction") or "", "avoid_traffic": bool(data.get("avoid_traffic")),
+        "max_climb": num(data.get("max_climb"), 2000),
+    }
+    unsupported = [str(x).strip()[:80] for x in (data.get("unsupported") or []) if str(x).strip()][:5]
+    return {"params": params, "summary": str(data.get("summary") or "").strip()[:300], "unsupported": unsupported}, model, usage

@@ -127,6 +127,17 @@ export function longestClimb(geometry) {
   return Math.round(best);
 }
 
+const MAIN_ROADS = new Set(["trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link"]);
+function mainRoadShare(geometry) {
+  let main = 0, tot = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const d = haversine(geometry[i - 1], geometry[i]);
+    if (MAIN_ROADS.has(geometry[i].hw)) main += d;
+    tot += d;
+  }
+  return tot ? main / tot : 0;
+}
+
 function score(r, opts, via = []) {
   const km = r.distanceMeters / 1000;
   const mix = surfaceMix(r.geometry);
@@ -141,14 +152,21 @@ function score(r, opts, via = []) {
   // síknál az átlag mellett az egybefüggő emelkedő is számít (egy 120 m-es kaptató az átlagban elveszne)
   if (opts.hills === "flat") p += 0.12 * Math.max(0, asc - 4) + 0.02 * Math.max(0, climb - 30);
   if (opts.hills === "hilly") p += Math.max(0, 1 - asc / 12);
+  // felső határ az egybefüggő emelkedőre (a „Leghosszabb emelkedő” beállítás)
+  if (opts.maxClimb) p += 0.05 * Math.max(0, climb - opts.maxClimb);
+  // főutak kerülése: a főúton (elsőrendű, másodrendű, autóút) megtett arány
+  const main = opts.avoidTraffic ? mainRoadShare(r.geometry) : 0;
+  if (opts.avoidTraffic) p += 4 * main;
   p += 2.5 * overlapRatio(r.geometry);
   p += 4 * spurLength(r.geometry, via) / Math.max(1, r.distanceMeters);   // oda-vissza a segédpontoknál
   // amit a kérésből nem sikerült teljesíteni – a kártyán jelezzük
   const warn = [];
-  if (opts.hills === "flat" && climb > 50) warn.push(`${climb} m-es egybefüggő emelkedő`);
+  if (opts.maxClimb && climb > opts.maxClimb * 1.15) warn.push(`${climb} m-es egybefüggő emelkedő`);
+  else if (opts.hills === "flat" && climb > 50) warn.push(`${climb} m-es egybefüggő emelkedő`);
   else if (opts.hills === "flat" && asc > 8) warn.push(`dombos (${Math.round(r.ascentMeters)} m szint)`);
   if (opts.surface === "asphalt" && unpaved > 0.05) warn.push(`${Math.round(unpaved * 100)}% burkolatlan`);
-  return { penalty: p, mix, climb, warn };
+  if (opts.avoidTraffic && main > 0.15) warn.push(`${Math.round(main * 100)}% főúton`);
+  return { penalty: p, mix, climb, main, warn };
 }
 
 // Párhuzamos kérések korlátozása (a nyilvános BRouter-szervert kíméljük)
@@ -167,13 +185,19 @@ async function pool(tasks, limit, onDone) {
 }
 
 /**
- * @param {object} opts  { start, end?, km, loop, surface: asphalt|gravel|mixed, hills: flat|hilly|any }
- * @param {(waypoints, mode) => Promise} route  BRouter-hívás (mapAdapter.routeStrict)
+ * @param {object} opts  { start, end?, km, loop, surface: asphalt|gravel|mixed, hills: flat|hilly|any,
+ *                         dir?: égtáj fokban (kör iránya), avoidTraffic?: főutak kerülése,
+ *                         maxClimb?: leghosszabb egybefüggő emelkedő (m), count?: javaslatok száma (alap 6) }
+ * @param {(waypoints, mode, profile?) => Promise} route  BRouter-hívás (mapAdapter.routeStrict)
  * @param {(done, total) => void} onProgress
- * @returns {Promise<Array>} legfeljebb 3 javaslat, a legjobb elöl
+ * @returns {Promise<Array>} legfeljebb `count` javaslat, a legjobb elöl, alakonként különböző
  */
-export async function generateSuggestions(opts, route, onProgress) {
+export async function generateSuggestions(opts, routeFn, onProgress) {
   const mode = SURFACE_MODE[opts.surface] || "asphalt";
+  // főutak kerülése aszfalton: a BRouter „safety” profilja (a gravel profil eleve kerüli őket)
+  const profile = opts.avoidTraffic && mode === "asphalt" ? "safety" : null;
+  const route = (wps, m) => routeFn(wps, m, profile);
+  const count = opts.count || 6;
   const target = opts.km * 1000;
   const shapes = [];
 
@@ -182,9 +206,17 @@ export async function generateSuggestions(opts, route, onProgress) {
   const nearEnd = !opts.loop && haversine(opts.start, opts.end) < target * 0.3;
   if (opts.loop || nearEnd) {
     const r0 = target / (2 * Math.PI * ROAD_FACTOR);
-    // szigorú kérésnél (sík / aszfalt) több irány – nagyobb az esély egy megfelelőre
-    const step = opts.hills === "flat" || opts.surface === "asphalt" ? 45 : 60;
-    for (let b = 0; b < 360; b += step) shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
+    if (opts.loop && opts.dir != null) {
+      // megadott irány: a körök középpontja ±45°-on belül arra esik
+      for (const d of [-45, -22.5, 0, 22.5, 45]) {
+        const b = (opts.dir + d + 360) % 360;
+        shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
+      }
+    } else {
+      // szigorú kérésnél (sík / aszfalt / emelkedőkorlát) több irány – nagyobb az esély egy megfelelőre
+      const step = opts.hills === "flat" || opts.surface === "asphalt" || opts.maxClimb ? 45 : 60;
+      for (let b = 0; b < 360; b += step) shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
+    }
   } else {
     const d = haversine(opts.start, opts.end);
     // a kért táv legalább a légvonal ~1,15-szöröse legyen; különben csak kis kitérők
@@ -221,13 +253,13 @@ export async function generateSuggestions(opts, route, onProgress) {
     for (const o of opt) {
       const via = sh.make(o.k);
       const s = score(o.res, opts, via);
-      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, climb: s.climb, warn: s.warn, mode });
+      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, mode });
     }
   });
   // alakonként a legjobb, majd a legjobb 4 különböző alak
   const best = new Map();
   for (const c of cands) if (!best.has(c.shape) || best.get(c.shape).penalty > c.penalty) best.set(c.shape, c);
-  let top = [...best.values()].sort((a, b) => a.penalty - b.penalty).slice(0, 4);
+  let top = [...best.values()].sort((a, b) => a.penalty - b.penalty).slice(0, Math.max(4, count));
 
   // Tüskék (zsákutca, út nélküli segédpont): a pontot a tüske tövébe tesszük és újratervezünk
   const fixed = await pool(top.map((c) => async () => {
@@ -237,12 +269,13 @@ export async function generateSuggestions(opts, route, onProgress) {
     if (!changed) return null;
     const res = await route(ends(via), mode);
     const s = score(res, opts, via);
-    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, warn: s.warn, mode };
+    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, mode };
   }), 3);
   top = top.map((c, i) => (fixed[i] && fixed[i].penalty <= c.penalty + 0.05 ? fixed[i] : c));
-  return top.sort((a, b) => a.penalty - b.penalty).slice(0, 3).map((c) => ({
+  return top.sort((a, b) => a.penalty - b.penalty).slice(0, count).map((c) => ({
     nearEnd,
     ...c,
+    profile,
     waypoints: ends(c.via).map((p, i, arr) => ({ lat: p.lat, lng: p.lng, segmentMode: i < arr.length - 1 ? mode : null })),
     farthest: farthestPoint(c.geometry, opts.start),
     mid: c.geometry[Math.floor(c.geometry.length / 2)],

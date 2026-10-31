@@ -198,6 +198,8 @@ export const routesApi = {
   // ── AI (a kulcs a szerveren van; itt csak a saját keret és az elemzések) ────
 
   aiStatus() { return fetchJson(`${BASE}/ai/status`); },
+  /** Útvonal-javaslat: szabad szöveges kérés → beállítások ({ params, summary, unsupported, status }) */
+  aiRouteRequest(data) { return fetchJson(`${BASE}/ai/route-request`, { method: "POST", body: JSON.stringify(data) }); },
   aiSetEnabled(enabled) {
     return fetchJson(`${BASE}/ai/me`, { method: "PUT", body: JSON.stringify({ enabled }) });
   },

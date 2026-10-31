@@ -1148,13 +1148,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         for (const row of msgs.slice(1)) {
           const lon = Number(row[iLon]) / 1e6, lat = Number(row[iLat]) / 1e6;
           const surf = modeFromWayTags(row[iTags]);
+          const hw = /(?:^|\s)highway=(\S+)/.exec(row[iTags] || "")?.[1] || null;   // úttípus (forgalom becsléséhez)
           let end = gi;
           for (let k = gi; k < geometry.length; k++) {
             if (Math.abs(geometry[k].lng - lon) < 2e-6 && Math.abs(geometry[k].lat - lat) < 2e-6) { end = k; break; }
             end = -1;
           }
           if (end < 0) continue;
-          for (let k = gi; k <= end; k++) geometry[k].surf = surf;
+          for (let k = gi; k <= end; k++) { geometry[k].surf = surf; geometry[k].hw = hw; }
           gi = end + 1;
         }
         const last = geometry[gi - 1]?.surf;
@@ -1188,9 +1189,9 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   }
 
   // Útvonal-javaslathoz: egy BRouter-kérés pontokon át – hibánál kivételt dob (nincs egyenes vonalas tartalék)
-  async function routeStrict(waypoints, mode) {
+  async function routeStrict(waypoints, mode, profileOverride = null) {
     const coordinates = waypoints.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
-    const profile = profileMap[mode] ?? profileMap.asphalt;
+    const profile = profileOverride || (profileMap[mode] ?? profileMap.asphalt);
     const response = await fetch(`https://brouter.de/brouter?lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
     if (!response.ok) throw new Error(`Útvonaltervező hiba (${response.status})`);
     const feature = (await response.json()).features?.[0];

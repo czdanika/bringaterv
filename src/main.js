@@ -2621,6 +2621,7 @@ initRouteSuggest({
   mapAdapter,
   reverseTown,
   showToast,
+  getSpeed: (mode) => getSpeedSettings()[mode],
   hasRoute: () => store.getState().waypoints.length > 0,
   // A kiválasztott javaslat szerkeszthető tervként: a burkolatnak megfelelő tervezési mód + pontok
   onApply: (c) => {
