@@ -64,13 +64,30 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}      # a levelek láblécében + válaszcím
     volumes:
       - routes-data:/data    # tartós tároló (routes + db + users)
+      - brouter-data:/brouter   # a BRouter állapota / frissítés kérése (admin)
     networks:
       - bringaterv-net
     # Szándékosan NINCS ports: blokk → kívülről nem érhető el, csak nginx-en át
     restart: unless-stopped
 
+  # ── Saját BRouter útvonaltervező (brouter/README.md) ──────────────────────────
+  brouter:
+    # Éles: image: ghcr.io/czdanika/bringaterv-brouter:latest
+    build:
+      context: ./brouter
+    environment:
+      JAVA_MEM: ${BROUTER_JAVA_MEM:-1g}          # a Java memóriakerete
+      TILES: ${BROUTER_TILES:-E15_N45 E20_N45}   # 5°×5°-os csempék (Magyarország + környék)
+    volumes:
+      - brouter-data:/data     # csempék + állapot (redeploy után is megmarad)
+    networks:
+      - bringaterv-net
+    # Nincs ports: csak a frontend nginx-én át (/brouter) érhető el
+    restart: unless-stopped
+
 # ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
+  brouter-data:
   routes-data:
     # Named volume – Docker kezeli a helyét (NAS-on is perzisztens)
     # Ha konkrét NAS elérési utat akarsz, használd:

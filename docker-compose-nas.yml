@@ -42,12 +42,29 @@ services:
       JWT_EXPIRY_DAYS: 30                 # token élettartama napban
     volumes:
       - routes-data:/data   # perzisztens tároló (DB + user GPX-ek)
+      - brouter-data:/brouter   # a BRouter állapota / frissítés kérése (admin)
+    networks:
+      - bringaterv-net
+    restart: unless-stopped
+
+  # ── Saját BRouter útvonaltervező (brouter/README.md) ──────────────────────────
+  # Első induláskor letölti a térképadatot (~200 MB, pár perc), utána hetente frissít.
+  # Amíg nem fut, a tervezés a nyilvános brouter.de-n megy – kiesés nincs.
+  brouter:
+    image: ghcr.io/czdanika/bringaterv-brouter:latest
+    environment:
+      JAVA_MEM: 2g                  # a Java memóriakerete (1g is elég; több = gyorsabb párhuzamosan)
+      TILES: "E15_N45 E20_N45"      # Magyarország + környező területek
+    volumes:
+      - brouter-data:/data          # csempék + állapot (redeploy után is megmarad)
     networks:
       - bringaterv-net
     restart: unless-stopped
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
+  brouter-data:
+    # a BRouter térképadat-csempéi (újraletölthetők, mentést nem igényelnek)
   routes-data:
     # Docker kezeli a helyét – frissítéskor megmarad, adatvesztés nélkül
     #

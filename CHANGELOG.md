@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.27.0 – 2026-10-31 – Saját BRouter útvonaltervező
+
+### Verzió
+
+- **Saját útvonaltervező:** a kézi tervezés és az útvonal-javaslat a stack saját BRouter-szerverén fut (Magyarország és a környező területek térképadatával) – nincs terhelési korlát, és a tervezett pontok nem mennek külső szerverre. Ha a saját szerver nem érhető el, vagy a túra kilóg a térképadatból, automatikusan a nyilvános brouter.de tervez.
+- **Térképadat:** első induláskor letöltődik (~190 MB), utána hetente magától frissül; az admin felületen (Közösségi útvonalak) látszik az állapota, és kézzel is frissíthető.
+- **Telepítés:** a NAS-stackbe egy új szolgáltatás kerül (`brouter`) – leírás: `brouter/README.md`. Amíg nincs a stackben, minden a korábbiak szerint működik.
+- **Adatkezelési tájékoztató és súgó:** a brouter.de és az Overpass már csak tartalékként szerepel; a súgó az útvonal-javaslat új beállításaival bővült.
+
+---
+
 ## v1.26.0 – 2026-10-31 – Útvonal-javaslat: idő, irány, forgalom, emelkedő és AI-kérés
 
 ### Verzió

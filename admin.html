@@ -712,6 +712,14 @@
       <p class="panel-desc">A burkolat-vizsgálat (aszfalt / murva / földút / ösvény) a szerveren tárolt magyar OpenStreetMap-kivonatból azonnal megy – a külső, gyakran túlterhelt térképadat-szerver nélkül. Forrás: Geofabrik, kb. 300 MB letöltés; havonta magától frissül. Külföldi útvonalnál továbbra is a külső szerver válaszol.</p>
       <div class="ai-sum" id="surfDbInfo" style="margin-top:0"></div>
     </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Saját útvonaltervező (BRouter)</span>
+        <button class="btn btn-ghost" id="brouterBtn" type="button" hidden>Térképadat frissítése</button>
+      </div>
+      <p class="panel-desc">A tervezés és az útvonal-javaslat a stack saját BRouter-szerverén fut (Magyarország és a környező területek); ha az nem érhető el, vagy a túra kilóg a térképadatból, a nyilvános brouter.de tervez. A térképadat hetente magától frissül.</p>
+      <div class="ai-sum" id="brouterInfo" style="margin-top:0"><div class="loading">Betöltés…</div></div>
+    </div>
     </section>
 
     <!-- Visszajelzések (hibajelentés, ötlet, kérdés) -->
@@ -2548,6 +2556,38 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       catch (ex) { alert(ex.message); loadSurfDb(); }
     });
 
+    // ── Saját BRouter ─────────────────────────────────────────────────────────
+    let _brTimer = null;
+    function renderBrouter(d) {
+      const st = d.status || {}, p = d.probe || {};
+      const fmt = (iso) => iso ? new Date(iso).toLocaleString("hu-HU", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+      const box = document.querySelector("#brouterInfo"), btn = document.querySelector("#brouterBtn");
+      if (!d.installed) {
+        box.innerHTML = `<div><b style="font-size:15px">Nincs a stackben</b><span>most a nyilvános brouter.de tervez – telepítés: brouter/README.md</span></div>`;
+        btn.hidden = true; return;
+      }
+      const busy = st.state === "downloading" || d.update_requested;
+      box.innerHTML = `
+        <div><b style="font-size:15px;color:${p.ok ? "var(--green)" : "var(--red)"}">${p.ok ? `Működik (${p.ms} ms)` : "Nem válaszol"}</b><span>${p.ok ? "próbatervezés" : escHtml(p.error || "a szerver nem érhető el")}</span></div>
+        <div><b style="font-size:15px">${(st.tiles || []).map((t) => `${escHtml(t.name)} · ${fmt(t.modified)}`).join("<br>") || "–"}</b><span>térképadat (csempék)</span></div>
+        <div><b style="font-size:15px">${fmt(st.last_check)}</b><span>utolsó frissítés-ellenőrzés</span></div>
+        <div><b style="font-size:15px">${escHtml(st.version || "–")}</b><span>BRouter verzió</span></div>
+        ${busy ? `<div><b style="font-size:15px"><span class="spinner-inline"></span> ${st.state === "downloading" ? "Letöltés…" : "Kérés elküldve…"}</b><span>legfeljebb 1 perc múlva indul</span></div>` : ""}
+        ${st.error ? `<div><b style="font-size:14px;color:var(--red)">${escHtml(st.error)}</b><span>az utolsó frissítés hibája</span></div>` : ""}`;
+      btn.hidden = false; btn.disabled = busy;
+      clearTimeout(_brTimer);
+      if (busy && !document.querySelector('[data-section="samples"]').hidden) _brTimer = setTimeout(loadBrouter, 5000);
+    }
+    async function loadBrouter() {
+      try { renderBrouter(await routesApi.admin.brouterStatus()); }
+      catch (e) { document.querySelector("#brouterInfo").innerHTML = `<div><b style="font-size:14px">${escHtml(e.message)}</b></div>`; }
+    }
+    document.querySelector("#brouterBtn").addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true;
+      try { renderBrouter(await routesApi.admin.brouterUpdate()); }
+      catch (ex) { alert(ex.message); loadBrouter(); }
+    });
+
     // ── AI ────────────────────────────────────────────────────────────────────
     let _ai = null;
     const usd = (v) => `$${(v || 0).toFixed(2)}`;
@@ -2638,7 +2678,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (name === "submissions") loadSubmissions();
       if (name === "ai") loadAi();
       if (name === "roadmap") loadRoadmap();
-      if (name === "samples") loadSurfDb();
+      if (name === "samples") { loadSurfDb(); loadBrouter(); }
       try { history.replaceState(null, "", "#" + name); } catch {}
     }
     document.querySelectorAll(".admin-tab").forEach(t => t.addEventListener("click", () => showSection(t.dataset.section)));

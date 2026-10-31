@@ -1,6 +1,26 @@
 import { num } from "../format.js";
 import { isMobileLayout } from "../layout.js";
 import { modeFromWayTags } from "./surfaceAnalysis.js";
+// ── BRouter: először a saját szerver (a stack „brouter” szolgáltatása, /brouter), ha nem
+// érhető el vagy nincs adata a területre, a nyilvános brouter.de. Elérhetetlen saját
+// szervernél 10 percig egyből a nyilvánosat hívjuk (ne várjon minden kérés a hibára).
+const BROUTER_PUBLIC = "https://brouter.de/brouter";
+let _localBrouterDownUntil = 0;
+export async function brouterFetch(query) {
+  if (Date.now() > _localBrouterDownUntil) {
+    try {
+      const res = await fetch(`/brouter?${query}`);
+      if (res.ok) return res;
+      // 502/503/504: nincs (vagy épp indul) a konténer; 404: régi frontend-konfig. Egyéb
+      // (pl. a terület nincs a csempékben) csak erre a kérésre vált a nyilvánosra.
+      if ([404, 502, 503, 504].includes(res.status)) _localBrouterDownUntil = Date.now() + 10 * 60e3;
+    } catch {
+      _localBrouterDownUntil = Date.now() + 10 * 60e3;
+    }
+  }
+  return fetch(`${BROUTER_PUBLIC}?${query}`);
+}
+
 const profileMap = {
   asphalt: "fastbike",
   gravel:  "gravel",
@@ -1169,8 +1189,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     try {
       const profile = profileMap[segMode] ?? profileMap.asphalt;
       const coords = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
-      const url = `https://brouter.de/brouter?lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson`;
-      const response = await fetch(url);
+      const response = await brouterFetch(`lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson`);
       if (!response.ok) throw new Error("Segment routing failed");
       const data = await response.json();
       const feature = data.features?.[0];
@@ -1192,7 +1211,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   async function routeStrict(waypoints, mode, profileOverride = null) {
     const coordinates = waypoints.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
     const profile = profileOverride || (profileMap[mode] ?? profileMap.asphalt);
-    const response = await fetch(`https://brouter.de/brouter?lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
+    const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
     if (!response.ok) throw new Error(`Útvonaltervező hiba (${response.status})`);
     const feature = (await response.json()).features?.[0];
     const { coordsList, geometry } = brouterGeometry(feature);
@@ -1274,8 +1293,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     try {
       const coordinates = waypoints.map((point) => `${point.lng},${point.lat}`).join("|");
       const profile = profileMap[mode] ?? profileMap.walking;
-      const url = `https://brouter.de/brouter?lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`;
-      const response = await fetch(url);
+      const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
       if (!response.ok) throw new Error("Routing failed");
       const data = await response.json();
       const feature = data.features?.[0];

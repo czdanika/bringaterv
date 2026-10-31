@@ -36,6 +36,7 @@ import api_account
 import api_ai
 import api_roadmap
 import surface_local
+import brouter_admin
 import api_admin
 import api_auth
 import api_backup
@@ -76,6 +77,7 @@ app.register_blueprint(api_feedback.bp)
 app.register_blueprint(api_ai.bp)
 app.register_blueprint(api_roadmap.bp)
 app.register_blueprint(surface_local.bp)
+app.register_blueprint(brouter_admin.bp)
 
 # Automatikus Strava import – háttérszál (több worker közül csak egy dolgozik)
 from strava_sync import start_scheduler  # noqa: E402

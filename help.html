@@ -194,12 +194,16 @@
         <ol>
           <li><b>Rajt:</b> bökj a térképre, vagy használd a <b>Saját helyem</b> gombot. Alatta megjelenik a település neve, a térképen zöld pont és egy halvány körzet.</li>
           <li><b>Kör vagy A → B:</b> körnél az útvonal visszaér a rajthoz. A → B-nél a következő bökés a <b>célt</b> állítja be (a Rajt / Cél sorra kattintva válthatsz, melyiket módosítod). Ha a cél nagyon közel van a rajthoz, körszerű útvonalat kapsz, ami a célnál ér véget.</li>
-          <li><b>Táv</b> (10–200 km), <b>burkolat</b> (Aszfalt / Gravel / Vegyes) és <b>szint</b> (Sík / Dombos / Bármi).</li>
-          <li><b>Javaslatok</b> – fél–egy perc, a számolás állása látszik.</li>
+          <li><b>Táv vagy idő:</b> a „Táv | Idő” váltóval km helyett időt is megadhatsz (fél–8 óra) – a Beállításokban megadott tervezési sebességgel számolja át km-re.</li>
+          <li><b>Burkolat</b> (Aszfalt / Gravel / Vegyes) és <b>szint</b> (Sík / Dombos / Bármi).</li>
+          <li><b>További beállítások</b> (lenyitható): <b>irány</b> (É / K / D / Ny – a kör arra induljon), <b>forgalom</b> (főutak kerülése) és a <b>leghosszabb emelkedő</b> felső határa (30 / 60 / 100 m egybefüggő emelkedés).</li>
+          <li><b>Javaslatok</b> – néhány másodperc–fél perc, a számolás állása látszik.</li>
         </ol>
-        <p>Az eredmény 3 kártya: név (a legtávolabbi vagy a félúton érintett település), táv, szint, az aszfalt és a burkolatlan rész aránya és egy burkolatsáv. A térképen a kiválasztott élénken, a többi halványan látszik – kártyára vagy vonalra kattintva választasz. Az <b>Ezt választom</b> szerkeszthető tervként tölti be (a burkolathoz illő tervezési móddal), utána pontonként tovább alakíthatod. Ha már volt útvonalad, előtte rákérdez.</p>
-        <p>Ha a javaslatok után átállítod a burkolatot, a szintet, a távot, a kör / A → B-t vagy áthelyezed a rajtot, automatikusan újratervez (a régi kártyák addig halványan látszanak).</p>
-        <p class="tip"><b>Hogyan készül?</b>Az útvonalakat a BRouter rajzolja (OpenStreetMap-adatokból), a Bringaterv csak a segédpontokat helyezi el, és a legjobb 3-at választja ki: a táv-eltérés, a burkolat, a szint és a visszafordulás alapján. A zsákutcába eső segédpontokat a tüske tövébe helyezi át, hogy ne legyen oda-vissza szakasz.</p>
+        <p><b>Kérés szöveggel (AI):</b> ha az AI elérhető a fiókodban, a panel tetején leírhatod, milyen túrát szeretnél – pl. „másfél órás gravel kör Szentendréről, kevés forgalommal, nagy emelkedő nélkül”. A <b>Kitöltés AI-val</b> beállítja a fentieket, megkeresi a helyet, és rögtön tervez; a kártyák felett látod, hogyan értette, és azt is, mit nem tud még figyelembe venni (pl. kávézó érintése). A napi AI-keretedbe számít.</p>
+        <p>Az eredmény 3 kártya (a <b>Több javaslat</b> gombbal 6): név (a legtávolabbi vagy a félúton érintett település), táv, szint, az aszfalt és a burkolatlan rész aránya és egy burkolatsáv. A térképen a kiválasztott élénken, a többi halványan látszik – kártyára vagy vonalra kattintva választasz. Az <b>Ezt választom</b> szerkeszthető tervként tölti be (a burkolathoz illő tervezési móddal), utána pontonként tovább alakíthatod. Ha már volt útvonalad, előtte rákérdez.</p>
+        <p>Ha a javaslatok után átállítod a burkolatot, a szintet, a távot, a kör / A → B-t vagy áthelyezed a rajtot, automatikusan újratervez (a régi kártyák addig halványan látszanak). A kiválasztott kártyán a <b>Hasonló, de…</b> gombokkal egy kattintással kérhetsz rövidebb, hosszabb, kevesebb szintes, másik irányú, aszfaltosabb vagy kisebb forgalmú változatot.</p>
+        <p>Ha egy javaslat nem felel meg teljesen a kérésnek (pl. van benne nagyobb emelkedő, burkolatlan vagy főúti szakasz), a kártya jelzi; ha a környéken egyik sem felel meg, erről külön tájékoztat.</p>
+        <p class="tip"><b>Hogyan készül?</b>Az útvonalakat a BRouter rajzolja (OpenStreetMap-adatokból, alapból a Bringaterv saját szerverén), a Bringaterv csak a segédpontokat helyezi el, és a legjobbakat választja ki: a táv-eltérés, a burkolat, a szint, a leghosszabb egybefüggő emelkedő, a főúti arány és a visszafordulás alapján. A zsákutcába eső segédpontokat a tüske tövébe helyezi át, hogy ne legyen oda-vissza szakasz.</p>
 
         <h3>Az útvonalpontok listája</h3>
         <ul>
@@ -211,7 +215,7 @@
         </ul>
 
         <h3 id="tervezesi-modok">Tervezési módok (útvonaltípusok)</h3>
-        <p>A tervezési mód határozza meg, milyen utakon vezet az útvonal, és milyen alapsebességgel számol a becsült idő. Az útvonaltervezést a <a href="https://brouter.de" target="_blank" rel="noopener">BRouter</a> végzi (OpenStreetMap-adatok alapján).</p>
+        <p>A tervezési mód határozza meg, milyen utakon vezet az útvonal, és milyen alapsebességgel számol a becsült idő. Az útvonaltervezést a <a href="https://github.com/abrensch/brouter" target="_blank" rel="noopener">BRouter</a> végzi (OpenStreetMap-adatok alapján) – alapból a Bringaterv saját szerverén, tartalékként a nyilvános brouter.de-n.</p>
         <table>
           <tr><th>Mód</th><th>Mit keres?</th><th>Alapsebesség</th></tr>
           <tr><td class="path">Aszfalt</td><td>Kerékpárutak és szilárd burkolatú utak, gyors haladás (BRouter „fastbike” profil).</td><td>22 km/h</td></tr>

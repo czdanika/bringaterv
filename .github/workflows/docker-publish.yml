@@ -56,3 +56,29 @@ jobs:
           context: ./routes-api
           push: true
           tags: ghcr.io/czdanika/bringaterv-api:latest
+
+  # ── Saját BRouter útvonaltervező ──────────────────────────────────────────────
+  build-brouter:
+    name: Build bringaterv-brouter (BRouter)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push BRouter image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./brouter
+          push: true
+          tags: ghcr.io/czdanika/bringaterv-brouter:latest
