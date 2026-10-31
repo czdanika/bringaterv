@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.28.1 – 2026-10-31 – Javítások az átfogó tesztelés első köréből
+
+### Verzió
+
+- **Statisztika:** a mentett tervek tévesen edzésként számítottak bele (a „ne számíts” jelző nem jutott el a szerverhez); a meglévő adatokat egy egyszeri javítás rendbe teszi. A Könyvtárban kifejezetten bekapcsolt terv (pl. letekert) továbbra is számít – most a Kezdőlapon is.
+- **Edzés mentése:** a dátum az edzés napja (nem a mentésé), a név a fájlban tárolt edzésnév (nem a fájlnév), az időtartam a valódi mozgásidő (nem a tervezési becslés).
+- **Átlagsebesség:** az Elemzésben táv ÷ mozgásidő (mint a Kezdőlapon és a Stravánál) – a pontonkénti átlag felfelé torzított.
+- **Emelkedés:** tervezésnél a BRouter szűrt értéke, betöltött fájlnál 3 m-es simítás – a magassági adat zaja eddig akár kétszeres emelkedést adott (sík terepen is), és a becsült időt is növelte.
+- **Új útvonal:** a Kezdőlap gombja tiszta lappal indít (az Elemzésből ottmaradt edzést elengedi, félkész saját tervnél rákérdez).
+- **Félkész terv megőrzése:** újratöltés vagy a mobilböngésző háttérből való visszatérése után a terv visszatöltődik (7 napig).
+- **Tervezési sebességek:** a szerveren is tárolódnak – minden eszközön ugyanaz, fiókváltáskor nem öröklődik át.
+
+---
+
 ## v1.28.0 – 2026-10-31 – Saját tervezési profilok, több javaslat-változat
 
 ### Verzió

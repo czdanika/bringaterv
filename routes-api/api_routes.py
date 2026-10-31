@@ -3,6 +3,8 @@
 import os
 import re
 import uuid
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, g, jsonify, request
 
@@ -14,6 +16,7 @@ from strava_service import _add_strava_deny
 from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index
 
 bp = Blueprint("api_routes", __name__)
+_TZ = ZoneInfo("Europe/Budapest")
 
 
 @bp.route("/api/routes", methods=["GET"])
@@ -118,6 +121,15 @@ def save_route():
     route_type       = data.get("type", "cycling")
     description      = (data.get("description") or "").strip()
     include_in_stats = data.get("include_in_stats", True)  # tervezett útvonalak False-t küldenek
+    # felvett edzés kezdete (ISO) – ebből lesz a dátum is, nem a mentés napjából
+    start_dt = None
+    if data.get("start_time"):
+        try:
+            start_dt = datetime.fromisoformat(str(data["start_time"]).replace("Z", "+00:00"))
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            start_dt = None
 
     if not gpx_content:
         abort(400, description="Hiányzó gpxContent mező")
@@ -151,7 +163,7 @@ def save_route():
     entry = {
         "id":          route_id,
         "name":             name,
-        "date":             _now_date(),
+        "date":             start_dt.astimezone(_TZ).strftime("%Y-%m-%d") if start_dt else _now_date(),
         "distance":         round(distance, 1) if isinstance(distance, (int, float)) else None,
         "duration":         int(duration)      if isinstance(duration,  (int, float)) else None,
         "elevation":        int(elevation)     if isinstance(elevation, (int, float)) else None,
@@ -160,6 +172,8 @@ def save_route():
         "has_fit":          has_fit,
         "include_in_stats": bool(include_in_stats),
     }
+    if start_dt:
+        entry["start_time"] = start_dt.astimezone(timezone.utc).isoformat()
     index = _load_index(idx)
     index.append(entry)
     try:
@@ -176,7 +190,7 @@ def save_route():
                duration_min, elevation_m, route_type, description, gpx_path)
             VALUES (?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            route_id, g.user["id"], name, _now_date(), _now_dt(),
+            route_id, g.user["id"], name, entry["date"], _now_dt(),
             distance * 1000 if isinstance(distance, (int, float)) else None,
             int(duration)   if isinstance(duration,  (int, float)) else None,
             int(elevation)  if isinstance(elevation, (int, float)) else None,
@@ -217,7 +231,9 @@ def update_route(route_id: str):
     if "name"        in data: entry["name"]        = (data["name"] or "Névtelen").strip()
     if "type"        in data: entry["type"]        = data["type"]
     if "description" in data: entry["description"] = (data["description"] or "").strip()
-    if "include_in_stats" in data: entry["include_in_stats"] = bool(data["include_in_stats"])
+    if "include_in_stats" in data:
+        entry["include_in_stats"] = bool(data["include_in_stats"])
+        entry["stats_user"] = True   # a felhasználó állította be (a v18 migráció ezt nem írja felül)
     if "public" in data:
         # nyilvános megosztási link be / ki (a /view.html?route=<id> csak bekapcsolva működik)
         entry["public"] = bool(data["public"])

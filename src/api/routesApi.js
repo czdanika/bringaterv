@@ -127,10 +127,13 @@ export const routesApi = {
    * }} params
    * @returns {Promise<{ id: string }>}
    */
-  saveRoute({ name, gpxContent, fitContent = null, distance, duration, elevation, type = "cycling", description = "" }) {
+  saveRoute({ name, gpxContent, fitContent = null, distance, duration, elevation, type = "cycling", description = "",
+              startTime = null, include_in_stats = true }) {
     return fetchJson(`${BASE}/routes`, {
       method: "POST",
-      body: JSON.stringify({ name, gpxContent, fitContent, distance, duration, elevation, type, description }),
+      // include_in_stats: a tervek false-szal mennek (különben a Statisztika edzésnek számolná őket)
+      body: JSON.stringify({ name, gpxContent, fitContent, distance, duration, elevation, type, description,
+                             start_time: startTime, include_in_stats }),
     });
   },
 

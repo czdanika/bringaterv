@@ -1206,7 +1206,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const feature = data.features?.[0];
       const { coordsList, geometry } = brouterGeometry(feature);
       const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
-      const { ascentMeters, descentMeters } = calcElevation(coordsList);
+      const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
       if (geometry.length < 2) throw new Error("No geometry");
       return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode };
     } catch {
@@ -1228,7 +1228,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     const { coordsList, geometry } = brouterGeometry(feature);
     if (geometry.length < 2) throw new Error("Nincs útvonal");
     const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
-    const { ascentMeters, descentMeters } = calcElevation(coordsList);
+    const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
     return { geometry, distanceMeters, ascentMeters, descentMeters };
   }
 
@@ -1310,7 +1310,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const feature = data.features?.[0];
       const { coordsList: coords, geometry } = brouterGeometry(feature);
       const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
-      const { ascentMeters, descentMeters } = calcElevation(coords);
+      const { ascentMeters, descentMeters } = brouterElevation(feature, coords);
 
       if (geometry.length < 2) throw new Error("No route geometry");
       return { geometry, distanceMeters, ascentMeters, descentMeters };
@@ -1467,17 +1467,29 @@ function createTileLayer(style) {
   return L.tileLayer(layer.url, layer.options);
 }
 
+// Emelkedés / ereszkedés 3 m-es hiszterézissel: a domborzati adat zaja (pár méteres fel-le
+// ingadozás) nem számít bele – a nyers összeg sík terepen is a valós kétszerese lehet
 function calcElevation(coords) {
-  let ascent = 0, descent = 0;
-  for (let i = 1; i < coords.length; i++) {
-    const prev = coords[i - 1][2];
-    const curr = coords[i][2];
-    if (prev == null || curr == null) continue;
-    const diff = curr - prev;
-    if (diff > 0) ascent += diff;
-    else descent += Math.abs(diff);
+  let ascent = 0, descent = 0, base = null;
+  for (const c of coords) {
+    const v = c[2];
+    if (v == null) continue;
+    if (base == null) { base = v; continue; }
+    if (v - base >= 3) { ascent += v - base; base = v; }
+    else if (base - v >= 3) { descent += base - v; base = v; }
   }
   return { ascentMeters: Math.round(ascent), descentMeters: Math.round(descent) };
+}
+
+// Tervezett szakasz: a BRouter saját, szűrt emelkedése („filtered ascend”) – a „plain-ascend” a
+// nettó szintkülönbség, így az ereszkedés a kettő különbsége. Ha hiányzik, a fenti simítás.
+function brouterElevation(feature, coords) {
+  const p = feature?.properties || {};
+  const up = Number(p["filtered ascend"]), net = Number(p["plain-ascend"]);
+  if (Number.isFinite(up) && Number.isFinite(net)) {
+    return { ascentMeters: Math.round(up), descentMeters: Math.max(0, Math.round(up - net)) };
+  }
+  return calcElevation(coords);
 }
 
 function findNearestPoint(geometry, latlng) {

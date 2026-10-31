@@ -66,6 +66,8 @@ SETTINGS_ALLOWED_KEYS = {
     "chartColors",
     # Kerékpáros profil (szélhatás, kalória)
     "cyclistProfile",
+    # Tervezési sebességek módonként (becsült idő, útvonal-javaslat idő → táv)
+    "planSpeeds",
 }
 
 

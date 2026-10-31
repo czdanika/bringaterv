@@ -114,7 +114,9 @@ async function saveImportedToLibrary() {
     if (lbl) lbl.textContent = "Mentés…";
   }
   const state = _store.getState();
-  const name = _importedFileName || "Edzés";
+  // a fájlban tárolt edzésnév (pl. „Délutáni kerékpározás”), ha nincs: a fájlnév
+  const meta = _importedMeta || {};
+  const name = (meta.name || "").trim() || _importedFileName || "Edzés";
 
   const content = _importedGpxText ?? exportGpx({
     waypoints: state.waypoints,
@@ -129,9 +131,13 @@ async function saveImportedToLibrary() {
     : null;
   const ascentMeters  = state.ascentMeters  > 0 ? state.ascentMeters  : null;
   const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
-  const durationMin = distanceKm != null
-    ? _calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
-    : null;
+  // felvett edzésnél a valódi mozgásidő (ennek híján a teljes idő); időadat nélkül a tervezési becslés
+  const recordedMs = meta.movingDuration || meta.totalDuration || 0;
+  const durationMin = recordedMs > 0 ? Math.round(recordedMs / 60000)
+    : distanceKm != null
+      ? _calcEstimatedTimeMixed(state.routeSegments, state.mode ?? 'asphalt', distanceKm, ascentMeters ?? 0, descentMeters, true)
+      : null;
+  const startTime = meta.startTime ? new Date(meta.startTime) : null;
 
   let fitContent = null;
   if (_importedFitBuffer) {
@@ -148,6 +154,8 @@ async function saveImportedToLibrary() {
       elevation:   ascentMeters,
       type:        "workout",
       description: "",
+      // a dátum az edzés napja legyen, ne a mentésé (statisztika, Kezdőlap, könyvtár)
+      startTime:   startTime && !Number.isNaN(startTime.getTime()) ? startTime.toISOString() : null,
     });
     _showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
     _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
@@ -170,6 +178,7 @@ async function saveImportedToLibrary() {
 // ── Modul-szintű state ────────────────────────────────────────────────────────
 let _hasImportedFile = false;
 let _importedFileName = "";
+let _importedMeta = null;       // a betöltött fájl metaadatai (név, kezdés, mozgásidő) – mentéshez
 let _importedGpxText  = null;
 let _importedFitBuffer = null;
 let _loadedLibraryRouteId = null;
@@ -298,12 +307,16 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
 
   const speeds = geometry.map(p => p.speed).filter(s => s != null && s < 120 && s > 0);
   const hasSpeed = speeds.length > 0;
+  // átlag = táv / mozgásidő (mint a Strava és a Kezdőlap); a pontonkénti sebességek egyszerű
+  // átlaga torzít (a gyors szakaszokon több a pont), csak időadat híján marad tartaléknak
+  const avgSpeedKmh = meta.movingDuration > 0 && distanceMeters > 0
+    ? Math.round(distanceMeters / (meta.movingDuration / 3600000) / 100) / 10
+    : hasSpeed ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10 : 0;
   document.querySelector("#fileAvgSpeedRow").hidden = !hasSpeed;
   document.querySelector("#fileMaxSpeedRow").hidden = !hasSpeed;
   if (hasSpeed) {
-    const avg = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10;
     const max = Math.round(Math.max(...speeds) * 10) / 10;
-    document.querySelector("#fileAvgSpeed").textContent = `${num(avg, 1)} km/h`;
+    document.querySelector("#fileAvgSpeed").textContent = `${num(avgSpeedKmh, 1)} km/h`;
     document.querySelector("#fileMaxSpeed").textContent = `${num(max, 1)} km/h`;
   }
 
@@ -409,9 +422,7 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
     const durStr = meta.movingDuration
       ? formatDuration(meta.movingDuration)
       : (meta.totalDuration ? formatDuration(meta.totalDuration) : "");
-    const avgSpd = hasSpeed
-      ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length * 10) / 10
-      : 0;
+    const avgSpd = avgSpeedKmh;
     const simPts = shareCardPoints(geometry);
     _shareCardData = {
       geometry, descentMeters, startTime: meta.startTime || null,
@@ -536,6 +547,7 @@ export async function processImportedFile(file) {
 
   _hasImportedFile   = true;
   _importedFileName  = file.name.replace(/\.(gpx|fit)$/i, "");
+  _importedMeta      = imported.meta ?? null;
   _importedGpxText   = gpxText;
   _importedFitBuffer = fitBuffer;
   _loadedLibraryRouteId = null;

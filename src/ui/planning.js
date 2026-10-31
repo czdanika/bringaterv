@@ -537,7 +537,19 @@ export function initSpeedSliders() {
       localStorage.setItem(LS_SPEED_PREFIX + mode, String(v));
       renderSidebar(_store.getState());
     });
+    // szerverre mentés (más eszközön is ugyanaz legyen) – csak az elengedéskor, ne húzás közben
+    slider.addEventListener('change', () => window.dispatchEvent(new CustomEvent('bringaterv:settingChanged')));
   }
+  // a szerverről érkezett beállítások (másik eszközön átállítva) a csúszkákon is látszódjanak
+  window.addEventListener('bringaterv:settingsHydrated', () => {
+    const now = _getSpeedSettings();
+    for (const [mode, { sliderId, valId }] of Object.entries(sliderMap)) {
+      const slider = document.querySelector(`#${sliderId}`), valEl = document.querySelector(`#${valId}`);
+      if (slider) slider.value = now[mode];
+      if (valEl) valEl.textContent = now[mode];
+    }
+    renderSidebar(_store.getState());
+  });
 
   document.querySelector('#resetSpeedDefaults')?.addEventListener('click', () => {
     for (const [mode, def] of Object.entries(DEFAULT_SPEEDS)) {
@@ -549,6 +561,7 @@ export function initSpeedSliders() {
       if (valEl)  valEl.textContent = def;
     }
     renderSidebar(_store.getState());
+    window.dispatchEvent(new CustomEvent('bringaterv:settingChanged'));
   });
 
   // Settings toggle = elmentett alapértelmezett; plan tab toggle = munkamenet (elevationTimeEnabled)

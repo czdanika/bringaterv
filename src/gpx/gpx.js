@@ -185,15 +185,16 @@ function calcSpeedForGeometry(geometry) {
   });
 }
 
+// 3 m-es hiszterézissel (mint a grafikon összesítője): a magassági adat apró zaja nem
+// számít emelkedésnek – a nyers összeg zajos nyomvonalon a valósnál jóval több
 export function calcElevationFromGeometry(geometry) {
-  let ascent = 0, descent = 0;
-  for (let i = 1; i < geometry.length; i++) {
-    const prev = geometry[i - 1].ele;
-    const curr = geometry[i].ele;
-    if (prev == null || curr == null) continue;
-    const diff = curr - prev;
-    if (diff > 0) ascent += diff;
-    else descent += Math.abs(diff);
+  let ascent = 0, descent = 0, base = null;
+  for (const p of geometry) {
+    const v = p.ele;
+    if (v == null) continue;
+    if (base == null) { base = v; continue; }
+    if (v - base >= 3) { ascent += v - base; base = v; }
+    else if (base - v >= 3) { descent += base - v; base = v; }
   }
   return { ascentMeters: Math.round(ascent), descentMeters: Math.round(descent) };
 }

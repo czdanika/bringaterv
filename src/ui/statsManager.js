@@ -110,7 +110,9 @@ let _trainingRange = 6;
 // ── Belső segéd ───────────────────────────────────────────────────────────────
 function _allStatsRoutes() {
   const { routes = [], workouts = [] } = _getLibraryData?.() ?? {};
-  return [...routes, ...workouts].filter(r => r.include_in_stats !== false);
+  // edzés (hacsak ki nem vették), vagy terv, amit a Könyvtárban kifejezetten bekapcsoltak
+  const isWorkout = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
+  return [...routes, ...workouts].filter(r => r.include_in_stats === true || (isWorkout(r) && r.include_in_stats !== false));
 }
 
 // ── Nézet váltás ─────────────────────────────────────────────────────────────

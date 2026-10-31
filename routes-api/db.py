@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -360,6 +360,34 @@ def _db_init_locked() -> None:
                 )""")
             conn.execute("PRAGMA user_version = 17")
             log.info("DB migrálva v17-re (fejlesztési fa)")
+        if ver < 18:
+            # v18: a tervek mentéskor hibásan „statisztikába számít” jelzőt kaptak (a kliens nem adta át
+            # a false-t), így a Statisztika edzésnek számolta őket. A nem edzés jellegű elemeknél, ahol
+            # a felhasználó nem állította be kifejezetten (stats_user), visszaállítjuk az alapértéket.
+            import glob as _glob
+            changed = 0
+            for ix in _glob.glob(os.path.join(MULTI_DATA_DIR, "*", "routes", "index.json")):
+                try:
+                    with open(ix, encoding="utf-8") as f:
+                        data = json.load(f)
+                    if not isinstance(data, list):
+                        continue
+                    touched = False
+                    for e in data:
+                        if not isinstance(e, dict) or e.get("stats_user"):
+                            continue
+                        workout = e.get("type") == "workout" or e.get("strava_id") or e.get("start_time")
+                        if not workout and e.get("include_in_stats", True) is not False:
+                            e["include_in_stats"] = False; changed += 1; touched = True
+                    if touched:
+                        tmp = ix + ".tmp"
+                        with open(tmp, "w", encoding="utf-8") as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        os.replace(tmp, ix)
+                except (OSError, json.JSONDecodeError) as exc:
+                    log.warning("v18 migráció hiba (%s): %s", ix, exc)
+            conn.execute("PRAGMA user_version = 18")
+            log.info("DB migrálva v18-ra (%d terv kikerült a statisztikából)", changed)
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

@@ -107,6 +107,36 @@ async function checkForUpdate() {
 const initialLanguage = localStorage.getItem("routePlannerLanguage") || "hu";
 const i18n = createI18n(initialLanguage);
 const store = createRouteStore();
+
+// ── Félkész terv megőrzése (újratöltés, mobilon a háttérbe tett lap után) ──────────
+// A saját (nem fájlból betöltött) terv pontjai és módja a böngészőben maradnak; a Tervezés
+// első megnyitásakor visszatöltjük, ha a tervező üres. 7 napnál régebbi piszkozat nem jön vissza.
+const PLAN_DRAFT_KEY = "bringaterv.planDraft";
+let _planDraftTimer = null, _planDraftChecked = false;
+store.subscribe((st) => {
+  clearTimeout(_planDraftTimer);
+  _planDraftTimer = setTimeout(() => {
+    try {
+      if (st.importedRoute) return;   // Elemzésből betöltött edzés / fájl: nem piszkozat
+      // üres tervező: csak a visszatöltés-ellenőrzés után töröljük (induláskor is jön üres állapot)
+      if (!st.waypoints.length) { if (_planDraftChecked) localStorage.removeItem(PLAN_DRAFT_KEY); return; }
+      localStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ at: Date.now(), mode: st.mode,
+        waypoints: st.waypoints.map(({ lat, lng, name, note, segmentMode }) => ({ lat, lng, name, note, segmentMode })) }));
+    } catch { /* tele a tároló / privát mód – nem baj */ }
+  }, 500);
+});
+function restorePlanDraftOnce() {
+  if (_planDraftChecked) return;
+  _planDraftChecked = true;
+  if (store.getState().waypoints.length) return;
+  try {
+    const d = JSON.parse(localStorage.getItem(PLAN_DRAFT_KEY) || "null");
+    if (!d?.waypoints?.length || Date.now() - d.at > 7 * 86400e3) return;
+    if (d.mode) setRouteMode(d.mode, { persistDefault: false });
+    store.replaceWaypoints(d.waypoints);
+    setTimeout(() => { mapAdapter.fitRoute?.(); showToast("Visszatöltöttem a legutóbbi, félkész tervedet"); }, 400);
+  } catch { /* sérült piszkozat – nem baj */ }
+}
 const showToast = createToast(document.querySelector("#toast"));
 
 // Theme
@@ -167,6 +197,7 @@ const elevationTimeDefault = () => localStorage.getItem('bringaterv-elevation-de
 let elevationTimeEnabled = elevationTimeDefault();
 
 function switchTab(name) {
+  if (name === "plan") restorePlanDraftOnce();
   if (name !== "plan" && isSuggestActive()) closeSuggest();
   // A Kezdőlap keskeny oldalsávja és a többi fül széles oldalsávja között ne animáljon
   // a rács – különben a térkép a váltás közben méri meg magát, és elcsúszik.
@@ -817,7 +848,14 @@ initHome({
   api: routesApi,
   getUser,
   actions: {
+    // „Új útvonal”: tiszta lappal. Az Elemzésből ott maradt edzést csendben elengedjük, egy
+    // saját (félkész) tervnél rákérdezünk – ha mentve van, a Könyvtárban megmarad.
     plan: () => {
+      const st = store.getState();
+      if (st.waypoints.length) {
+        const fromFile = st.importedRoute && getHasImportedFile();
+        if (fromFile || confirm("Új útvonalat kezdesz? A jelenlegi terv törlődik a tervezőből (ha mentetted, a Könyvtárban megmarad).")) clearAllRouteState();
+      }
       switchTab("plan");
       setTimeout(() => document.querySelector("#searchInput")?.focus(), 50);
     },
@@ -2055,6 +2093,14 @@ if (isAdmin()) {
       if (serverSettings.startView)  { localStorage.setItem("bringaterv.startView",  JSON.stringify(serverSettings.startView)); changed = true; }
       if (serverSettings.theme)      { localStorage.setItem("route4meTheme",         serverSettings.theme);                     changed = true; }
       if (serverSettings.goals)      { localStorage.setItem("bringaterv.goals",      JSON.stringify(serverSettings.goals));     changed = true; }
+      if (serverSettings.planSpeeds && typeof serverSettings.planSpeeds === "object") {
+        for (const [m, v] of Object.entries(serverSettings.planSpeeds)) {
+          if (!DEFAULT_SPEEDS[m]) continue;
+          if (Number(v) > 0) localStorage.setItem(LS_SPEED_PREFIX + m, String(Number(v)));
+          else localStorage.removeItem(LS_SPEED_PREFIX + m);   // másik eszközön visszaállították az alapértékre
+        }
+        changed = true;
+      }
     }
     // A UI elemek értesítése, hogy újraolvassanak a localStorage-ból
     if (changed) {
@@ -2079,6 +2125,9 @@ if (isAdmin()) {
       try { payload.startView = JSON.parse(localStorage.getItem("bringaterv.startView") || "null"); } catch {}
       payload.theme            = localStorage.getItem("route4meTheme")        || undefined;
       try { payload.goals = JSON.parse(localStorage.getItem("bringaterv.goals") || "null") || undefined; } catch {}
+      // tervezési sebességek: csak az átállítottak (a többi az alapérték)
+      payload.planSpeeds = Object.fromEntries(Object.keys(DEFAULT_SPEEDS)
+        .map((m) => [m, Number(localStorage.getItem(LS_SPEED_PREFIX + m)) || null]));
       routesApi.saveSettings(payload).catch(() => {});
     }, 1500);
   }

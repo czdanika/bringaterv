@@ -23,6 +23,9 @@ let _state = { tab: "plan", hasRoute: false };
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const isWorkout = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
+// Statisztikába számít: edzés (hacsak ki nem vették), vagy terv, amit a Könyvtárban kifejezetten
+// bekapcsoltak (pl. letekert terv) – ugyanaz a szabály, mint a Statisztika fülön
+const countsInStats = (r) => r.include_in_stats === true || (isWorkout(r) && r.include_in_stats !== false);
 const when = (r) => r.start_time || r.date || "";
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -143,7 +146,7 @@ function lastWorkout() {
 
 function template() {
   const name = firstName();
-  const workouts = (_items || []).filter((r) => isWorkout(r) && r.include_in_stats !== false);
+  const workouts = (_items || []).filter(countsInStats);
   const hasData = workouts.length > 0;
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -369,7 +372,7 @@ function summaryCard(workouts) {
 
 function formCard(workouts) {
   const early = workouts.length < FEW_WORKOUTS;
-  const routes = (_items || []).filter((r) => r.include_in_stats !== false).map((r) => ({ ...r, date: r.date || r.start_time }));
+  const routes = (_items || []).filter(countsInStats).map((r) => ({ ...r, date: r.date || r.start_time }));
   const series = calcTrainingLoad(routes);
   const last = series[series.length - 1];
   const e = calcEddington(routes);
