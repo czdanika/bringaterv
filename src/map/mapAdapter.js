@@ -5,12 +5,23 @@ import { modeFromWayTags } from "./surfaceAnalysis.js";
 // érhető el vagy nincs adata a területre, a nyilvános brouter.de. Elérhetetlen saját
 // szervernél 10 percig egyből a nyilvánosat hívjuk (ne várjon minden kérés a hibára).
 const BROUTER_PUBLIC = "https://brouter.de/brouter";
-let _localBrouterDownUntil = 0;
+// a saját profilok (brouter/profiles) csak a saját szerveren vannak – a nyilvánoson a gyári megfelelőjük
+const PUBLIC_PROFILE = { "bringaterv-csendes": "fastbike-lowtraffic", "bringaterv-sik": "fastbike-lowtraffic",
+                         "bringaterv-kerekparut": "fastbike-lowtraffic" };
+let _localBrouterDownUntil = 0, _localBrouterOkAt = 0;
+/** A saját BRouter az elmúlt 10 percben válaszolt-e (a javaslat ilyenkor több változatot próbál ki). */
+export const localBrouterOk = () => Date.now() - _localBrouterOkAt < 10 * 60e3;
+/** Egyszeri, olcsó próba (pl. a javaslat panel megnyitásakor), ha még nincs friss adat. */
+export async function probeLocalBrouter() {
+  if (localBrouterOk() || Date.now() < _localBrouterDownUntil) return localBrouterOk();
+  try { await brouterFetch("lonlats=19.0437,47.4989|19.0450,47.5010&profile=fastbike&alternativeidx=0&format=geojson"); } catch { /* nem baj */ }
+  return localBrouterOk();
+}
 export async function brouterFetch(query) {
   if (Date.now() > _localBrouterDownUntil) {
     try {
       const res = await fetch(`/brouter?${query}`);
-      if (res.ok) return res;
+      if (res.ok) { _localBrouterOkAt = Date.now(); return res; }
       // 502/503/504: nincs (vagy épp indul) a konténer; 404: régi frontend-konfig. Egyéb
       // (pl. a terület nincs a csempékben) csak erre a kérésre vált a nyilvánosra.
       if ([404, 502, 503, 504].includes(res.status)) _localBrouterDownUntil = Date.now() + 10 * 60e3;
@@ -18,7 +29,7 @@ export async function brouterFetch(query) {
       _localBrouterDownUntil = Date.now() + 10 * 60e3;
     }
   }
-  return fetch(`${BROUTER_PUBLIC}?${query}`);
+  return fetch(`${BROUTER_PUBLIC}?${query.replace(/profile=(bringaterv-[a-z-]+)/, (m, p) => `profile=${PUBLIC_PROFILE[p] || "fastbike"}`)}`);
 }
 
 const profileMap = {

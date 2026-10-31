@@ -30,7 +30,7 @@ ENV BROUTER_VERSION=${BROUTER_VERSION} \
     TILES="E15_N45 E20_N45" \
     SEGMENTS_URL="https://brouter.de/brouter/segments4" \
     JAVA_MEM=1g \
-    THREADS=4 \
+    THREADS=8 \
     UPDATE_DAYS=7
 
 EXPOSE 17777

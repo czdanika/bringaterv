@@ -187,17 +187,23 @@ async function pool(tasks, limit, onDone) {
 /**
  * @param {object} opts  { start, end?, km, loop, surface: asphalt|gravel|mixed, hills: flat|hilly|any,
  *                         dir?: égtáj fokban (kör iránya), avoidTraffic?: főutak kerülése,
- *                         maxClimb?: leghosszabb egybefüggő emelkedő (m), count?: javaslatok száma (alap 6) }
+ *                         cycleways?: kerékpárút előnyben, maxClimb?: leghosszabb egybefüggő emelkedő (m),
+ *                         count?: javaslatok száma (alap 6), dense?: több változat (saját BRouter esetén) }
  * @param {(waypoints, mode, profile?) => Promise} route  BRouter-hívás (mapAdapter.routeStrict)
  * @param {(done, total) => void} onProgress
  * @returns {Promise<Array>} legfeljebb `count` javaslat, a legjobb elöl, alakonként különböző
  */
 export async function generateSuggestions(opts, routeFn, onProgress) {
   const mode = SURFACE_MODE[opts.surface] || "asphalt";
-  // főutak kerülése aszfalton: a BRouter „safety” profilja (a gravel profil eleve kerüli őket)
-  const profile = opts.avoidTraffic && mode === "asphalt" ? "safety" : null;
+  // aszfaltnál a kéréshez illő saját BRouter-profil (brouter/profiles; a nyilvános szerveren a gyári
+  // fastbike-lowtraffic helyettesíti) – a gravel profil eleve kerüli a főutakat
+  const profile = mode !== "asphalt" ? null
+    : opts.cycleways ? "bringaterv-kerekparut"
+    : opts.hills === "flat" ? "bringaterv-sik"
+    : opts.avoidTraffic ? "bringaterv-csendes" : null;
   const route = (wps, m) => routeFn(wps, m, profile);
   const count = opts.count || 6;
+  const conc = opts.dense ? 4 : 3;   // párhuzamos tervezések (a nyilvános szervert kíméljük)
   const target = opts.km * 1000;
   const shapes = [];
 
@@ -208,13 +214,13 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     const r0 = target / (2 * Math.PI * ROAD_FACTOR);
     if (opts.loop && opts.dir != null) {
       // megadott irány: a körök középpontja ±45°-on belül arra esik
-      for (const d of [-45, -22.5, 0, 22.5, 45]) {
+      for (const d of opts.dense ? [-60, -45, -30, -15, 0, 15, 30, 45, 60] : [-45, -22.5, 0, 22.5, 45]) {
         const b = (opts.dir + d + 360) % 360;
         shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
       }
     } else {
       // szigorú kérésnél (sík / aszfalt / emelkedőkorlát) több irány – nagyobb az esély egy megfelelőre
-      const step = opts.hills === "flat" || opts.surface === "asphalt" || opts.maxClimb ? 45 : 60;
+      const step = opts.dense ? 30 : opts.hills === "flat" || opts.surface === "asphalt" || opts.maxClimb ? 45 : 60;
       for (let b = 0; b < 360; b += step) shapes.push({ bearing: b, make: (k) => loopPoints(opts.start, b, r0 * k) });
     }
   } else {
@@ -222,11 +228,15 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     // a kért táv legalább a légvonal ~1,15-szöröse legyen; különben csak kis kitérők
     const need = Math.max(target / ROAD_FACTOR, d * 1.15);
     const h0 = Math.sqrt(Math.max((need / 2) ** 2 - (d / 2) ** 2, (d * 0.12) ** 2));
+    // saját szervernél három kitérő-mélység oldalanként (mélyebb / sekélyebb ív is), különben egy
+    const depths = opts.dense ? [0.7, 1, 1.3] : [1];
     for (const side of [1, -1]) {
-      shapes.push({ bearing: side, make: (k) => abVia(opts.start, opts.end, h0 * k, side, false) });
-      shapes.push({ bearing: side * 2, make: (k) => abVia(opts.start, opts.end, h0 * k * 0.8, side, true) });
+      depths.forEach((f, j) => {
+        shapes.push({ bearing: side * (10 + j), make: (k) => abVia(opts.start, opts.end, h0 * k * f, side, false) });
+        shapes.push({ bearing: side * (20 + j), make: (k) => abVia(opts.start, opts.end, h0 * k * 0.8 * f, side, true) });
+      });
     }
-    if (target <= d * ROAD_FACTOR * 1.2) shapes.push({ bearing: 0, make: () => [] });   // egyenesen
+    if (target <= d * ROAD_FACTOR * 1.2) shapes.push({ bearing: "straight", straight: true, make: () => [] });   // egyenesen
   }
 
   const total = shapes.length * 2;
@@ -235,15 +245,15 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
   const ends = (via) => opts.loop ? [opts.start, ...via, opts.start] : [opts.start, ...via, opts.end];
 
   // 1. kör: becsült mérettel; 2. kör: a tényleges hossz alapján arányosan igazítva
-  const first = await pool(shapes.map((sh) => () => route(ends(sh.make(1)), mode)), 3, tick);
+  const first = await pool(shapes.map((sh) => () => route(ends(sh.make(1)), mode)), conc, tick);
   const second = await pool(shapes.map((sh, i) => async () => {
     const r1 = first[i];
     if (!r1) return null;
     const ratio = target / r1.distanceMeters;
-    if (Math.abs(1 - ratio) < 0.06 || sh.bearing === 0) return null;   // elég pontos már
+    if (Math.abs(1 - ratio) < 0.06 || sh.straight) return null;   // elég pontos már (az egyenesen nem méretezhető)
     const k = opts.loop ? ratio : Math.max(0.2, Math.min(2.5, ratio ** 1.6));
     return { k, res: await route(ends(sh.make(k)), mode) };
-  }), 3, tick);
+  }), conc, tick);
 
   const cands = [];
   shapes.forEach((sh, i) => {
@@ -270,7 +280,7 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     const res = await route(ends(via), mode);
     const s = score(res, opts, via);
     return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, mode };
-  }), 3);
+  }), conc);
   top = top.map((c, i) => (fixed[i] && fixed[i].penalty <= c.penalty + 0.05 ? fixed[i] : c));
   return top.sort((a, b) => a.penalty - b.penalty).slice(0, count).map((c) => ({
     nearEnd,

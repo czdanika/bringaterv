@@ -78,7 +78,7 @@ routes-api ──► /brouter (ugyanaz a kötet) → admin állapot és „friss
 |---|---|---|
 | `TILES` | `E15_N45 E20_N45` | letöltendő 5°×5°-os csempék (bal alsó sarok szerint) |
 | `JAVA_MEM` | `1g` | a Java memóriakerete (`-Xmx`) |
-| `THREADS` | `4` | párhuzamos tervezések száma |
+| `THREADS` | `8` | párhuzamos tervezések száma |
 | `UPDATE_DAYS` | `7` | ennyi naponta ellenőrzi a csempék frissességét |
 | `SEGMENTS_URL` | `https://brouter.de/brouter/segments4` | a csempék forrása |
 | `BROUTER_VERSION` | `1.7.10` | build-argumentum (`--build-arg`) |
@@ -200,25 +200,67 @@ Visszaállás: a `brouter` szolgáltatás törlése a stackből – a kliens 502
 
 ---
 
-## Saját profilok (következő lépés)
+## Saját profilok
 
 A profil egy szöveges szabályfájl (`.brf`), ami megmondja, mennyibe „kerül” egy úttípus,
-burkolat, emelkedő vagy kanyar. A gyári profilokat a `profiles2/` mappa tartalmazza
-(`fastbike`, `fastbike-lowtraffic`, `fastbike-verylowtraffic`, `safety`, `trekking`, `gravel`, `mtb` …).
-Saját profil: `brouter/profiles/bringaterv-<név>.brf`, hívás: `profile=bringaterv-<név>`.
+burkolat, emelkedő vagy kanyar. A gyári profilok a `profiles2/` mappában vannak
+(`fastbike`, `fastbike-lowtraffic`, `safety`, `trekking`, `gravel`, `mtb` …); a sajátok a
+`brouter/profiles/bringaterv-*.brf`, a build a gyáriak mellé másolja őket.
 
-Tervezett profilok:
+Mindhárom a gyári `fastbike.brf`-ből készült, a módosított sorok mellett `# Bringaterv:` megjegyzés áll,
+és mindháromban be van kapcsolva a `correctMisplacedViaPoints` (a segédpontoknál nincs oda-vissza „tüske”).
 
-- **bringaterv-aszfalt-csendes** – aszfalt, főutak kerülése, de földútra nem visz (a `safety`
-  profil néha burkolatlan útra tér).
-- **bringaterv-kerekparut** – a kiépített kerékpárutat jutalmazza.
-- **bringaterv-sik** – a meredek szakasz eleve drága, így a „sík” kérés már a tervezésnél érvényesül.
-- **bringaterv-gravel** – magyar viszonyokra hangolt gravel (dűlőutak, töltésutak).
+| Profil | Mire | Változtatás a fastbike-hoz képest |
+|---|---|---|
+| `bringaterv-csendes` | aszfalt, kevés forgalom | `consider_traffic` 0,1 → 1,0; főút (primary) 1,2 → 2,5, másodrendű 1,1 → 1,8, harmadrendű 1,0 → 1,15; kerékpárút 1,3 → 1,0 |
+| `bringaterv-sik` | kevés emelkedő | a csendes profil + `uphillcost` 0 → 70, `uphillcutoff` 1,5 → 2,0 |
+| `bringaterv-kerekparut` | kerékpárút előnyben | `consider_traffic` 1,0; kerékpárút / kijelölt kerékpáros út / kerékpáros útvonal 1×, kerékpársávos út 1,25×, minden más 1,6× |
 
-Fontos: a saját profil csak a saját szerveren érhető el – ha a kliens a brouter.de-re vált,
-ott a gyári megfelelőjét kell használni (pl. `bringaterv-aszfalt-csendes` → `safety`).
+### Mérések (a saját szerveren, Pi)
 
----
+Budapest (Lánchíd) → Szentendre, egyirányú:
+
+| Profil | Táv | Szint | Főút | Burkolatlan | Kerékpárút |
+|---|---|---|---|---|---|
+| fastbike | 30,0 km | 410 m | 53% | 9% | 42% |
+| safety | 34,1 km | 369 m | 1% | 21% | 57% |
+| fastbike-lowtraffic | 30,1 km | 478 m | 21% | 12% | 35% |
+| **bringaterv-csendes** | 33,9 km | 341 m | **9%** | 11% | **62%** |
+
+Római part → Szentendre: fastbike 91% főút, bringaterv-csendes 2% (14,0 → 15,0 km).
+
+A `bringaterv-sik` csak ott tud segíteni, ahol van síkabb alternatíva (pl. Budapest → Budakeszi
+vagy a Pilis felé nincs – ott minden profil ugyanannyi szintet ad); az útvonal-javaslatnál,
+ahol a segédpontok között több út közül választhat, érezhetően számít.
+
+### Hol használjuk
+
+Az útvonal-javaslat aszfaltos kérésnél (`src/map/routeSuggest.js`):
+
+- „Kerékpárút előnyben” → `bringaterv-kerekparut`
+- „Sík” szint → `bringaterv-sik`
+- „Főutak kerülése” → `bringaterv-csendes`
+
+Ha a kérés a nyilvános brouter.de-re kerül (a saját szerver nem érhető el), a saját profil helyett a
+gyári `fastbike-lowtraffic` megy (`PUBLIC_PROFILE` a `mapAdapter.js`-ben).
+
+### Sűrűbb mintavétel
+
+Ha a saját szerver az elmúlt 10 percben válaszolt (`localBrouterOk()`; a javaslat panel megnyitásakor
+egy olcsó próbahívás frissíti), a javaslat több változatot próbál ki: körnél 12 irány (8 helyett),
+megadott iránynál ±60° 15°-onként, A → B-nél oldalanként 3 kitérő-mélység; 4 párhuzamos tervezéssel.
+Egy javaslatkör így ~23–24 tervezés (a nyilvános szerveren 13–17).
+
+### Új profil készítése
+
+1. A gyári profilt másold `brouter/profiles/bringaterv-<név>.brf` néven, a módosított sorokhoz `# Bringaterv:` megjegyzés.
+2. Próba a futó konténerben újraépítés nélkül:
+   `docker cp bringaterv-<név>.brf <brouter-konténer>:/opt/brouter/profiles2/`, majd
+   `/brouter?lonlats=…&profile=bringaterv-<név>&format=geojson`.
+3. A `PUBLIC_PROFILE` táblába a nyilvános megfelelője.
+
+A gyári profilok paraméterei (`%név%` megjegyzésű `assign` sorok) URL-ben is átadhatók, pl.
+`&profile:consider_traffic=1` – egy próbához nem kell új fájl.
 
 ## Licenc és forrásmegjelölés
 

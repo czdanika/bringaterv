@@ -422,6 +422,7 @@ vagy "" ha nem derül ki.
 - "direction": "N", "E", "S", "W" ha a kör menjen egy égtáj felé (pl. "északra", "a Pilis felé" → a \
 rajthoz képest becsült égtáj); különben "".
 - "avoid_traffic": true, ha kevés forgalmat, kis utakat, főutak kerülését kéri.
+- "prefer_cycleways": true, ha kifejezetten kerékpárutakon, bicikliutakon szeretne menni.
 - "max_climb": a leghosszabb egybefüggő emelkedő felső határa méterben, ha erre utal ("nagy emelkedő \
 nélkül" → 40, "max 100 m-es emelkedők" → 100); különben 0.
 - "summary": egy rövid magyar mondat arról, hogyan értetted ("Így értettem: 2 órás gravel kör \
@@ -438,12 +439,12 @@ _ROUTE_SCHEMA = {
         "surface": {"type": "string", "enum": ["asphalt", "gravel", "mixed", ""]},
         "hills": {"type": "string", "enum": ["flat", "hilly", "any", ""]},
         "direction": {"type": "string", "enum": ["N", "E", "S", "W", ""]},
-        "avoid_traffic": {"type": "boolean"}, "max_climb": {"type": "number"},
+        "avoid_traffic": {"type": "boolean"}, "prefer_cycleways": {"type": "boolean"}, "max_climb": {"type": "number"},
         "summary": {"type": "string"},
         "unsupported": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["start_place", "loop", "end_place", "km", "hours", "surface", "hills", "direction",
-                 "avoid_traffic", "max_climb", "summary", "unsupported"],
+                 "avoid_traffic", "prefer_cycleways", "max_climb", "summary", "unsupported"],
     "additionalProperties": False,
 }
 
@@ -459,6 +460,7 @@ def route_request(text: str, current_start: str, loop: bool) -> tuple[dict, str,
         "km": num(data.get("km"), 300), "hours": num(data.get("hours"), 12),
         "surface": data.get("surface") or "", "hills": data.get("hills") or "",
         "direction": data.get("direction") or "", "avoid_traffic": bool(data.get("avoid_traffic")),
+        "prefer_cycleways": bool(data.get("prefer_cycleways")),
         "max_climb": num(data.get("max_climb"), 2000),
     }
     unsupported = [str(x).strip()[:80] for x in (data.get("unsupported") or []) if str(x).strip()][:5]

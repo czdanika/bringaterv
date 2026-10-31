@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.28.0 – 2026-10-31 – Saját tervezési profilok, több javaslat-változat
+
+### Verzió
+
+- **Saját BRouter-profilok:** „csendes” (aszfalt, a forgalmas utak erős kerülésével – a korábbi safety profillal ellentétben burkolatlanra nem visz), „sík” (az emelkedő eleve drága) és „kerékpárút előnyben”. Mindháromban a segédpontoknál nincs oda-vissza szakasz. Budapest → Szentendre: főút 53% → 9%, kerékpárút 42% → 62%.
+- **Útvonal-javaslat:** a „Forgalom” beállítás háromállású lett (Mindegy / Főutak kerülése / Kerékpárút előnyben), az aszfaltos kérés a hozzá illő profillal tervez; az AI-kérés a kerékpárutas kívánságot is felismeri.
+- **Több változat:** ha a saját útvonaltervező elérhető, a javaslat több irányt és kitérő-mélységet próbál ki (kb. 24 tervezés a korábbi 13–17 helyett), így dombos környéken is jobb találat jön.
+- **Javítás:** az északi irányú köröknél elmaradt a távkorrekció, ezért rövidebbek lettek a kértnél.
+- **Tartalék:** ha a nyilvános brouter.de tervez, a saját profilok helyett a gyári forgalomkerülő profil megy.
+
+---
+
 ## v1.27.0 – 2026-10-31 – Saját BRouter útvonaltervező
 
 ### Verzió

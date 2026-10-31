@@ -9,6 +9,7 @@ import { escapeHtml } from "./library.js";
 import { num } from "../format.js";
 import { searchPlaces } from "./search.js";
 import { routesApi } from "../api/routesApi.js";
+import { probeLocalBrouter, localBrouterOk } from "../map/mapAdapter.js";
 
 const COLORS = ["#e8461e", "#2563eb", "#7c3aed", "#0d9488", "#db2777", "#ca8a04"];
 const DIRS = [["", "Bármi"], ["0", "É"], ["90", "K"], ["180", "D"], ["270", "Ny"]];
@@ -19,7 +20,7 @@ const SURF_LABEL = { asphalt: "aszfalt", gravel: "gravel", mtb: "földút", hiki
 let _d = null;   // { mapAdapter, onApply(result, opts), showToast, reverseTown, hasRoute, getSpeed(mode) }
 const st = { active: false, start: null, end: null, startName: "", endName: "", picking: "start",
              km: 50, by: "km", hours: 2, loop: true, surface: "asphalt", hills: "any",
-             dir: null, avoidTraffic: false, maxClimb: null, more: false,
+             dir: null, traffic: "any", maxClimb: null, more: false,
              results: [], selected: 0, shown: 3, busy: false, pending: false,
              ai: null, aiBusy: false, aiNote: null };
 const $ = (id) => document.getElementById(id);
@@ -52,6 +53,7 @@ export function open() {
   $("suggestPanel").hidden = false;
   renderForm(); renderResults(); drawStart();
   window.lucide?.createIcons({ nodes: [$("suggestPanel")] });
+  probeLocalBrouter();   // saját BRouter elérhető-e (akkor több változatot próbálunk ki)
   // AI-kérés mező: csak ha a felhasználónak elérhető az AI
   if (st.ai == null) routesApi.aiStatus().then((a) => { st.ai = a; renderAi(); }).catch(() => { st.ai = { configured: false }; });
   else renderAi();
@@ -113,7 +115,7 @@ function renderForm() {
   const range = $("sgKm");
   if (st.by === "time") { range.min = "0.5"; range.max = "8"; range.step = "0.25"; range.value = st.hours; range.setAttribute("aria-label", "Idő (óra)"); }
   else { range.min = "10"; range.max = "200"; range.step = "5"; range.value = st.km; range.setAttribute("aria-label", "Táv (km)"); }
-  const extra = [st.loop && st.dir != null, st.avoidTraffic, st.maxClimb].filter(Boolean).length;
+  const extra = [st.loop && st.dir != null, st.traffic !== "any", st.maxClimb].filter(Boolean).length;
   $("sgOpts").innerHTML = `
     <div><div class="sg-lbl">Burkolat</div>${seg("surface", [["asphalt", "Aszfalt"], ["gravel", "Gravel"], ["mixed", "Vegyes"]], st.surface)}</div>
     <div><div class="sg-lbl">Szint</div>${seg("hills", [["flat", "Sík"], ["hilly", "Dombos"], ["any", "Bármi"]], st.hills)}</div>
@@ -122,7 +124,7 @@ function renderForm() {
       <i data-lucide="chevron-down" class="sg-chev" aria-hidden="true"></i></button>
     ${st.more ? `<div class="sg-more">
       ${st.loop ? `<div><div class="sg-lbl">Irány</div>${seg("dir", DIRS, st.dir == null ? "" : String(st.dir))}</div>` : ""}
-      <div><div class="sg-lbl">Forgalom</div>${seg("traffic", [["0", "Mindegy"], ["1", "Főutak kerülése"]], st.avoidTraffic ? "1" : "0")}</div>
+      <div><div class="sg-lbl">Forgalom</div>${seg("traffic", [["any", "Mindegy"], ["quiet", "Főutak kerülése"], ["cycle", "Kerékpárút előnyben"]], st.traffic)}</div>
       <div><div class="sg-lbl">Leghosszabb emelkedő</div>${seg("climb", CLIMBS, st.maxClimb ? String(st.maxClimb) : "")}</div>
     </div>` : ""}`;
   window.lucide?.createIcons({ nodes: [$("sgOpts")] });
@@ -164,7 +166,7 @@ function similarChips(c) {
   if (st.hills !== "flat" || !st.maxClimb || st.maxClimb > 30) out.push(["flatter", "kevesebb szint"]);
   if (st.loop) out.push(["otherdir", "másik irány"]);
   if ((c.mix.asphalt || 0) < 0.97) out.push(["asphalt", "több aszfalt"]);
-  if (!st.avoidTraffic) out.push(["quiet", "kisebb forgalom"]);
+  if (st.traffic === "any") out.push(["quiet", "kisebb forgalom"]);
   return out;
 }
 function applySimilar(kind) {
@@ -183,7 +185,7 @@ function applySimilar(kind) {
     st.dir = Math.round(((deg + 180) % 360) / 90) % 4 * 90;
     st.more = true;
   } else if (kind === "asphalt") st.surface = "asphalt";
-  else if (kind === "quiet") { st.avoidTraffic = true; st.more = true; }
+  else if (kind === "quiet") { st.traffic = "quiet"; st.more = true; }
   renderForm(); drawStart(); run();
 }
 
@@ -233,7 +235,8 @@ async function run() {
   try {
     const res = await generateSuggestions(
       { start: st.start, end: st.end, km: st.km, loop: st.loop, surface: st.surface, hills: st.hills,
-        dir: st.loop ? st.dir : null, avoidTraffic: st.avoidTraffic, maxClimb: st.maxClimb, count: 6 },
+        dir: st.loop ? st.dir : null, avoidTraffic: st.traffic !== "any", cycleways: st.traffic === "cycle",
+        maxClimb: st.maxClimb, count: 6, dense: localBrouterOk() },
       (wps, mode, profile) => _d.mapAdapter.routeStrict(wps, mode, profile),
       (done, total) => { status.innerHTML = `<span class="spinner-inline"></span> Útvonalak számolása… ${done}/${total}`; });
     if (!res.length) throw new Error("Nem sikerült útvonalat tervezni – próbáld másik rajttal vagy távval.");
@@ -288,7 +291,7 @@ function onClick(e) {
     renderForm(); drawStart(); optionsChanged(); return;
   }
   if (b.dataset.sgDir != null) { const v = b.dataset.sgDir === "" ? null : Number(b.dataset.sgDir); if (v !== st.dir) { st.dir = v; renderForm(); optionsChanged(); } return; }
-  if (b.dataset.sgTraffic != null) { const v = b.dataset.sgTraffic === "1"; if (v !== st.avoidTraffic) { st.avoidTraffic = v; renderForm(); optionsChanged(); } return; }
+  if (b.dataset.sgTraffic) { if (b.dataset.sgTraffic !== st.traffic) { st.traffic = b.dataset.sgTraffic; renderForm(); optionsChanged(); } return; }
   if (b.dataset.sgClimb != null) { const v = b.dataset.sgClimb ? Number(b.dataset.sgClimb) : null; if (v !== st.maxClimb) { st.maxClimb = v; renderForm(); optionsChanged(); } return; }
   if (b.dataset.sgSimilar) { applySimilar(b.dataset.sgSimilar); return; }
   if (b.dataset.sgPick) { st.picking = b.dataset.sgPick; renderForm(); if (st[st.picking]) _d.mapAdapter.panTo(st[st.picking]); return; }
@@ -387,9 +390,9 @@ async function runAi() {
     else if (p.km > 0) { st.by = "km"; st.km = Math.max(10, Math.min(200, Math.round(p.km / 5) * 5)); }
     const dirs = { N: 0, E: 90, S: 180, W: 270 };
     st.dir = dirs[p.direction] ?? null;
-    st.avoidTraffic = !!p.avoid_traffic;
+    st.traffic = p.prefer_cycleways ? "cycle" : p.avoid_traffic ? "quiet" : "any";
     st.maxClimb = p.max_climb > 0 ? [30, 60, 100].find((v) => p.max_climb <= v) || 100 : null;
-    if (st.dir != null || st.avoidTraffic || st.maxClimb) st.more = true;
+    if (st.dir != null || st.traffic !== "any" || st.maxClimb) st.more = true;
     st.aiNote = [r.summary, r.unsupported?.length ? `Ezt még nem tudom figyelembe venni: ${r.unsupported.join(", ")}.` : ""].filter(Boolean).join(" ");
     renderForm(); drawStart();
     if (st.start && (st.loop || st.end)) await run();
