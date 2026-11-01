@@ -239,7 +239,7 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     if (target <= d * ROAD_FACTOR * 1.2) shapes.push({ bearing: "straight", straight: true, make: () => [] });   // egyenesen
   }
 
-  const total = shapes.length * 2;
+  const total = shapes.length * 3;
   let done = 0;
   const tick = () => onProgress?.(++done, total);
   const ends = (via) => opts.loop ? [opts.start, ...via, opts.start] : [opts.start, ...via, opts.end];
@@ -254,12 +254,25 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     const k = opts.loop ? ratio : Math.max(0.2, Math.min(2.5, ratio ** 1.6));
     return { k, res: await route(ends(sh.make(k)), mode) };
   }), conc, tick);
+  // 3. kör: ahol akadály (folyó, hegy, hiányzó híd) miatt a kör nem nőtt arányosan, és még
+  // mindig 12%-nál többel eltér, a jobbik eddigi méretből még egyszer igazítunk
+  const third = await pool(shapes.map((sh, i) => async () => {
+    const tried = [first[i] && { k: 1, res: first[i] }, second[i]?.res && second[i]].filter(Boolean);
+    if (!tried.length || sh.straight) return null;
+    const err = (o) => Math.abs(1 - target / o.res.distanceMeters);
+    const bestTry = tried.reduce((a, b) => (err(a) <= err(b) ? a : b));
+    if (err(bestTry) < 0.12) return null;
+    const ratio = target / bestTry.res.distanceMeters;
+    const k = opts.loop ? Math.max(0.3, Math.min(3, bestTry.k * ratio)) : Math.max(0.2, Math.min(3, bestTry.k * ratio ** 1.6));
+    return { k, res: await route(ends(sh.make(k)), mode) };
+  }), conc, tick);
 
   const cands = [];
   shapes.forEach((sh, i) => {
     const opt = [];
     if (first[i]) opt.push({ k: 1, res: first[i] });
     if (second[i]?.res) opt.push(second[i]);
+    if (third[i]?.res) opt.push(third[i]);
     for (const o of opt) {
       const via = sh.make(o.k);
       const s = score(o.res, opts, via);

@@ -84,10 +84,16 @@ def user_limit(user: dict) -> int:
     return default_limit() if lim is None else max(0, int(lim))
 
 
+# Az admin eszközök (ötlet-feldolgozás, közösségi leírás) a költségnaplóban szerepelnek, de a
+# személyes napi keretből nem vonnak le
+_ADMIN_KINDS = ("roadmap", "sample_description")
+
+
 def used_today(user_id: str) -> int:
     with _db() as conn:
-        return conn.execute("SELECT COUNT(*) FROM ai_usage WHERE user_id = ? AND created_at >= ?",
-                            (user_id, _day_start_utc())).fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM ai_usage WHERE user_id = ? AND created_at >= ?"
+                            f" AND kind NOT IN ({','.join('?' * len(_ADMIN_KINDS))})",
+                            (user_id, _day_start_utc(), *_ADMIN_KINDS)).fetchone()[0]
 
 
 def status(user: dict) -> dict:

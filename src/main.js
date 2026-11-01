@@ -806,6 +806,14 @@ const mapAdapter = createMapAdapter({
 
 let routeRequestId = 0;
 let lastRouteSignature = "";
+// Kész útvonal (pl. elfogadott javaslat): ha a pontok aláírása egyezik, nem tervezzük újra – így
+// megmarad a javaslat saját profilos (csendes / sík / kerékpárút) nyomvonala, és nem megy ki kérés
+let presetRoute = null;   // { signature, route: { geometry, distanceMeters, ascentMeters, descentMeters } }
+const routeSignatureOf = (state) => JSON.stringify({
+  mode: state.mode,
+  snapToRoads: state.snapToRoads,
+  waypoints: state.waypoints.map(({ lat, lng, segmentMode }) => [lat, lng, segmentMode ?? null]),
+});
 let lastNameSignature = "";
 let units = localStorage.getItem("route4meUnits") || "metric";
 let dragSrcIndex = null;
@@ -1674,16 +1682,14 @@ store.subscribe(async (state) => {
     }
     return;
   }
-  const routeSignature = JSON.stringify({
-    mode: state.mode,
-    snapToRoads: state.snapToRoads,
-    waypoints: state.waypoints.map(({ lat, lng, segmentMode }) => [lat, lng, segmentMode ?? null]),
-  });
+  const routeSignature = routeSignatureOf(state);
   if (routeSignature === lastRouteSignature) return;
   lastRouteSignature = routeSignature;
 
   const requestId = ++routeRequestId;
-  const route = await mapAdapter.calculateRoute(state, activeTool === "waypoint");
+  const preset = presetRoute?.signature === routeSignature ? presetRoute.route : null;
+  presetRoute = null;
+  const route = preset || await mapAdapter.calculateRoute(state, activeTool === "waypoint");
   if (requestId !== routeRequestId) return;
 
   store.setState({
@@ -2675,7 +2681,10 @@ initRouteSuggest({
   // A kiválasztott javaslat szerkeszthető tervként: a burkolatnak megfelelő tervezési mód + pontok
   onApply: (c) => {
     setRouteMode(c.mode, { persistDefault: false });
-    store.replaceWaypoints(c.waypoints.map(({ lat, lng }) => ({ lat, lng })), { geometry: c.geometry });
+    const wps = c.waypoints.map(({ lat, lng }) => ({ lat, lng }));
+    presetRoute = { signature: routeSignatureOf({ ...store.getState(), waypoints: wps }),
+                    route: { geometry: c.geometry, distanceMeters: c.distanceMeters, ascentMeters: c.ascentMeters, descentMeters: c.descentMeters } };
+    store.replaceWaypoints(wps, { geometry: c.geometry });
     geocodeNamelessWaypoints();
     setTimeout(() => mapAdapter.fitRoute(), 300);
     showToast("Javaslat betöltve – a pontokat szabadon módosíthatod");
@@ -3847,7 +3856,9 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     // A Bringatervben tervezett és mentett útvonalnak már vannak pontjai a tervezési módokkal –
     // ilyenkor nincs mit vizsgálni, azonnal betöltjük. Egyébként (minta, külső GPX) a tárolt
     // burkolat-vizsgálatot mutatjuk, és az első friss vizsgálatot a saját útvonal mellé mentjük.
-    const ownPlan = !isSample && imported.waypoints.length >= 2 && imported.waypoints.some((w) => w.segmentMode);
+    // (egy módban tervezett útnál a pontokon nincs szakaszmód – ilyenkor a creator jelöli, hogy a miénk)
+    const ownPlan = !isSample && imported.waypoints.length >= 2
+      && (imported.waypoints.some((w) => w.segmentMode) || /<gpx[^>]*creator="Bringaterv"/.test(gpxText.slice(0, 600)));
     let loadResult;
     if (ownPlan) {
       loadResult = { waypoints: imported.waypoints, segmentedGeom: null };

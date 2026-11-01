@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.28.2 – 2026-11-01 – Javítások a tesztelés második köréből
+
+### Verzió
+
+- **Félkész terv:** a piszkozat fiókhoz kötött – fiókváltáskor és kijelentkezéskor törlődik, más felhasználó nem látja ugyanazon a böngészőn.
+- **Útvonal-javaslat:** az elfogadott javaslat útvonala változatlanul töltődik be (nem tervezi újra a sima profillal, így megmarad a csendes / sík / kerékpárutas nyomvonal, és nem megy ki fölösleges kérés).
+- **Útvonal-javaslat távja:** akadályos terepen (folyó, hegy) egy harmadik méretkorrekció is fut, így a javaslat közelebb lesz a kért távhoz (pl. Szentendréről 42 km helyett eddig 21–27, most ~38 km).
+- **Saját terv betöltése:** a Könyvtárból a saját mentett terv burkolat-vizsgálós előnézet nélkül, egyből töltődik be.
+- **AI-keret:** az admin eszközök (ötlet-feldolgozás, közösségi leírás) a költségnaplóban szerepelnek, de a személyes napi keretből nem vonnak le.
+- **Belépés:** a mező felirata „E-mail-cím vagy felhasználónév”.
+
+---
+
 ## v1.28.1 – 2026-10-31 – Javítások az átfogó tesztelés első köréből
 
 ### Verzió
