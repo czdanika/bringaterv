@@ -411,7 +411,7 @@ def roadmap_suggest(idea: str, cats: dict, tree: list) -> tuple[dict, str, objec
 
 # ── Útvonal-javaslat: szabad szöveges kérés → a generátor beállításai ──────────────────────
 
-_ROUTE_SYSTEM = """Egy magyar kerékpáros útvonaltervező (Bringaterv) útvonal-javaslat funkciójához \
+_ROUTE_SYSTEM = """Egy magyar kerékpáros és gyalogos útvonaltervező (Bringaterv) útvonal-javaslat funkciójához \
 fordítod le a felhasználó szabad szöveges kérését beállításokká. A javaslatot egy algoritmus készíti \
 (körök vagy A → B kitérők, BRouter-tervezés), te csak a beállításokat töltöd ki.
 
@@ -422,8 +422,9 @@ különben üres. Ha a kapott "jelenlegi_rajt" már be van állítva és a szöv
 - "end_place": a cél helyneve A → B esetén; különben üres.
 - "km": kért táv km-ben, ha meg van adva; különben 0. "hours": kért időtartam órában (pl. "másfél óra" → 1.5), \
 ha az időt adja meg; különben 0. Ha egyik sincs, km legyen 0 és hours 0.
-- "surface": "asphalt" (aszfalt, országúti), "gravel" (gravel, murva, földutak), "mixed" (vegyes), \
-vagy "" ha nem derül ki.
+- "surface": kerékpárral "asphalt" (aszfalt, országúti), "gravel" (gravel, murva, földutak), "mixed" (vegyes); \
+gyalog "walk" (séta, könnyű utak, városban, parkban), "hike" (túra, turistautak, jelzett utak, erdő, hegy), \
+"walk_hike" (gyalog, vegyesen); vagy "" ha nem derül ki.
 - "hills": "flat" (sík, kevés emelkedő), "hilly" (dombos, szintes, edzés hegyekkel), "any" vagy "" ha nem derül ki.
 - "direction": "N", "E", "S", "W" ha a kör menjen egy égtáj felé (pl. "északra", "a Pilis felé" → a \
 rajthoz képest becsült égtáj); különben "".
@@ -442,7 +443,7 @@ _ROUTE_SCHEMA = {
     "properties": {
         "start_place": {"type": "string"}, "loop": {"type": "boolean"}, "end_place": {"type": "string"},
         "km": {"type": "number"}, "hours": {"type": "number"},
-        "surface": {"type": "string", "enum": ["asphalt", "gravel", "mixed", ""]},
+        "surface": {"type": "string", "enum": ["asphalt", "gravel", "mixed", "walk", "hike", "walk_hike", ""]},
         "hills": {"type": "string", "enum": ["flat", "hilly", "any", ""]},
         "direction": {"type": "string", "enum": ["N", "E", "S", "W", ""]},
         "avoid_traffic": {"type": "boolean"}, "prefer_cycleways": {"type": "boolean"}, "max_climb": {"type": "number"},

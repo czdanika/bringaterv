@@ -17,6 +17,7 @@ const USER_SPECIFIC_KEYS = [
   "bringaterv-speed-asphalt",
   "bringaterv-speed-gravel",
   "bringaterv-speed-mtb",
+  "bringaterv-speed-walking",
   "bringaterv-speed-hiking",
   "bringaterv.planDraft",      // félkész terv – más fiók ne lássa
   "bringaterv.startView",

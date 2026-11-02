@@ -42,7 +42,7 @@ from utils import _load_index, _now_dt, _safe_id
 
 bp = Blueprint("api_submissions", __name__)
 
-TYPES = {"asphalt": "Aszfalt", "gravel": "Gravel", "mtb": "MTB", "hiking": "Túra"}
+TYPES = {"asphalt": "Aszfalt", "gravel": "Gravel", "mtb": "MTB", "walking": "Séta", "hiking": "Túra"}
 DIFFICULTIES = {"easy": "Könnyű", "medium": "Közepes", "hard": "Nehéz"}
 SEASONS = {"all": "Egész évben", "spring-autumn": "Tavasztól őszig", "summer": "Nyáron", "dry": "Száraz időben"}
 _DIR = os.path.join(os.path.dirname(MULTI_DATA_DIR.rstrip("/")) or "/data", "submissions")

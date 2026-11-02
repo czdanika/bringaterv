@@ -286,10 +286,12 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.3.5
+v1.30.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)
 - **Githubra terveket nem tolunk** – csak kész kód
 - Az `index.html` szlogenje: „Tervezz, tekerj, fedezd fel!"
 - A `src/version.js` az egyetlen forrás a verzióhoz
+- **Sorrend: előbb Pi-teszt, csak utána GitHub** – ami nem ment a Pi-n, az nem kerül fel
+- **Munka végén mindig frissíteni:** `CHANGELOG.md` (kiadásnál), `docs/CURRENT_STATE.md` (hol tartunk, mi félkész, mi a következő lépés), és a `ROADMAP.md`-ben kipipálni, ami elkészült. A munka VS Code-ból és a Claude asztali appból is folyhat – a beszélgetés nem kerül át, csak ami fájlban van.

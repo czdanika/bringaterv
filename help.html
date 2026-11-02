@@ -195,8 +195,9 @@
           <li><b>Rajt:</b> bökj a térképre, vagy használd a <b>Saját helyem</b> gombot. Alatta megjelenik a település neve, a térképen zöld pont és egy halvány körzet.</li>
           <li><b>Kör vagy A → B:</b> körnél az útvonal visszaér a rajthoz. A → B-nél a következő bökés a <b>célt</b> állítja be (a Rajt / Cél sorra kattintva válthatsz, melyiket módosítod). Ha a cél nagyon közel van a rajthoz, körszerű útvonalat kapsz, ami a célnál ér véget.</li>
           <li><b>Táv vagy idő:</b> a „Táv | Idő” váltóval km helyett időt is megadhatsz (fél–8 óra) – a Beállításokban megadott tervezési sebességgel számolja át km-re.</li>
-          <li><b>Burkolat</b> (Aszfalt / Gravel / Vegyes) és <b>szint</b> (Sík / Dombos / Bármi).</li>
-          <li><b>További beállítások</b> (lenyitható): <b>irány</b> (É / K / D / Ny – a kör arra induljon), <b>forgalom</b> (főutak kerülése vagy kerékpárút előnyben) és a <b>leghosszabb emelkedő</b> felső határa (30 / 60 / 100 m egybefüggő emelkedés).</li>
+          <li><b>Tevékenység:</b> <b>Kerékpár</b> vagy <b>Gyalog</b> – a tervező aktuális módjával indul (Séta / Túra módból gyalogos javaslatot ad). Gyalog a táv 2–40 km.</li>
+          <li><b>Burkolat</b> kerékpárral (Aszfalt / Gravel / Vegyes), gyalog <b>Terep</b> (Séta / Túra / Vegyes), és <b>szint</b> (Sík / Dombos / Bármi). Túránál a javaslat a jelzett turistautakat keresi, a kártyán látszik, hány százaléka halad jelzett úton.</li>
+          <li><b>További beállítások</b> (lenyitható): <b>irány</b> (É / K / D / Ny – a kör arra induljon), kerékpárral <b>forgalom</b> (főutak kerülése vagy kerékpárút előnyben), és a <b>leghosszabb emelkedő</b> felső határa (30 / 60 / 100 m egybefüggő emelkedés). Gyalog a főutakat mindig kerüli.</li>
           <li><b>Javaslatok</b> – néhány másodperc–fél perc, a számolás állása látszik.</li>
         </ol>
         <p><b>Kérés szöveggel (AI):</b> ha az AI elérhető a fiókodban, a panel tetején leírhatod, milyen túrát szeretnél – pl. „másfél órás gravel kör Szentendréről, kevés forgalommal, nagy emelkedő nélkül”. A <b>Kitöltés AI-val</b> beállítja a fentieket, megkeresi a helyet, és rögtön tervez; a kártyák felett látod, hogyan értette, és azt is, mit nem tud még figyelembe venni (pl. kávézó érintése). A napi AI-keretedbe számít.</p>
@@ -209,7 +210,7 @@
         <ul>
           <li>A pontokat a bal oldali fogantyúval (<b>⋮⋮</b>) húzva rendezheted át.</li>
           <li>A <b>×</b> törli a pontot. A térképen a jelölőre kattintva felugró ablakban átnevezheted, megjegyzést írhatsz hozzá, vagy törölheted.</li>
-          <li>A pontok között a szakasz hossza látszik; a <b>színes pötty</b> az adott szakasz tervezési módja – rákattintva szakaszonként átállíthatod.</li>
+          <li>A pontok között a szakasz hossza látszik; a <b>színes pötty</b> az adott szakasz tervezési módja – rákattintva szakaszonként átállíthatod (a tevékenységen belül: kerékpárnál Aszfalt / Gravel / MTB, gyalog Séta / Túra).</li>
           <li>Az utolsó pont célzászlóval (sakktábla) jelenik meg.</li>
           <li>A pontok alatt a teljes <b>táv</b>, a <b>becsült idő</b>, az <b>emelkedő</b> és az <b>ereszkedő</b> látható.</li>
         </ul>
@@ -221,15 +222,18 @@
           <tr><td class="path">Aszfalt</td><td>Kerékpárutak és szilárd burkolatú utak, gyors haladás (BRouter „fastbike” profil).</td><td>22 km/h</td></tr>
           <tr><td class="path">Gravel</td><td>Földutak, murva, mezőgazdasági utak is.</td><td>18 km/h</td></tr>
           <tr><td class="path">MTB</td><td>Erdei ösvények, terep.</td><td>12 km/h</td></tr>
-          <tr><td class="path">Túra</td><td>Gyalogos útvonalak, turistautak („trekking” profil).</td><td>5 km/h</td></tr>
+          <tr><td class="path">Séta</td><td>Gyalog: utcák, járdák, parkok, könnyű földutak – nehéz ösvényre nem visz, a turistajelzés mindegy.</td><td>5 km/h</td></tr>
+          <tr><td class="path">Túra</td><td>Gyalog: a jelzett turistautak előnyben, ösvények is (legfeljebb közepesen nehéz hegyi ösvény).</td><td>5 km/h</td></tr>
         </table>
-        <p><b>Vegyes mód:</b> egy útvonalon belül szakaszonként más-más mód is lehet – a pontlistában a szakasz melletti színes pöttyre koppintva állítható. A térképen a szakaszok a módjuk színével jelennek meg.</p>
+        <p>A módok két tevékenységbe tartoznak: <b>Kerékpár</b> (Aszfalt, Gravel, MTB) és <b>Gyalog</b> (Séta, Túra). A két gyalogos mód a BRouter „hiking-mountain” profilját használja eltérő beállítással.</p>
+        <p><b>Vegyes mód:</b> egy útvonalon belül szakaszonként más-más mód is lehet, de csak a tevékenységen belül – bringás útvonalon nincs gyalogos szakasz, és fordítva. A pontlistában a szakasz melletti színes pöttyre koppintva állítható; a térképen a szakaszok a módjuk színével jelennek meg. Ha a tervezési módot a másik tevékenységre váltod (pl. MTB-ről Túrára), a szakaszonkénti módok visszaállnak az alapra.</p>
+        <p><b>Turistajelzések:</b> a térképstílus-választóban kapcsolható réteg, és gyalogos módban egy adott jelzés követése is beállítható – lásd <a href="#turistajelzesek">Turistajelzések és jelzéskövetés</a>.</p>
         <p>Az alapsebességek a <span class="path">Beállítások → Tervezési beállítások</span> alatt módosíthatók.</p>
 
         <h3 id="oldalsav">A tervezés oldalsávja</h3>
         <ul>
           <li><b>Útvonal ⋯ menü</b> (a cím mellett): <a href="#utvonal-javaslat">Útvonal-javaslat</a>, GPX importálása, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
-          <li><b>Pontok</b> – mellette a tervezési mód választója (Aszfalt / Gravel / MTB / Túra), alatta a pontlista.</li>
+          <li><b>Pontok</b> – mellette a tervezési mód választója (Kerékpár: Aszfalt / Gravel / MTB, Gyalog: Séta / Túra), alatta a pontlista.</li>
           <li>A lista alatt a <b>kereső</b>, a <b>Körtúra</b> kapcsoló és a <b>⚙</b> gomb a ritkábban állított beállításokkal (lásd lent).</li>
           <li><b>Útvonal színezése</b> – egy választóval: <b>Nincs</b>, <b>Szintprofil</b> (meredekség), <b>Szélelemzés</b>, <b>Burkolat</b>. Egyszerre egy lehet aktív.</li>
         </ul>
@@ -243,6 +247,22 @@
         </table>
         <p>Ugyanezek a <span class="path">☰ → Beállítások</span> alatt is megvannak (a két hely együtt változik). Telefonon a ⚙ helyett „Beállítások” gomb van, és a panel a lapon belül nyílik le.</p>
         <p>A <b>GPX köztes pontok</b> kapcsoló (fájlbetöltéskor a köztes pontok útvonalponttá alakítása) a <span class="path">Beállítások → Tervezési beállítások</span> alatt van.</p>
+
+        <h3 id="turistajelzesek">Turistajelzések és jelzéskövetés</h3>
+        <p>Gyalogos módban (Séta, Túra) a tervezés a jelzett turistautakra épülhet – úgy, mint egy turistatérképen: „Mátraházáról a piros sávon fel a Kékesre, onnan a kék háromszögön le Mátrafüredre”. Az adatok az OpenStreetMap túraútvonalaiból jönnek (a Waymarked Trails szolgáltatáson át), a magyar jelzésekkel (kék sáv, piros kereszt, sárga kör…).</p>
+        <ul>
+          <li><b>Turistajelzések réteg:</b> a térkép jobb felső sarkában, a térképstílus-választóban kapcsolható. A jelzett utakat színes vonallal és a jelzés képével mutatja bármelyik térkép fölött. Amíg nem állítod át, Séta és Túra módban magától bekapcsol.</li>
+          <li><b>Csak jelzett turistaúton</b> (a tervezés <b>⚙</b> paneljében, gyalogos módban): a tervező a jelzett utakat erősen előnyben részesíti, és csak ott tér le róluk, ahol muszáj – jellemzően a rajthoz és a célhoz vezető bekötésnél. Nem egy bizonyos jelzést követ, hanem bármelyiket.</li>
+          <li><b>Jelzés követése a következő pontig</b> (a pont ablakában): azok a jelzések jelennek meg, amelyek ezen a ponton <i>és</i> a következőn is átmennek. Egyet kiválasztva a szakasz pontosan azon a jelzésen vezet; a pontlistában a pont mellett a jelzés képe látszik. A <b>Nincs</b> visszaállítja a sima tervezést. Ha a pontot később elhúzod a jelzésről, a szakasz a tervezési mód szerint tervez tovább.</li>
+          <li><b>Jelzések a térkép egy pontján:</b> asztalon <b>jobb gombbal</b>, telefonon <b>hosszan nyomva</b> a térképre ablak nyílik az ott futó jelzésekkel. Egyre koppintva kiemelődik a térképen, és:
+            <ul>
+              <li><b>Pont ide, ezen a jelzésen</b> – új pont a jelzett útra illesztve; az előző ponttól (ha az is a jelzésen van) a jelzésen vezet az út. Így pontról pontra „végigkattinthatod” a túrát.</li>
+              <li><b>Egész jelzés tervként</b> – a jelzés elejétől a végéig, szerkeszthető tervként (120 km-ig; a hosszabbakra, pl. a Kéktúrára tegyél pontokat).</li>
+              <li><b>Mutasd egészben</b> – a teljes jelzés a térképen.</li>
+            </ul>
+          </li>
+        </ul>
+        <p class="tip"><b>Ha a jelzés nem jelenik meg a pontnál:</b> a pontnak kb. 100 m-en belül kell lennie a jelzett úttól – húzd rá a vonalra, vagy használd a jobb gombos „Pont ide, ezen a jelzésen”-t. Kerékpáros módban a jelzéskövetés nem érhető el (váltáskor megszűnik).</p>
 
         <h3 id="burkolat">Burkolat</h3>
         <p>Az <b>Útvonal színezése → Burkolat</b> megmutatja, milyen utakon vezet az útvonal: <b>Aszfalt</b>, <b>Murva</b>, <b>Földút</b>, <b>Ösvény</b> – arányban (sáv) és km-ben, a térképen pedig a szakaszok burkolat szerint színeződnek (ugyanazokkal a színekkel, mint a tervezési módok pöttyei). Tervezett útvonalnál az adat az útvonaltervezővel együtt érkezik, azonnal; importált GPX-nél az OpenStreetMapből kérdezi le (néhány másodperc). Ahol a térképen nincs megadva burkolat, a közutat aszfaltnak veszi.</p>
@@ -258,7 +278,7 @@
         <table>
           <tr><th>Gomb</th><th>Funkció</th></tr>
           <tr><td>⋮⋮ fogantyú</td><td>Asztalon húzással áthelyezhető, kattintásra kis gombbá csukható össze (újabb kattintásra kinyílik).</td></tr>
-          <tr><td>Tervezési mód</td><td>Az új szakaszok alapértelmezett módja (Aszfalt / Gravel / MTB / Túra).</td></tr>
+          <tr><td>Tervezési mód</td><td>Az új szakaszok alapértelmezett módja (Aszfalt / Gravel / MTB / Séta / Túra).</td></tr>
           <tr><td>Helykeresés</td><td>A kereső megnyitása.</td></tr>
           <tr><td>Import</td><td>GPX / FIT fájl betöltése.</td></tr>
           <tr><td>Megfordítás</td><td>Az útvonal irányának megfordítása.</td></tr>
@@ -556,7 +576,7 @@
         <p>☰ menü → <b>Beállítások</b>. A szakaszok alapból csukva vannak, a címükre koppintva nyílnak ki (a kinyitottakat megjegyzi). A beállítások a fiókodhoz mentődnek, így minden eszközön ugyanazok.</p>
         <table>
           <tr><th>Szakasz</th><th>Mit állíthatsz?</th></tr>
-          <tr><td class="path">Térképstílus</td><td>Standard, Kerékpár, Domborzat, Műhold, Hybrid, Világos, Sötét. A térkép jobb felső sarkában is váltható.</td></tr>
+          <tr><td class="path">Térképstílus</td><td>Standard, Kerékpár, Domborzat, Műhold, Hybrid, Világos, Sötét. A térkép jobb felső sarkában is váltható; ott kapcsolható a <b>Turistajelzések</b> réteg is.</td></tr>
           <tr><td class="path">Mértékegység</td><td>Metrikus (km, m) vagy angolszász (mi, ft).</td></tr>
           <tr><td class="path">Megosztás</td><td>A megosztási linkek és QR-kódok alap-címe (saját domain).</td></tr>
           <tr><td class="path">AI-elemzés</td><td>Az AI-funkciók be- és kikapcsolása magadnak (csak ha az üzemeltető bekapcsolta) – lásd <a href="#ai-elemzes">AI-elemzés</a>.</td></tr>

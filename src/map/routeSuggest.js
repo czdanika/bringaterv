@@ -27,8 +27,9 @@ function bearing(a, b) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// burkolat-választás → BRouter-profil (a tervező tervezési módjai)
-export const SURFACE_MODE = { asphalt: "asphalt", gravel: "gravel", mixed: "gravel" };
+// burkolat-választás → BRouter-profil (a tervező tervezési módjai); gyalog: Séta / Túra / vegyes
+export const SURFACE_MODE = { asphalt: "asphalt", gravel: "gravel", mixed: "gravel", walk: "walking", hike: "hiking", footmix: "hiking" };
+export const FOOT_SURFACES = ["walk", "hike", "footmix"];
 const ROAD_FACTOR = 1.3;   // a valós út ennyivel hosszabb a légvonalnál (kezdő becslés)
 
 // Kör: a rajt egy körön van, a kör középpontja a rajttól `b` irányban R-re; a további
@@ -95,6 +96,17 @@ function spurLength(geometry, via) {
   return via.reduce((sum, v) => sum + (findSpur(geometry, cum, v)?.len || 0), 0);
 }
 
+// Jelzett turistaúton (OSM túraútvonal-reláció) megtett arány
+function markedShare(geometry) {
+  let mk = 0, tot = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const d = haversine(geometry[i - 1], geometry[i]);
+    if (geometry[i].mk) mk += d;
+    tot += d;
+  }
+  return tot ? mk / tot : 0;
+}
+
 function surfaceMix(geometry) {
   const mix = {};
   let tot = 0;
@@ -149,6 +161,14 @@ function score(r, opts, via = []) {
   if (opts.surface === "asphalt") p += 5 * unpaved + 8 * rough;
   if (opts.surface === "gravel") p += 1.2 * (1 - (mix.gravel || 0) - 0.5 * (mix.mtb || 0));
   if (opts.surface === "mixed") p += 0.6 * Math.abs(0.5 - (mix.asphalt || 0));
+  // gyalog: Túránál a jelzett turistaút számít (és kevés aszfalt), Sétánál az ösvény kerülendő;
+  // mindháromnál a főút (gyalog a forgalmas út mellett nem élmény)
+  const foot = FOOT_SURFACES.includes(opts.surface);
+  const marked = foot ? markedShare(r.geometry) : 0;
+  if (opts.surface === "hike") p += 1.5 * (1 - marked) + 0.8 * (mix.asphalt || 0);
+  if (opts.surface === "walk") p += 1.5 * (mix.hiking || 0);
+  if (opts.surface === "footmix") p += 0.5 * (1 - marked);
+  if (foot) p += 4 * mainRoadShare(r.geometry);
   // síknál az átlag mellett az egybefüggő emelkedő is számít (egy 120 m-es kaptató az átlagban elveszne)
   if (opts.hills === "flat") p += 0.12 * Math.max(0, asc - 4) + 0.02 * Math.max(0, climb - 30);
   if (opts.hills === "hilly") p += Math.max(0, 1 - asc / 12);
@@ -165,8 +185,9 @@ function score(r, opts, via = []) {
   else if (opts.hills === "flat" && climb > 50) warn.push(`${climb} m-es egybefüggő emelkedő`);
   else if (opts.hills === "flat" && asc > 8) warn.push(`dombos (${Math.round(r.ascentMeters)} m szint)`);
   if (opts.surface === "asphalt" && unpaved > 0.05) warn.push(`${Math.round(unpaved * 100)}% burkolatlan`);
+  if (opts.surface === "hike" && marked < 0.3) warn.push(`csak ${Math.round(marked * 100)}% jelzett turistaúton`);
   if (opts.avoidTraffic && main > 0.15) warn.push(`${Math.round(main * 100)}% főúton`);
-  return { penalty: p, mix, climb, main, warn };
+  return { penalty: p, mix, climb, main, warn, marked };
 }
 
 // Párhuzamos kérések korlátozása (a nyilvános BRouter-szervert kíméljük)
@@ -185,7 +206,7 @@ async function pool(tasks, limit, onDone) {
 }
 
 /**
- * @param {object} opts  { start, end?, km, loop, surface: asphalt|gravel|mixed, hills: flat|hilly|any,
+ * @param {object} opts  { start, end?, km, loop, surface: asphalt|gravel|mixed|walk|hike|footmix, hills: flat|hilly|any,
  *                         dir?: égtáj fokban (kör iránya), avoidTraffic?: főutak kerülése,
  *                         cycleways?: kerékpárút előnyben, maxClimb?: leghosszabb egybefüggő emelkedő (m),
  *                         count?: javaslatok száma (alap 6), dense?: több változat (saját BRouter esetén) }
@@ -197,7 +218,9 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
   const mode = SURFACE_MODE[opts.surface] || "asphalt";
   // aszfaltnál a kéréshez illő saját BRouter-profil (brouter/profiles; a nyilvános szerveren a gyári
   // fastbike-lowtraffic helyettesíti) – a gravel profil eleve kerüli a főutakat
-  const profile = mode !== "asphalt" ? null
+  // gyalog vegyesnél a gyári hiking-mountain alapbeállítása (a jelzett út enyhén előnyben)
+  const profile = opts.surface === "footmix" ? "hiking-mountain"
+    : mode !== "asphalt" ? null
     : opts.cycleways ? "bringaterv-kerekparut"
     : opts.hills === "flat" ? "bringaterv-sik"
     : opts.avoidTraffic ? "bringaterv-csendes" : null;
@@ -276,7 +299,7 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     for (const o of opt) {
       const via = sh.make(o.k);
       const s = score(o.res, opts, via);
-      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, mode });
+      cands.push({ ...o.res, via, shape: sh.bearing, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, marked: s.marked, mode });
     }
   });
   // alakonként a legjobb, majd a legjobb 4 különböző alak
@@ -292,7 +315,7 @@ export async function generateSuggestions(opts, routeFn, onProgress) {
     if (!changed) return null;
     const res = await route(ends(via), mode);
     const s = score(res, opts, via);
-    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, mode };
+    return { ...res, via, shape: c.shape, penalty: s.penalty, mix: s.mix, climb: s.climb, main: s.main, warn: s.warn, marked: s.marked, mode };
   }), conc);
   top = top.map((c, i) => (fixed[i] && fixed[i].penalty <= c.penalty + 0.05 ? fixed[i] : c));
   return top.sort((a, b) => a.penalty - b.penalty).slice(0, count).map((c) => ({

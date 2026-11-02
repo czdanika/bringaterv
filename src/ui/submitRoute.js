@@ -9,7 +9,7 @@
 
 import { authHeaders, getUser, handle401 } from "../auth.js";
 
-const TYPES = [["asphalt", "Aszfalt"], ["gravel", "Gravel"], ["mtb", "MTB"], ["hiking", "Túra"]];
+const TYPES = [["asphalt", "Aszfalt"], ["gravel", "Gravel"], ["mtb", "MTB"], ["walking", "Séta"], ["hiking", "Túra"]];
 const DIFFS = [["easy", "Könnyű"], ["medium", "Közepes"], ["hard", "Nehéz"]];
 const SEASONS = [["", "– nincs megadva –"], ["all", "Egész évben"], ["spring-autumn", "Tavasztól őszig"],
                  ["summer", "Nyáron"], ["dry", "Száraz időben"]];
@@ -21,7 +21,8 @@ function guessType(route) {
   const t = String(route.type || "").toLowerCase();
   if (TYPES.some(([k]) => k === t)) return t;
   const sp = String(route.sport_type || "").toLowerCase();
-  if (sp.includes("hike") || sp.includes("walk")) return "hiking";
+  if (sp.includes("hike")) return "hiking";
+  if (sp.includes("walk")) return "walking";
   if (sp.includes("mountain")) return "mtb";
   if (sp.includes("gravel")) return "gravel";
   return "asphalt";

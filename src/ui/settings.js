@@ -28,6 +28,7 @@ export function initSettings({ mapAdapter, store, showToast, getActiveGeometry, 
   _initChartColorSettings();
   _initDirectionArrowsToggle();
   _initRouteFlowToggle();
+  _initAutoFitToggle();
   _initCyclistProfileSettings();
   _initBackupRestore();
 
@@ -920,6 +921,16 @@ function _initRouteFlowToggle() {
     const g = _getActiveGeometry?.();
     if (toggle.checked && g?.length >= 2) _mapAdapter.renderRouteFlow?.(g);
     else _mapAdapter.clearRouteFlow?.();
+  });
+}
+
+// ── Automatikus zoom az útvonalra tervezés közben ────────────────────────────
+function _initAutoFitToggle() {
+  const toggle = document.getElementById("autoFitToggle");
+  if (!toggle) return;
+  toggle.checked = localStorage.getItem("bringaterv.autoFit") !== "false";
+  toggle.addEventListener("change", () => {
+    localStorage.setItem("bringaterv.autoFit", String(toggle.checked));
   });
 }
 

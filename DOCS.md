@@ -28,7 +28,8 @@ A **Bringaterv** egy önhosztolt GPX útvonaltervező és edzésnapló alkalmaz�
 
 **Fő funkciók:**
 - Kattintásos útvonaltervezés Leaflet térképen, BRouter útra illesztéssel
-- 4 tervezési mód: Aszfalt / Gravel / MTB / Túra
+- 5 tervezési mód: Kerékpár (Aszfalt / Gravel / MTB) és Gyalog (Séta / Túra) – közös leíró: `src/routeModes.js`
+- Turistajelzések és jelzéskövetés (gyalogos módban) – leírás: [TURISTAJELZESEK.md](TURISTAJELZESEK.md)
 - GPX import + teljes elemzés: szintprofil, sebesség, pulzus, kadencia, lejtőtérkép
 - Szerver oldali útvonalkönyvtár: mentett útvonalak + edzések GPX fájlokkal
 - **Multi-user:** JWT autentikáció, per-user adatok, admin panel

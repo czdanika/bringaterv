@@ -131,7 +131,7 @@ export function libraryRouteSportKey(route) {
 
 function libraryRouteSport(route) {
   const k = libraryRouteSportKey(route);
-  return { cycling: "Kerékpár", run: "Futás", hike: "Túra", walk: "Gyaloglás", other: "Egyéb" }[k] ?? k;
+  return { cycling: "Kerékpár", run: "Futás", hike: "Túra", walk: "Séta", other: "Egyéb" }[k] ?? k;
 }
 
 export function libraryRouteSource(route, category) {

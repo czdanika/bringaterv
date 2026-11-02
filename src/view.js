@@ -26,7 +26,7 @@ const STYLE_LABELS = {
 
 const TYPE_LABELS = {
   cycling: "Kerékpár", asphalt: "Országúti", gravel: "Gravel", mtb: "MTB",
-  hiking: "Túra", walking: "Túra", running: "Futás", run: "Futás", ride: "Kerékpár",
+  hiking: "Túra", walking: "Séta", running: "Futás", run: "Futás", ride: "Kerékpár",
 };
 
 /**

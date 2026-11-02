@@ -3075,6 +3075,9 @@ body.is-drag-over::after {
   transition: background 0.15s;
 }
 .route-mode-item:hover { background: var(--panel-strong); }
+/* tevékenység-csoport fejléc (Kerékpár / Gyalog) */
+.route-mode-group { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.route-mode-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, rgba(0,0,0,.08)); padding-top: 8px; }
 .route-mode-item.is-active { background: var(--panel-strong); color: var(--brand); }
 .route-mode-item.is-active .route-mode-icon { color: var(--brand); }
 .route-mode-icon {
@@ -7102,12 +7105,31 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   height: 30px; padding: 0 4px 2px; border: 0; border-radius: 7px; background: none; cursor: pointer;
   font: inherit; font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .wp-mode:hover { color: var(--text); }
+.wp-modes-sep { flex: 0 0 1px; margin: 5px 1px; background: var(--border, rgba(0,0,0,.12)); }
+.map-style-overlay-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border, rgba(0,0,0,.08)); }
 .wp-mode { position: relative; }
 /* a kiválasztott mód színe: kis csík a felirat alatt (nem vesz el szélességet) */
 .wp-mode i { display: none; position: absolute; left: 50%; bottom: 3px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; }
 .wp-mode.is-active { background: var(--panel-bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
 .wp-mode.is-active i { display: block; }
 .wp-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+/* Jelzés követése (pontablak) + jelzések a térkép egy pontján */
+.wp-trails { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.wp-trail { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 6px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel-bg); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; max-width: 100%; }
+.wp-trail span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-trail--none { padding-left: 9px; color: var(--text-muted); }
+.wp-trail.is-active { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; color: var(--text); }
+.wp-trail img, .trail-row img { flex: none; border-radius: 3px; }
+.wp-trails-note { font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+.seg-trail-sym { width: 16px; height: 16px; margin-left: 4px; border-radius: 3px; vertical-align: middle; }
+.trail-list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; max-height: 240px; overflow-y: auto; }
+.trail-row { display: grid; grid-template-columns: 24px auto 1fr; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.trail-row span { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trail-row:hover, .trail-row.is-active { background: var(--panel-strong); }
+.trail-row-nosym { width: 22px; height: 22px; border-radius: 3px; background: var(--panel-strong); }
+.trail-acts { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
 .wp-btn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px;
   border: 0; border-radius: 11px; cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600; }
 .wp-btn--brand { background: color-mix(in srgb, var(--brand) 13%, transparent); color: color-mix(in srgb, var(--brand) 85%, #000); }

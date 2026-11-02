@@ -181,6 +181,7 @@
                   </button>
                   <div id="routeModePopup" class="sidebar-style-popup route-mode-popup" hidden>
                     <div class="route-mode-list">
+                      <div class="route-mode-group">Kerékpár</div>
                       <button class="route-mode-item" data-route-mode="asphalt" type="button">
                         <span class="route-mode-icon"><i data-lucide="bike" aria-hidden="true"></i></span>
                         <span class="route-mode-item-info">
@@ -204,11 +205,19 @@
                           <span class="route-mode-item-desc">Erdei utak, ösvények</span>
                         </span>
                       </button>
+                      <div class="route-mode-group">Gyalog</div>
                       <button class="route-mode-item" data-route-mode="walking" type="button">
                         <span class="route-mode-icon"><i data-lucide="footprints" aria-hidden="true"></i></span>
                         <span class="route-mode-item-info">
+                          <span class="route-mode-item-name">Séta</span>
+                          <span class="route-mode-item-desc">Utcák, parkok, könnyű utak</span>
+                        </span>
+                      </button>
+                      <button class="route-mode-item" data-route-mode="hiking" type="button">
+                        <span class="route-mode-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M6 3h5v5.5l4.6 1.9C18.5 11.6 20 13 20 15v2H4V5a2 2 0 0 1 2-2z"/><path d="M3 17h18v1.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5z"/><path d="M8.5 6H11"/><path d="M8.5 8.5H11"/></svg></span>
+                        <span class="route-mode-item-info">
                           <span class="route-mode-item-name">Túra</span>
-                          <span class="route-mode-item-desc">Gyalogutak, turistajelzések</span>
+                          <span class="route-mode-item-desc">Jelzett turistautak, ösvények</span>
                         </span>
                       </button>
                     </div>
@@ -261,6 +270,16 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+                    <div class="option-row" id="markedOnlyRow" hidden>
+                <span class="option-label-wrap">
+                  <span>Csak jelzett turistaúton</span>
+                  <button class="hint-btn" type="button" data-hint-title="Csak jelzett turistaúton" data-hint="Séta és Túra módban: bekapcsolva a tervező a jelzett turistautakat erősen előnyben részesíti, és csak ott tér le róluk, ahol muszáj (jellemzően a rajthoz és a célhoz vezető bekötésnél). Ha egy adott jelzést akarsz követni (pl. a piros sávot), azt a pont ablakában a „Jelzés követése” résznél választhatod ki." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                </span>
+                <label class="toggle-switch">
+                  <input id="markedOnlyToggle" type="checkbox">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
                     <div class="option-row">
                 <span class="option-label-wrap">
                   <span data-i18n="controls.stageInfo">Szakasz infó</span>
@@ -294,12 +313,25 @@
               </div>
                     <div class="plan-pop-title">Térkép</div>
                     <div class="option-row">
-                      <span class="option-label-wrap"><span>Futó animáció az útvonalon</span></span>
+                      <span class="option-label-wrap">
+                        <span>Futó animáció az útvonalon</span>
+                        <button class="hint-btn" type="button" data-hint-title="Futó animáció" data-hint="Apró fehér jelek futnak végig az útvonalon a haladás irányában – tervezésnél és elemzésnél is. Ha a rendszerben a mozgás csökkentése be van kapcsolva, nem mozog." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                      </span>
                       <label class="toggle-switch"><input id="planRouteFlowToggle" type="checkbox" checked><span class="toggle-track"></span></label>
                     </div>
                     <div class="option-row">
-                      <span class="option-label-wrap"><span>Útirány-nyilak</span></span>
+                      <span class="option-label-wrap">
+                        <span>Útirány-nyilak</span>
+                        <button class="hint-btn" type="button" data-hint-title="Útirány-nyilak" data-hint="Kis nyilakat rajzol az útvonalra, amelyek a haladási irányt mutatják – hasznos körútnál vagy oda-vissza szakaszoknál." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                      </span>
                       <label class="toggle-switch"><input id="planArrowsToggle" type="checkbox"><span class="toggle-track"></span></label>
+                    </div>
+                    <div class="option-row">
+                      <span class="option-label-wrap">
+                        <span>Automatikus zoom az útvonalra</span>
+                        <button class="hint-btn" type="button" data-hint-title="Automatikus zoom az útvonalra" data-hint="Bekapcsolva tervezés közben minden új pont után a térkép magától a teljes útvonalra nagyít vagy kicsinyít. Kikapcsolva a térkép ott marad, ahol hagytad, a nagyítás nem változik – a teljes útvonalat a térkép „Teljes útvonal” gombjával nézheted meg." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                      </span>
+                      <label class="toggle-switch"><input id="planAutoFitToggle" type="checkbox" checked><span class="toggle-track"></span></label>
                     </div>
                     <p class="plan-pop-note">Az alapértékek a Beállítások menüben is megvannak.</p>
                   </div>
@@ -1293,6 +1325,13 @@
               <button class="settings-style-btn" data-map-style="light" type="button"><span class="settings-style-preview settings-style-preview--light"></span><span class="settings-style-label">Világos</span></button>
               <button class="settings-style-btn" data-map-style="dark" type="button"><span class="settings-style-preview settings-style-preview--dark"></span><span class="settings-style-label">Sötét</span></button>
               </div>
+              <div class="option-row map-style-overlay-row">
+                <span class="option-label-wrap">
+                  <span>Turistajelzések</span>
+                  <button class="hint-btn" type="button" data-hint-title="Turistajelzések" data-hint="A jelzett turistautakat (pl. Országos Kéktúra, kék sáv, piros kereszt) színes vonallal mutatja bármelyik térképstílus fölött – az OpenStreetMap adatai alapján, a Waymarked Trails rétegével. Amíg nem állítod át, Séta és Túra módban magától bekapcsol, kerékpáros módban nem." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                </span>
+                <label class="toggle-switch"><input id="hikingOverlayToggle" type="checkbox"><span class="toggle-track"></span></label>
+              </div>
             </div>
           </div>
         </div>
@@ -1318,6 +1357,7 @@
             </button>
             <div id="mapRouteModePopup" class="map-mode-popup" hidden>
               <div class="route-mode-list">
+                <div class="route-mode-group">Kerékpár</div>
                 <button class="route-mode-item" data-route-mode="asphalt" type="button">
                   <span class="route-mode-icon"><i data-lucide="bike" aria-hidden="true"></i></span>
                   <span class="route-mode-item-info">
@@ -1341,11 +1381,19 @@
                     <span class="route-mode-item-desc">Erdei utak, ösvények</span>
                   </span>
                 </button>
+                <div class="route-mode-group">Gyalog</div>
                 <button class="route-mode-item" data-route-mode="walking" type="button">
                   <span class="route-mode-icon"><i data-lucide="footprints" aria-hidden="true"></i></span>
                   <span class="route-mode-item-info">
+                    <span class="route-mode-item-name">Séta</span>
+                    <span class="route-mode-item-desc">Utcák, parkok, könnyű utak</span>
+                  </span>
+                </button>
+                <button class="route-mode-item" data-route-mode="hiking" type="button">
+                  <span class="route-mode-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M6 3h5v5.5l4.6 1.9C18.5 11.6 20 13 20 15v2H4V5a2 2 0 0 1 2-2z"/><path d="M3 17h18v1.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5z"/><path d="M8.5 6H11"/><path d="M8.5 8.5H11"/></svg></span>
+                  <span class="route-mode-item-info">
                     <span class="route-mode-item-name">Túra</span>
-                    <span class="route-mode-item-desc">Gyalogutak, turistajelzések</span>
+                    <span class="route-mode-item-desc">Jelzett turistautak, ösvények</span>
                   </span>
                 </button>
               </div>
@@ -1599,8 +1647,12 @@
                 <span><i data-lucide="mountain" aria-hidden="true"></i> MTB</span>
               </label>
               <label class="export-mode-btn">
+                <input type="radio" name="libraryEditType" value="walking">
+                <span><i data-lucide="footprints" aria-hidden="true"></i> Séta</span>
+              </label>
+              <label class="export-mode-btn">
                 <input type="radio" name="libraryEditType" value="hiking">
-                <span><i data-lucide="footprints" aria-hidden="true"></i> Túra</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M6 3h5v5.5l4.6 1.9C18.5 11.6 20 13 20 15v2H4V5a2 2 0 0 1 2-2z"/><path d="M3 17h18v1.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5z"/><path d="M8.5 6H11"/><path d="M8.5 8.5H11"/></svg> Túra</span>
               </label>
             </div>
           </div>
@@ -1649,7 +1701,11 @@
               </label>
               <label class="export-mode-btn">
                 <input type="radio" name="exportMode" value="walking">
-                <span><i data-lucide="footprints" aria-hidden="true"></i> Túra</span>
+                <span><i data-lucide="footprints" aria-hidden="true"></i> Séta</span>
+              </label>
+              <label class="export-mode-btn">
+                <input type="radio" name="exportMode" value="hiking">
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M6 3h5v5.5l4.6 1.9C18.5 11.6 20 13 20 15v2H4V5a2 2 0 0 1 2-2z"/><path d="M3 17h18v1.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5z"/><path d="M8.5 6H11"/><path d="M8.5 8.5H11"/></svg> Túra</span>
               </label>
             </div>
           </div>
@@ -2433,6 +2489,15 @@
   <div class="speed-slider-row">
   <div class="speed-slider-info">
   <i data-lucide="footprints" aria-hidden="true"></i>
+  <span>Séta</span>
+  <span class="speed-val-wrap"><span id="speedWalkingVal">5</span> km/h</span>
+  </div>
+  <input type="range" id="speedWalking" class="speed-slider" min="1" max="15" value="5" step="1" data-speed-mode="walking">
+  </div>
+
+  <div class="speed-slider-row">
+  <div class="speed-slider-info">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M6 3h5v5.5l4.6 1.9C18.5 11.6 20 13 20 15v2H4V5a2 2 0 0 1 2-2z"/><path d="M3 17h18v1.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5z"/><path d="M8.5 6H11"/><path d="M8.5 8.5H11"/></svg>
   <span>Túra</span>
   <span class="speed-val-wrap"><span id="speedHikingVal">5</span> km/h</span>
   </div>
@@ -2805,6 +2870,14 @@
         <button class="hint-btn" type="button" data-hint-title="Futó animáció" data-hint="Apró fehér jelek futnak végig az útvonalon a haladás irányában – tervezésnél és elemzésnél is. Ha a rendszerben a mozgás csökkentése be van kapcsolva, nem mozog." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
         <label class="toggle-switch" title="Futó animáció be/ki">
           <input id="routeFlowToggle" type="checkbox" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="plan-elev-toggle-row" style="margin:0">
+        <span class="plan-elev-toggle-label">Automatikus zoom az útvonalra</span>
+        <button class="hint-btn" type="button" data-hint-title="Automatikus zoom az útvonalra" data-hint="Bekapcsolva tervezés közben minden új pont után a térkép magától a teljes útvonalra nagyít vagy kicsinyít. Kikapcsolva a térkép ott marad, ahol hagytad, a nagyítás nem változik – a teljes útvonalat a térkép „Teljes útvonal” gombjával nézheted meg." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+        <label class="toggle-switch" title="Automatikus zoom az útvonalra be/ki">
+          <input id="autoFitToggle" type="checkbox" checked>
           <span class="toggle-track"></span>
         </label>
       </div>

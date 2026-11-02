@@ -3,7 +3,8 @@ const sportTypeMap = {
   asphalt: "cycling",
   gravel:  "cycling",
   mtb:     "cycling",
-  walking: "hiking",
+  walking: "walking",
+  hiking:  "hiking",
 };
 
 export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", mode = "cycling" }) {
@@ -18,9 +19,10 @@ export function exportGpx({ waypoints, geometry, name = "Route4Me", desc = "", m
     .map((point, index) => {
       const label = escapeXml(point.name || `${index + 1}. pont`);
       const wptDesc = point.note ? `\n    <desc>${escapeXml(point.note)}</desc>` : "";
-      const segExt  = point.segmentMode
-        ? `\n    <extensions><bringaterv:segmentMode>${escapeXml(point.segmentMode)}</bringaterv:segmentMode></extensions>`
-        : "";
+      // szakaszmód és követett turistajelzés (a következő pontig) – a saját tervek visszatöltéséhez
+      const ext = (point.segmentMode ? `<bringaterv:segmentMode>${escapeXml(point.segmentMode)}</bringaterv:segmentMode>` : "")
+        + (point.trail?.id ? `<bringaterv:trail>${escapeXml(JSON.stringify(point.trail))}</bringaterv:trail>` : "");
+      const segExt  = ext ? `\n    <extensions>${ext}</extensions>` : "";
       return `  <wpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">\n    <name>${label}</name>${wptDesc}${segExt}\n  </wpt>`;
     })
     .join("\n");
@@ -144,6 +146,8 @@ function nodesToPoints(nodes) {
     const power = wattsNode ? Number(wattsNode.textContent) : null;
     const segModeNode = node.getElementsByTagNameNS("*", "segmentMode")[0];
     const segmentMode = segModeNode?.textContent?.trim() || null;
+    let trail = null;
+    try { trail = JSON.parse(node.getElementsByTagNameNS("*", "trail")[0]?.textContent || "null"); } catch { /* sérült – nem baj */ }
     return {
       lat: Number(node.getAttribute("lat")),
       lng: Number(node.getAttribute("lon")),
@@ -155,6 +159,7 @@ function nodesToPoints(nodes) {
       name: localizeName(node.querySelector("name")?.textContent) || `${index + 1}. pont`,
       note: node.querySelector("desc")?.textContent || "",
       segmentMode,
+      ...(trail?.id ? { trail } : {}),
     };
   }).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
 }

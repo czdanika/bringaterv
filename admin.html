@@ -948,6 +948,7 @@
             <option value="asphalt">Aszfalt</option>
             <option value="gravel">Gravel</option>
             <option value="mtb">MTB</option>
+            <option value="walking">Séta</option>
             <option value="hiking">Túra</option>
           </select>
         </div>
@@ -1255,6 +1256,7 @@
               <option value="asphalt">Aszfalt</option>
               <option value="gravel">Gravel</option>
               <option value="mtb">MTB</option>
+              <option value="walking">Séta</option>
               <option value="hiking">Túra</option>
               <option value="workout">Edzés</option>
             </select>
@@ -1279,7 +1281,7 @@
     import { importGpx, calcElevationFromGeometry } from "./src/gpx/gpx.js";
     import { analyzeSurface, MODE_LABELS } from "./src/map/surfaceAnalysis.js";
 
-    const SEGMENT_COLORS = { asphalt: "#1976d2", gravel: "#F97316", mtb: "#22C55E", hiking: "#A855F7" };
+    const SEGMENT_COLORS = { asphalt: "#1976d2", gravel: "#F97316", mtb: "#22C55E", walking: "#0EA5E9", hiking: "#A855F7" };
 
     requireAdmin();
     const _me = getUser();
@@ -1625,7 +1627,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       }
     });
 
-    const TYPE_LABELS = { asphalt:"Aszfalt", gravel:"Gravel", mtb:"MTB", hiking:"Túra", workout:"Edzés", cycling:"Kerékpár" };
+    const TYPE_LABELS = { asphalt:"Aszfalt", gravel:"Gravel", mtb:"MTB", walking:"Séta", hiking:"Túra", workout:"Edzés", cycling:"Kerékpár" };
 
     function renderFilesModal(userId, routes) {
       const body = document.querySelector("#filesModalBody");
@@ -1735,6 +1737,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
                       <option value="asphalt">Aszfalt</option>
                       <option value="gravel">Gravel</option>
                       <option value="mtb">MTB</option>
+                      <option value="walking">Séta</option>
                       <option value="hiking">Túra</option>
                       <option value="workout">Edzés</option>
                     </select>
@@ -1873,7 +1876,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
 
 
     // ── Minták szekció ────────────────────────────────────────────────────────
-    const SAMPLE_TYPE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra", cycling: "Kerékpár" };
+    const SAMPLE_TYPE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", walking: "Séta", hiking: "Túra", cycling: "Kerékpár" };
 
     function locCell(loc) {
       if (!loc || !(loc.settlement || loc.region)) return `<span style="color:var(--muted);font-size:12px">nincs adat</span>`;

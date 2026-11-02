@@ -14,9 +14,11 @@ import { fitToGpx } from "./gpx/fit.js";
 import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
+import { initTrailInfo } from "./ui/trailInfo.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
+import { MODE_NAMES, activityOf, segmentModeForSurface, fitSegmentModes, hikingBootSvg } from "./routeModes.js";
 import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
@@ -105,6 +107,14 @@ async function checkForUpdate() {
 }
 
 const initialLanguage = localStorage.getItem("routePlannerLanguage") || "hu";
+// v1.29.0: a „walking” mód eddig a felületen „Túra” volt – ami így maradt meg, az Túra (hiking)
+// lesz; a Séta új mód. Egyszer fut (a jelző után a „walking” már a Sétát jelenti).
+try {
+  if (localStorage.getItem("bringaterv.modesV2") == null) {
+    if (localStorage.getItem("route4meDefaultRouteMode") === "walking") localStorage.setItem("route4meDefaultRouteMode", "hiking");
+    localStorage.setItem("bringaterv.modesV2", "1");
+  }
+} catch { /* privát mód – nem baj */ }
 const i18n = createI18n(initialLanguage);
 const store = createRouteStore();
 
@@ -120,8 +130,8 @@ store.subscribe((st) => {
       if (st.importedRoute) return;   // Elemzésből betöltött edzés / fájl: nem piszkozat
       // üres tervező: csak a visszatöltés-ellenőrzés után töröljük (induláskor is jön üres állapot)
       if (!st.waypoints.length) { if (_planDraftChecked) localStorage.removeItem(PLAN_DRAFT_KEY); return; }
-      localStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ at: Date.now(), mode: st.mode,
-        waypoints: st.waypoints.map(({ lat, lng, name, note, segmentMode }) => ({ lat, lng, name, note, segmentMode })) }));
+      localStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ at: Date.now(), mode: st.mode, mv: 2,
+        waypoints: st.waypoints.map(({ lat, lng, name, note, segmentMode, trail }) => ({ lat, lng, name, note, segmentMode, trail })) }));
     } catch { /* tele a tároló / privát mód – nem baj */ }
   }, 500);
 });
@@ -132,8 +142,10 @@ function restorePlanDraftOnce() {
   try {
     const d = JSON.parse(localStorage.getItem(PLAN_DRAFT_KEY) || "null");
     if (!d?.waypoints?.length || Date.now() - d.at > 7 * 86400e3) return;
-    if (d.mode) setRouteMode(d.mode, { persistDefault: false });
-    store.replaceWaypoints(d.waypoints);
+    // a v1.29.0 előtti piszkozatban a „walking” a Túra volt
+    const mode = !d.mv && d.mode === "walking" ? "hiking" : d.mode;
+    if (mode) setRouteMode(mode, { persistDefault: false });
+    store.replaceWaypoints(fitSegmentModes(d.waypoints, store.getState().mode));
     setTimeout(() => { mapAdapter.fitRoute?.(); showToast("Visszatöltöttem a legutóbbi, félkész tervedet"); }, 400);
   } catch { /* sérült piszkozat – nem baj */ }
 }
@@ -176,8 +188,8 @@ const DIST_MAX = 500;  // km
 const DUR_MAX  = 600;  // perc (10 óra)
 
 // ── Sebességbeállítások ─────────────────────────────────────────────────────
-const DEFAULT_SPEEDS = { asphalt: 22, gravel: 18, mtb: 12, hiking: 5 };
-const SEGMENT_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra" };
+const DEFAULT_SPEEDS = { asphalt: 22, gravel: 18, mtb: 12, walking: 5, hiking: 5 };
+const SEGMENT_LABELS = MODE_NAMES;
 const LS_SPEED_PREFIX = 'bringaterv-speed-';
 
 function getSpeedSettings() {
@@ -187,7 +199,6 @@ function getSpeedSettings() {
     s[k] = (stored > 0) ? stored : def;
   }
   s.cycling = s.asphalt;
-  s.walking  = s.hiking;
   return s;
 }
 
@@ -423,7 +434,8 @@ const ROUTE_MODE_META = {
   asphalt: { label: "Aszfalt", lucide: "bike" },
   gravel:  { label: "Gravel",  lucide: null },
   mtb:     { label: "MTB",     lucide: "mountain" },
-  walking: { label: "Túra",    lucide: "footprints" },
+  walking: { label: "Séta",    lucide: "footprints" },
+  hiking:  { label: "Túra",    lucide: null, svg: hikingBootSvg(14) },
   cycling: { label: "Aszfalt", lucide: "bike" },
 };
 const GRAVEL_PICKER_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M3 17 Q6 13 9 15 Q12 17 15 13 Q18 9 21 11"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`;
@@ -812,7 +824,8 @@ let presetRoute = null;   // { signature, route: { geometry, distanceMeters, asc
 const routeSignatureOf = (state) => JSON.stringify({
   mode: state.mode,
   snapToRoads: state.snapToRoads,
-  waypoints: state.waypoints.map(({ lat, lng, segmentMode }) => [lat, lng, segmentMode ?? null]),
+  markedOnly: !!state.markedOnly,
+  waypoints: state.waypoints.map(({ lat, lng, segmentMode, trail }) => [lat, lng, segmentMode ?? null, trail?.id ?? null]),
 });
 let lastNameSignature = "";
 let units = localStorage.getItem("route4meUnits") || "metric";
@@ -822,6 +835,7 @@ let activeTool = "route";
 store.setState({
   mode: (() => { const m = localStorage.getItem("route4meDefaultRouteMode") || "asphalt"; return m === "cycling" ? "asphalt" : m; })(),
   snapToRoads: getSettings().snapToRoads,
+  markedOnly: localStorage.getItem("bringaterv.markedOnly") === "true",
 });
 
 i18n.apply();
@@ -1700,10 +1714,12 @@ store.subscribe(async (state) => {
     descentMeters: route.descentMeters ?? 0,
     sourcePointCount: 0,
   });
+  // Automatikus zoom az útvonalra (Beállítások / ⚙ Térkép): kikapcsolva a nagyítás marad, ahol volt
+  const fit = localStorage.getItem("bringaterv.autoFit") !== "false";
   if (route.segments) {
-    mapAdapter.renderSegmentedRoute(route.segments);
+    mapAdapter.renderSegmentedRoute(route.segments, { fitView: fit });
   } else {
-    mapAdapter.renderRoute(route.geometry, state.mode);
+    mapAdapter.renderRoute(route.geometry, state.mode, { fit });
   }
   updateElevationButton(route.geometry);
   if (autoOpenElevation) {
@@ -1818,13 +1834,51 @@ mapStyleFabBtn?.addEventListener("click", (e) => {
   mapStyleFabPicker.hidden = isOpen;
   mapStyleFabBtn.classList.toggle("is-open", !isOpen);
 });
-document.addEventListener("click", () => {
-  if (mapStyleFabPicker && !mapStyleFabPicker.hidden) {
+document.addEventListener("click", (e) => {
+  if (mapStyleFabPicker && !mapStyleFabPicker.hidden && !mapStyleFabPicker.contains(e.target)) {
     mapStyleFabPicker.hidden = true;
     mapStyleFabBtn?.classList.remove("is-open");
   }
 });
-mapStyleFabPicker?.addEventListener("click", (e) => e.stopPropagation());
+// a választón belüli kattintás ne zárja be (a súgó „i” gombja viszont eljusson a dokumentumig)
+mapStyleFabPicker?.addEventListener("click", (e) => { if (!e.target.closest(".hint-btn")) e.stopPropagation(); });
+
+// Turistajelzések réteg: amíg a felhasználó nem állította, gyalogos módban (Séta / Túra) látszik
+const HIKING_OVERLAY_KEY = "bringaterv.hikingOverlay";
+const hikingOverlayToggle = document.querySelector("#hikingOverlayToggle");
+function refreshHikingOverlay() {
+  const v = localStorage.getItem(HIKING_OVERLAY_KEY);
+  const on = v == null ? activityOf(store.getState().mode) === "foot" : v === "true";
+  mapAdapter.setHikingOverlay(on);
+  if (hikingOverlayToggle) hikingOverlayToggle.checked = on;
+}
+hikingOverlayToggle?.addEventListener("change", () => {
+  localStorage.setItem(HIKING_OVERLAY_KEY, String(hikingOverlayToggle.checked));
+  refreshHikingOverlay();
+});
+// „Csak jelzett turistaúton” (⚙ panel): csak gyalogos módban látszik
+const markedOnlyToggle = document.querySelector("#markedOnlyToggle");
+if (markedOnlyToggle) markedOnlyToggle.checked = store.getState().markedOnly;
+markedOnlyToggle?.addEventListener("change", () => {
+  localStorage.setItem("bringaterv.markedOnly", String(markedOnlyToggle.checked));
+  store.setState({ markedOnly: markedOnlyToggle.checked });
+});
+{
+  let lastMode = null;
+  const onMode = (st) => {
+    if (st.mode === lastMode) return;
+    lastMode = st.mode;
+    refreshHikingOverlay();
+    const row = document.querySelector("#markedOnlyRow");
+    if (row) row.hidden = activityOf(st.mode) !== "foot";
+  };
+  store.subscribe(onMode);
+  onMode(store.getState());
+}
+
+// Jobb gomb / hosszú érintés a térképen: a ponton futó turistajelzések (kiemelés, tervezés rajtuk)
+initTrailInfo({ mapAdapter, store, showToast, setRouteMode, isSuggestActive, isClosedLoop,
+  addPoint: addWaypointWithName, nameNameless: () => geocodeNamelessWaypoints(), goPlan: () => { if (currentTab !== "plan") switchTab("plan"); } });
 // „Teljes útvonal": vissza a teljes nézetre
 document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdapter.fitRoute?.());
 
@@ -2449,7 +2503,8 @@ function setLoopStart(id) {
 
   // Térkép-kapcsolók a ⚙ panelben – a Beállítások menü azonos kapcsolóját a sajátjával együtt állítják
   [["planRouteFlowToggle", "routeFlowToggle", "bringaterv.routeFlow", true],
-   ["planArrowsToggle", "directionArrowsToggle", "bringaterv.directionArrows", false]].forEach(([own, main, key, def]) => {
+   ["planArrowsToggle", "directionArrowsToggle", "bringaterv.directionArrows", false],
+   ["planAutoFitToggle", "autoFitToggle", "bringaterv.autoFit", true]].forEach(([own, main, key, def]) => {
     const a = $id(own), b = $id(main);
     if (!a) return;
     const read = () => { const v = localStorage.getItem(key); return v == null ? def : v === "true"; };
@@ -2623,9 +2678,10 @@ function setLoopStart(id) {
   mirror();
 
   // tervezési mód: szegmentált kapcsoló (a meglévő mód-gombokat nyomja meg)
-  const MODES = [["asphalt", "Aszfalt"], ["gravel", "Gravel"], ["mtb", "MTB"], ["walking", "Túra"]];
+  // kerékpár (Aszfalt / Gravel / MTB) | gyalog (Séta / Túra) – a két csoport között elválasztó
+  const MODES = ["asphalt", "gravel", "mtb", "walking", "hiking"];
   const modes = $id("mModes");
-  modes.innerHTML = MODES.map(([m, l]) => `<button type="button" class="wp-mode" role="radio" data-m="${m}"><i style="background:${SEGMENT_COLORS[m] ?? "#888"}"></i>${l}</button>`).join("");
+  modes.innerHTML = MODES.map((m) => `${m === "walking" ? '<span class="wp-modes-sep" aria-hidden="true"></span>' : ""}<button type="button" class="wp-mode" role="radio" data-m="${m}"><i style="background:${SEGMENT_COLORS[m] ?? "#888"}"></i>${MODE_NAMES[m]}</button>`).join("");
   modes.addEventListener("click", (e) => {
     const b = e.target.closest(".wp-mode"); if (!b) return;
     document.querySelector(`.route-mode-item[data-route-mode="${b.dataset.m}"]`)?.click();
@@ -2677,6 +2733,7 @@ initRouteSuggest({
   reverseTown,
   showToast,
   getSpeed: (mode) => getSpeedSettings()[mode],
+  getMode: () => store.getState().mode,
   hasRoute: () => store.getState().waypoints.length > 0,
   // A kiválasztott javaslat szerkeszthető tervként: a burkolatnak megfelelő tervezési mód + pontok
   onApply: (c) => {
@@ -3209,7 +3266,7 @@ function buildAnchorWaypoints(dpIndices, imported, segments = null) {
       lng:         pt.lng,
       name:        isFirst ? (origStart?.name ?? "") : isLast ? (origEnd?.name ?? "") : "",
       note:        isFirst ? (origStart?.note ?? "") : isLast ? (origEnd?.note ?? "") : "",
-      segmentMode: mode,
+      segmentMode: mode ? segmentModeForSurface(mode, store.getState().mode) : mode,
     };
   });
 }
@@ -3318,7 +3375,7 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters, opts
     if (existingModes.length > 0) {
       const modeSet = [...new Set(existingModes.map(w => w.segmentMode))];
       segExistingEl.innerHTML =
-        `<i data-lucide="info" aria-hidden="true"></i> Mentett módok: ${modeSet.map(m => MODE_LABELS[m] ?? m).join(", ")}`;
+        `<i data-lucide="info" aria-hidden="true"></i> Mentett módok: ${modeSet.map(m => MODE_NAMES[m] ?? m).join(", ")}`;
       segExistingEl.hidden = false;
     } else {
       segExistingEl.hidden = true;
@@ -3351,10 +3408,12 @@ function showLoadPreview(imported, routeName, distanceMeters, ascentMeters, opts
       if (segments) {
         const origStart = imported.waypoints[0];
         const origEnd   = imported.waypoints[imported.waypoints.length - 1];
-        const wps = [{ ...origStart, segmentMode: segments[0]?.mode ?? null }];
+        // a burkolatból a tervezési mód tevékenységén belüli szakaszmód (bringás úton az ösvény MTB)
+        const segMode = (s) => (s?.mode ? segmentModeForSurface(s.mode, store.getState().mode) : null);
+        const wps = [{ ...origStart, segmentMode: segMode(segments[0]) }];
         for (let i = 1; i < segments.length; i++) {
           const pt = segments[i].geomPoint;
-          wps.push({ lat: pt.lat, lng: pt.lng, name: "", note: "", segmentMode: segments[i].mode });
+          wps.push({ lat: pt.lat, lng: pt.lng, name: "", note: "", segmentMode: segMode(segments[i]) });
         }
         wps.push({ ...origEnd, segmentMode: null });
         return wps;
@@ -3627,7 +3686,7 @@ async function savePlanToLibrary(payload = buildExportPayload()) {
     distance:         distanceKm,
     duration:         durationMin,
     elevation:        ascentMeters || null,
-    type:             selectedMode === "walking" ? "hiking" : selectedMode,
+    type:             selectedMode === "cycling" ? "asphalt" : selectedMode,
     description:      desc,
     include_in_stats: false,  // tervezett útvonal – statisztikából kizárva alapból
   });
@@ -3858,14 +3917,17 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     // burkolat-vizsgálatot mutatjuk, és az első friss vizsgálatot a saját útvonal mellé mentjük.
     // (egy módban tervezett útnál a pontokon nincs szakaszmód – ilyenkor a creator jelöli, hogy a miénk)
     const ownPlan = !isSample && imported.waypoints.length >= 2
-      && (imported.waypoints.some((w) => w.segmentMode) || /<gpx[^>]*creator="Bringaterv"/.test(gpxText.slice(0, 600)));
+      && (imported.waypoints.some((w) => w.segmentMode || w.trail) || /<gpx[^>]*creator="Bringaterv"/.test(gpxText.slice(0, 600)));
+    const entry = isSample
+      ? (_libraryData.samples || []).find((r) => r.id === id)
+      : [...(_libraryData.routes || []), ...(_libraryData.workouts || [])].find((r) => r.id === id);
+    // a mentett terv típusa a tervezési mód (gyalogos tervet ne bringás profillal tervezzen újra)
+    const planMode = entry?.type === "cycling" ? "asphalt" : entry?.type;
+    if (MODE_NAMES[planMode] && planMode !== store.getState().mode) setRouteMode(planMode, { persistDefault: false, quiet: true });
     let loadResult;
     if (ownPlan) {
-      loadResult = { waypoints: imported.waypoints, segmentedGeom: null };
+      loadResult = { waypoints: fitSegmentModes(imported.waypoints, store.getState().mode), segmentedGeom: null };
     } else {
-      const entry = isSample
-        ? (_libraryData.samples || []).find((r) => r.id === id)
-        : [...(_libraryData.routes || []), ...(_libraryData.workouts || [])].find((r) => r.id === id);
       loadResult = await showLoadPreview(imported, routeName, distMeters, asc, {
         cachedSurface: entry?.surface,
         onAnalyzed: isSample ? null : (segments, totalDistKm) => {

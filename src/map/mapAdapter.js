@@ -1,6 +1,8 @@
 import { num } from "../format.js";
 import { isMobileLayout } from "../layout.js";
 import { modeFromWayTags } from "./surfaceAnalysis.js";
+import { MODE_NAMES, modesFor, activityOf } from "../routeModes.js";
+import { trailsNear, trailSection, sampleVias, trailSymbolUrl, trailLabel, trailRef } from "./trails.js";
 // ── BRouter: először a saját szerver (a stack „brouter” szolgáltatása, /brouter), ha nem
 // érhető el vagy nincs adata a területre, a nyilvános brouter.de. Elérhetetlen saját
 // szervernél 10 percig egyből a nyilvánosat hívjuk (ne várjon minden kérés a hibára).
@@ -36,14 +38,25 @@ const profileMap = {
   asphalt: "fastbike",
   gravel:  "gravel",
   mtb:     "mtb",
-  walking: "trekking",
+  // gyalog: a gyári hiking-mountain profil paraméterezve (a nyilvános brouter.de-n is így fut)
+  // Séta: csak könnyű ösvény (SAC ≤ T1), a turistajelzés mindegy; Túra: a jelzett turistautak előnyben
+  walking: "hiking-mountain&profile:hiking_routes_preference=0&profile:SAC_scale_limit=1&profile:SAC_scale_preferred=0",
+  hiking:  "hiking-mountain&profile:hiking_routes_preference=1.5",
   cycling: "fastbike", // backwards compatibility
 };
+// „Csak jelzett turistaúton”: a jelzett út erősebb előnye (a BRouter ennél nagyobb értéknél már nem
+// tér el – a maradék jelöletlen rész jellemzően a rajthoz / célhoz vezető bekötés)
+const MARKED_ONLY = {
+  walking: "hiking-mountain&profile:hiking_routes_preference=5&profile:SAC_scale_limit=1&profile:SAC_scale_preferred=0",
+  hiking:  "hiking-mountain&profile:hiking_routes_preference=5",
+};
+const profileOf = (mode, markedOnly = false) => (markedOnly && MARKED_ONLY[mode]) || profileMap[mode] || profileMap.asphalt;
 
 export const SEGMENT_COLORS = {
   asphalt: "#1976d2",
   gravel:  "#F97316",
   mtb:     "#22C55E",
+  walking: "#0EA5E9",
   hiking:  "#A855F7",
 };
 
@@ -249,6 +262,11 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
   L.control.zoom({ position: "bottomright" }).addTo(map);
   let baseLayer = createTileLayer("standard").addTo(map);
+  const trailHighlight = L.layerGroup();
+  const hikingLayer = L.tileLayer("https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png", {
+    maxZoom: 19, maxNativeZoom: 18, zIndex: 10, opacity: 0.85,
+    attribution: 'Turistautak: &copy; <a href="https://hiking.waymarkedtrails.org">Waymarked Trails</a> (CC BY-SA)',
+  });
   let overlayLayer = null;
 
   // Popup nyitva van-e? Ha igen, map click-et ignorálunk (2. védelmi vonal)
@@ -318,7 +336,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       });
 
       const isLastWaypoint = isLast(index);
-      const build = (closeUi) => buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint, isLoop, isClosed, waypoints.length, closeUi);
+      const build = (closeUi) => buildMarkerPopup(point, index, marker, isDestination, globalMode, isLastWaypoint, isLoop, isClosed, waypoints.length, closeUi, waypoints[index + 1]);
       if (useWaypointCard()) {
         // Mobil: a pont adatai az alsó lapban jelennek meg (Apple Térkép-szerű pontkártya)
         marker.on("click", () => openWaypointCard(point.id, build, marker));
@@ -440,14 +458,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     });
   }
 
-  const SEGMENT_MODE_LABELS = { asphalt: "Aszfalt", gravel: "Gravel", mtb: "MTB", hiking: "Túra" };
+  const SEGMENT_MODE_LABELS = MODE_NAMES;
 
   /**
    * Útvonalpont-ablak: elöl az adatok (táv / idő / emelkedés a rajttól, magasság,
    * meredekség), alatta a következő szakasz módja névvel ellátott gombokkal, legalul
    * lágy gombok. A név és a megjegyzés szerkesztése az „Átnevezés” link mögött van.
    */
-  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false, isLoop = false, isClosed = false, count = 0, closeUi = () => marker.closePopup()) {
+  function buildMarkerPopup(point, index, marker, isDestination = false, globalMode = "asphalt", isLastWaypoint = false, isLoop = false, isClosed = false, count = 0, closeUi = () => marker.closePopup(), nextPoint = null) {
     const el = document.createElement("div");
     el.className = "marker-popup wp-pop";
     const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -472,6 +490,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       </div>
       <div class="wp-rows"></div>
       ${!isLastWaypoint ? `<div class="wp-sec">Következő szakasz</div><div class="wp-modes" role="radiogroup" aria-label="Következő szakasz tervezési módja"></div>` : ""}
+      ${!isLastWaypoint && nextPoint && activityOf(globalMode) === "foot" ? `<div class="wp-sec" title="A következő pontig a kiválasztott turistajelzésen vezet az út. Mindkét pontnak a jelzett úton kell lennie.">Jelzés követése a következő pontig</div><div class="wp-trails" role="radiogroup" aria-label="Követett jelzés"><span class="wp-trails-note">Jelzések keresése…</span></div>` : ""}
       <div class="wp-actions"></div>`;
 
     const rows = el.querySelector(".wp-rows");
@@ -495,7 +514,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (modes) {
       let cur = point.segmentMode ?? null;
       const items = [[null, `Alap (${SEGMENT_MODE_LABELS[globalMode] ?? globalMode})`, SEGMENT_COLORS[globalMode] ?? SEGMENT_COLORS.asphalt],
-                     ...Object.keys(SEGMENT_COLORS).map((m) => [m, SEGMENT_MODE_LABELS[m] ?? m, SEGMENT_COLORS[m]])];
+                     ...modesFor(globalMode).map((m) => [m, SEGMENT_MODE_LABELS[m] ?? m, SEGMENT_COLORS[m]])];
       const paint = () => modes.querySelectorAll(".wp-mode").forEach((b) => {
         const on = (b.dataset.m || null) === cur;
         b.classList.toggle("is-active", on);
@@ -513,6 +532,33 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         modes.append(b);
       });
       paint();
+    }
+
+    // Jelzés követése: a ponton ÉS a következő ponton is átmenő jelzések közül lehet választani
+    const trailsBox = el.querySelector(".wp-trails");
+    if (trailsBox) {
+      let curTrail = point.trail?.id ?? null;
+      const chip = (t) => `<button type="button" class="wp-trail${t ? "" : " wp-trail--none"}" role="radio" data-t="${t ? t.id : ""}" title="${t ? esc(t.name) : "Nincs – a tervezési mód szerint"}">${t?.sym ? `<img src="${trailSymbolUrl(t.sym)}" alt="" width="18" height="18">` : ""}<span>${t ? esc(trailLabel(t)) : "Nincs"}</span></button>`;
+      const paintTrails = () => trailsBox.querySelectorAll(".wp-trail").forEach((b) => {
+        const on = (b.dataset.t ? Number(b.dataset.t) : null) === curTrail;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-checked", String(on));
+      });
+      Promise.all([trailsNear(point, 100), trailsNear(nextPoint, 100)]).then(([here, there]) => {
+        const common = here.filter((t) => there.some((u) => u.id === t.id));
+        // a már kiválasztott jelzés akkor is látsszon, ha (pl. pont mozgatása után) nincs a közösek közt
+        if (point.trail?.id && !common.some((t) => t.id === point.trail.id)) common.unshift(point.trail);
+        const note = !common.length
+          ? `<span class="wp-trails-note">${here.length ? `Ezen a ponton ${here.slice(0, 4).map((t) => esc(trailLabel(t))).join(", ")} fut, de a következő pont nincs rajta.` : "Itt nincs jelzett turistaút."} Tedd a pontokat a jelzett útra (a térképen jobb gombbal / hosszan nyomva látod, mi fut ott).</span>`
+          : "";
+        trailsBox.innerHTML = common.length ? chip(null) + common.map(chip).join("") : note;
+        trailsBox.querySelectorAll(".wp-trail").forEach((b) => b.addEventListener("click", () => {
+          const t = b.dataset.t ? common.find((x) => x.id === Number(b.dataset.t)) : null;
+          curTrail = t?.id ?? null; paintTrails();
+          onWaypointUpdate?.(point.id, { trail: t ? trailRef(t) : null });
+        }));
+        paintTrails();
+      });
     }
 
     // Alsó gombok: célnál visszaút / oda-vissza, mindenhol pont törlése
@@ -1117,7 +1163,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   // Aktuális globális tervezési mód – routeLayer színéhez
   let _currentMode = "asphalt";
 
-  function renderRoute(geometry, mode) {
+  function renderRoute(geometry, mode, { fit = true } = {}) {
     if (mode) _currentMode = mode;
     clearColoredRoute();
     clearHrRoute();
@@ -1132,7 +1178,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     hoverGeometry = geometry;
     routeLayer.setLatLngs(geometry.map((point) => [point.lat, point.lng]));
     renderOverlapHighlight(geometry);
-    if (geometry.length > 1) {
+    if (fit && geometry.length > 1) {
       map.fitBounds(routeLayer.getBounds(), fitOptions());
     }
   }
@@ -1180,13 +1226,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
           const lon = Number(row[iLon]) / 1e6, lat = Number(row[iLat]) / 1e6;
           const surf = modeFromWayTags(row[iTags]);
           const hw = /(?:^|\s)highway=(\S+)/.exec(row[iTags] || "")?.[1] || null;   // úttípus (forgalom becsléséhez)
+          const mk = /(?:^|\s)route_hiking_\w*=yes/.test(row[iTags] || "");          // jelzett turistaút
           let end = gi;
           for (let k = gi; k < geometry.length; k++) {
             if (Math.abs(geometry[k].lng - lon) < 2e-6 && Math.abs(geometry[k].lat - lat) < 2e-6) { end = k; break; }
             end = -1;
           }
           if (end < 0) continue;
-          for (let k = gi; k <= end; k++) { geometry[k].surf = surf; geometry[k].hw = hw; }
+          for (let k = gi; k <= end; k++) { geometry[k].surf = surf; geometry[k].hw = hw; geometry[k].mk = mk; }
           gi = end + 1;
         }
         const last = geometry[gi - 1]?.surf;
@@ -1196,9 +1243,29 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     return { coordsList, geometry };
   }
 
-  async function routeSegment(from, to, segMode) {
+  // „Jelzés követése”: a jelzés szakasza a két pont között, segédpontokkal a BRouternek (így
+  // magasság- és burkolatadat is jön); ha a pontok nincsenek a jelzésen → null (sima tervezés)
+  async function routeTrailSegment(from, to, segMode) {
+    const pts = await trailSection(from.trail.id, from, to);
+    if (!pts) return null;
+    const vias = [from, ...sampleVias(pts).slice(1, -1), to];
+    const coords = vias.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
+    const response = await brouterFetch(`lonlats=${coords}&profile=${profileOf("hiking", true)}&alternativeidx=0&format=geojson`);
+    if (!response.ok) return null;
+    const feature = (await response.json()).features?.[0];
+    const { coordsList, geometry } = brouterGeometry(feature);
+    if (geometry.length < 2) return null;
+    const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
+    const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
+    return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode, trail: from.trail.id };
+  }
+
+  async function routeSegment(from, to, segMode, markedOnly = false) {
+    if (from.trail?.id) {
+      try { const r = await routeTrailSegment(from, to, segMode); if (r) return r; } catch { /* sima tervezés */ }
+    }
     try {
-      const profile = profileMap[segMode] ?? profileMap.asphalt;
+      const profile = profileOf(segMode, markedOnly);
       const coords = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
       const response = await brouterFetch(`lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson`);
       if (!response.ok) throw new Error("Segment routing failed");
@@ -1269,7 +1336,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   }
   function panTo(p, zoom) { map.setView([p.lat, p.lng], zoom ?? Math.max(map.getZoom(), 11)); }
 
-  async function calculateRoute({ waypoints, mode, snapToRoads }, forceSnapOff = false) {
+  async function calculateRoute({ waypoints, mode, snapToRoads, markedOnly = false }, forceSnapOff = false) {
     if (waypoints.length < 2) {
       return {
         geometry: waypoints,
@@ -1282,14 +1349,15 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     }
 
     // Ha bármelyik útvonalon van egyedi szegmensprofil → per-segment routing
-    const hasMixedSegments = waypoints.slice(0, -1).some((wp) => wp.segmentMode != null);
+    // (a jelzéskövető szakasz is külön tervez)
+    const hasMixedSegments = waypoints.slice(0, -1).some((wp) => wp.segmentMode != null || wp.trail?.id);
 
     if (hasMixedSegments) {
       const segmentResults = await Promise.all(
         waypoints.slice(0, -1).map((from, i) => {
           const to = waypoints[i + 1];
           const segMode = from.segmentMode ?? mode ?? "asphalt";
-          return routeSegment(from, to, segMode);
+          return routeSegment(from, to, segMode, markedOnly);
         })
       );
       const fullGeometry = segmentResults.flatMap((seg, i) =>
@@ -1303,7 +1371,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
     try {
       const coordinates = waypoints.map((point) => `${point.lng},${point.lat}`).join("|");
-      const profile = profileMap[mode] ?? profileMap.walking;
+      const profile = profileOf(mode, markedOnly);
       const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
       if (!response.ok) throw new Error("Routing failed");
       const data = await response.json();
@@ -1409,6 +1477,30 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
         map.getContainer().style.cursor = "";
         nearRouteFlag = false;
       }
+    },
+    // Jobb gomb / hosszú érintés a térképen (jelzések a ponton)
+    onContextMenu: (fn) => map.on("contextmenu", (e) => fn({ lat: e.latlng.lat, lng: e.latlng.lng })),
+    isHikingOverlayOn: () => map.hasLayer(hikingLayer),
+    openInfoPopup: (p, content, onClose) => {
+      const pop = L.popup({ className: "marker-popup-wrap", minWidth: 280, maxWidth: 330 }).setLatLng([p.lat, p.lng]).setContent(content).openOn(map);
+      if (onClose) pop.on("remove", onClose);
+      return () => map.closePopup(pop);
+    },
+    // egy jelzés kiemelése (a jelzés-ablakból) – lines: [[{lat,lng}]]
+    showTrailHighlight: (lines, { fit = false } = {}) => {
+      trailHighlight.clearLayers();
+      for (const l of lines) {
+        L.polyline(l.map((p) => [p.lat, p.lng]), { color: "#fff", weight: 9, opacity: 0.9, interactive: false }).addTo(trailHighlight);
+        L.polyline(l.map((p) => [p.lat, p.lng]), { color: "#e8461e", weight: 5, opacity: 0.95, dashArray: "8 7", interactive: false }).addTo(trailHighlight);
+      }
+      if (!map.hasLayer(trailHighlight)) trailHighlight.addTo(map);
+      if (fit && lines.length) map.fitBounds(L.latLngBounds(lines.flat().map((p) => [p.lat, p.lng])), fitOptions());
+    },
+    clearTrailHighlight: () => trailHighlight.clearLayers(),
+    // Turistajelzések (Waymarked Trails): átlátszó réteg, bármelyik alaptérkép fölött
+    setHikingOverlay: (on) => {
+      if (on && !map.hasLayer(hikingLayer)) hikingLayer.addTo(map);
+      else if (!on && map.hasLayer(hikingLayer)) map.removeLayer(hikingLayer);
     },
     setMapStyle: (style) => {
       map.removeLayer(baseLayer);

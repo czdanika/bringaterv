@@ -54,7 +54,7 @@ export const MODE_LABELS = {
   asphalt: "Aszfalt",
   gravel:  "Gravel",
   mtb:     "MTB",
-  hiking:  "Túra",
+  hiking:  "Ösvény",
 };
 
 /** BRouter „WayTags” szövegből („highway=track surface=gravel …”) a burkolat-osztály. */

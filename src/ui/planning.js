@@ -12,6 +12,8 @@
  *                  SEGMENT_LABELS, ROUTE_MODE_META, GRAVEL_PICKER_SVG });
  */
 
+import { activityOf, modesFor, MODE_NAMES } from "../routeModes.js";
+import { trailSymbolUrl } from "../map/trails.js";
 import { SEGMENT_COLORS } from '../map/mapAdapter.js';
 import { getWindResult, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded } from './wind.js';
 import { defaultAvgSpeed, windTimeMultiplier } from '../wind/windService.js';
@@ -139,9 +141,17 @@ export function updateNavToggle() {
 }
 
 // ── Route mode ────────────────────────────────────────────────────────────────
-export function setRouteMode(mode, { persistDefault }) {
+export function setRouteMode(mode, { persistDefault, quiet = false }) {
   syncRouteModeButtons(mode);
-  _store.setState({ mode });
+  // másik tevékenységre váltva (kerékpár ↔ gyalog) a szakaszonkénti módoknak nincs értelme
+  const { mode: prev, waypoints } = _store.getState();
+  if (activityOf(prev) !== activityOf(mode) && waypoints.some((w) => w.segmentMode || w.trail)) {
+    // (kerékpárra váltva a követett turistajelzés is megszűnik)
+    _store.setState({ mode, waypoints: waypoints.map(({ segmentMode, trail, ...w }) => (activityOf(mode) === "foot" ? { ...w, trail } : w)) });
+    if (!quiet) _showToast?.(`${MODE_NAMES[mode] ?? mode}: a szakaszonkénti módok visszaálltak az alapra`);
+  } else {
+    _store.setState({ mode });
+  }
   if (persistDefault) {
     localStorage.setItem("route4meDefaultRouteMode", mode);
   }
@@ -156,7 +166,7 @@ export function syncRouteModeButtons(mode) {
   const meta = _ROUTE_MODE_META[mode] ?? _ROUTE_MODE_META.asphalt;
   const iconHtml = meta.lucide
     ? `<i data-lucide="${meta.lucide}" aria-hidden="true"></i>`
-    : _GRAVEL_PICKER_SVG;
+    : meta.svg ?? _GRAVEL_PICKER_SVG;
   if (_elements.routeModePicker) {
     _elements.routeModePicker.innerHTML =
       `${iconHtml}<span>${meta.label}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
@@ -166,7 +176,7 @@ export function syncRouteModeButtons(mode) {
   if (_elements.mapRouteModePicker) {
     const toolbarIcon = meta.lucide
       ? `<i data-lucide="${meta.lucide}" aria-hidden="true"></i>`
-      : _GRAVEL_PICKER_SVG;
+      : meta.svg ?? _GRAVEL_PICKER_SVG;
     _elements.mapRouteModePicker.innerHTML = toolbarIcon;
     _elements.mapRouteModePicker.title = `Tervezési mód: ${meta.label}`;
     window.lucide?.createIcons({ nodes: [_elements.mapRouteModePicker] });
@@ -188,7 +198,7 @@ export function openSegmentPicker(waypointId, currentMode, anchorEl) {
   const picker = getSegmentPicker();
   activeSegmentPickerId = waypointId;
 
-  picker.innerHTML = Object.keys(SEGMENT_COLORS)
+  picker.innerHTML = modesFor(_store.getState().mode)
     .map((m) => {
       const isActive = m === currentMode;
       return `<button class="seg-picker-btn${isActive ? " is-active" : ""}" data-mode="${m}" data-id="${waypointId}">
@@ -434,6 +444,15 @@ export function renderSidebar(state) {
         }
       });
       segWrap.append(segBadge);
+      // követett turistajelzés a következő pontig
+      if (point.trail?.sym) {
+        const sym = document.createElement("img");
+        sym.className = "seg-trail-sym";
+        sym.src = trailSymbolUrl(point.trail.sym);
+        sym.alt = "";
+        sym.title = `Jelzés követése: ${point.trail.name || point.trail.ref}`;
+        segWrap.append(sym);
+      }
 
       if (isExplicit) {
         const resetBtn = document.createElement("button");
@@ -518,11 +537,12 @@ export function calculateImportedDistance(geometry) {
 export function initSpeedSliders() {
   const speeds = _getSpeedSettings();
   const LS_SPEED_PREFIX = 'bringaterv-speed-';
-  const DEFAULT_SPEEDS = { asphalt: 22, gravel: 18, mtb: 12, hiking: 5 };
+  const DEFAULT_SPEEDS = { asphalt: 22, gravel: 18, mtb: 12, walking: 5, hiking: 5 };
   const sliderMap = {
     asphalt: { sliderId: 'speedAsphalt', valId: 'speedAsphaltVal' },
     gravel:  { sliderId: 'speedGravel',  valId: 'speedGravelVal'  },
     mtb:     { sliderId: 'speedMtb',     valId: 'speedMtbVal'     },
+    walking: { sliderId: 'speedWalking', valId: 'speedWalkingVal' },
     hiking:  { sliderId: 'speedHiking',  valId: 'speedHikingVal'  },
   };
   for (const [mode, { sliderId, valId }] of Object.entries(sliderMap)) {

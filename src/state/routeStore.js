@@ -14,7 +14,7 @@ function generateId() {
 
 export function createRouteStore() {
   let state = {
-    mode: "walking",
+    mode: "asphalt",
     snapToRoads: true,
     waypoints: [],
     routeGeometry: [],
@@ -62,6 +62,7 @@ export function createRouteStore() {
           note: point.note ?? "",
           lat: point.lat,
           lng: point.lng,
+          ...(point.trail?.id ? { trail: point.trail } : {}),
         },
       ],
     };
@@ -76,6 +77,7 @@ export function createRouteStore() {
       note: point.note ?? "",
       lat: point.lat,
       lng: point.lng,
+      ...(point.trail?.id ? { trail: point.trail } : {}),
     };
     const next = [...state.waypoints];
     next.splice(index, 0, newWp);
@@ -112,6 +114,7 @@ export function createRouteStore() {
         lat: point.lat,
         lng: point.lng,
         ...(point.segmentMode != null ? { segmentMode: point.segmentMode } : {}),
+        ...(point.trail?.id ? { trail: point.trail } : {}),
       })),
       routeGeometry: options.geometry ?? [],
       routeSegments: [],
@@ -150,7 +153,7 @@ export function createRouteStore() {
   function updateWaypoint(id, changes) {
     // Ha a segmentMode változik, töröljük az importedRoute flaget
     // hogy a BRouter újratervezze az érintett szakaszt
-    const modeChanged = 'segmentMode' in changes;
+    const modeChanged = 'segmentMode' in changes || 'trail' in changes;
     state = {
       ...state,
       waypoints: state.waypoints.map((wp) => (wp.id === id ? { ...wp, ...changes } : wp)),

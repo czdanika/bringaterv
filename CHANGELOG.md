@@ -1,5 +1,43 @@
 # Changelog
 
+## v1.30.0 – 2026-11-02 – Jelzéskövetés: tervezés a turistajelzéseken
+
+### Verzió
+
+- **Jelzés követése a következő pontig:** gyalogos módban a pont ablakában kiválasztható egy jelzés, amely a ponton és a következőn is átmegy (pl. P, K▲, OKT – a jelzés képével). A szakasz pontosan azon a jelzésen vezet; a pontlistában a pont mellett a jelzés képe látszik.
+- **Jelzések a térkép egy pontján:** jobb gomb (asztalon) / hosszú érintés (telefonon) → az ott futó jelzések; kiválasztva kiemelődik a térképen, és „Pont ide, ezen a jelzésen” (pontról pontra a jelzésen), „Egész jelzés tervként” (120 km-ig) vagy „Mutasd egészben”.
+- **Csak jelzett turistaúton:** új kapcsoló a tervezés ⚙ paneljében (gyalogos módban): a jelzett utak erős előnye, csak a be- és kivezetésnél tér le róluk.
+- **Mentés:** a követett jelzés a GPX-be és a félkész tervbe is bekerül, visszatöltéskor megmarad.
+- **Súgó:** új rész – Turistajelzések és jelzéskövetés; műszaki leírás: `TURISTAJELZESEK.md`.
+
+---
+
+## v1.29.0 – 2026-11-02 – Séta és Túra: két gyalogos mód, turistajelzések
+
+### Verzió
+
+- **Két tevékenység:** a tervezési módok csoportosítva – **Kerékpár** (Aszfalt / Gravel / MTB) és **Gyalog** (Séta / Túra). Az eddigi egyetlen gyalogos mód („Túra”, belül `walking`) kettévált.
+- **Séta:** utcák, járdák, parkok, könnyű utak – nehéz ösvényre nem visz. **Túra:** a jelzett turistautakat részesíti előnyben, ösvényen is. Mindkettő a BRouter gyalogos (hiking-mountain) profiljával tervez, eltérő beállítással – eddig a gyalogos mód kerékpáros (trekking) profillal tervezett.
+- **Szakaszonkénti mód:** a pontablakban és a pontlista színes pöttyén csak a tevékenység saját módjai választhatók (bringás úton nincs gyalogos szakasz). Tevékenységváltáskor a szakaszonkénti módok visszaállnak az alapra.
+- **Turistajelzések réteg:** a térképstílus-választóban kapcsolható (Waymarked Trails), bármelyik térkép fölött; amíg nem állítod át, Séta és Túra módban magától bekapcsol.
+- **Útvonal-javaslat gyalog is:** Kerékpár / Gyalog választó, gyalog Séta / Túra / Vegyes terep, 2–40 km; Túránál a jelzett turistaúton haladó arány számít, és a kártyán is látszik. Az AI-kérés a sétát és a túrát is felismeri.
+- **Ikonok és sebesség:** a Séta lábnyom, a Túra bakancs ikont kapott; a Sétának külön tervezési sebessége van (alap 5 km/h).
+- **Mentés, GPX, Könyvtár, beküldés, admin:** a Séta külön típus (`walking`), a Túra marad `hiking`. A Könyvtárból betöltött terv a saját típusának megfelelő tervezési móddal töltődik be.
+- **Burkolat-vizsgálat importnál:** a szakaszmód a tevékenységhez igazodik (bringás úton az ösvény MTB, gyalog a burkolt út Séta, az ösvény Túra).
+- **Átállás:** a korábban „Túra” néven mentett alapmód és félkész terv Túra marad.
+
+---
+
+## v1.28.3 – 2026-11-02 – Automatikus zoom kapcsoló
+
+### Verzió
+
+- **Automatikus zoom az útvonalra:** új kapcsoló (súgóval) a tervezés ⚙ paneljének Térkép blokkjában és a Beállításokban. Bekapcsolva (alapértelmezés) új pont után a térkép a teljes útvonalra nagyít, mint eddig; kikapcsolva a nagyítás és a térképrészlet marad, ahol volt (visszajelzés: új pont hozzáadásakor visszaállt a nagyítás). A teljes útvonalat a „Teljes útvonal” gomb mutatja.
+- **Súgó:** a ⚙ panel Térkép blokkjában a futó animáció és az útirány-nyilak mellé is került ⓘ magyarázat.
+- **Vegyes módú útvonal:** bekapcsolt automatikus zoomnál ez is a teljes útvonalra nagyít, mint az egyprofilos.
+
+---
+
 ## v1.28.2 – 2026-11-01 – Javítások a tesztelés második köréből
 
 ### Verzió

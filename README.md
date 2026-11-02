@@ -64,7 +64,7 @@ A teljes lista: [CHANGELOG.md](CHANGELOG.md)
 
 ### Térképes tervezés
 - Kattintással pontokat helyezhetsz el a térképen, vagy helyet kereshetsz név alapján
-- 4 tervezési mód: Aszfalt, Gravel, MTB, Túra (gyalogos) – szakaszonként eltérő is lehet
+- 5 tervezési mód két tevékenységben: Kerékpár (Aszfalt, Gravel, MTB) és Gyalog (Séta, Túra) – szakaszonként eltérő is lehet a tevékenységen belül; turistajelzés-réteg és jelzéskövetés ([TURISTAJELZESEK.md](TURISTAJELZESEK.md))
 - Útra illesztés BRouter segítségével – ha nem elérhető, egyenes vonalként jelenik meg
 - Becsült menetidő a szintkülönbség és (szélelemzés után) a szél figyelembevételével
 - Visszaút, oda-vissza és körút tervezés, közbeszúrás az útvonalra kattintással
