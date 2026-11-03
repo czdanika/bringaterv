@@ -239,6 +239,29 @@
     .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
     .modal > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
     /* közösségi útvonalak: a hosszú leírás két sorra rövidül, így a gombok a táblázatban maradnak */
+    /* közösségi útvonalak szűrősávja */
+    .sample-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .sample-filters .form-input { width: auto; padding: 7px 10px; font-size: 13px; }
+    .sample-filters .form-select { padding-right: 28px; }
+    .sample-filters .sf-query { flex: 1 1 220px; min-width: 0; }
+    .sf-count { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+    .sf-reset { padding: 5px 10px; font-size: 12px; }
+    @media (max-width: 760px) {
+      .sample-filters { padding: 10px 12px; }
+      .sample-filters .sf-query { flex-basis: 100%; }
+      .sample-filters select.form-input { flex: 1 1 calc(50% - 4px); }
+    }
+    /* nyomvonal-miniatűr (lista) + térkép ablak */
+    .sample-name-cell { display: flex; align-items: center; gap: 12px; }
+    .trk-thumb { flex: 0 0 auto; width: 84px; height: 58px; padding: 0; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; display: grid; place-items: center; overflow: hidden; color: var(--muted); font-size: 11px; transition: border-color .15s; }
+    .trk-thumb:hover { border-color: var(--accent); }
+    .trk-thumb svg { width: 100%; height: 100%; }
+    .sub-preview[data-map] { cursor: pointer; }
+    .sub-preview[data-map]:hover { border-color: var(--accent); }
+    #trackMapModal { z-index: 210; }   /* a felhasználó Útvonalak ablaka fölött is */
+    #trackMapModal .modal-body { padding: 0; }
+    #trackMap { width: 100%; height: min(70vh, 640px); height: min(70dvh, 640px); background: var(--bg); }
+    .trk-map-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 400; }
     .sample-desc { font-size: 11.5px; color: var(--muted); max-width: 520px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .modal {
       background: var(--panel);
@@ -700,6 +723,37 @@
           Új útvonal
         </button>
       </div>
+      <div class="sample-filters" id="sampleFilters">
+        <input type="search" class="form-input sf-query" id="sfQuery" placeholder="Keresés: név, leírás, település, megye…" autocomplete="off">
+        <select class="form-input form-select" id="sfType" aria-label="Típus"><option value="">Minden típus</option></select>
+        <select class="form-input form-select" id="sfSource" aria-label="Forrás">
+          <option value="">Minden forrás</option>
+          <option value="builtin">Beépített</option>
+          <option value="custom">Egyedi</option>
+          <option value="community">Beküldött</option>
+        </select>
+        <select class="form-input form-select" id="sfDist" aria-label="Táv">
+          <option value="">Bármilyen táv</option>
+          <option value="0-30">30 km alatt</option>
+          <option value="30-60">30–60 km</option>
+          <option value="60-100">60–100 km</option>
+          <option value="100-">100 km felett</option>
+        </select>
+        <select class="form-input form-select" id="sfShape" aria-label="Forma">
+          <option value="">Kör és A → B</option>
+          <option value="loop">Körtúra</option>
+          <option value="ab">A → B</option>
+        </select>
+        <select class="form-input form-select" id="sfSort" aria-label="Rendezés">
+          <option value="name">Név szerint</option>
+          <option value="dist-asc">Táv ↑</option>
+          <option value="dist-desc">Táv ↓</option>
+          <option value="elev-desc">Emelkedő ↓</option>
+          <option value="place">Helyszín szerint</option>
+        </select>
+        <span class="sf-count" id="sfCount"></span>
+        <button class="btn btn-ghost sf-reset" id="sfReset" type="button" hidden>Szűrők törlése</button>
+      </div>
       <div id="samplesWrap" style="overflow-x:auto">
         <div class="loading">Betöltés…</div>
       </div>
@@ -765,7 +819,7 @@
         <ul>
           <li>Fent összesítő: összes / aktív felhasználó, mai belépések.</li>
           <li><b>Új felhasználó</b>: felhasználónév vagy e-mail, név, jelszó, szerepkör. Kényelmesebb a <a href="#admin-meghivok" data-help-jump>meghívó</a> – akkor a felhasználó maga adja meg az adatait és a jelszavát.</li>
-          <li><b>Útvonalak</b>: a felhasználó mentett útvonalai és edzései – GPX/FIT letöltés, átnevezés, törlés.</li>
+          <li><b>Útvonalak</b>: a felhasználó mentett útvonalai és edzései – 🗺 térképen megnézés, GPX/FIT letöltés, átnevezés, törlés.</li>
           <li><b>Szerkeszt</b>: név, belépési név, új jelszó (üresen hagyva nem változik), szerepkör, útvonal- és tárhelykvóta.</li>
           <li><b>Letiltás / Aktiválás</b>: a letiltott felhasználó nem tud belépni, de az adatai megmaradnak.</li>
           <li><b>Törlés</b>: a fiók és minden adata (útvonalak, edzések, beállítások, Strava-kapcsolat) végleg törlődik. Megerősítéshez be kell írni a felhasználó e-mail-címét. Saját magadat és az utolsó aktív admint nem lehet törölni. Előtte érdemes backupot letölteni.</li>
@@ -846,13 +900,13 @@
         <ul>
           <li>A felhasználók a Könyvtárban egy útvonal vagy edzés „⋯” menüjéből (vagy a lenyitott sorból) <b>beküldhetik a közösségi útvonalak közé</b> egy űrlappal: név, leírás, típus, nehézség, ajánlott évszak, és hogy névtelenül, a nevükkel vagy becenévvel jelenjenek meg (ez is szerkeszthető).</li>
           <li>Beküldéskor push és e-mail értesítést kapsz; a <b>Beküldések</b> fülön a szám a jóváhagyásra várókat mutatja.</li>
-          <li>Minden beküldésnél látszik a nyomvonal előnézete, a táv és a szint. A <b>név, leírás, típus, nehézség, évszak</b> szerkeszthető; a <b>Jóváhagyás</b> a mentett változatot teszi közzé a Közösségi útvonalak között. <b>Elutasításnál</b> indoklást írhatsz – a beküldő mindkét esetben értesítést kap.</li>
+          <li>Minden beküldésnél látszik a nyomvonal előnézete (rákattintva nagy térképen nyílik meg), a táv és a szint. A <b>név, leírás, típus, nehézség, évszak</b> szerkeszthető; a <b>Jóváhagyás</b> a mentett változatot teszi közzé a Közösségi útvonalak között. <b>Elutasításnál</b> indoklást írhatsz – a beküldő mindkét esetben értesítést kap.</li>
           <li>Adatvédelem: a beküldött nyomvonalból csak a koordináták és a magasság maradnak meg (időpontok, pulzus, sebesség nem).</li>
           <li><b>Helyszín</b>: beküldés után a szerver a háttérben (kb. fél perc alatt) kiszámolja az országot, a régiót / megyét, a rajt települését, az érintett településeket és hogy körtúra-e (OpenStreetMap, magyar nevekkel). Jóváhagyás előtt ezek is javíthatók. A régebbi közösségi útvonalakhoz a <b>Közösségi útvonalak</b> fülön a <b>Helyadatok pótlása</b> gomb számolja ki, ahol még hiányzik.</li>
         </ul>
 
         <h3 id="admin-mintak">Közösségi útvonalak</h3>
-        <p>A felhasználók által látott közös útvonalak (korábban: minta útvonalak): a jóváhagyott beküldések és a kézzel feltöltött GPX-ek. A listában látszik a helyszín (település, megye, ország, körtúra). A <b>Szerkeszt</b> ablakban minden adat módosítható, ugyanúgy, mint beküldéskor: név, típus, táv, idő, emelkedő, leírás, nehézség, ajánlott évszak, megjelenő név és a helyszín. A <b>↻ Hely</b> gomb (vagy a szerkesztőben az <b>Újraszámolás</b>) a nyomvonalból újraszámolja a helyadatot – ez felülírja a kézi javítást. Új útvonal feltöltésekor a helyadat magától kiszámolódik.</p>
+        <p>A felhasználók által látott közös útvonalak (korábban: minta útvonalak): a jóváhagyott beküldések és a kézzel feltöltött GPX-ek. Minden sor elején a nyomvonal kis rajza látszik; rákattintva (vagy a <b>Térkép</b> gombbal) az útvonal nagy térképen nyílik meg, rajt- és célponttal. A térkép jobb felső sarkában a stílus váltható (Standard, Kerékpár, Domborzat, Műhold…), a választást az admin felület megjegyzi. A lista fölötti <b>szűrősávval</b> névre, leírásra, településre vagy megyére lehet keresni (ékezet nélkül is), és szűrni típusra, forrásra, távra, kör / A → B formára; a rendezés név, táv, emelkedő vagy helyszín szerint megy. A listában látszik a helyszín (település, megye, ország, körtúra). A <b>Szerkeszt</b> ablakban minden adat módosítható, ugyanúgy, mint beküldéskor: név, típus, táv, idő, emelkedő, leírás, nehézség, ajánlott évszak, megjelenő név és a helyszín. A <b>↻ Hely</b> gomb (vagy a szerkesztőben az <b>Újraszámolás</b>) a nyomvonalból újraszámolja a helyadatot – ez felülírja a kézi javítást. Új útvonal feltöltésekor a helyadat magától kiszámolódik.</p>
         <p><b>Burkolat:</b> új útvonal mentésekor a burkolat-vizsgálat (aszfalt / gravel / földút szakaszok) magától lefut, és az útvonallal együtt tárolódik – a felhasználók betöltéskor azonnal látják, nem kell várniuk. A <b>Burkolat pótlása</b> gomb végigmegy a még nem vizsgált útvonalakon; ha mindenhol van, felajánlja a teljes újravizsgálatot (a térkép időnként változik). Útvonalanként fél perc is lehet; ha a térképadat-szerver túlterhelt, hibát jelez – később próbáld újra.</p>
         <p><b>AI-val kitöltés:</b> a szerkesztőben a Leírás mellett (ha az AI be van állítva) rövid leírást, nehézséget és évszakot javasol az útvonal adataiból (táv, szint, települések, burkolat). A szöveg csak a mezőbe kerül – átírhatod, és a Mentéssel te mented; a meglévő forrásmegjelölés megmarad, a kitöltött nehézséget / évszakot nem írja felül.</p>
 
@@ -1225,6 +1279,20 @@
     </div>
   </div>
 
+  <!-- Nyomvonal térképen -->
+  <div class="modal-overlay" id="trackMapModal" hidden>
+    <div class="modal" style="max-width:min(1000px,calc(100vw - 40px));width:100%">
+      <div class="modal-header">
+        <div style="min-width:0">
+          <div class="modal-title" id="trackMapTitle">Útvonal</div>
+          <div class="trk-map-sub" id="trackMapSub"></div>
+        </div>
+        <button class="modal-close" id="trackMapClose" type="button">×</button>
+      </div>
+      <div class="modal-body"><div id="trackMap"></div></div>
+    </div>
+  </div>
+
   <!-- Fájlok modal -->
   <div class="modal-overlay" id="filesModal" hidden>
     <div class="modal" style="max-width:min(1080px,calc(100vw - 40px));width:100%">
@@ -1280,6 +1348,7 @@
     import { routesApi } from "./src/api/routesApi.js";
     import { importGpx, calcElevationFromGeometry } from "./src/gpx/gpx.js";
     import { analyzeSurface, MODE_LABELS } from "./src/map/surfaceAnalysis.js";
+    import { tileLayers, TILE_LAYER_LABELS } from "./src/map/tileLayers.js";
 
     const SEGMENT_COLORS = { asphalt: "#1976d2", gravel: "#F97316", mtb: "#22C55E", walking: "#0EA5E9", hiking: "#A855F7" };
 
@@ -1406,6 +1475,107 @@
 
     function escHtml(s) {
       return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    // ── Nyomvonal: miniatűr SVG + térkép ablak ───────────────────────────────
+    function gpxPoints(gpx) {
+      const doc = new DOMParser().parseFromString(gpx, "application/xml");
+      let nodes = doc.getElementsByTagName("trkpt");
+      if (!nodes.length) nodes = doc.getElementsByTagName("rtept");
+      return [...nodes].map(n => [+n.getAttribute("lat"), +n.getAttribute("lon")]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+    }
+
+    // A forma és az arányok számítanak (térkép nélkül): [[lat, lng], …] → <svg>
+    function trackSvg(pts) {
+      if (!pts || pts.length < 2) return "–";
+      const lat0 = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+      const k = Math.cos(lat0 * Math.PI / 180);
+      const xs = pts.map(p => p[1] * k), ys = pts.map(p => -p[0]);
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+      const w = maxX - minX || 1e-6, h = maxY - minY || 1e-6, pad = Math.max(w, h) * 0.08;
+      const d = xs.map((x, j) => `${j ? "L" : "M"}${(x - minX).toFixed(6)} ${(ys[j] - minY).toFixed(6)}`).join(" ");
+      const sw = Math.max(w, h) / 70;
+      return `<svg viewBox="${-pad} ${-pad} ${w + 2 * pad} ${h + 2 * pad}" preserveAspectRatio="xMidYMid meet">
+        <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${xs[0] - minX}" cy="${ys[0] - minY}" r="${sw * 1.6}" fill="#16a34a"/>
+        <circle cx="${xs[xs.length - 1] - minX}" cy="${ys[ys.length - 1] - minY}" r="${sw * 1.6}" fill="#1a1d23"/></svg>`;
+    }
+
+    // Leaflet csak az első térkép-megnyitáskor töltődik be (ugyanaz a verzió, mint az appban)
+    let _leafletLoading = null;
+    function loadLeaflet() {
+      if (window.L) return Promise.resolve(window.L);
+      if (_leafletLoading) return _leafletLoading;
+      const css = document.createElement("link");
+      css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.append(css);
+      _leafletLoading = new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        sc.onload = () => resolve(window.L);
+        sc.onerror = () => { _leafletLoading = null; reject(new Error("A térkép nem tölthető be")); };
+        document.head.append(sc);
+      });
+      return _leafletLoading;
+    }
+
+    const trackMapModal = document.querySelector("#trackMapModal");
+    let _trackMap = null, _trackLayer = null;
+    const closeTrackMap = () => { trackMapModal.hidden = true; };
+    document.querySelector("#trackMapClose").addEventListener("click", closeTrackMap);
+    trackMapModal.addEventListener("click", e => { if (e.target === trackMapModal) closeTrackMap(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !trackMapModal.hidden) closeTrackMap(); });
+
+    // Térkép az app alaptérkép-rétegeivel + stílusváltó (a választás megmarad)
+    const TRACK_STYLE_KEY = "bringaterv.adminMapStyle";
+    function createTrackMap(L, box) {
+      const map = L.map(box, { zoomControl: true });
+      const bases = {};
+      for (const [key, label] of Object.entries(TILE_LAYER_LABELS)) {
+        const def = tileLayers[key];
+        if (!def) continue;
+        const parts = [L.tileLayer(def.url, def.options)];
+        if (def.overlay) parts.push(L.tileLayer(def.overlay.url, def.overlay.options));
+        bases[label] = L.layerGroup(parts);
+        bases[label]._styleKey = key;
+      }
+      let saved = "standard";
+      try { saved = localStorage.getItem(TRACK_STYLE_KEY) || "standard"; } catch { /* privát mód */ }
+      (Object.values(bases).find(l => l._styleKey === saved) || Object.values(bases)[0]).addTo(map);
+      L.control.layers(bases, null, { position: "topright" }).addTo(map);
+      map.on("baselayerchange", e => { try { localStorage.setItem(TRACK_STYLE_KEY, e.layer._styleKey); } catch { /* privát mód */ } });
+      return map;
+    }
+
+    // title: név; sub: pl. „35.9 km · 152 m”; loadGpx: () => Promise<GPX szöveg>
+    async function openTrackMap({ title, sub = "", loadGpx }) {
+      document.querySelector("#trackMapTitle").textContent = title || "Útvonal";
+      const subEl = document.querySelector("#trackMapSub");
+      subEl.textContent = [sub, "nyomvonal betöltése…"].filter(Boolean).join(" · ");
+      trackMapModal.hidden = false;
+      const box = document.querySelector("#trackMap");
+      _trackLayer?.remove(); _trackLayer = null;   // az előző útvonal ne látsszon, amíg az új tölt
+      const token = (openTrackMap._token = (openTrackMap._token || 0) + 1);
+      try {
+        const [L, gpx] = await Promise.all([loadLeaflet(), loadGpx()]);
+        if (token !== openTrackMap._token) return;   // közben másik útvonalat nyitottak meg
+        subEl.textContent = sub;
+        const pts = gpxPoints(gpx);
+        if (pts.length < 2) throw new Error("A nyomvonal üres");
+        if (!_trackMap) _trackMap = createTrackMap(L, box);
+        _trackLayer?.remove();
+        const dot = (color) => ({ radius: 7, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 });
+        _trackLayer = L.layerGroup([
+          L.polyline(pts, { color: "#fff", weight: 7, opacity: 0.8 }),
+          L.polyline(pts, { color: "#fc4c02", weight: 4 }),
+          L.circleMarker(pts[pts.length - 1], dot("#1a1d23")).bindTooltip("Cél"),
+          L.circleMarker(pts[0], dot("#16a34a")).bindTooltip("Rajt"),
+        ]).addTo(_trackMap);
+        _trackMap.invalidateSize();
+        _trackMap.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+      } catch (e) {
+        if (token === openTrackMap._token) subEl.textContent = "Hiba: " + e.message;
+      }
     }
 
     async function loadUsers() {
@@ -1644,7 +1814,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               <th style="width:88px;padding:8px 6px">Dátum</th>
               <th style="width:52px;padding:8px 6px">Táv</th>
               <th style="width:58px;padding:8px 6px">Méret</th>
-              <th style="width:106px;padding:8px 6px"></th>
+              <th style="width:140px;padding:8px 6px"></th>
             </tr>
           </thead>
           <tbody>
@@ -1661,6 +1831,8 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
                 <td style="white-space:nowrap;color:var(--muted);font-size:12px;padding:9px 6px">${r.size_kb} KB</td>
                 <td style="padding:9px 6px">
                   <div style="display:flex;gap:3px;justify-content:flex-end">
+                    <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="Nyomvonal térképen"
+                      data-action="map" data-route="${r.id}">🗺</button>
                     <button class="btn btn-secondary" style="padding:3px 7px;font-size:12px" title="GPX letöltés"
                       data-action="dl" data-route="${r.id}">↓ GPX</button>
                     ${r.has_fit ? `
@@ -1682,6 +1854,15 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
         btn.addEventListener("click", async () => {
           const action  = btn.dataset.action;
           const routeId = btn.dataset.route;
+
+          if (action === "map") {
+            const r = routes.find(x => x.id === routeId);
+            openTrackMap({
+              title: r?.name || routeId,
+              sub: [TYPE_LABELS[r?.type] || r?.type, r?.date, r?.distance != null ? r.distance + " km" : ""].filter(Boolean).join(" · "),
+              loadGpx: () => routesApi.admin.getUserRouteGpx(userId, routeId),
+            });
+          }
 
           if (action === "dl") {
             const orig = btn.textContent;
@@ -1886,15 +2067,57 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       return `<div style="font-size:13px">${escHtml(main)}</div>${extra.length ? `<div style="font-size:11px;color:var(--muted)">${escHtml([...new Set(extra)].join(" · "))}</div>` : ""}`;
     }
 
-    async function loadSamples() {
+    // A lista egyszer töltődik le; a szűrés / rendezés a böngészőben fut
+    let _samples = [], _sampleTracks = new Map();
+    const sf = {
+      query: document.querySelector("#sfQuery"), type: document.querySelector("#sfType"),
+      source: document.querySelector("#sfSource"), dist: document.querySelector("#sfDist"),
+      shape: document.querySelector("#sfShape"), sort: document.querySelector("#sfSort"),
+      count: document.querySelector("#sfCount"), reset: document.querySelector("#sfReset"),
+    };
+    const sampleSource = (s) => s.custom ? (s.community ? "community" : "custom") : "builtin";
+    const SAMPLE_SOURCE_LABELS = { builtin: "Beépített", custom: "Egyedi", community: "Beküldött" };
+    const norm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const sampleHaystack = (s) => norm([s.name, s.description, s.location?.settlement, s.location?.region,
+      s.location?.country, ...(s.location?.places || [])].join(" "));
+
+    function filteredSamples() {
+      const words = norm(sf.query.value).split(/\s+/).filter(Boolean);
+      const [dMin, dMax] = sf.dist.value ? sf.dist.value.split("-").map(v => v === "" ? null : +v) : [null, null];
+      const list = _samples.filter(s =>
+        (!words.length || words.every(w => sampleHaystack(s).includes(w))) &&
+        (!sf.type.value || s.type === sf.type.value) &&
+        (!sf.source.value || sampleSource(s) === sf.source.value) &&
+        (dMin == null || (s.distance ?? -1) >= dMin) &&
+        (dMax == null || (s.distance != null && s.distance < dMax)) &&
+        (!sf.shape.value || (sf.shape.value === "loop" ? s.location?.loop === true : s.location?.loop === false)));
+      const by = {
+        "name":      (a, b) => a.name.localeCompare(b.name, "hu"),
+        "dist-asc":  (a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity),
+        "dist-desc": (a, b) => (b.distance ?? -1) - (a.distance ?? -1),
+        "elev-desc": (a, b) => (b.elevation ?? -1) - (a.elevation ?? -1),
+        "place":     (a, b) => (a.location?.region || "~").localeCompare(b.location?.region || "~", "hu")
+                               || (a.location?.settlement || "").localeCompare(b.location?.settlement || "", "hu"),
+      }[sf.sort.value];
+      return by ? list.sort(by) : list;
+    }
+
+    function renderSamples() {
       const wrap = document.querySelector("#samplesWrap");
-      try {
-        const samples = await routesApi.admin.listSamples();
-        if (!samples.length) {
-          wrap.innerHTML = `<div class="loading">Még nincs közösségi útvonal.</div>`;
-          return;
-        }
-        wrap.innerHTML = `
+      if (!_samples.length) {
+        wrap.innerHTML = `<div class="loading">Még nincs közösségi útvonal.</div>`;
+        sf.count.textContent = "";
+        return;
+      }
+      const samples = filteredSamples();
+      const active = [sf.query, sf.type, sf.source, sf.dist, sf.shape].some(el => el.value);
+      sf.count.textContent = active ? `${samples.length} / ${_samples.length} útvonal` : `${_samples.length} útvonal`;
+      sf.reset.hidden = !active;
+      if (!samples.length) {
+        wrap.innerHTML = `<div class="loading">Nincs a szűrésnek megfelelő útvonal.</div>`;
+        return;
+      }
+      wrap.innerHTML = `
           <table class="user-table">
             <thead>
               <tr>
@@ -1911,16 +2134,22 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               ${samples.map(s => `
                 <tr data-sid="${escHtml(s.id)}">
                   <td>
-                    <div style="font-weight:500">${escHtml(s.name)}</div>
-                    ${s.description ? `<div class="sample-desc" title="${escHtml(s.description)}">${escHtml(s.description)}</div>` : ""}
+                    <div class="sample-name-cell">
+                      <button class="trk-thumb" type="button" data-saction="map" data-sid="${escHtml(s.id)}" title="Megnyitás térképen">${_sampleTracks.has(s.id) ? trackSvg(_sampleTracks.get(s.id)) : "…"}</button>
+                      <div style="min-width:0">
+                        <div style="font-weight:500">${escHtml(s.name)}</div>
+                        ${s.description ? `<div class="sample-desc" title="${escHtml(s.description)}">${escHtml(s.description)}</div>` : ""}
+                      </div>
+                    </div>
                   </td>
                   <td data-label="Helyszín">${locCell(s.location)}</td>
                   <td data-label="Típus"><span class="badge badge-on">${escHtml(SAMPLE_TYPE_LABELS[s.type] || s.type)}</span></td>
                   <td data-label="Távolság" style="white-space:nowrap">${s.distance != null ? s.distance + " km" : "—"}</td>
                   <td data-label="Emelkedő" style="white-space:nowrap">${s.elevation != null ? s.elevation + " m" : "—"}</td>
-                  <td data-label="Forrás"><span class="badge ${s.custom ? "badge-off" : ""}" style="${s.custom ? "" : "background:var(--bg);color:var(--muted)"}">${s.custom ? (s.community ? "Beküldött" : "Egyedi") : "Beépített"}</span></td>
+                  <td data-label="Forrás"><span class="badge ${s.custom ? "badge-off" : ""}" style="${s.custom ? "" : "background:var(--bg);color:var(--muted)"}">${SAMPLE_SOURCE_LABELS[sampleSource(s)]}</span></td>
                   <td style="white-space:nowrap">
                     <div class="row-actions" style="justify-content:flex-end">
+                      <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="map" data-sid="${escHtml(s.id)}" title="Nyomvonal térképen">Térkép</button>
                       <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="locate" data-sid="${escHtml(s.id)}" title="Helyadat (ország, régió, települések) újraszámolása a nyomvonalból">↻ Hely</button>
                       <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-saction="edit" data-sid="${escHtml(s.id)}">Szerkeszt</button>
                       ${s.custom ? `<button class="btn btn-danger" style="padding:5px 10px;font-size:12px" data-saction="del" data-sid="${escHtml(s.id)}" data-sname="${escHtml(s.name)}">Törlés</button>` : ""}
@@ -1930,33 +2159,67 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               `).join("")}
             </tbody>
           </table>`;
+    }
 
-        wrap.querySelectorAll("[data-saction]").forEach(btn => {
-          btn.addEventListener("click", async () => {
-            const sid   = btn.dataset.sid;
-            const sname = btn.dataset.sname || sid;
-            if (btn.dataset.saction === "edit") {
-              const s = samples.find(x => x.id === sid);
-              openSampleModal(s);
-            }
-            if (btn.dataset.saction === "locate") {
-              btn.disabled = true; btn.textContent = "Számolás…";
-              try { await routesApi.admin.locateSample(sid); await loadSamples(); }
-              catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "↻ Hely"; }
-            }
-            if (btn.dataset.saction === "del") {
-              if (!confirm(`Törlöd: „${sname}"?`)) return;
-              try {
-                await routesApi.admin.deleteSample(sid);
-                await loadSamples();
-              } catch (e) { alert("Hiba: " + e.message); }
-            }
+    async function loadSamples() {
+      const wrap = document.querySelector("#samplesWrap");
+      try {
+        _samples = await routesApi.admin.listSamples();
+        // típus-szűrő: csak a ténylegesen előforduló típusok
+        const keep = sf.type.value;
+        const types = [...new Set(_samples.map(s => s.type).filter(Boolean))]
+          .sort((a, b) => (SAMPLE_TYPE_LABELS[a] || a).localeCompare(SAMPLE_TYPE_LABELS[b] || b, "hu"));
+        sf.type.innerHTML = `<option value="">Minden típus</option>` +
+          types.map(t => `<option value="${escHtml(t)}">${escHtml(SAMPLE_TYPE_LABELS[t] || t)}</option>`).join("");
+        sf.type.value = types.includes(keep) ? keep : "";
+        renderSamples();
+
+        // miniatűrök egy kérésben (egyszerűsített nyomvonalak – ugyanaz, mint a Könyvtár térképes nézetéé)
+        fetch("/api/samples/geometry-bulk").then(r => r.ok ? r.json() : { tracks: [] }).catch(() => ({ tracks: [] }))
+          .then(({ tracks }) => {
+            _sampleTracks = new Map((tracks || []).map(t => [t.id, t.points]));
+            wrap.querySelectorAll(".trk-thumb[data-sid]").forEach(el => { el.innerHTML = trackSvg(_sampleTracks.get(el.dataset.sid)); });
           });
-        });
       } catch (e) {
         wrap.innerHTML = `<div class="loading">Hiba: ${escHtml(e.message)}</div>`;
       }
     }
+
+    sf.query.addEventListener("input", renderSamples);
+    [sf.type, sf.source, sf.dist, sf.shape, sf.sort].forEach(el => el.addEventListener("change", renderSamples));
+    sf.reset.addEventListener("click", () => {
+      [sf.query, sf.type, sf.source, sf.dist, sf.shape].forEach(el => { el.value = ""; });
+      renderSamples();
+    });
+
+    document.querySelector("#samplesWrap").addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-saction]");
+      if (!btn) return;
+      const sid   = btn.dataset.sid;
+      const sname = btn.dataset.sname || sid;
+      const s     = _samples.find(x => x.id === sid);
+      if (btn.dataset.saction === "edit") openSampleModal(s);
+      if (btn.dataset.saction === "map") {
+        openTrackMap({
+          title: s?.name || sid,
+          sub: [s?.distance != null ? s.distance + " km" : "", s?.elevation != null ? s.elevation + " m emelkedő" : "",
+                SAMPLE_TYPE_LABELS[s?.type] || ""].filter(Boolean).join(" · "),
+          loadGpx: () => routesApi.loadSample(sid),
+        });
+      }
+      if (btn.dataset.saction === "locate") {
+        btn.disabled = true; btn.textContent = "Számolás…";
+        try { await routesApi.admin.locateSample(sid); await loadSamples(); }
+        catch (err) { alert(err.message); btn.disabled = false; btn.textContent = "↻ Hely"; }
+      }
+      if (btn.dataset.saction === "del") {
+        if (!confirm(`Törlöd: „${sname}"?`)) return;
+        try {
+          await routesApi.admin.deleteSample(sid);
+          await loadSamples();
+        } catch (err) { alert("Hiba: " + err.message); }
+      }
+    });
 
     // ── Minta modal ───────────────────────────────────────────────────────────
     const sampleModal  = document.querySelector("#sampleModal");
@@ -3062,19 +3325,18 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (!box) return;
       try {
         const gpx = await routesApi.admin.submissionGpx(id);
-        const pts = [...gpx.matchAll(/lat="([-\d.]+)" lon="([-\d.]+)"/g)].map(m => [+m[1], +m[2]]);
-        if (pts.length < 2) { box.textContent = "–"; return; }
-        const lat0 = pts.reduce((a, p) => a + p[0], 0) / pts.length;
-        const k = Math.cos(lat0 * Math.PI / 180);
-        const xs = pts.map(p => p[1] * k), ys = pts.map(p => -p[0]);
-        const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-        const w = maxX - minX || 1e-6, h = maxY - minY || 1e-6, pad = Math.max(w, h) * 0.08;
-        const d = xs.map((x, j) => `${j ? "L" : "M"}${(x - minX).toFixed(6)} ${(ys[j] - minY).toFixed(6)}`).join(" ");
-        const sw = Math.max(w, h) / 70;
-        box.innerHTML = `<svg viewBox="${-pad} ${-pad} ${w + 2 * pad} ${h + 2 * pad}" preserveAspectRatio="xMidYMid meet">
-          <path d="${d}" fill="none" stroke="#fc4c02" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="${xs[0] - minX}" cy="${ys[0] - minY}" r="${sw * 1.6}" fill="#16a34a"/>
-          <circle cx="${xs[xs.length - 1] - minX}" cy="${ys[ys.length - 1] - minY}" r="${sw * 1.6}" fill="#1a1d23"/></svg>`;
+        const pts = gpxPoints(gpx);
+        box.innerHTML = trackSvg(pts);
+        if (pts.length < 2) return;
+        // kattintásra nagy térkép (a már letöltött GPX-szel)
+        const item = _subItems.find(i => String(i.id) === String(id));
+        box.dataset.map = "1";
+        box.title = "Megnyitás térképen";
+        box.addEventListener("click", () => openTrackMap({
+          title: item?.name || "Beküldött útvonal",
+          sub: `${item?.distance_km ?? "–"} km · ${item?.elevation_m ?? "–"} m szint`,
+          loadGpx: async () => gpx,
+        }));
       } catch { box.textContent = "–"; }
     }
 

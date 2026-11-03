@@ -42,6 +42,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_garmin.py       # /api/garmin/* (status, connect, mfa, weight, activities, import, course)
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
+├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
     ├── styles.css          # Teljes CSS
@@ -62,6 +63,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
     │   └── translations.js # hu / en szótár
     ├── map/
     │   ├── mapAdapter.js   # Leaflet wrapper (createMapAdapter, SEGMENT_COLORS)
+    │   ├── tileLayers.js   # Alaptérkép-rétegek (tileLayers, TILE_LAYER_LABELS) – app + admin térkép
     │   └── surfaceAnalysis.js
     ├── state/
     │   └── routeStore.js   # Tervező route state (waypoints, geometry)
@@ -286,7 +288,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.31.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.32.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

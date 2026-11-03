@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.32.0 – 2026-11-03 – Admin: útvonalak térképen, szűrő; gyorsabb betöltés
+
+### Verzió
+
+- **Közösségi útvonalak (admin):** minden sor elején a nyomvonal kis rajza (egy kérésben töltődik); rákattintva vagy a „Térkép” gombbal az útvonal nagy térképen nyílik meg, rajt- és célponttal.
+- **Térképstílus a térkép ablakban:** Standard, Kerékpár, Domborzat, Terep, Műhold, Hybrid, Világos, Sötét – ugyanazok, mint az appban; az admin felület megjegyzi a választást.
+- **Szűrősáv a Közösségi útvonalak fölött:** keresés névre, leírásra, településre, megyére (ékezet nélkül is), szűrés típusra, forrásra (beépített / egyedi / beküldött), távra, kör / A → B formára; rendezés név, táv, emelkedő vagy helyszín szerint; találatszám és „Szűrők törlése”.
+- **Felhasználó útvonalai (admin):** új 🗺 gomb – a felhasználó útvonala vagy edzése térképen. **Beküldések:** az előnézetre kattintva nagy térkép.
+- **Gyorsabb betöltés:** a szerver mostantól tömörítve küldi a GPX-et, a JSON-t és a programfájlokat – egy edzés GPX-e kb. 20×, a fő programfájl kb. 3,5× kisebb; mobilneten és VPN-en érezhetően gyorsabb a Könyvtár és az útvonalak megnyitása.
+- **Belül:** az alaptérkép-rétegek külön modulban (`src/map/tileLayers.js`), az app és az admin közösen használja. Böngészős tesztek (Playwright, mobil és asztali nézet): `tests/`.
+
+---
+
 ## v1.31.0 – 2026-11-02 – Navigáció a megtervezett útvonalon
 
 ### Verzió

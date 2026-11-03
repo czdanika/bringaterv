@@ -2,6 +2,7 @@ import { num } from "../format.js";
 import { isMobileLayout } from "../layout.js";
 import { modeFromWayTags } from "./surfaceAnalysis.js";
 import { MODE_NAMES, modesFor, activityOf } from "../routeModes.js";
+import { tileLayers } from "./tileLayers.js";
 import { trailsNear, trailSection, sampleVias, trailSymbolUrl, trailLabel, trailRef } from "./trails.js";
 // ── BRouter: először a saját szerver (a stack „brouter” szolgáltatása, /brouter), ha nem
 // érhető el vagy nincs adata a területre, a nyilvános brouter.de. Elérhetetlen saját
@@ -58,61 +59,6 @@ export const SEGMENT_COLORS = {
   mtb:     "#22C55E",
   walking: "#0EA5E9",
   hiking:  "#A855F7",
-};
-
-const esriAttrib = 'Tiles &copy; <a href="https://www.esri.com">Esri</a>';
-
-const tileLayers = {
-  standard: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
-  },
-  cycling: {
-    url: "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
-    options: { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CyclOSM' },
-  },
-  topo: {
-    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    options: { maxZoom: 17, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; OpenTopoMap' },
-  },
-  // A CARTO basemap 2026-tól API-kulcsot kér ("API KEY REQUIRED" watermark),
-  // ezért az Esri Gray Canvasre váltottunk (kulcs nélkül, ugyanaz mint a műholdas).
-  // A címkék külön overlay-rétegben jönnek (a Gray Base címke nélküli).
-  light: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-    options: { maxZoom: 19, maxNativeZoom: 16, attribution: esriAttrib },
-    overlay: {
-      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
-      options: { maxZoom: 19, maxNativeZoom: 16, attribution: "", pane: "shadowPane" },
-    },
-  },
-  dark: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-    options: { maxZoom: 19, maxNativeZoom: 16, attribution: esriAttrib },
-    overlay: {
-      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
-      options: { maxZoom: 19, maxNativeZoom: 16, attribution: "", pane: "shadowPane" },
-    },
-  },
-  // Terep: zöld erdős, domborzatos Esri topo térkép (a megosztó kép „Terep” háttere).
-  // A filter a PDF-be rajzoláskor élénkíti a színeket (Leaflet nem használja).
-  terrain: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-    options: { maxZoom: 19, maxNativeZoom: 17, attribution: esriAttrib },
-    filter: "saturate(1.45) contrast(1.06)",
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    options: { maxZoom: 19, attribution: esriAttrib },
-  },
-  hybrid: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    options: { maxZoom: 19, attribution: esriAttrib },
-    overlay: {
-      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-      options: { maxZoom: 19, attribution: "", pane: "shadowPane" },
-    },
-  },
 };
 
 export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteFallback, onMarkerDrag, onWaypointDelete, onWaypointUpdate, onMeasureUpdate, onReturnRoute, onRoundTrip, onSetLoopStart, onToggleLoop, isClosedLoop, getWaypointInfo, startView }) {
