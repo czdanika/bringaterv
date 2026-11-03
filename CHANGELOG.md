@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.31.0 – 2026-11-02 – Navigáció a megtervezett útvonalon
+
+### Verzió
+
+- **Béta, alapból kikapcsolva:** Beállítások → Navigáció (béta) – bekapcsolás eszközönként, utasítás-mód (beszéd / csak hangjelzés és rezgés / csak rezgés), felolvasó hang választása, próba.
+- **Navigáció:** a térkép jobb felső sarkában a „Navigáció” gombbal a megtervezett útvonalon végigvezet – gyalog és kerékpárral. Teljes képernyős térkép, a saját hely iránnyal, a térkép követi a mozgást (elhúzva megáll, „Követés”-sel vissza); a megtett rész szürke.
+- **Irányutasítások:** felül nyíl, táv és utasítás („200 m múlva balra”, körforgalom kijárattal, jelzéskövetésnél „a P jelzésen tovább”), alatta a rákövetkező. A tervezett útvonalnál a BRouter kanyar-utasításaiból, betöltött GPX-nél a vonal töréseiből.
+- **Természetes hang:** két beépített magyar hang – Berta (női) és Imre (férfi), a Piper nyílt neurális felolvasóval előre legenerálva (CC0 adatkészlet), offline is szól; a mondatok elemekből állnak össze. A telefon felolvasója választható, és tartalékként marad. Generátor: `tools/voice/generate.py`.
+- **Hang:** magyar felolvasás (gyalog kb. 70 és 15 m-rel előtte, kerékpárral a sebességhez igazítva korábban), némítható.
+- **Letérés-figyelés:** gyalog 40, kerékpárral 50 m felett rezgés, hang és piros szaggatott vonal vissza az útra; visszatéréskor jelez.
+- **Adatok:** hátralévő táv, várható érkezés (előbb a tervezési, utána a valós tempóval, emelkedővel), hátralévő emelkedő, sebesség; célba éréskor összegzés.
+- **Indulás onnan, ahol vagy:** az első GPS-jel után – az útvonal közepén megkérdezi, innen folytatod-e vagy az elejéről; ahol az út többször is elhalad (kör, oda-vissza), azt is, melyik részénél tartasz (a haladási irány szerinti az első).
+- **Rajthoz vezetés:** ha messze vagy az úttól, bekötő szakaszt tervez a legközelebbi ponthoz vagy a rajthoz (kék pöttyözött vonal, „itt rátérsz az útvonalra”).
+- **Félbehagyott út folytatása:** a cél előtt befejezett navigáció haladása 14 napig megmarad (eszközönként); újraindításkor „Folytatod onnan?”.
+- **Képernyő ébren tartása** navigáció közben (Wake Lock). A böngésző zárolt képernyőnél / háttérben nem ad helyet – erről a súgó is szól.
+- **Próba otthon:** az URL végére `?navsim` → „Próba” gomb a navigációban, ami végigmegy az útvonalon; `?navsim=5:400` az 5. km-nél, 400 m-re északra indul (a középről indulás és a bekötés kipróbálásához).
+
+---
+
 ## v1.30.0 – 2026-11-02 – Jelzéskövetés: tervezés a turistajelzéseken
 
 ### Verzió

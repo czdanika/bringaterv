@@ -15,6 +15,7 @@ import { createToast, formatDistance } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
+import { initNavigation } from "./ui/navigation.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
@@ -215,6 +216,7 @@ function switchTab(name) {
   elements.appShell.classList.add("is-tab-switching");
   requestAnimationFrame(() => requestAnimationFrame(() => elements.appShell.classList.remove("is-tab-switching")));
   currentTab = name;
+  window.dispatchEvent(new CustomEvent("bringaterv:tab", { detail: name }));
   elements.appShell.classList.toggle("is-home-mode",    name === "home");
   elements.appShell.classList.toggle("is-file-mode",    name === "file");
   elements.appShell.classList.toggle("is-library-mode", name === "library");
@@ -1709,6 +1711,9 @@ store.subscribe(async (state) => {
   store.setState({
     routeGeometry: route.geometry,
     routeSegments: route.segments ?? [],
+    // kanyar-utasítások a navigációhoz – csak ehhez a geometriához érvényesek
+    routeHints: route.hints ?? null,
+    routeHintsLen: route.geometry.length,
     distanceMeters: route.distanceMeters,
     ascentMeters: route.ascentMeters ?? 0,
     descentMeters: route.descentMeters ?? 0,
@@ -1875,6 +1880,16 @@ markedOnlyToggle?.addEventListener("change", () => {
   store.subscribe(onMode);
   onMode(store.getState());
 }
+
+// Navigáció a megtervezett útvonalon (a térkép jobb felső sarkában a „Navigáció” gomb)
+initNavigation({
+  mapAdapter, store, showToast,
+  getSpeed: (mode) => getSpeedSettings()[mode],
+  getGeometry: () => { const g = store.getState().routeGeometry; return g?.length > 1 ? g : activeGeometry; },
+  getHints: () => { const st = store.getState(); return st.routeHintsLen === st.routeGeometry?.length ? st.routeHints : null; },
+  canStart: () => currentTab === "plan" && (store.getState().routeGeometry?.length ?? 0) > 1,
+  route: (wps, mode) => mapAdapter.routeStrict(wps, mode),
+});
 
 // Jobb gomb / hosszú érintés a térképen: a ponton futó turistajelzések (kiemelés, tervezés rajtuk)
 initTrailInfo({ mapAdapter, store, showToast, setRouteMode, isSuggestActive, isClosedLoop,
@@ -2740,7 +2755,7 @@ initRouteSuggest({
     setRouteMode(c.mode, { persistDefault: false });
     const wps = c.waypoints.map(({ lat, lng }) => ({ lat, lng }));
     presetRoute = { signature: routeSignatureOf({ ...store.getState(), waypoints: wps }),
-                    route: { geometry: c.geometry, distanceMeters: c.distanceMeters, ascentMeters: c.ascentMeters, descentMeters: c.descentMeters } };
+                    route: { geometry: c.geometry, distanceMeters: c.distanceMeters, ascentMeters: c.ascentMeters, descentMeters: c.descentMeters, hints: c.hints } };
     store.replaceWaypoints(wps, { geometry: c.geometry });
     geocodeNamelessWaypoints();
     setTimeout(() => mapAdapter.fitRoute(), 300);

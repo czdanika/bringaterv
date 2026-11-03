@@ -1307,6 +1307,9 @@
 
         <!-- Lebegő térkép-eszközök (jobb felső sarok): teljes útvonal + térképstílus -->
         <div class="map-fab-tools">
+          <button id="mapNavFabBtn" class="map-fab-btn map-fab-btn--label map-fab-btn--nav" type="button" title="Navigáció a megtervezett útvonalon" hidden>
+            <i data-lucide="navigation" aria-hidden="true"></i><span>Navigáció</span>
+          </button>
           <button id="mapFitFabBtn" class="map-fab-btn" type="button" title="Teljes útvonal">
             <i data-lucide="maximize" aria-hidden="true"></i>
           </button>
@@ -2880,6 +2883,38 @@
           <input id="autoFitToggle" type="checkbox" checked>
           <span class="toggle-track"></span>
         </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="navigation">
+    <h4 class="settings-section-title">
+      <i data-lucide="navigation" aria-hidden="true"></i>
+      Navigáció (béta)
+      <button class="hint-btn" type="button" data-hint-title="Navigáció (béta)" data-hint="Bekapcsolva a térkép jobb felső sarkában megjelenik a Navigáció gomb: a megtervezett útvonalon végigvezet, irányutasításokkal és letérés-figyeléssel – gyalog és kerékpárral. Csak előtérben lévő alkalmazással és bekapcsolt képernyővel működik. Ez a beállítás ezen az eszközön érvényes." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div class="plan-elev-toggle-row" style="margin:0">
+        <span class="plan-elev-toggle-label">Navigáció bekapcsolása</span>
+        <label class="toggle-switch" title="Navigáció gomb a térképen be/ki">
+          <input id="navEnabledToggle" type="checkbox">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="nav-set-fields" id="navSetFields">
+        <label class="settings-field-label" for="navSoundSelect">Utasítások</label>
+        <select id="navSoundSelect" class="export-input">
+          <option value="speech">Beszéd (felolvasás)</option>
+          <option value="beep">Csak hangjelzés és rezgés</option>
+          <option value="off">Csak rezgés</option>
+        </select>
+        <div id="navVoiceWrap">
+          <label class="settings-field-label" for="navVoiceSelect">Hang</label>
+          <select id="navVoiceSelect" class="export-input"></select>
+          <p class="settings-field-hint" id="navVoiceHint">Berta és Imre beépített, természetes hang – internet nélkül is szól (első használatkor ~1,5 MB töltődik le). A telefon felolvasójának hangjai a telefon beállításaiból jönnek; iPhone-on: Beállítások → Kisegítő lehetőségek → Felolvasott tartalom → Hangok → Magyar – itt tölthető le jobb minőségű („Bővített” / „Prémium”) hang. Androidon: Google szövegfelolvasó → Magyar → hangadatok telepítése.</p>
+        </div>
+        <button type="button" class="notify-btn" id="navSoundTest">Próba</button>
       </div>
     </div>
   </section>

@@ -263,6 +263,11 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   L.control.zoom({ position: "bottomright" }).addTo(map);
   let baseLayer = createTileLayer("standard").addTo(map);
   const trailHighlight = L.layerGroup();
+  const navGroup = L.layerGroup();
+  let navMarker = null, navAccuracy = null;
+  const navPassed = L.polyline([], { color: "#6b7280", weight: 6, opacity: 0.75, interactive: false });
+  const navOffLine = L.polyline([], { color: "#dc2626", weight: 3, dashArray: "6 6", interactive: false });
+  const navApproach = L.polyline([], { color: "#2563eb", weight: 5, opacity: 0.85, dashArray: "2 9", lineCap: "round", interactive: false });
   const hikingLayer = L.tileLayer("https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png", {
     maxZoom: 19, maxNativeZoom: 18, zIndex: 10, opacity: 0.85,
     attribution: 'Turistautak: &copy; <a href="https://hiking.waymarkedtrails.org">Waymarked Trails</a> (CC BY-SA)',
@@ -1213,6 +1218,13 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
 
   // BRouter GeoJSON → pontok; a „messages” WayTags oszlopából minden pont megkapja
   // a burkolat-osztályát (surf), így a burkolat külön lekérdezés nélkül ismert
+  // Kanyar-utasítások (BRouter voicehints, timode=1): [geometria-index, parancs, kijárat, táv, szög]
+  // → { i, cmd, exit, angle }; `offset`: a szakasz helye az összefűzött geometriában
+  function brouterHints(feature, offset = 0) {
+    const vh = feature?.properties?.voicehints;
+    return Array.isArray(vh) ? vh.map(([i, cmd, exit, , angle]) => ({ i: i + offset, cmd, exit, angle })) : [];
+  }
+
   function brouterGeometry(feature) {
     const coordsList = feature?.geometry?.coordinates ?? [];
     const geometry = coordsList.map(([lng, lat, ele]) => ({ lat, lng, ele: ele ?? null }));
@@ -1250,14 +1262,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (!pts) return null;
     const vias = [from, ...sampleVias(pts).slice(1, -1), to];
     const coords = vias.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
-    const response = await brouterFetch(`lonlats=${coords}&profile=${profileOf("hiking", true)}&alternativeidx=0&format=geojson`);
+    const response = await brouterFetch(`lonlats=${coords}&profile=${profileOf("hiking", true)}&alternativeidx=0&format=geojson&timode=1`);
     if (!response.ok) return null;
     const feature = (await response.json()).features?.[0];
     const { coordsList, geometry } = brouterGeometry(feature);
     if (geometry.length < 2) return null;
     const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
     const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
-    return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode, trail: from.trail.id };
+    return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode, trail: from.trail.id, hints: brouterHints(feature) };
   }
 
   async function routeSegment(from, to, segMode, markedOnly = false) {
@@ -1267,7 +1279,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     try {
       const profile = profileOf(segMode, markedOnly);
       const coords = `${from.lng},${from.lat}|${to.lng},${to.lat}`;
-      const response = await brouterFetch(`lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson`);
+      const response = await brouterFetch(`lonlats=${coords}&profile=${profile}&alternativeidx=0&format=geojson&timode=1`);
       if (!response.ok) throw new Error("Segment routing failed");
       const data = await response.json();
       const feature = data.features?.[0];
@@ -1275,7 +1287,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
       const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
       if (geometry.length < 2) throw new Error("No geometry");
-      return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode };
+      return { geometry, distanceMeters, ascentMeters, descentMeters, mode: segMode, hints: brouterHints(feature) };
     } catch {
       const geometry = [
         { lat: from.lat, lng: from.lng, ele: null },
@@ -1289,14 +1301,14 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   async function routeStrict(waypoints, mode, profileOverride = null) {
     const coordinates = waypoints.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join("|");
     const profile = profileOverride || (profileMap[mode] ?? profileMap.asphalt);
-    const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
+    const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson&timode=1`);
     if (!response.ok) throw new Error(`Útvonaltervező hiba (${response.status})`);
     const feature = (await response.json()).features?.[0];
     const { coordsList, geometry } = brouterGeometry(feature);
     if (geometry.length < 2) throw new Error("Nincs útvonal");
     const distanceMeters = Number(feature?.properties?.["track-length"] ?? haversineDistance(geometry));
     const { ascentMeters, descentMeters } = brouterElevation(feature, coordsList);
-    return { geometry, distanceMeters, ascentMeters, descentMeters };
+    return { geometry, distanceMeters, ascentMeters, descentMeters, hints: brouterHints(feature) };
   }
 
   // Útvonal-javaslatok rajzolása: a kiválasztott élénken, a többi halványan; rajt + körzet
@@ -1366,13 +1378,22 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const distanceMeters = segmentResults.reduce((sum, s) => sum + s.distanceMeters, 0);
       const ascentMeters   = segmentResults.reduce((sum, s) => sum + s.ascentMeters, 0);
       const descentMeters  = segmentResults.reduce((sum, s) => sum + s.descentMeters, 0);
-      return { geometry: fullGeometry, distanceMeters, ascentMeters, descentMeters, segments: segmentResults };
+      // kanyar-utasítások az összefűzött geometriában (a szakaszok közös pontja egyszer szerepel);
+      // a jelzéskövető szakasz elején „a … jelzésen tovább”
+      const hints = [];
+      let offset = 0;
+      segmentResults.forEach((seg, i) => {
+        if (seg.trail && waypoints[i].trail) hints.push({ i: offset, cmd: "trail", trail: waypoints[i].trail });
+        hints.push(...(seg.hints || []).map((h) => ({ ...h, i: h.i + offset })));
+        offset += seg.geometry.length - 1;
+      });
+      return { geometry: fullGeometry, distanceMeters, ascentMeters, descentMeters, segments: segmentResults, hints };
     }
 
     try {
       const coordinates = waypoints.map((point) => `${point.lng},${point.lat}`).join("|");
       const profile = profileOf(mode, markedOnly);
-      const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson`);
+      const response = await brouterFetch(`lonlats=${coordinates}&profile=${profile}&alternativeidx=0&format=geojson&timode=1`);
       if (!response.ok) throw new Error("Routing failed");
       const data = await response.json();
       const feature = data.features?.[0];
@@ -1381,7 +1402,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const { ascentMeters, descentMeters } = brouterElevation(feature, coords);
 
       if (geometry.length < 2) throw new Error("No route geometry");
-      return { geometry, distanceMeters, ascentMeters, descentMeters };
+      return { geometry, distanceMeters, ascentMeters, descentMeters, hints: brouterHints(feature) };
     } catch {
       onRouteFallback();
       return straightLineRoute(waypoints);
@@ -1497,6 +1518,35 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       if (fit && lines.length) map.fitBounds(L.latLngBounds(lines.flat().map((p) => [p.lat, p.lng])), fitOptions());
     },
     clearTrailHighlight: () => trailHighlight.clearLayers(),
+    // ── Navigáció: saját hely (iránnyal), megtett rész, letérésnél vonal vissza az útra ──
+    navShow: ({ lat, lng, heading, accuracy }) => {
+      const ll = [lat, lng];
+      if (!navMarker) {
+        navMarker = L.marker(ll, { interactive: false, zIndexOffset: 1000,
+          icon: L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17],
+            html: '<div class="nav-me"><svg viewBox="0 0 24 24" width="34" height="34"><circle cx="12" cy="12" r="10" fill="#2563eb" stroke="#fff" stroke-width="2.5"/><path d="M12 5.5 16.5 16 12 13.6 7.5 16Z" fill="#fff"/></svg></div>' }) });
+        navAccuracy = L.circle(ll, { radius: accuracy || 10, color: "#2563eb", weight: 1, opacity: 0.4, fillOpacity: 0.08, interactive: false });
+        navGroup.addLayer(navAccuracy).addLayer(navMarker);
+      }
+      navMarker.setLatLng(ll);
+      navAccuracy.setLatLng(ll).setRadius(accuracy || 10);
+      const svg = navMarker.getElement()?.querySelector(".nav-me");
+      if (svg) { svg.style.transform = heading != null ? `rotate(${heading}deg)` : ""; svg.classList.toggle("no-heading", heading == null); }
+      if (!map.hasLayer(navGroup)) navGroup.addTo(map);
+    },
+    navFollow: ({ lat, lng }, zoom) => map.setView([lat, lng], zoom ?? map.getZoom(), { animate: true, duration: 0.5 }),
+    navSetPassed: (pts) => { navPassed.setLatLngs(pts.map((p) => [p.lat, p.lng])); if (!navGroup.hasLayer(navPassed)) navGroup.addLayer(navPassed); },
+    navSetOffLine: (a, b) => {
+      if (!a || !b) { navGroup.removeLayer(navOffLine); return; }
+      navOffLine.setLatLngs([[a.lat, a.lng], [b.lat, b.lng]]);
+      if (!navGroup.hasLayer(navOffLine)) navGroup.addLayer(navOffLine);
+    },
+    navSetApproach: (pts) => {
+      navApproach.setLatLngs(pts.map((p) => [p.lat, p.lng]));
+      if (!navGroup.hasLayer(navApproach)) navGroup.addLayer(navApproach);
+    },
+    navOnUserMove: (fn) => map.on("dragstart", fn),
+    navClear: () => { navGroup.clearLayers(); navMarker = null; navAccuracy = null; if (map.hasLayer(navGroup)) map.removeLayer(navGroup); },
     // Turistajelzések (Waymarked Trails): átlátszó réteg, bármelyik alaptérkép fölött
     setHikingOverlay: (on) => {
       if (on && !map.hasLayer(hikingLayer)) hikingLayer.addTo(map);

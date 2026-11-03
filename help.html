@@ -244,9 +244,26 @@
           <tr><td class="path">Szintadat / szélhatás az időbecsléshez</td><td>Lásd <a href="#becsult-ido">Becsült idő</a>.</td></tr>
           <tr><td class="path">Futó animáció az útvonalon</td><td>Apró fehér jelek futnak végig az útvonalon a haladás irányában (tervezésnél és elemzésnél is). Ha a rendszerben be van kapcsolva a mozgás csökkentése, nem mozog.</td></tr>
           <tr><td class="path">Útirány-nyilak</td><td>Kis nyilak ~1,5 km-enként a haladási iránnyal.</td></tr>
+          <tr><td class="path">Automatikus zoom az útvonalra</td><td>Bekapcsolva új pont után a térkép a teljes útvonalra nagyít; kikapcsolva a nagyítás és a térképrészlet marad (a teljes útvonalat a „Teljes útvonal” gomb mutatja).</td></tr>
+          <tr><td class="path">Csak jelzett turistaúton</td><td>Séta és Túra módban: a jelzett turistautak erős előnyben – lásd <a href="#turistajelzesek">Turistajelzések</a>.</td></tr>
         </table>
         <p>Ugyanezek a <span class="path">☰ → Beállítások</span> alatt is megvannak (a két hely együtt változik). Telefonon a ⚙ helyett „Beállítások” gomb van, és a panel a lapon belül nyílik le.</p>
         <p>A <b>GPX köztes pontok</b> kapcsoló (fájlbetöltéskor a köztes pontok útvonalponttá alakítása) a <span class="path">Beállítások → Tervezési beállítások</span> alatt van.</p>
+
+        <h3 id="navigacio">Navigáció</h3>
+        <p>A megtervezett útvonalon a Bringaterv végigvezet – gyalog és kerékpárral is. <b>Béta funkció, alapból ki van kapcsolva:</b> a <span class="path">Beállítások → Navigáció (béta)</span> alatt kapcsolható be (eszközönként). Utána a térkép jobb felső sarkában a <b>Navigáció</b> gombbal indul (akkor látszik, ha van megtervezett útvonal). A böngésző kéri a helymeghatározás engedélyezését.</p>
+        <ul>
+          <li><b>Indulás:</b> az első GPS-jel után eldönti, hol vagy. Az útvonal elején rögtön indul; ha a közepén vagy, megkérdezi, <b>innen folytatod-e vagy az elejéről</b> – ahol az út többször is elhalad (kör, oda-vissza), azt is, melyik részénél tartasz (az épp követett irány az első). Ha messze vagy az úttól, felajánlja, hogy <b>a legközelebbi ponthoz vagy a rajthoz vezet</b> (kék pöttyözött bekötő szakasz), vagy csak megmutatja az utat.</li>
+          <li><b>Félbehagyott út:</b> ha egy navigációt a cél előtt befejezel, a haladást megjegyzi (14 napig, ezen az eszközön). Ugyanennek az útnak a következő indításakor megkérdezi: „Folytatod onnan?”.</li>
+          <li><b>Szimuláció otthon:</b> ha a cím végére <code>?navsim</code> kerül (pl. <code>…/index.html?navsim</code>), a navigációban megjelenik a <b>Próba</b> gomb, ami a tervezési sebesség háromszorosával végigmegy az útvonalon – így hely nélkül is kipróbálható. <code>?navsim=5:400</code>: az 5. km-nél, 400 m-re északra indul (a „Honnan folytatod?” és a bekötés kipróbálásához).</li>
+          <li><b>Felül</b> a következő teendő: nyíl, táv és utasítás („200 m múlva balra”, „a körforgalomból a 2. kijáraton”, jelzéskövetésnél „a P jelzésen tovább”), alatta a rákövetkező.</li>
+          <li><b>Alul</b> a hátralévő táv, a várható érkezés, a hátralévő emelkedő és a sebesség. Az érkezést az első percekben a tervezési sebességgel, utána a valós tempóddal számolja.</li>
+          <li><b>Hang:</b> a telefon magyarul felolvassa az utasításokat (gyalog kb. 70 és 15 m-rel előtte, kerékpárral a sebességhez igazítva korábban). A Beállításokban választható <b>beszéd</b>, <b>csak hangjelzés és rezgés</b> (egy csippanás előre, kettő a kanyarnál, mély hármas a letérésnél) vagy <b>csak rezgés</b>, és ott a hang is kiválasztható: <b>Berta</b> (női) vagy <b>Imre</b> (férfi) beépített, természetes hang, amely internet nélkül is szól (első használatkor ~1,5 MB töltődik le), vagy a telefon saját felolvasója (jobb minőségű magyar hang a telefon beállításaiban tölthető le – iPhone: Kisegítő lehetőségek → Felolvasott tartalom → Hangok → Magyar). Navigáció közben a <b>Hang</b> gombbal az adott útra némítható.</li>
+          <li><b>Letérés:</b> ha az útvonaltól gyalog 40, kerékpárral 50 m-nél messzebb kerülsz, rezeg, szól, és piros szaggatott vonal mutatja az utat vissza. A megtett rész szürkén látszik.</li>
+          <li><b>Követés:</b> a térkép veled mozog; ha elhúzod, megáll, a <b>Követés</b> gomb visz vissza.</li>
+          <li><b>Befejezés</b> gomb: vége a navigációnak. A célnál magától jelez („Megérkeztél”).</li>
+        </ul>
+        <p class="tip"><b>Fontos:</b> a böngésző csak akkor ad helyet, ha az alkalmazás <b>előtérben van és a képernyő be van kapcsolva</b> – zárolt képernyővel vagy háttérbe téve a navigáció megáll. A képernyőt a navigáció ébren tartja (ha a telefon engedi). Hosszabb útra vigyél powerbankot. Zsebben lévő telefonnal vagy egész napos túrára megbízhatóbb a GPX exportja Garmin órára vagy navigációs appba (OsmAnd, Locus Map).</p>
 
         <h3 id="turistajelzesek">Turistajelzések és jelzéskövetés</h3>
         <p>Gyalogos módban (Séta, Túra) a tervezés a jelzett turistautakra épülhet – úgy, mint egy turistatérképen: „Mátraházáról a piros sávon fel a Kékesre, onnan a kék háromszögön le Mátrafüredre”. Az adatok az OpenStreetMap túraútvonalaiból jönnek (a Waymarked Trails szolgáltatáson át), a magyar jelzésekkel (kék sáv, piros kereszt, sárga kör…).</p>
@@ -581,13 +598,14 @@
           <tr><td class="path">Megosztás</td><td>A megosztási linkek és QR-kódok alap-címe (saját domain).</td></tr>
           <tr><td class="path">AI-elemzés</td><td>Az AI-funkciók be- és kikapcsolása magadnak (csak ha az üzemeltető bekapcsolta) – lásd <a href="#ai-elemzes">AI-elemzés</a>.</td></tr>
           <tr><td class="path">Értesítések</td><td>Lásd <a href="#ertesitesek">Értesítések</a>.</td></tr>
-          <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Túra 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
+          <tr><td class="path">Tervezési beállítások</td><td>Útra illesztés, szakasz infó, GPX köztes pontok, szintadat az időbecsléshez, és a módok alapsebességei (Aszfalt 22, Gravel 18, MTB 12, Séta 5, Túra 5 km/h – a Visszaállítás gomb ezekre állít vissza).</td></tr>
           <tr><td class="path">Induló nézet</td><td>Hol és milyen nagyításon nyíljon meg a térkép (a mostani nézet vagy GPS szerint).</td></tr>
           <tr><td class="path">Eszköztár sorrend</td><td>Az eszköztár gombjainak sorrendje (húzással) és elrejtése (👁).</td></tr>
           <tr><td class="path">Elemzési beállítások</td><td>Személyes adatok és pulzuszónák – lásd <a href="#pulzus">Pulzuszónák</a>.</td></tr>
           <tr><td class="path">Adatzónák</td><td>Sebesség- (km/h), kadencia- (rpm) és teljesítmény- (W) zónahatárok csúszkákkal; az „Egyenlő felosztás” gomb egyenletesen osztja szét őket. Ezek színezik a térképet és (zónaszín módban) a diagramokat.</td></tr>
           <tr><td class="path">Diagram színek</td><td><b>Egyszínű</b>: minden diagram egységes, semleges szürke; <b>Zónaszín</b>: a vonal szakaszonként az adatzónák színeivel rajzolódik (Strava / Garmin-szerűen).</td></tr>
-          <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos), és a <b>futó animáció</b> (apró fehér jelek futnak az útvonalon a haladás irányába; alapból be van kapcsolva). Mindkettő a tervezés ⚙ paneljében is állítható.</td></tr>
+          <tr><td class="path">Útirány a térképen</td><td>Kis irányjelző nyilak az útvonalon ~1,5 km-enként (körútnál hasznos), és a <b>futó animáció</b> (apró fehér jelek futnak az útvonalon a haladás irányába; alapból be van kapcsolva). Az <b>automatikus zoom az útvonalra</b> (tervezés közben új pontnál a teljes útvonalra nagyít; kikapcsolva marad a nagyítás). Mindhárom a tervezés ⚙ paneljében is állítható.</td></tr>
+          <tr><td class="path">Navigáció (béta)</td><td>A navigáció bekapcsolása ezen az eszközön (alapból ki), az utasítások módja (beszéd / csak hangjelzés és rezgés / csak rezgés), a hang (Berta, Imre vagy a telefon felolvasója) és Próba gomb – lásd <a href="#navigacio">Navigáció</a>.</td></tr>
           <tr><td class="path">Kerékpáros profil</td><td>Saját és kerékpár tömege, vezetési pozíció (légellenállás, CdA: városi 0,65 – aero 0,32). A gördülési ellenállás a tervezési módból jön (aszfalt 0,005, gravel 0,010, MTB 0,018). A szélhatás és a kalóriabecslés használja.</td></tr>
           <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>
           <tr><td class="path">Garmin Connect</td><td>Lásd <a href="#garmin">Garmin Connect</a>.</td></tr>
