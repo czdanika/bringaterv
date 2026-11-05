@@ -23,6 +23,9 @@ Modulok:
   api_strava.py       /api/strava/* + /api/admin/strava/config
   garmin_service.py   Garmin helperek (login, MFA state, tokenek, testsúly)
   api_garmin.py       /api/garmin/*
+  onelap_service.py   OnelapFit (Magene) helperek (aláírt kérések, tokenek, FIT→GPX)
+  api_onelap.py       /api/onelap/*
+  onelap_sync.py      automatikus Onelap import (háttér-szinkron)
   api_feedback.py     /api/feedback + /api/admin/feedback*, /api/admin/mail*
   mailer.py           SMTP e-mail küldés (env: SMTP_*, FEEDBACK_TO)
 """
@@ -43,6 +46,7 @@ import api_backup
 import api_feedback
 import api_garmin
 import api_invite
+import api_onelap
 import api_notify
 import api_public
 import api_records
@@ -69,6 +73,7 @@ app.register_blueprint(api_submissions.bp)
 app.register_blueprint(api_backup.bp)
 app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)
+app.register_blueprint(api_onelap.bp)
 app.register_blueprint(api_public.bp)
 app.register_blueprint(api_records.bp)
 app.register_blueprint(api_notify.bp)
@@ -82,6 +87,8 @@ app.register_blueprint(brouter_admin.bp)
 # Automatikus Strava import – háttérszál (több worker közül csak egy dolgozik)
 from strava_sync import start_scheduler  # noqa: E402
 start_scheduler()
+import onelap_sync  # noqa: E402
+onelap_sync.start_scheduler()   # automatikus Onelap (Magene) import
 surface_local.start_scheduler()   # havi burkolat-adatbázis frissítés
 
 

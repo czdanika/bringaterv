@@ -29,6 +29,7 @@ BT_PASS=...
 | `test_ui.py` | login oldal; az 5 fül (Kezdő, Tervezés, Elemzés, Könyvtár, Statok); a 6 statisztika-nézet |
 | `test_planning.py` | 3 pont lerakása a térképre Aszfalt és Túra módban → BRouter útvonal, táv / idő / emelkedés |
 | `test_admin.py` | admin → Közösségi útvonalak: minden sorban van nyomvonal-miniatűr, a térkép ablak megnyílik (admin jogú fiók kell, különben kihagyja) |
+| `test_onelap.py` | ismétlődés-védelem kapcsoló = szerveroldali beállítás; Könyvtár → Import → Onelapból: az ablak listáz (csak GET; Onelap-kapcsolat nélkül kihagyja); a tervezés Mentés ablakában a „Küldés Onelapra” gomb csak kapcsolattal látszik |
 
 Minden tesztnél: nincs vízszintes görgetés, nincs JS-hiba, nincs hibás válasz a saját
 szervertől (API, `/brouter`). Külső szolgáltatás (Open-Meteo, csempék) átmeneti hibája csak

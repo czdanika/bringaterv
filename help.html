@@ -139,7 +139,7 @@
           <tr><td class="path">Kezdő</td><td>Indításkor ez nyílik: gyors műveletek (új útvonal, GPX / FIT betöltése, Könyvtár, Közösségi utak, Statisztikák), a legutóbbi edzésed térképpel és egy kattintásos Elemzéssel, a mai / holnapi tekerési időjárás szél-ajánlással, a mentett terveid, összesítő a céljaiddal, forma (Eddington-számmal, sorozattal), „egy éve ezen a napon” emlék és aktivitás-naptár.</td></tr>
           <tr><td class="path">Tervezés</td><td>Új útvonal tervezése a térképen: pontok, tervezési módok, becsült idő, szint- és szélelemzés, mentés.</td></tr>
           <tr><td class="path">Elemzés</td><td>Egy rögzített edzés (GPX / FIT) részletes elemzése: adatok, színezett térkép, diagramok, pulzuszónák.</td></tr>
-          <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin), megosztás.</td></tr>
+          <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin, Onelap), megosztás.</td></tr>
           <tr><td class="path">Statok</td><td>Összesítők, havi statisztika, személyes rekordok, Eddington-szám, edzésterhelés, hőtérkép.</td></tr>
         </table>
         <p>A jobb felső sarokban a <b>☀ / ☾</b> gomb a világos/sötét témát váltja, a <b>☰</b> menüben érhető el a Beállítások, az Egérműveletek és billentyűparancsok, a Telepítés appként, ez a súgó, az Adatkezelés és a Kijelentkezés (adminnak az Admin felület is).</p>
@@ -394,7 +394,7 @@
           <li><b>Térképes nézet</b> (a nézetváltó középső gombja): a szűrt elemek nyomvonala egy térképen – narancs az edzés, kék a tervezett útvonal, lila a közösségi. Rámutatva kiemelődik, kattintásra listát kapsz az ott futó elemekről, és innen betöltheted vagy a „⋯” menüt is elérheted.</li>
           <li><b>Típusfülek</b> a lista fölött, darabszámmal: <b>Összes · Edzés · Terv · Közösségi</b>.</li>
           <li>Alattuk a <b>kereső</b> (név és hely szerint) és a <b>sport</b> chipek (Bringa, Futás, Túra, Gyaloglás, Egyéb).</li>
-          <li>A <b>Szűrők</b> gomb (rajta az aktív szűrők száma): forrás (Saját, Strava, Garmin, FIT), táv és edzésidő csúszkával, közösségi útvonalaknál helyszín. Mellette a <b>Törlés</b> minden szűrőt visszaállít. Telefonon a Szűrők alulról nyíló lapként jelenik meg.</li>
+          <li>A <b>Szűrők</b> gomb (rajta az aktív szűrők száma): forrás (Saját, Strava, Garmin, Onelap, FIT), táv és edzésidő csúszkával, közösségi útvonalaknál helyszín. Mellette a <b>Törlés</b> minden szűrőt visszaállít. Telefonon a Szűrők alulról nyíló lapként jelenik meg.</li>
           <li><b>Rendezés</b> a lista oszlopfejléceire kattintva (dátum, név, idő, táv, kcal, terhelés).</li>
           <li>A <b>forrás</b> halk felirat (Saját, Strava, Garmin, FIT); a tervek mellett „terv” jelölés; a statisztikából kizárt edzések halványak, „nem számít bele” felirattal.</li>
           <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
@@ -413,7 +413,7 @@
           <tr><td>Törlés</td><td>Végleges törlés (megerősítést kér). Stravás / Garmines edzés törlés után nem jön vissza automatikusan – kivéve, ha a Strava automatikus importnál bekapcsoltad a <a href="#auto-import">Törölt edzések visszatöltése</a> kapcsolót.</td></tr>
         </table>
         <h3>Importálás</h3>
-        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b> (ha a kapcsolat be van állítva).</p>
+        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b>, <b>Onelapból</b> (ha a kapcsolat be van állítva).</p>
       </section>
 
       <section id="kozossegi">
@@ -561,7 +561,7 @@
         <p>Strava-kapcsolat nélkül is behozhatod az edzéseidet:</p>
         <ul>
           <li><b>Egy edzés:</b> a Strava weboldalán nyisd meg az edzést → <b>⋯</b> menü → <b>Export Original</b> (eredeti FIT) vagy <b>Export GPX</b>, majd a Bringaterv <span class="path">Könyvtár → Import → GPX / FIT fájlból</span>.</li>
-          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, más eszközök (Wahoo, Magene, Bryton…) a saját appjukból exportált FIT / GPX fájllal.</li>
+          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, a Magene az Onelap-kapcsolattal, más eszközök (Wahoo, Bryton…) a saját appjukból exportált FIT / GPX fájllal.</li>
         </ul>
       </section>
 
@@ -573,6 +573,22 @@
           <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>.</li>
           <li><b>Útvonal küldése Garminra</b>: a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
         </ul>
+      </section>
+
+      <section id="onelap">
+        <h2>OnelapFit</h2>
+        <p>A Magene kerékpáros komputerek az <b>OnelapFit</b> appal szinkronizálnak – a Bringaterv ezen keresztül éri el őket.</p>
+        <ul>
+          <li><b>Csatlakozás</b>: <span class="path">Beállítások → OnelapFit</span>, az OnelapFit e-mail és jelszó. Ha az appba e-mailes kóddal lépsz be, előbb állíts be jelszót az appban (<i>Elfelejtett jelszó</i>). A jelszót nem tároljuk, csak a belépési tokent; ez magától frissül, amíg 60 napon belül megnyitod a Bringatervet.</li>
+          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Onelapból</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény). A GPS nélküli (görgős) edzések kimaradnak.</li>
+          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket (értesítéssel). Az Onelapnak nincs azonnali értesítése (webhook), ezért csak időközös ellenőrzés van. A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a Stravából már meglévőket sem.</li>
+          <li><b>Útvonal küldése a komputerre</b>: tervezés után a <b>Mentés</b> ablakban <b>Küldés Onelapra</b> (egyben a könyvtárba is menti), vagy a könyvtárban egy tervezett útvonalnál <b>… → Küldés Onelapra</b>. Az OnelapFit útvonalai közé kerül, onnan szinkronizáld a komputerre navigációhoz.</li>
+        </ul>
+      </section>
+
+      <section id="ismetlodes">
+        <h2>Ismétlődés-védelem</h2>
+        <p>Ugyanaz az edzés több helyről is bejöhet – a Magene például az Onelapra és a Stravára is feltölti. <span class="path">Beállítások → Edzés-import → Ismétlődés-védelem</span> (alapból <b>be</b>): egyik import (Strava – az automatikus is –, Garmin, Onelap) sem hozza be azt az edzést, ami más forrásból már a könyvtárban van. Azonosnak számít, ha az indulás legfeljebb 15 perccel, a táv legfeljebb 5%-kal tér el. Az import ablakban ezek <b>„Hasonló van”</b> jelölést kapnak, és ha mégis kijelölöd, <b>„Kihagyva – már megvan”</b> lesz. Kikapcsolva minden forrás külön bekerül.</p>
       </section>
 
       <section id="ertesitesek">
@@ -609,6 +625,8 @@
           <tr><td class="path">Kerékpáros profil</td><td>Saját és kerékpár tömege, vezetési pozíció (légellenállás, CdA: városi 0,65 – aero 0,32). A gördülési ellenállás a tervezési módból jön (aszfalt 0,005, gravel 0,010, MTB 0,018). A szélhatás és a kalóriabecslés használja.</td></tr>
           <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>
           <tr><td class="path">Garmin Connect</td><td>Lásd <a href="#garmin">Garmin Connect</a>.</td></tr>
+          <tr><td class="path">OnelapFit</td><td>Lásd <a href="#onelap">OnelapFit</a>.</td></tr>
+          <tr><td class="path">Edzés-import</td><td>Lásd <a href="#ismetlodes">Ismétlődés-védelem</a>.</td></tr>
           <tr><td class="path">Backup és visszaállítás</td><td>Lásd <a href="#mentes-backup">Adatok mentése</a>.</td></tr>
         </table>
       </section>

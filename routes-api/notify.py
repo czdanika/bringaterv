@@ -12,7 +12,8 @@ appból, iOS 16.4+), Android, asztali böngészők. Csak HTTPS-en működik.
     minden eszközre elküldi; a lejárt feliratkozásokat (404/410) törli.
 
 Események: new_workout (új edzés importálva), new_record (új személyes rekord),
-connection (Strava-kapcsolat megszakadt). A lista bővíthető (EVENTS).
+connection (Strava-kapcsolat megszakadt), route_sent (útvonal elküldve Onelapra /
+Garminra). A lista bővíthető (EVENTS).
 """
 
 import base64
@@ -26,7 +27,8 @@ from config import MULTI_DATA_DIR, log
 EVENTS = {
     "new_workout": "Új edzés importálva",
     "new_record":  "Új személyes rekord",
-    "connection":  "Kapcsolati hiba (Strava)",
+    "connection":  "Kapcsolati hiba (Strava, Onelap)",
+    "route_sent":  "Útvonal elküldve az eszközre (Onelap, Garmin)",
 }
 _DEFAULT_EVENTS = {k: True for k in EVENTS}
 
@@ -189,6 +191,17 @@ def send(user_id: str, event: str, title: str, body: str, url: str = "./index.ht
                           "event": event, "results": results}
         save(user_id, d)
     return ok
+
+
+def send_async(user_id: str, event: str, title: str, body: str, url: str = "./index.html",
+               tag: str | None = None) -> None:
+    """Mint a send(), de háttérszálon – a kérésre adott választ nem lassítja (push-timeout 15 s)."""
+    def run():
+        try:
+            send(user_id, event, title, body, url=url, tag=tag)
+        except Exception as exc:
+            log.warning("Értesítés (%s) hiba: %s", event, exc)
+    threading.Thread(target=run, daemon=True).start()
 
 
 # ── Új személyes rekordok felismerése (az új edzések vs. a korábbiak) ─────────

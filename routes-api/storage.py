@@ -102,3 +102,9 @@ def _user_storage_stats(user_id: str) -> dict:
         "storage_mb":    round(total_bytes / 1_048_576, 2),
         "storage_bytes": total_bytes,
     }
+
+
+def import_dedup_enabled(user_id: str) -> bool:
+    """Ismétlődés-védelem (Beállítások → Edzés-import): ha be van kapcsolva (alapállapot),
+    a más forrásból már meglévő edzést egyik import (Strava, Garmin, Onelap) sem hozza be újra."""
+    return _load_user_settings_file(user_id).get("importDedup") is not False

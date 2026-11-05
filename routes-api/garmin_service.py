@@ -19,7 +19,7 @@ import uuid
 
 from config import log
 from storage import _user_dir, _user_routes_dir
-from utils import _load_index, _now_dt, _save_index
+from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
 try:
     from garminconnect import (
@@ -358,32 +358,9 @@ def _remove_garmin_deny(user_id: str, activity_id: int) -> bool:
 
 
 def _find_cross_source_match(idx: list, start_dt, distance_m) -> dict | None:
-    """Másik forrásból (pl. Strava, FIT) már meglévő, valószínűleg azonos edzés.
-    Heurisztika: indulás ±60 mp ÉS táv ±2%. Csak nem-Garmin bejegyzésekkel hasonlít."""
-    if not start_dt or not distance_m:
-        return None
-    s_ts = start_dt.timestamp()
-    from datetime import datetime
-    for r in idx:
-        if r.get("garmin_id"):
-            continue  # Garmin-bejegyzéseket a garmin_id alapján külön kezeljük
-        r_start = r.get("start_time") or r.get("date")
-        if not r_start:
-            continue
-        try:
-            r_ts = (datetime.fromisoformat(r_start.replace("Z", "+00:00")).timestamp()
-                    if "T" in r_start else datetime.fromisoformat(r_start).timestamp())
-        except (ValueError, AttributeError):
-            continue
-        if abs(r_ts - s_ts) > 60:
-            continue
-        r_dist_km = r.get("distance")
-        if r_dist_km is None:
-            continue
-        if abs(r_dist_km * 1000 - distance_m) / distance_m > 0.02:
-            continue
-        return r
-    return None
+    """Más forrásból (Strava, Onelap, FIT) már meglévő, valószínűleg azonos edzés."""
+    return find_cross_source_duplicate(idx, start_dt.timestamp() if start_dt else None,
+                                       distance_m, "garmin_id")
 
 
 def garmin_list_activities(garmin, user_id: str, limit: int = 30, after_date: str = None) -> list:
@@ -438,7 +415,7 @@ def garmin_list_activities(garmin, user_id: str, limit: int = 30, after_date: st
     return out
 
 
-def garmin_import_activity(garmin, user_id: str, activity_id: int) -> dict:
+def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool = False) -> dict:
     """Egy Garmin aktivitást letölt GPX-ben + ment a könyvtárba (type=workout)."""
     from garminconnect import Garmin as _G
     routes_dir = _user_routes_dir(user_id)
@@ -458,6 +435,15 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int) -> dict:
     sdto = summary.get("summaryDTO") or {}
     atype = (summary.get("activityTypeDTO") or {}).get("typeKey") \
             or ((summary.get("activityType") or {}).get("typeKey")) or ""
+
+    # Ismétlődés-védelem: ugyanez az edzés más forrásból már megvan
+    if dedup:
+        dup = _find_cross_source_match(
+            idx, _parse_garmin_gmt(sdto.get("startTimeGMT") or summary.get("startTimeGMT")),
+            sdto.get("distance") or summary.get("distance"))
+        if dup:
+            return {"ok": True, "skipped": True, "reason": "duplicate",
+                    "duplicate_local_id": dup["id"], "duplicate_name": dup.get("name")}
 
     # GPX letöltés
     gpx_bytes = garmin.download_activity(activity_id, dl_fmt=_G.ActivityDownloadFormat.GPX)

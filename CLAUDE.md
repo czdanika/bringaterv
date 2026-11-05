@@ -11,6 +11,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 - Útvonaltervezés (BRouter alapú routing, szegmensenként eltérő mód, szél-elemzés)
 - Edzéskönyvtár: kártya/lista nézet, sport-szűrő, szerkesztés, megosztó kép generálás
 - **Strava integráció:** OAuth kapcsolat, aktivitások importálása, per-user app credentials
+- **Garmin / OnelapFit:** edzés-import, útvonal küldése az eszközre
+- **Ismétlődés-védelem:** `importDedup` user-beállítás (alap: be) – más forrásból már meglévő edzést (indulás ±15 perc, táv ±5%, `utils.find_cross_source_duplicate`) egyik import sem hoz be
 - Statisztikák: havi bontás (kalória, Eddington, sport-lebontás), rekordok, Eddington-szám sportonként, edzésterhelés (CTL/ATL/TSB, A:C arány, monotonitás), hőtérkép
 - Beállítások: HR zóna (Karvonen), sebesség/kadencia/power zóna csúszkák, kerékpáros profil, backup/restore
 
@@ -40,6 +42,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_strava.py       # /api/strava/* + /api/admin/strava/config
 │   ├── garmin_service.py   # Garmin helperek (login+MFA, tokenek, testsúly, import, course feltöltés)
 │   ├── api_garmin.py       # /api/garmin/* (status, connect, mfa, weight, activities, import, course)
+│   ├── onelap_service.py   # OnelapFit helperek: aláírt kérések, token+refresh, FIT→GPX (fitdecode), útvonal-feltöltés
+│   ├── api_onelap.py       # /api/onelap/* (status, connect, disconnect, activities, import, deny-list, route)
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
@@ -94,6 +98,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── garmin.js       # ÖNÁLLÓ plug-in modul (nincs a main.js-be drótozva, külön
         │                   #   <script> includolva). Garmin kapcsolat+MFA, testsúly-szinkron,
         │                   #   aktivitás-import modal, course feltöltés. Self-bootstrap.
+        ├── onelap.js       # OnelapFit kapcsolat, import modal (initOnelap, getOnelapStatus);
+        │                   #   az útvonal-küldés a library.js „onelap-route” művelete
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,
@@ -288,7 +294,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.32.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.33.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

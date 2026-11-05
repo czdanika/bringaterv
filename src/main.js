@@ -23,7 +23,8 @@ import { MODE_NAMES, activityOf, segmentModeForSurface, fitSegmentModes, hikingB
 import { defaultAvgSpeed, windTimeMultiplier } from "./wind/windService.js";
 import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsIfNeeded, getWindResult } from "./ui/wind.js";
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
-import { initGarmin } from "./ui/garmin.js";
+import { initGarmin, getGarminStatus } from "./ui/garmin.js";
+import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
@@ -2250,6 +2251,26 @@ window.addEventListener("bringaterv:refit", () => mapAdapter.fitRoute?.());
 // <script>-bootstrap Safariban nem futott le megbízhatóan).
 initGarmin({ showToast });
 
+// ── OnelapFit (Magene) ───────────────────────────────────────────────────────
+initOnelap({ showToast });
+
+// ── Ismétlődés-védelem (szerveroldali beállítás: importDedup, alapból be) ─────
+// Ugyanaz az edzés több forrásból (pl. Magene → Onelap ÉS Strava) ne kerüljön be kétszer.
+(async () => {
+  const el = document.querySelector("#settingsImportDedup");
+  if (!el) return;
+  try { el.checked = (await routesApi.getSettings())?.importDedup !== false; } catch { /* marad: be */ }
+  el.addEventListener("change", async () => {
+    try {
+      await routesApi.saveSettings({ importDedup: el.checked });
+      showToast(el.checked ? "Ismétlődés-védelem bekapcsolva" : "Ismétlődés-védelem kikapcsolva – minden forrás külön bekerül");
+    } catch {
+      el.checked = !el.checked;
+      showToast("Nem sikerült menteni a beállítást.");
+    }
+  });
+})();
+
 // ── Kezdő nézet ────────────────────────────────────────────
 function syncStartViewDisplay() {
   const sv = getSettings().startView;
@@ -3152,6 +3173,10 @@ function openExportModal() {
   const exportModeVal = state.mode === "cycling" ? "asphalt" : state.mode;
   const modeRadio = elements.exportOverlay.querySelector(`input[name="exportMode"][value="${exportModeVal}"]`);
   if (modeRadio) modeRadio.checked = true;
+  const onelapBtn = document.querySelector("#exportOnelap");
+  if (onelapBtn) onelapBtn.hidden = !getOnelapStatus()?.connected;
+  const garminBtn = document.querySelector("#exportGarmin");
+  if (garminBtn) garminBtn.hidden = !getGarminStatus()?.connected;
   elements.exportOverlay.hidden = false;
   window.lucide?.createIcons();
   setTimeout(() => elements.exportName.select(), 50);
@@ -3692,9 +3717,14 @@ function fmtMinutesHuman(min) {
 }
 
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
+// Az utoljára mentett terv – ugyanazt a tervet (pl. Mentés, majd Küldés Onelapra) ne mentsük kétszer
+let _lastSavedPlan = null;
+
 /** A tervezett útvonal mentése a könyvtárba; visszaadja az új azonosítót. */
 async function savePlanToLibrary(payload = buildExportPayload()) {
   const { name, desc, content, selectedMode, distanceKm, ascentMeters, durationMin } = payload;
+  const key = JSON.stringify([name, desc, content, selectedMode]);
+  if (_lastSavedPlan?.key === key) return _lastSavedPlan.id;
   const res = await routesApi.saveRoute({
     name,
     gpxContent:       content,
@@ -3705,8 +3735,54 @@ async function savePlanToLibrary(payload = buildExportPayload()) {
     description:      desc,
     include_in_stats: false,  // tervezett útvonal – statisztikából kizárva alapból
   });
-  return res?.id ?? null;
+  const id = res?.id ?? null;
+  if (id) _lastSavedPlan = { key, id };
+  return id;
 }
+
+// ── Küldés eszközre: Onelap / Garmin (mentés a könyvtárba + feltöltés) ─────────
+const DEVICE_TARGETS = {
+  onelap: {
+    label: "Onelapra", settings: "Beállítások → OnelapFit",
+    byId:  (id) => routesApi.onelap.uploadRoute(id),
+    byGpx: (p) => routesApi.onelap.uploadGpx(p.name, p.content),
+    name:  (res, p) => res.name || p.name,
+    where: "az OnelapFit appban az útvonalaid között, onnan szinkronizáld a komputerre",
+  },
+  garmin: {
+    label: "Garminra", settings: "Beállítások → Garmin Connect",
+    byId:  (id) => routesApi.garmin.uploadCourse(id),
+    byGpx: (p) => routesApi.garmin.uploadCourseGpx(p.name, p.content, p.selectedMode),
+    name:  (res, p) => res.course_name || p.name,
+    where: "a Garmin Connect appban course-ként, onnan szinkronizáld az órára / komputerre",
+  },
+};
+
+async function sendPlanToDevice(kind) {
+  const t = DEVICE_TARGETS[kind];
+  if (!activeGeometry || activeGeometry.length < 2) { showToast("Előbb tervezz egy útvonalat."); return; }
+  const payload = buildExportPayload();
+  elements.exportOverlay.hidden = true;
+  showToast(`Mentés és küldés ${t.label}…`);
+  // A könyvtári mentés jó, de nem feltétel: ha nem sikerül (pl. betelt kvóta),
+  // a tervet közvetlenül küldjük el
+  let id = null, saveErr = null;
+  try { id = await savePlanToLibrary(payload); } catch (err) { saveErr = err; }
+  try {
+    const res = id ? await t.byId(id) : await t.byGpx(payload);
+    const name = t.name(res, payload);
+    showToast(id ? `✓ „${name}” elmentve és elküldve ${t.label} – ${t.where}`
+                 : `✓ „${name}” elküldve ${t.label} – ${t.where}. A könyvtárba nem került be: ${saveErr?.message || "mentési hiba"}`,
+              8000);
+    if (id) loadRouteLibrary().catch(() => {});
+  } catch (err) {
+    console.error(`Küldési hiba (${kind}):`, err);
+    const m = err.message?.toLowerCase() || "";
+    showToast(m.includes("kapcsolat") ? `A kapcsolat nem él – ${t.settings}` : `Küldés ${t.label} sikertelen: ${err.message}`, 8000);
+  }
+}
+document.querySelector("#exportOnelap")?.addEventListener("click", () => sendPlanToDevice("onelap"));
+document.querySelector("#exportGarmin")?.addEventListener("click", () => sendPlanToDevice("garmin"));
 
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {
   const payload = buildExportPayload();

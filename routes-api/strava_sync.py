@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 import requests
 
 from config import MULTI_DATA_DIR, log
+from storage import import_dedup_enabled
 from strava_service import STRAVA_API_BASE, _ensure_strava_token, _load_strava_deny_list
 from utils import _load_index
 
@@ -295,7 +296,7 @@ def _try_import(user_id: str, a: dict, token: str, data: dict, idx_path: str, de
         if (not is_gps_activity(a) or (sid in deny and not reimport)
                 or (wanted and sport_category(a) not in wanted)
                 or any(r.get("strava_id") == sid for r in idx)
-                or _find_manual_match(idx, a)):
+                or (import_dedup_enabled(user_id) and _find_manual_match(idx, a))):
             return None
         entry = import_strava_activity(user_id, sid, token, idx, idx_path)
     if sid in deny:

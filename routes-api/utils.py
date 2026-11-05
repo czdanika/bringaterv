@@ -62,3 +62,41 @@ def _now_date() -> str:
 
 def _now_dt() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ── Ismétlődés-védelem: ugyanaz az edzés több forrásból (Strava, Garmin, Onelap, FIT) ──
+# Egy eszköz (pl. Magene) az edzést az Onelapra ÉS a Stravára is feltöltheti. A Strava a
+# távot újraszámolja, és más indulási időt tárolhat (élesben 9 perc eltérés volt) →
+# tágabb tűrés, mint a 60 mp / 2%. 15 percen belül két külön, ±5%-ra azonos távú edzés nem jellemző.
+_DUP_START_TOLERANCE_S = 15 * 60
+_DUP_DIST_TOLERANCE    = 0.05
+
+
+def _entry_start_ts(r: dict):
+    s = r.get("start_time")
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+def find_cross_source_duplicate(idx: list, start_ts, distance_m, own_key: str):
+    """Már meglévő, valószínűleg azonos edzés MÁS forrásból (a saját forrás azonosító-
+    kulcsával – pl. "strava_id" – rendelkező bejegyzéseket kihagyja).
+    Egyezés: indulás ±15 perc ÉS táv ±5%. Nincs egyezés → None."""
+    if not start_ts or not distance_m:
+        return None
+    for r in idx:
+        if r.get(own_key) or r.get("type") != "workout" or r.get("distance") is None:
+            continue
+        r_ts = _entry_start_ts(r)
+        if r_ts is None or abs(r_ts - start_ts) > _DUP_START_TOLERANCE_S:
+            continue
+        if abs(r["distance"] * 1000 - distance_m) / distance_m <= _DUP_DIST_TOLERANCE:
+            return r
+    return None

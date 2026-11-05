@@ -16,6 +16,8 @@ import { openShareModal } from "./shareModal.js";
 import { openSubmitRouteModal } from "./submitRoute.js";
 import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
+import { getOnelapStatus } from "./onelap.js";
+import { getGarminStatus } from "./garmin.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -115,7 +117,7 @@ export function escapeHtml(s) {
 }
 
 function sourceLabel(src) {
-  return { strava: "Strava", garmin: "Garmin", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
+  return { strava: "Strava", garmin: "Garmin", onelap: "Onelap", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
 }
 
 export function libraryRouteSportKey(route) {
@@ -138,6 +140,7 @@ export function libraryRouteSource(route, category) {
   if (category === "sample") return "sample";
   if (route.strava_id) return "strava";
   if (route.garmin_id) return "garmin";
+  if (route.onelap_id) return "onelap";
   if (route.has_fit)   return "fit";
   return "manual";
 }
@@ -655,6 +658,18 @@ async function runAction(act, btn) {
             _toast("Előbb csatlakozz Garminhoz: Beállítások → Garmin Connect");
           else _toast("Garmin feltöltés sikertelen: " + err.message);
         } finally { btn.disabled = false; }
+      } else if (act === "onelap-route") {
+        if (route.onelap_uploaded_at && !confirm("Ezt az útvonalat korábban már elküldted az Onelapra.\n\nKüldöd újra? Az OnelapFitben új útvonal jön létre (a régit ott törölheted).")) return;
+        _toast("Küldés az Onelapra…");
+        try {
+          const res = await _api.onelap.uploadRoute(route.id);
+          for (const r of [route, ..._data.routes.filter(x => x.id === route.id)]) r.onelap_uploaded_at = res.onelap_uploaded_at;
+          _toast(`✓ Elküldve az Onelapra: „${res.name}” – az OnelapFit appban az útvonalaid között, onnan szinkronizáld a komputerre`, 8000);
+        } catch (err) {
+          if (err.message?.toLowerCase().includes("onelap kapcsolat"))
+            _toast("Az Onelap kapcsolat nem él – Beállítások → OnelapFit");
+          else _toast("Onelap feltöltés sikertelen: " + err.message);
+        }
       } else if (act === "share") {
         btn.disabled = true; setLabel("Betöltés…");
         try {
@@ -923,11 +938,14 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
     items.push({ act: "strava-refresh", icon: "refresh-cw", label: "Frissítés Stravából" });
     items.push({ href: `https://www.strava.com/activities/${route.strava_id}`, icon: "external-link", label: "Megnyitás Stravában" });
   }
-  if (!isWorkout && !isSample) {
+  if (!isWorkout && !isSample && getGarminStatus()?.connected) {
     items.push({ act: "garmin-course", icon: "watch", label: route.garmin_course_id ? "Újraküldés Garminra" : "Küldés Garminra" });
   }
   if (route.garmin_course_id) {
     items.push({ href: `https://connect.garmin.com/modern/course/${route.garmin_course_id}`, icon: "external-link", label: "Garmin course megnyitása" });
+  }
+  if (!isWorkout && !isSample && getOnelapStatus()?.connected) {
+    items.push({ act: "onelap-route", icon: "bike", label: route.onelap_uploaded_at ? "Újraküldés Onelapra" : "Küldés Onelapra" });
   }
   if (!isSample) {
     items.push({ act: "submit-community", icon: "users", label: "Beküldés a közösbe" });

@@ -888,6 +888,11 @@
                   <span>Garminból</span>
                   <span class="lib-import-garmin-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
                 </button>
+                <button class="library-import-item" id="libraryImportOnelapItem" data-import-src="onelap" type="button" disabled title="Onelap kapcsolat szükséges – Beállítások → OnelapFit">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#E5352B;color:#fff;border-radius:2px;font-size:9px;font-weight:800">M</span>
+                  <span>Onelapból</span>
+                  <span class="lib-import-onelap-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
+                </button>
               </div>
             </div>
             <div class="library-view-toggle" role="group" aria-label="Nézet váltó">
@@ -953,6 +958,7 @@
                   <button class="lib-type-chip" data-lib-source="manual" type="button">Saját</button>
                   <button class="lib-type-chip" data-lib-source="strava" type="button" title="Strava-ról szinkronizált">Strava</button>
                   <button class="lib-type-chip" data-lib-source="garmin" type="button" title="Garmin Connectről szinkronizált">Garmin</button>
+                  <button class="lib-type-chip" data-lib-source="onelap" type="button" title="OnelapFitből importált">Onelap</button>
                   <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
                 </div>
                     </div>
@@ -1735,6 +1741,14 @@
             <i data-lucide="share-2" aria-hidden="true"></i>
             Megosztás
           </button>
+          <button id="exportGarmin" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés Garmin Connect course-ként – onnan az órára / komputerre szinkronizálható">
+            <i data-lucide="watch" aria-hidden="true"></i>
+            Küldés Garminra
+          </button>
+          <button id="exportOnelap" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés az OnelapFit útvonalai közé – onnan a komputer navigál rajta">
+            <i data-lucide="bike" aria-hidden="true"></i>
+            Küldés Onelapra
+          </button>
           <button id="exportSaveToLibrary" class="export-confirm-btn export-confirm-btn--primary" type="button">
             <i data-lucide="save" aria-hidden="true"></i>
             Mentés a könyvtárba
@@ -2033,59 +2047,6 @@
         </button>
       </div>
       <div class="strava-import-body">
-        <!-- Automatikus import (háttér-szinkron) -->
-        <section class="strava-auto" id="stravaAuto">
-          <div class="strava-auto-row">
-            <div class="strava-auto-text">
-              <strong>Automatikus import</strong>
-              <span>Az új Strava-edzések maguktól bekerülnek a könyvtárba.</span>
-            </div>
-            <label class="toggle-switch" title="Automatikus import be/ki">
-              <input id="stravaAutoToggle" type="checkbox">
-              <span class="toggle-track"></span>
-            </label>
-          </div>
-          <div class="strava-auto-opts" id="stravaAutoOpts" hidden>
-            <label class="strava-import-control">
-              <span>Ellenőrzés</span>
-              <select id="stravaAutoInterval">
-                <option value="5">5 percenként</option>
-                <option value="15" selected>15 percenként</option>
-                <option value="30">30 percenként</option>
-                <option value="60">óránként</option>
-              </select>
-            </label>
-            <div class="strava-auto-sports" role="group" aria-label="Importálandó sportok">
-              <span class="strava-auto-label">Sportok <button class="hint-btn" type="button" data-hint-title="Importálandó sportok" data-hint="Csak a kijelölt sportok edzései kerülnek be automatikusan. Ha egyiket sem jelölöd ki, minden térképes (GPS-es) edzés bekerül. A beltéri, GPS nélküli edzéseket (pl. súlyzós, jóga) sosem importáljuk." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button></span>
-              <label class="strava-auto-chip"><input type="checkbox" value="cycling"><span>Kerékpár</span></label>
-              <label class="strava-auto-chip"><input type="checkbox" value="running"><span>Futás</span></label>
-              <label class="strava-auto-chip"><input type="checkbox" value="walking"><span>Séta</span></label>
-              <label class="strava-auto-chip"><input type="checkbox" value="hiking"><span>Túra</span></label>
-            </div>
-            <div class="strava-auto-webhook">
-              <div class="strava-auto-text">
-                <span class="strava-auto-label">Azonnali import (webhook)
-                  <button class="hint-btn" type="button" data-hint-title="Azonnali import (webhook)" data-hint="Bekapcsolva a Strava maga szól a Bringatervnek, amikor új edzést töltesz fel – néhány másodpercen belül bekerül a könyvtárba, és jön az értesítés. Az időközös ellenőrzés tartalékként tovább fut. Feltétel: nyilvános HTTPS-cím (saját domain). Egy Strava apphoz csak egy webhook tartozhat – ha ugyanazt az appot több szerveren is használod, csak az egyiken kapcsold be. Cloudflare alatt a „Bot Fight Mode” blokkolhatja a Strava kéréseit." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
-                </span>
-                <span id="stravaWebhookStatus" class="strava-auto-status"></span>
-              </div>
-              <button id="stravaWebhookBtn" class="strava-list-btn" type="button">Bekapcsolás</button>
-            </div>
-            <div class="strava-auto-reimport">
-              <span class="strava-auto-label">Törölt edzések visszatöltése
-                <button class="hint-btn" type="button" data-hint-title="Törölt edzések visszatöltése" data-hint="Kikapcsolva (alapállapot) a könyvtárból törölt Stravás edzést a szinkron nem hozza vissza – így amit törölsz, az törölve marad. Bekapcsolva a szinkron a következő körben újra letölti a törölt edzést (az elmúlt 7 nap edzései közül). Régebbi törölt edzést a kézi importtal hozhatsz vissza." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
-              </span>
-              <label class="toggle-switch" title="Törölt edzések automatikus visszatöltése be/ki">
-                <input id="stravaAutoReimport" type="checkbox">
-                <span class="toggle-track"></span>
-              </label>
-            </div>
-            <div class="strava-auto-foot">
-              <span id="stravaAutoStatus" class="strava-auto-status"></span>
-              <button id="stravaAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
-            </div>
-          </div>
-        </section>
         <div class="strava-import-controls">
           <label class="strava-import-control">
             <span>Időszak</span>
@@ -2129,6 +2090,97 @@
         </label>
         <span id="garminImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
         <button id="garminImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import kiválasztottakat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OnelapFit import modal (a Strava/Garmin modál osztályaival) -->
+  <div id="onelapImportOverlay" class="shortcut-overlay" hidden>
+    <div class="strava-import-panel">
+      <div class="strava-import-header">
+        <h3>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#E5352B;color:#fff;border-radius:3px;font-size:12px;font-weight:800">M</span>
+          Onelap import
+        </h3>
+        <button id="onelapImportClose" class="shortcut-close" type="button" aria-label="Bezárás">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="strava-import-body">
+        <!-- Automatikus import (háttér-szinkron; az Onelapnak nincs webhookja) -->
+        <section class="strava-auto" id="onelapAuto">
+          <div class="strava-auto-row">
+            <div class="strava-auto-text">
+              <strong>Automatikus import</strong>
+              <span>Az új Magene-edzések maguktól bekerülnek a könyvtárba.</span>
+            </div>
+            <label class="toggle-switch" title="Automatikus import be/ki">
+              <input id="onelapAutoToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="strava-auto-opts" id="onelapAutoOpts" hidden>
+            <label class="strava-import-control">
+              <span>Ellenőrzés</span>
+              <select id="onelapAutoInterval">
+                <option value="5">5 percenként</option>
+                <option value="15" selected>15 percenként</option>
+                <option value="30">30 percenként</option>
+                <option value="60">óránként</option>
+              </select>
+            </label>
+            <div class="strava-auto-foot">
+              <span id="onelapAutoStatus" class="strava-auto-status"></span>
+              <button id="onelapAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
+            </div>
+          </div>
+        </section>
+        <div class="strava-import-controls">
+          <label class="strava-import-control">
+            <span>Időszak</span>
+            <select id="onelapImportRange">
+              <option value="30">Utolsó 30 nap</option>
+              <option value="90">Utolsó 90 nap</option>
+              <option value="365">Utolsó 1 év</option>
+              <option value="1095">Utolsó 3 év</option>
+            </select>
+          </label>
+          <label class="strava-import-control">
+            <span>Max edzés</span>
+            <select id="onelapImportLimit">
+              <option value="30" selected>30</option>
+              <option value="60">60</option>
+              <option value="100">100</option>
+              <option value="200">200 (lassú)</option>
+            </select>
+          </label>
+          <button id="onelapImportListBtn" class="strava-list-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Listázás
+          </button>
+        </div>
+        <div id="onelapImportStatus" class="strava-import-status"></div>
+        <div id="onelapImportProgress" class="strava-import-progress" hidden>
+          <div class="strava-progress-header">
+            <span id="onelapProgressLabel">Importálás folyamatban…</span>
+            <span id="onelapProgressCount" class="strava-progress-count">0 / 0</span>
+          </div>
+          <div class="strava-progress-track">
+            <div id="onelapProgressBar" class="strava-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="onelapProgressCurrent" class="strava-progress-current"></div>
+        </div>
+        <div id="onelapImportList" class="strava-import-list"></div>
+      </div>
+      <div class="strava-import-footer" id="onelapImportFooter" hidden>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="onelapImportSelectAll"> Mindent ami új
+        </label>
+        <span id="onelapImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
+        <button id="onelapImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Import kiválasztottakat
         </button>
@@ -2955,6 +3007,28 @@
     </div>
   </section>
 
+  <section class="settings-section" data-settings-section="importDedup">
+    <h4 class="settings-section-title">
+      <i data-lucide="copy-x" aria-hidden="true"></i>
+      Edzés-import
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+  <div class="settings-toggle-row">
+  <div class="settings-toggle-label">
+  <span>Ismétlődés-védelem</span>
+  <button class="hint-btn" type="button" data-hint-title="Ismétlődés-védelem" data-hint="Ugyanaz az edzés több helyről is bejöhet – pl. a Magene az Onelapra és a Stravára is feltölti. Bekapcsolva (ajánlott) egyik import (Strava – az automatikus is –, Garmin, Onelap) sem hozza be azt az edzést, ami más forrásból már a könyvtárban van: azonosnak számít, ha az indulás legfeljebb 15 perccel, a táv legfeljebb 5%-kal tér el. Az import ablakban ezek „Hasonló van” jelölést kapnak. Kikapcsolva minden forrás külön bekerül (pl. ha két forrás adatait össze akarod hasonlítani)." aria-label="Segítség">
+  <i data-lucide="info" aria-hidden="true"></i>
+  </button>
+  </div>
+  <label class="toggle-switch">
+  <input id="settingsImportDedup" type="checkbox" checked>
+  <span class="toggle-track"></span>
+  </label>
+  </div>
+    </div>
+  </section>
+
   <section class="settings-section" data-settings-section="strava">
     <h4 class="settings-section-title">
       <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#FC4C02;color:#fff;border-radius:3px;font-size:11px;font-weight:800">S</span>
@@ -3045,6 +3119,22 @@
     </h4>
     <div class="settings-section-body">
       <div id="garminConnectionState" class="strava-conn-state">
+        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="onelap">
+    <h4 class="settings-section-title">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#E5352B;color:#fff;border-radius:3px;font-size:11px;font-weight:800">M</span>
+      OnelapFit
+      <button class="hint-btn" type="button" data-hint="A Magene kerékpáros komputerek az OnelapFit appal szinkronizálnak. Csatlakoztatás után a Könyvtár → Import → Onelapból menüben letöltheted az edzéseidet, és a tervezett útvonalakat a könyvtárból (… → Küldés Onelapra) az OnelapFit útvonalai közé küldheted – onnan a komputer navigál rajta. A jelszót nem tároljuk, csak a belépési tokent; ha 60 napnál tovább nem nyitod meg a Bringatervet, újra be kell lépni." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div id="onelapConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
       </div>
     </div>

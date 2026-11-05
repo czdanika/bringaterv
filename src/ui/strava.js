@@ -549,7 +549,7 @@ async function runStravaImport() {
   runBtn.disabled  = true;
   listBtn.disabled = true;
 
-  let done = 0, fail = 0;
+  let done = 0, fail = 0, dupSkipped = 0;
   for (let i = 0; i < checkedRows.length; i++) {
     const row  = checkedRows[i];
     const id   = parseInt(row.dataset.id);
@@ -560,14 +560,24 @@ async function runStravaImport() {
     progressCur.className   = "strava-progress-current";
 
     try {
-      await routesApi.strava.importActivity(id);
-      done++;
-      row.classList.remove("is-importing");
-      row.style.opacity = "0.55";
-      const badge = row.querySelector(".strava-import-badge");
-      if (badge) { badge.textContent = "Importálva"; badge.className = "strava-import-badge strava-import-badge--imported"; }
-      const cb = row.querySelector('input[type="checkbox"]');
-      if (cb) { cb.checked = false; cb.disabled = true; }
+      const r = await routesApi.strava.importActivity(id);
+      if (r?.skipped && r.reason === "duplicate") {
+        dupSkipped++;
+        row.classList.remove("is-importing");
+        row.style.opacity = "0.55";
+        const b = row.querySelector(".strava-import-badge");
+        if (b) { b.textContent = "Kihagyva – már megvan"; b.className = "strava-import-badge strava-import-badge--likely"; b.title = `Más forrásból már a könyvtárban: „${r.duplicate_name || ""}”. Ha mégis kell: Beállítások → Edzés-import → Ismétlődés-védelem ki.`; }
+        const c = row.querySelector('input[type="checkbox"]');
+        if (c) { c.checked = false; c.disabled = true; }
+      } else {
+        done++;
+        row.classList.remove("is-importing");
+        row.style.opacity = "0.55";
+        const badge = row.querySelector(".strava-import-badge");
+        if (badge) { badge.textContent = "Importálva"; badge.className = "strava-import-badge strava-import-badge--imported"; }
+        const cb = row.querySelector('input[type="checkbox"]');
+        if (cb) { cb.checked = false; cb.disabled = true; }
+      }
     } catch (err) {
       fail++;
       row.classList.remove("is-importing");
@@ -583,7 +593,7 @@ async function runStravaImport() {
     if (i < checkedRows.length - 1) await new Promise(r => setTimeout(r, 800));
   }
 
-  progressCur.textContent = `Kész: ${done} importálva${fail > 0 ? `, ${fail} hiba` : ""}`;
+  progressCur.textContent = `Kész: ${done} importálva${dupSkipped > 0 ? `, ${dupSkipped} kihagyva (már megvan más forrásból)` : ""}${fail > 0 ? `, ${fail} hiba` : ""}`;
   progressCur.className   = "strava-progress-current " + (fail > 0 ? "is-error" : "is-success");
   if (done > 0) _loadRouteLibrary?.();
   runBtn.disabled  = false;

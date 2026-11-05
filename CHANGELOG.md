@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.33.0 – 2026-11-05 – OnelapFit (Magene) kapcsolat, ismétlődés-védelem
+
+### Verzió
+
+- **OnelapFit (Magene) kapcsolat:** Beállítások → OnelapFit – belépés az OnelapFit e-mail címmel és jelszóval (ezzel szinkronizálnak a Magene kerékpáros komputerek). A jelszót nem tároljuk, csak a belépési tokent, ami magától frissül; csak 60 nap használat nélkül kell újra belépni.
+- **Edzés-import az Onelapból:** Könyvtár → Import → Onelapból – lista dátummal, távval, idővel és „Új / Már megvan / Hasonló van / Korábban törölted” jelöléssel. A szerver a FIT-ből készít GPX-et, az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény, hőmérséklet). Az Onelap „Ride” neve helyett napszakos név („Délutáni kerékpározás”). A GPS nélküli edzések kimaradnak.
+- **Automatikus Onelap-import:** az import ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket, értesítéssel (az Onelapnak nincs azonnali webhookja). „Ellenőrzés most” gomb, utolsó ellenőrzés állapota.
+- **Útvonal küldése a Magene-re:** tervezés után a Mentés ablakban **Küldés Onelapra**, vagy a könyvtárban egy tervnél **… → Küldés Onelapra** – az OnelapFit útvonalai közé kerül a könyvtárbeli névvel, onnan szinkronizálható a komputerre navigációhoz.
+- **Küldés Garminra a Mentés ablakból is:** a tervezésből egy gombbal Garmin Connect course. A Küldés Garminra / Onelapra gombok és menüpontok csak akkor látszanak, ha az adott kapcsolat be van állítva.
+- **Küldés mentés nélkül is:** ha a könyvtárba mentés nem sikerül (pl. betelt a kvóta), az útvonal akkor is elmegy az eszközre, és az app szól, hogy a könyvtárba nem került be.
+- **Értesítés sikeres küldésről:** push-értesítés, ha az útvonal felment az Onelapra vagy a Garminra (Beállítások → Értesítések → „Útvonal elküldve az eszközre”, kikapcsolható); az appban a visszajelzés tovább látszik.
+- **Ismétlődés-védelem:** Beállítások → Edzés-import (alapból bekapcsolva) – ugyanaz az edzés több forrásból (pl. a Magene az Onelapra és a Stravára is feltölti) csak egyszer kerül a könyvtárba. Azonosnak számít, ha az indulás legfeljebb 15 perccel, a táv legfeljebb 5%-kal tér el. Minden importra érvényes: Strava (kézi, automatikus, webhook), Garmin, Onelap; az import ablakban „Kihagyva – már megvan”. Kikapcsolva minden forrás külön bekerül.
+- **Javítás:** a Garmin-import ablakban duplán szerepelt a Strava automatikus import blokkja.
+- **Bemutató és súgó:** az OnelapFit (Magene) kapcsolat és az ismétlődés-védelem leírása.
+- **Belül:** új `routes-api/onelap_service.py`, `api_onelap.py`, `onelap_sync.py`, `src/ui/onelap.js`; új Python-függőség: `fitdecode`. Közös ismétlődés-vizsgálat: `utils.find_cross_source_duplicate`. Tesztek: `tests/test_onelap.py`.
+
+---
+
 ## v1.32.0 – 2026-11-03 – Admin: útvonalak térképen, szűrő; gyorsabb betöltés
 
 ### Verzió

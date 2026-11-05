@@ -11,7 +11,7 @@ from flask import Blueprint, abort, g, jsonify, request
 
 from auth import require_admin, require_auth
 from config import log
-from storage import _user_routes_dir
+from storage import _user_routes_dir, import_dedup_enabled
 from strava_service import (
     STRAVA_API_BASE,
     STRAVA_DEAUTH_URL,
@@ -32,7 +32,7 @@ from strava_service import (
     _save_user_strava,
     _user_strava_deny_path,
 )
-from utils import _load_index, _now_dt, _safe_id, _save_index
+from utils import _load_index, _now_dt, _safe_id, _save_index, find_cross_source_duplicate
 
 bp = Blueprint("api_strava", __name__)
 
@@ -277,38 +277,19 @@ def strava_activities():
 
 
 def _find_manual_match(idx: list, strava_activity: dict) -> dict | None:
-    """Heurisztika: kb. ugyanaz a manuális import létezik-e?
-    start_time ±60 sec ÉS distance ±2%."""
-    s_start = strava_activity.get("start_date")
-    s_dist  = strava_activity.get("distance")
-    if not s_start or not s_dist:
-        return None
+    """Más forrásból (Onelap, Garmin, FIT) már meglévő, valószínűleg azonos edzés."""
     try:
-        s_ts = datetime.fromisoformat(s_start.replace("Z", "+00:00")).timestamp()
-    except (ValueError, AttributeError):
+        s_ts = datetime.fromisoformat(strava_activity["start_date"].replace("Z", "+00:00")).timestamp()
+    except (KeyError, ValueError, AttributeError):
         return None
-    for r in idx:
-        # Csak nem-Strava-os elemekkel hasonlítunk
-        if r.get("strava_id"):
-            continue
-        r_start = r.get("start_time") or r.get("date")
-        if not r_start:
-            continue
-        try:
-            r_ts = datetime.fromisoformat(r_start.replace("Z", "+00:00")).timestamp() if "T" in r_start \
-                   else datetime.fromisoformat(r_start).timestamp()
-        except (ValueError, AttributeError):
-            continue
-        if abs(r_ts - s_ts) > 60:
-            continue
-        r_dist_km = r.get("distance")
-        if r_dist_km is None:
-            continue
-        r_dist_m = r_dist_km * 1000
-        if abs(r_dist_m - s_dist) / s_dist > 0.02:
-            continue
-        return r
-    return None
+    return find_cross_source_duplicate(idx, s_ts, strava_activity.get("distance"), "strava_id")
+
+
+class StravaDuplicate(Exception):
+    """Ismétlődés-védelem: az edzés más forrásból már megvan a könyvtárban."""
+    def __init__(self, entry: dict):
+        super().__init__(entry.get("id"))
+        self.entry = entry
 
 
 class StravaImportError(Exception):
@@ -319,7 +300,8 @@ class StravaImportError(Exception):
         self.message = message
 
 
-def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list, idx_path: str) -> dict:
+def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list, idx_path: str,
+                           dedup: bool = False) -> dict:
     """Egy Strava activity letöltése, GPX-szé alakítása és mentése a könyvtárba.
     A kézi import végpont és az automatikus szinkron (strava_sync.py) is ezt használja.
     Visszaadja az új index-bejegyzést; hiba esetén StravaImportError."""
@@ -338,6 +320,10 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         activity = ar.json()
     except requests.RequestException as exc:
         raise StravaImportError(502, f"Strava activity lekérdezés sikertelen: {exc}")
+    if dedup:
+        dup = _find_manual_match(idx, activity)
+        if dup:
+            raise StravaDuplicate(dup)
 
     # Streams (latlng, altitude, time, heartrate, cadence, watts)
     try:
@@ -450,8 +436,12 @@ def strava_import(activity_id: int):
         return jsonify({"ok": True, "skipped": True, "reason": "already_imported"})
 
     try:
-        new_entry = import_strava_activity(user_id, activity_id, token, idx, idx_path)
+        new_entry = import_strava_activity(user_id, activity_id, token, idx, idx_path,
+                                           dedup=import_dedup_enabled(user_id))
         _remove_from_deny(user_id, activity_id)   # szándékos újraimport → már nem „törölt”
+    except StravaDuplicate as dup:
+        return jsonify({"ok": True, "skipped": True, "reason": "duplicate",
+                        "duplicate_local_id": dup.entry["id"], "duplicate_name": dup.entry.get("name")})
     except StravaImportError as exc:
         if exc.status == 422:
             return jsonify({"ok": False, "error": exc.message}), 422

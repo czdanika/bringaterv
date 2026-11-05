@@ -68,6 +68,8 @@ SETTINGS_ALLOWED_KEYS = {
     "cyclistProfile",
     # Tervezési sebességek módonként (becsült idő, útvonal-javaslat idő → táv)
     "planSpeeds",
+    # Ismétlődés-védelem: más forrásból már meglévő edzés ne kerüljön be újra (alap: be)
+    "importDedup",
 }
 
 

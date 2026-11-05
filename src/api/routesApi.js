@@ -574,12 +574,52 @@ export const routesApi = {
     uploadCourse(routeId) {
       return fetchJson(`${BASE}/garmin/course/${encodeURIComponent(routeId)}`, { method: "POST" });
     },
+    // könyvtári mentés nélkül (pl. betelt kvótánál)
+    uploadCourseGpx(name, gpx, type) {
+      return fetchJson(`${BASE}/garmin/course`, { method: "POST", body: JSON.stringify({ name, gpx, type }) });
+    },
     async removeFromDenyList(id) {
       const res = await fetch(`${BASE}/garmin/deny-list/${id}`, {
         method: "DELETE", headers: authHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
+    },
+  },
+
+  // OnelapFit / Magene (user-szintű)
+  onelap: {
+    status() { return fetchJson(`${BASE}/onelap/status`); },
+    connect(email, password) {
+      return fetchJson(`${BASE}/onelap/connect`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+    },
+    disconnect() { return fetchJson(`${BASE}/onelap/disconnect`, { method: "DELETE" }); },
+    activities({ days = 30, limit = 30 } = {}) {
+      return fetchJson(`${BASE}/onelap/activities?${new URLSearchParams({ days, limit })}`);
+    },
+    importActivity(id, startTs) {
+      return fetchJson(`${BASE}/onelap/import/${encodeURIComponent(id)}`, {
+        method: "POST",
+        body: JSON.stringify({ start_ts: startTs }),
+      });
+    },
+    removeFromDenyList(id) {
+      return fetchJson(`${BASE}/onelap/deny-list/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    uploadRoute(routeId) {
+      return fetchJson(`${BASE}/onelap/route/${encodeURIComponent(routeId)}`, { method: "POST" });
+    },
+    autoSync: {
+      get()  { return fetchJson(`${BASE}/onelap/auto-sync`); },
+      save(body) { return fetchJson(`${BASE}/onelap/auto-sync`, { method: "PUT", body: JSON.stringify(body) }); },
+      runNow() { return fetchJson(`${BASE}/onelap/auto-sync/run`, { method: "POST" }); },
+    },
+    // könyvtári mentés nélkül (pl. betelt kvótánál)
+    uploadGpx(name, gpx) {
+      return fetchJson(`${BASE}/onelap/route`, { method: "POST", body: JSON.stringify({ name, gpx }) });
     },
   },
 };

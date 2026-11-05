@@ -6,7 +6,7 @@ from flask import Blueprint, abort, g, jsonify, request
 
 from auth import require_auth
 from config import log
-from storage import _user_routes_dir
+from storage import _user_routes_dir, import_dedup_enabled
 from utils import _load_index, _now_dt, _safe_id, _save_index
 from garmin_service import (
     GARMIN_AVAILABLE,
@@ -176,7 +176,8 @@ def garmin_import(activity_id: int):
     if garmin is None:
         abort(409, description="Nincs Garmin kapcsolat. Csatlakozz a Beállítások panelben.")
     try:
-        result = garmin_import_activity(garmin, g.user["id"], activity_id)
+        result = garmin_import_activity(garmin, g.user["id"], activity_id,
+                                        dedup=import_dedup_enabled(g.user["id"]))
     except GarminConnectAuthenticationError:
         _delete_user_garmin(g.user["id"])
         abort(409, description="A Garmin kapcsolat érvénytelenné vált. Csatlakozz újra.")
@@ -195,6 +196,49 @@ def garmin_deny_remove(activity_id: int):
     """Eltávolít egy activity_id-t a deny-listből (re-import újra lehetséges)."""
     removed = _remove_garmin_deny(g.user["id"], activity_id)
     return jsonify({"ok": True, "removed": removed})
+
+
+def _notify_course_sent(name: str, tag: str) -> None:
+    import notify
+    notify.send_async(g.user["id"], "route_sent", "✅ Útvonal elküldve a Garminra",
+                      f"„{name}” – a Garmin Connect appban szinkronizáld az eszközre.", tag=tag)
+
+
+def _garmin_course_call(garmin, name: str, gpx_text: str, sport: str) -> dict:
+    """Course-feltöltés egységes hibakezeléssel (abort-ot dob)."""
+    try:
+        result = garmin_upload_course(garmin, name, gpx_text, sport=sport)
+    except GarminConnectAuthenticationError:
+        _delete_user_garmin(g.user["id"])
+        abort(409, description="A Garmin kapcsolat érvénytelenné vált. Csatlakozz újra.")
+    except GarminConnectTooManyRequestsError:
+        abort(429, description="Garmin rate limit. Próbáld pár perc múlva.")
+    except Exception as exc:
+        log.warning("Garmin course upload hiba (user=%s): %s", g.user["id"], exc)
+        abort(502, description=f"Garmin course feltöltés sikertelen: {exc}")
+    if not result.get("ok"):
+        abort(422, description=result.get("error") or "A course feltöltés nem sikerült.")
+    return result
+
+
+@bp.route("/api/garmin/course", methods=["POST"])
+@require_auth
+def garmin_course_upload_direct():
+    """Tervezett útvonal küldése Garmin course-ként könyvtári mentés nélkül
+    (pl. betelt kvótánál). Body: {name, gpx, type}."""
+    _require_garmin_lib()
+    garmin = garmin_client(g.user["id"])
+    if garmin is None:
+        abort(409, description="Nincs Garmin kapcsolat. Csatlakozz a Beállítások panelben.")
+    body = request.get_json(silent=True) or {}
+    gpx_text = body.get("gpx") or ""
+    if not gpx_text.strip():
+        abort(400, description="Hiányzó GPX.")
+    name  = (body.get("name") or "").strip() or "Bringaterv útvonal"
+    sport = _GARMIN_SPORT_MAP.get((body.get("type") or "").lower(), "cycling")
+    result = _garmin_course_call(garmin, name, gpx_text, sport)
+    _notify_course_sent(result.get("course_name") or name, f"route-sent-garmin-{result.get('course_id')}")
+    return jsonify(result)
 
 
 @bp.route("/api/garmin/course/<route_id>", methods=["POST"])
@@ -225,19 +269,7 @@ def garmin_course_upload(route_id: str):
     except OSError:
         abort(500, description="Az útvonal fájl nem olvasható.")
 
-    try:
-        result = garmin_upload_course(garmin, name, gpx_text, sport=sport)
-    except GarminConnectAuthenticationError:
-        _delete_user_garmin(g.user["id"])
-        abort(409, description="A Garmin kapcsolat érvénytelenné vált. Csatlakozz újra.")
-    except GarminConnectTooManyRequestsError:
-        abort(429, description="Garmin rate limit. Próbáld pár perc múlva.")
-    except Exception as exc:
-        log.warning("Garmin course upload hiba (user=%s, route=%s): %s", g.user["id"], route_id, exc)
-        abort(502, description=f"Garmin course feltöltés sikertelen: {exc}")
-
-    if not result.get("ok"):
-        abort(422, description=result.get("error") or "A course feltöltés nem sikerült.")
+    result = _garmin_course_call(garmin, name, gpx_text, sport)
 
     # Megjegyezzük a route-on, hogy felment Garminra (course_id + időpont) –
     # így a könyvtár „már feltöltve" jelzést tud mutatni.
@@ -249,4 +281,5 @@ def garmin_course_upload(route_id: str):
         except Exception as exc:
             log.warning("Garmin course_id mentés sikertelen (route=%s): %s", route_id, exc)
         result["garmin_uploaded_at"] = entry["garmin_uploaded_at"]
+    _notify_course_sent(result.get("course_name") or name, f"route-sent-garmin-{route_id}")
     return jsonify(result)
