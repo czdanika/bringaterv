@@ -15,6 +15,7 @@ import { routesApi } from '../api/routesApi.js';
 import { createToast } from './dom.js';
 import { loadRouteLibrary } from './library.js';
 import { num } from "../format.js";
+import { createAutoSyncPanel } from "./autoSync.js";
 
 // ── Saját toast (nem injektált) ───────────────────────────────────────────────
 let _showToast = () => {};
@@ -47,8 +48,16 @@ export function initGarmin({ showToast } = {}) {
     else _showToast("Előbb csatlakozz Garminhoz: Beállítások → Garmin Connect");
   });
 
+  _autoSync = createAutoSyncPanel({
+    prefix: "garmin", api: routesApi.garmin.autoSync, label: "Garmin",
+    showToast: (...a) => _showToast(...a), onNewWorkouts: loadRouteLibrary,
+  });
+
   refreshGarminStatus();
 }
+
+// Automatikus import panel (autoSync.js) – a kapcsolat megléte esetén figyel
+let _autoSync = null;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let _garminStatus = null;
@@ -82,6 +91,8 @@ export async function refreshGarminStatus() {
   }
   renderGarminState(stateEl, _garminStatus);
   updateGarminImportButton();
+  if (_garminStatus?.connected) _autoSync?.start();
+  else _autoSync?.stop();
 }
 
 // A könyvtár import-dropdown Garmin elemének engedélyezése a kapcsolat alapján
@@ -188,7 +199,7 @@ function renderLoginForm(el) {
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="garminConnectBtn" class="strava-conn-btn" type="button" style="background:#007CC3">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fff;color:#007CC3;border-radius:2px;font-size:9px;font-weight:800">G</span>
+          <img class="brand-icon" src="./assets/brands/garmin.svg" width="14" height="14" alt="Garmin">
           Csatlakozás
         </button>
         <span id="garminConnectMsg" style="font-size:11px;color:var(--muted)"></span>

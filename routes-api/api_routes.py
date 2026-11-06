@@ -282,6 +282,12 @@ def delete_route(route_id: str):
             from garmin_service import _add_garmin_deny
             _add_garmin_deny(g.user["id"], deleted_entry["garmin_id"])
         except Exception as exc: log.warning("Garmin deny-list update hiba: %s", exc)
+    for prov in ("wahoo", "polar"):
+        if deleted_entry and deleted_entry.get(f"{prov}_id"):
+            try:
+                from device_import import add_deny
+                add_deny(g.user["id"], prov, deleted_entry[f"{prov}_id"])
+            except Exception as exc: log.warning("%s deny-list update hiba: %s", prov, exc)
     if deleted_entry and deleted_entry.get("onelap_id"):
         try:
             from onelap_service import _add_onelap_deny

@@ -281,7 +281,7 @@ function renderStravaState(el, status) {
       <div class="strava-conn-meta">Még nincs csatlakoztatva. Kattints a gombra a Strava-engedélyezéshez.</div>
       <div class="strava-conn-row">
         <button class="strava-conn-btn" id="stravaConnectBtn" type="button">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fff;color:#FC4C02;border-radius:2px;font-size:9px;font-weight:800">S</span>
+          <img class="brand-icon" src="./assets/brands/strava.svg" width="14" height="14" alt="Strava">
           Kapcsolódás Strava-hoz
         </button>
       </div>`;

@@ -5722,6 +5722,51 @@ body.is-drag-over::after {
   color: var(--text);
   font-weight: 600;
 }
+/* Eredmény-ablak (dom.js showResultDialog) – pl. „Elküldve az OnelapFitre” */
+.result-dialog-overlay { position: fixed; z-index: 3000; }
+.result-dialog { width: 360px; }
+.result-dialog-body { padding: 26px 24px 8px; text-align: center; }
+.result-dialog-body h3 { margin: 12px 0 8px; font-size: 18px; }
+.result-dialog-body p { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.result-dialog-badge { position: relative; display: inline-grid; place-items: center; width: 56px; height: 56px;
+  border-radius: 50%; background: var(--panel-strong); }
+.result-dialog-badge .result-dialog-mark { font-size: 28px; font-weight: 800; line-height: 1; }
+.result-dialog-badge.is-ok { color: #16a34a; }
+.result-dialog-badge.is-error { color: #dc2626; }
+/* márka-ikonnal: az ikon a kör, a jel a jobb alsó sarokban */
+.result-dialog-badge:has(img) { background: none; }
+.result-dialog-badge:has(img) .result-dialog-mark { position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px;
+  display: grid; place-items: center; font-size: 15px; border-radius: 50%; color: #fff; }
+.result-dialog-badge.is-ok:has(img) .result-dialog-mark { background: #16a34a; }
+.result-dialog-badge.is-error:has(img) .result-dialog-mark { background: #dc2626; }
+.result-dialog .export-footer { justify-content: center; }
+
+/* Wahoo / Polar import ablak (deviceImport.js) – a body-ba kerül, ezért fixed */
+.device-app-steps { margin: 0 0 10px; padding-left: 20px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.device-app-steps li { margin-bottom: 4px; }
+.device-app-form { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.device-app-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.device-app-field .form-input { font-size: 13px; }
+.device-app-copy { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.device-app-copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; padding: 6px 8px;
+  border-radius: 6px; background: var(--panel-strong); color: var(--text); }
+.device-app-copy .strava-conn-btn { flex: none; font-size: 11px; padding: 4px 10px; }
+.device-app-msg { font-size: 11px; color: var(--muted); }
+.device-app-details { margin-top: 10px; font-size: 12px; }
+.device-app-details summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
+.device-import-overlay { position: fixed; z-index: 1500; }
+
+/* Márka-ikonok (Strava, Garmin, OnelapFit) – assets/brands/ */
+.brand-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  border-radius: 22%;
+  object-fit: contain;
+}
+/* márkaszínű gombon fehér kerettel, hogy elváljon a háttértől */
+.strava-conn-btn .brand-icon { box-shadow: 0 0 0 1px rgba(255, 255, 255, .85); }
+
 .strava-conn-btn {
   display: inline-flex;
   align-items: center;

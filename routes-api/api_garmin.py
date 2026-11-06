@@ -176,8 +176,10 @@ def garmin_import(activity_id: int):
     if garmin is None:
         abort(409, description="Nincs Garmin kapcsolat. Csatlakozz a Beállítások panelben.")
     try:
-        result = garmin_import_activity(garmin, g.user["id"], activity_id,
-                                        dedup=import_dedup_enabled(g.user["id"]))
+        from garmin_sync import _UserLock   # a háttér-szinkron közben ne hozza be ugyanezt
+        with _UserLock(g.user["id"]):
+            result = garmin_import_activity(garmin, g.user["id"], activity_id,
+                                            dedup=import_dedup_enabled(g.user["id"]))
     except GarminConnectAuthenticationError:
         _delete_user_garmin(g.user["id"])
         abort(409, description="A Garmin kapcsolat érvénytelenné vált. Csatlakozz újra.")
@@ -188,6 +190,35 @@ def garmin_import(activity_id: int):
         abort(502, description=f"Garmin import sikertelen: {exc}")
     status = 422 if (not result.get("ok") and not result.get("skipped")) else 200
     return jsonify(result), status
+
+
+@bp.route("/api/garmin/auto-sync", methods=["GET"])
+@require_auth
+def garmin_auto_sync_get():
+    """Automatikus import állapota (kapcsoló, időköz, utolsó ellenőrzés eredménye)."""
+    from garmin_sync import load_sync, public
+    return jsonify(public(load_sync(g.user["id"])))
+
+
+@bp.route("/api/garmin/auto-sync", methods=["PUT"])
+@require_auth
+def garmin_auto_sync_set():
+    from garmin_sync import public, update_settings
+    body = request.get_json(silent=True) or {}
+    try:
+        interval = int(body.get("interval_min", 15))
+    except (TypeError, ValueError):
+        interval = 15
+    return jsonify(public(update_settings(g.user["id"], bool(body.get("enabled")), interval)))
+
+
+@bp.route("/api/garmin/auto-sync/run", methods=["POST"])
+@require_auth
+def garmin_auto_sync_run():
+    """Azonnali ellenőrzés (az „Ellenőrzés most” gomb) – ugyanaz, mint egy ütemezett kör."""
+    _require_garmin_lib()
+    from garmin_sync import public, sync_user
+    return jsonify(public(sync_user(g.user["id"])))
 
 
 @bp.route("/api/garmin/deny-list/<int:activity_id>", methods=["DELETE"])

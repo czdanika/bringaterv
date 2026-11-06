@@ -19,6 +19,7 @@ import uuid
 
 from config import log
 from storage import _user_dir, _user_routes_dir
+from fit_gpx import fit_to_gpx
 from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
 try:
@@ -415,6 +416,31 @@ def garmin_list_activities(garmin, user_id: str, limit: int = 30, after_date: st
     return out
 
 
+def _download_original_fit(garmin, activity_id: int) -> bytes | None:
+    """Az eredeti FIT a Garmin „ORIGINAL” letöltéséből (zip, benne a .fit). None, ha nincs."""
+    import io
+    import zipfile
+    from garminconnect import Garmin as _G
+    try:
+        raw = garmin.download_activity(activity_id, dl_fmt=_G.ActivityDownloadFormat.ORIGINAL)
+    except Exception as exc:
+        log.info("Garmin eredeti FIT nem elérhető (%s): %s", activity_id, exc)
+        return None
+    if not raw:
+        return None
+    if raw[8:12] == b".FIT":
+        return raw
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            for n in z.namelist():
+                if n.lower().endswith(".fit"):
+                    data = z.read(n)
+                    return data if data[8:12] == b".FIT" else None
+    except zipfile.BadZipFile:
+        pass
+    return None
+
+
 def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool = False) -> dict:
     """Egy Garmin aktivitást letölt GPX-ben + ment a könyvtárba (type=workout)."""
     from garminconnect import Garmin as _G
@@ -445,9 +471,22 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
             return {"ok": True, "skipped": True, "reason": "duplicate",
                     "duplicate_local_id": dup["id"], "duplicate_name": dup.get("name")}
 
-    # GPX letöltés
-    gpx_bytes = garmin.download_activity(activity_id, dl_fmt=_G.ActivityDownloadFormat.GPX)
-    gpx_text = gpx_bytes.decode("utf-8") if isinstance(gpx_bytes, bytes) else str(gpx_bytes)
+    name = summary.get("activityName") or sdto.get("activityName") or f"Garmin {activity_id}"
+
+    # Elsőként az eredeti FIT (mint a Dreeve): teljesítmény, hőmérséklet is benne van, és
+    # megmarad a könyvtárban. Ha nincs / nem olvasható, a Garmin GPX-exportja a tartalék.
+    fit_bytes = _download_original_fit(garmin, activity_id)
+    gpx_text = ""
+    if fit_bytes:
+        try:
+            gpx_text, _sess = fit_to_gpx(fit_bytes, name)
+        except Exception as exc:
+            log.warning("Garmin FIT feldolgozási hiba (%s): %s – GPX-tartalék", activity_id, exc)
+            gpx_text, fit_bytes = "", None
+    if not gpx_text:
+        fit_bytes = None
+        gpx_bytes = garmin.download_activity(activity_id, dl_fmt=_G.ActivityDownloadFormat.GPX)
+        gpx_text = gpx_bytes.decode("utf-8") if isinstance(gpx_bytes, bytes) else str(gpx_bytes)
     if "<trkpt" not in gpx_text and "<rtept" not in gpx_text:
         return {"ok": False, "error": "Nincs GPS adat ehhez az aktivitáshoz (beltéri/trainer?)."}
 
@@ -455,6 +494,9 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
     gpx_path = os.path.join(routes_dir, f"{new_id}.gpx")
     with open(gpx_path, "w", encoding="utf-8") as f:
         f.write(gpx_text)
+    if fit_bytes:
+        with open(os.path.join(routes_dir, f"{new_id}.fit"), "wb") as f:
+            f.write(fit_bytes)
 
     start_dt = _parse_garmin_gmt(sdto.get("startTimeGMT") or summary.get("startTimeGMT"))
     if start_dt is None:
@@ -469,7 +511,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
 
     entry = {
         "id":           new_id,
-        "name":         summary.get("activityName") or sdto.get("activityName") or f"Garmin {activity_id}",
+        "name":         name,
         "type":         "workout",
         "sport_type":   _garmin_sport_subtype(atype),
         "distance":     round(dist_m / 1000, 2),
@@ -479,6 +521,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         "start_time":   start_dt.isoformat(),
         "garmin_id":    activity_id,
         "source":       "garmin",
+        "has_fit":      bool(fit_bytes),
         "imported_at":  _now_dt(),
         "include_in_stats": True,
         "description":  summary.get("description") or "",

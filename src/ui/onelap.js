@@ -3,7 +3,7 @@
  * =====================================
  * A Magene kerékpáros komputerek az OnelapFit appal szinkronizálnak. A kapcsolat
  * a Beállítások panelen: e-mail + jelszó belépés, státusz, lecsatlakozás.
- * Könyvtár → Import → „Onelapból”: edzések letöltése (FIT → GPX a szerveren).
+ * Könyvtár → Import → „OnelapFitből”: edzések letöltése (FIT → GPX a szerveren).
  * Útvonal küldése az OnelapFit útvonalkönyvébe: library.js „onelap-route” művelet.
  *
  * A Garmin-modul mintája: main.js-ből inicializálva (initOnelap), a Strava
@@ -14,6 +14,7 @@ import { routesApi } from '../api/routesApi.js';
 import { createToast } from './dom.js';
 import { loadRouteLibrary } from './library.js';
 import { num } from "../format.js";
+import { createAutoSyncPanel } from "./autoSync.js";
 
 let _showToast = () => {};
 let _onelapStatus = null;
@@ -44,110 +45,19 @@ export function initOnelap({ showToast } = {}) {
   document.querySelector("#libraryImportOnelapItem")?.addEventListener("click", () => {
     document.querySelector("#libraryImportMenu")?.setAttribute("hidden", "");
     if (_onelapStatus?.connected) openOnelapImportModal();
-    else _showToast("Előbb csatlakozz az Onelaphoz: Beállítások → OnelapFit");
+    else _showToast("Előbb csatlakozz az OnelapFithez: Beállítások → OnelapFit");
   });
 
-  document.querySelector("#onelapAutoToggle")?.addEventListener("change", saveAutoSync);
-  document.querySelector("#onelapAutoInterval")?.addEventListener("change", saveAutoSync);
-  document.querySelector("#onelapAutoRunBtn")?.addEventListener("click", runAutoSyncNow);
+  _autoSync = createAutoSyncPanel({
+    prefix: "onelap", api: routesApi.onelap.autoSync, label: "OnelapFit",
+    showToast: (...a) => _showToast(...a), onNewWorkouts: loadRouteLibrary,
+  });
 
   refreshOnelapStatus();
 }
 
-// ── Automatikus import (háttér-szinkron) ─────────────────────────────────────
-// A szerver adott időközönként maga importál; a kliens csak figyeli az állapotot,
-// és ha új edzés jött, frissíti a könyvtárat + szól egy toasttal (mint a Stravánál).
+// Automatikus import panel (autoSync.js) – a kapcsolat megléte esetén figyel
 let _autoSync = null;
-let _autoSeenTotal = null;
-let _autoWatchTimer = null;
-
-function fmtAgo(iso) {
-  if (!iso) return "még nem volt ellenőrzés";
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 1) return "most ellenőrizve";
-  if (min < 60) return `${min} perce ellenőrizve`;
-  return `${new Date(iso).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}-kor ellenőrizve`;
-}
-
-function renderAutoSync() {
-  const d = _autoSync;
-  if (!d) return;
-  const toggle = document.querySelector("#onelapAutoToggle");
-  if (toggle) toggle.checked = !!d.enabled;
-  const opts = document.querySelector("#onelapAutoOpts");
-  if (opts) opts.hidden = !d.enabled;
-  const sel = document.querySelector("#onelapAutoInterval");
-  if (sel) sel.value = String(d.interval_min || 15);
-  const st = document.querySelector("#onelapAutoStatus");
-  if (st) {
-    let txt = fmtAgo(d.last_check);
-    if (d.last_error) txt += ` · ⚠️ ${d.last_error}`;
-    else if (d.last_check) txt += d.last_imported ? ` · ${d.last_imported} új edzés importálva` : " · nincs új edzés";
-    st.textContent = txt;
-    st.classList.toggle("is-error", !!d.last_error);
-  }
-}
-
-async function loadAutoSync() {
-  try {
-    _autoSync = await routesApi.onelap.autoSync.get();
-    if (_autoSeenTotal === null) _autoSeenTotal = _autoSync.total_imported || 0;
-    renderAutoSync();
-  } catch { /* régi szerver */ }
-}
-
-async function saveAutoSync() {
-  const enabled = !!document.querySelector("#onelapAutoToggle")?.checked;
-  const interval_min = Number(document.querySelector("#onelapAutoInterval")?.value || 15);
-  try {
-    _autoSync = await routesApi.onelap.autoSync.save({ enabled, interval_min });
-    renderAutoSync();
-    startAutoSyncWatcher();
-    _showToast(enabled ? `Automatikus Onelap import: ${interval_min < 60 ? interval_min + " percenként" : "óránként"}`
-                       : "Automatikus Onelap import kikapcsolva");
-  } catch (err) {
-    _showToast("Nem sikerült menteni: " + err.message);
-  }
-}
-
-async function runAutoSyncNow() {
-  const btn = document.querySelector("#onelapAutoRunBtn");
-  if (btn) { btn.disabled = true; btn.textContent = "Ellenőrzés…"; }
-  try {
-    _autoSync = await routesApi.onelap.autoSync.runNow();
-    renderAutoSync();
-    await checkAutoSyncNews();
-  } catch (err) {
-    _showToast("Ellenőrzés sikertelen: " + err.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "Ellenőrzés most"; }
-  }
-}
-
-/** Ha a szerver új edzést importált azóta, hogy utoljára néztük: könyvtár frissítés + toast */
-async function checkAutoSyncNews() {
-  const total = _autoSync?.total_imported || 0;
-  if (_autoSeenTotal !== null && total > _autoSeenTotal) {
-    const n = total - _autoSeenTotal;
-    const names = (_autoSync.last_names || []).slice(-n).join(", ");
-    _showToast(`${n} új Onelap-edzés a könyvtárban${names ? ": " + names : ""}`, 8000);
-    try { await loadRouteLibrary(); } catch {}
-  }
-  _autoSeenTotal = total;
-}
-
-function startAutoSyncWatcher() {
-  clearInterval(_autoWatchTimer);
-  loadAutoSync().then(() => {
-    if (!_autoSync?.enabled) return;
-    // 2 percenként ránéz az állapotra (csak a saját szerver, nem Onelap-hívás)
-    _autoWatchTimer = setInterval(async () => {
-      if (document.hidden) return;
-      await loadAutoSync();
-      await checkAutoSyncNews();
-    }, 120000);
-  });
-}
 
 function escapeHtmlStr(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
@@ -166,7 +76,7 @@ export async function refreshOnelapStatus() {
     _onelapStatus = null;
     if (stateEl) {
       stateEl.innerHTML = `
-        <div class="strava-conn-error" style="margin-bottom:8px">Nem sikerült lekérdezni az Onelap állapotot: ${escapeHtmlStr(err.message)}</div>
+        <div class="strava-conn-error" style="margin-bottom:8px">Nem sikerült lekérdezni az OnelapFit állapotot: ${escapeHtmlStr(err.message)}</div>
         <button class="strava-conn-btn strava-conn-btn--ghost" id="onelapRetryBtn" type="button">Újrapróbálkozás</button>`;
       stateEl.querySelector("#onelapRetryBtn")?.addEventListener("click", refreshOnelapStatus);
     }
@@ -175,8 +85,8 @@ export async function refreshOnelapStatus() {
   }
   renderOnelapState(stateEl, _onelapStatus);
   updateOnelapImportButton();
-  if (_onelapStatus?.connected) startAutoSyncWatcher();
-  else clearInterval(_autoWatchTimer);
+  if (_onelapStatus?.connected) _autoSync?.start();
+  else _autoSync?.stop();
 }
 
 function updateOnelapImportButton() {
@@ -186,7 +96,7 @@ function updateOnelapImportButton() {
   const ok = !!_onelapStatus?.connected;
   item.disabled = !ok;
   item.title = ok ? "Magene-edzések importálása az OnelapFitből"
-                  : "Onelap kapcsolat szükséges – Beállítások → OnelapFit";
+                  : "OnelapFit kapcsolat szükséges – Beállítások → OnelapFit";
   if (status) status.textContent = ok ? "" : "nincs kapcsolat";
 }
 
@@ -224,8 +134,8 @@ function renderLoginForm(el) {
       <input id="onelapEmail" class="form-input" type="email" placeholder="OnelapFit e-mail" autocomplete="off" style="font-size:13px">
       <input id="onelapPassword" class="form-input" type="password" placeholder="OnelapFit jelszó" autocomplete="off" style="font-size:13px">
       <div style="display:flex;gap:8px;align-items:center">
-        <button id="onelapConnectBtn" class="strava-conn-btn" type="button" style="background:#E5352B">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#fff;color:#E5352B;border-radius:2px;font-size:9px;font-weight:800">M</span>
+        <button id="onelapConnectBtn" class="strava-conn-btn" type="button" style="background:#0055FE">
+          <img class="brand-icon" src="./assets/brands/onelapfit.png" width="14" height="14" alt="OnelapFit">
           Csatlakozás
         </button>
         <span id="onelapConnectMsg" style="font-size:11px;color:var(--muted)"></span>
@@ -244,9 +154,9 @@ async function submitOnelapLogin() {
   if (!email || !pw) { setMsg("E-mail és jelszó kötelező.", "#dc2626"); return; }
   try {
     btn.disabled = true;
-    setMsg("Belépés az Onelapba…");
+    setMsg("Belépés az OnelapFitbe…");
     const res = await routesApi.onelap.connect(email, pw);
-    _showToast(`Onelap csatlakoztatva: ${res.account || ""}`);
+    _showToast(`OnelapFit csatlakoztatva: ${res.account || ""}`);
     refreshOnelapStatus();
   } catch (err) {
     setMsg("Hiba: " + err.message, "#dc2626");
@@ -309,7 +219,7 @@ async function fetchAndRenderOnelapActivities() {
   } catch (err) {
     footer.hidden = true;
     if (err.message?.toLowerCase().includes("érvénytelen") || err.message?.toLowerCase().includes("nincs onelap")) {
-      statusEl.innerHTML = `<span style="color:#dc2626">Az Onelap kapcsolat érvénytelenné vált. <strong>Csatlakozz újra a Beállítások → OnelapFit panelben.</strong></span>`;
+      statusEl.innerHTML = `<span style="color:#dc2626">Az OnelapFit kapcsolat érvénytelenné vált. <strong>Csatlakozz újra a Beállítások → OnelapFit panelben.</strong></span>`;
       await refreshOnelapStatus();
       return;
     }
@@ -426,7 +336,7 @@ async function runOnelapImport() {
     } catch (err) {
       fail++;
       row.classList.remove("is-importing");
-      console.error("Onelap import hiba:", row.dataset.id, err);
+      console.error("OnelapFit import hiba:", row.dataset.id, err);
       progressCur.textContent = `Hiba: ${name} – ${err.message}`;
       progressCur.className   = "strava-progress-current is-error";
     }

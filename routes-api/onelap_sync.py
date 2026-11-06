@@ -1,7 +1,7 @@
 """Bringaterv – automatikus OnelapFit (Magene) import (háttér-szinkron).
 
-Felhasználónként bekapcsolható (Könyvtár → Import → Onelapból ablak): adott
-időközönként (5 / 15 / 30 / 60 perc) lekérdezi az új Onelap-edzéseket, és a
+Felhasználónként bekapcsolható (Könyvtár → Import → OnelapFitből ablak): adott
+időközönként (5 / 15 / 30 / 60 perc) lekérdezi az új OnelapFit-edzéseket, és a
 GPS-eseket ugyanúgy importálja, mint a kézi import. Az Onelapnak nincs webhookja,
 ezért csak időközös ellenőrzés van.
 
@@ -104,7 +104,7 @@ class _UserLock:
 
 
 def sync_user(user_id: str) -> dict:
-    """Egy kör: új Onelap-edzések lekérdezése és importja. Az állapotot menti és visszaadja."""
+    """Egy kör: új OnelapFit-edzések lekérdezése és importja. Az állapotot menti és visszaadja."""
     from onelap_service import (OnelapApiError, OnelapAuthError, _delete_user_onelap,
                                 _list_rides, _load_onelap_deny, onelap_import_activity,
                                 onelap_session)
@@ -126,7 +126,7 @@ def sync_user(user_id: str) -> dict:
         save_sync(user_id, data)
         return data
     if sess is None:
-        data["last_error"] = "Nincs érvényes Onelap-kapcsolat – csatlakozz újra a Beállításokban."
+        data["last_error"] = "Nincs érvényes OnelapFit-kapcsolat – csatlakozz újra a Beállításokban."
         _alert_connection(user_id, data)
         save_sync(user_id, data)
         return data
@@ -138,7 +138,7 @@ def sync_user(user_id: str) -> dict:
         rides = _list_rides(sess, start, now + 86400)
     except OnelapAuthError:
         _delete_user_onelap(user_id)
-        data["last_error"] = "Az Onelap elutasította a hozzáférést – csatlakozz újra a Beállításokban."
+        data["last_error"] = "Az OnelapFit elutasította a hozzáférést – csatlakozz újra a Beállításokban."
         _alert_connection(user_id, data)
         save_sync(user_id, data)
         return data
@@ -169,7 +169,7 @@ def sync_user(user_id: str) -> dict:
             data["last_error"] = str(exc)
             break
         except OnelapAuthError:
-            data["last_error"] = "Az Onelap elutasította a hozzáférést – csatlakozz újra a Beállításokban."
+            data["last_error"] = "Az OnelapFit elutasította a hozzáférést – csatlakozz újra a Beállításokban."
             break
         if not res.get("ok"):
             skip.add(did)                           # pl. nincs GPS – nem próbáljuk újra
@@ -198,7 +198,7 @@ def _alert_connection(user_id: str, data: dict) -> None:
         return
     try:
         import notify
-        notify.send(user_id, "connection", "⚠️ Onelap-kapcsolat megszakadt",
+        notify.send(user_id, "connection", "⚠️ OnelapFit-kapcsolat megszakadt",
                     data.get("last_error") or "Csatlakozz újra a Beállításokban.",
                     url="./index.html?settings=onelap", tag="onelap-connection")
         data["conn_alerted"] = True

@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.34.0 – 2026-11-06 – Wahoo és Polar import, automatikus Garmin-import
+
+### Verzió
+
+- **Wahoo import (új):** a Wahoo (ELEMNT, KICKR) edzései a hivatalos Wahoo Cloud API-n – Beállítások → Wahoo → Csatlakozás (a Wahoo saját belépési oldalán), Könyvtár → Import → Wahoo-ból. Az eredeti FIT is megmarad.
+- **Polar import (új):** a Polar edzései a hivatalos Polar AccessLink API-n – Beállítások → Polar, Könyvtár → Import → Polarból. A Polar csak a csatlakozás után feltöltött, legfeljebb 30 napos edzéseket adja ki; a beltéri (GPS nélküli) edzések kimaradnak.
+- **Saját fejlesztői alkalmazás:** a Wahoo- és Polar-kapcsolathoz mindenki a saját (ingyenes) fejlesztői alkalmazásának kulcsait adja meg a Beállításokban – lépésről lépésre útmutatóval, a Redirect URI-val és Másolás gombbal. Nem kell admin, és nem kell a gyártó jóváhagyására várni (Wahoo: Sandbox).
+- **Automatikus import mindenhol:** a Garmin, OnelapFit, Wahoo és Polar import ablak tetején bekapcsolható – 5, 15, 30 percenként vagy óránként, „Ellenőrzés most” gombbal, értesítéssel. A bekapcsolás előtti edzéseket nem hozza, a könyvtárból törölteket nem hozza vissza, és az ismétlődés-védelem itt is érvényes.
+- **Garmin import:** az eredeti FIT-et tölti le (teljesítmény, hőmérséklet is), és az a könyvtárban is megmarad; ha nincs, a Garmin GPX-exportja a tartalék.
+- **OnelapFit:** mindenhol „OnelapFit” néven (OnelapFitből, Küldés OnelapFitre). Útvonal küldésekor a tervezés fordulópontjai (útpontok) nem mennek fel – az OnelapFit eddig külön pontokként rakta ki őket –, és az útvonal a saját nevén megy fel (könyvtárból / közösségi útvonalból töltött tervnél is).
+- **Küldés visszajelzéssel:** a Küldés Garminra / OnelapFitre után felugró ablak mutatja, sikerült-e (név, táv, hol találod); küldés közben a gomb jelzi, hogy dolgozik.
+- **Márka-ikonok:** Strava, Garmin, OnelapFit, Wahoo, Polar ikon a betűjelek helyett (menük, import ablakok, Beállítások).
+- **„Mi ez?” oldal és súgó:** az új kapcsolatok, az automatikus import és a Wahoo / Polar beállítás leírása.
+- **Belül:** közös FIT → GPX (`fit_gpx.py`), automatikus importok (`garmin_sync.py`, `device_sync.py`), Wahoo / Polar (`device_import.py`, `wahoo_service.py`, `polar_service.py`, `api_devices.py`), frontend `src/ui/deviceImport.js`, `src/ui/autoSync.js`. Tesztek: `tests/test_garmin.py`, `tests/test_devices.py`.
+
+---
+
 ## v1.33.0 – 2026-11-05 – OnelapFit (Magene) kapcsolat, ismétlődés-védelem
 
 ### Verzió

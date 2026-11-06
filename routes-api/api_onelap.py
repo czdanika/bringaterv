@@ -37,12 +37,12 @@ def _with_onelap(fn):
         try:
             sess = onelap_session(g.user["id"])
             if sess is None:
-                abort(409, description="Nincs Onelap kapcsolat. Csatlakozz a Beállítások panelben.")
+                abort(409, description="Nincs OnelapFit kapcsolat. Csatlakozz a Beállítások panelben.")
             g.onelap = sess
             return fn(*args, **kwargs)
         except OnelapAuthError:
             _delete_user_onelap(g.user["id"])
-            abort(409, description="Az Onelap kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
+            abort(409, description="Az OnelapFit kapcsolat érvénytelenné vált. Csatlakozz újra a Beállítások panelben.")
         except OnelapApiError as exc:
             log.warning("Onelap hiba (user=%s, %s): %s", g.user["id"], fn.__name__, exc)
             abort(502, description=str(exc))
@@ -52,7 +52,7 @@ def _with_onelap(fn):
 def _notify_sent(name: str) -> None:
     """Push-értesítés a sikeres küldésről (Beállítások → Értesítések → Útvonal elküldve)."""
     import notify
-    notify.send_async(g.user["id"], "route_sent", "✅ Útvonal elküldve az Onelapra",
+    notify.send_async(g.user["id"], "route_sent", "✅ Útvonal elküldve az OnelapFitre",
                       f"„{name}” – az OnelapFit appban az útvonalaid között; szinkronizáld a komputerre.",
                       tag=f"route-sent-{name}")
 
@@ -84,10 +84,10 @@ def onelap_connect():
         data = onelap_login(g.user["id"], account, password)
     except OnelapAuthError:
         # 403 és nem 401: a 401-et a frontend session-lejáratként kezeli (kiléptet)
-        abort(403, description="Hibás Onelap e-mail vagy jelszó.")
+        abort(403, description="Hibás OnelapFit e-mail vagy jelszó.")
     except OnelapApiError as exc:
         log.warning("Onelap connect hiba (user=%s): %s", g.user["id"], exc)
-        abort(502, description=f"Onelap belépés sikertelen: {exc}")
+        abort(502, description=f"OnelapFit belépés sikertelen: {exc}")
     return jsonify({"connected": True, "account": data["account"]})
 
 

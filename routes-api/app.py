@@ -26,6 +26,13 @@ Modulok:
   onelap_service.py   OnelapFit (Magene) helperek (aláírt kérések, tokenek, FIT→GPX)
   api_onelap.py       /api/onelap/*
   onelap_sync.py      automatikus Onelap import (háttér-szinkron)
+  garmin_sync.py      automatikus Garmin import (háttér-szinkron)
+  device_import.py    Wahoo / Polar közös rész (OAuth state, tokenek, mentés FIT-ből)
+  wahoo_service.py    Wahoo Cloud API (import)
+  polar_service.py    Polar AccessLink v3 (import)
+  device_sync.py      automatikus Wahoo / Polar import
+  api_devices.py      /api/wahoo/*, /api/polar/*, /api/admin/device-apps
+  fit_gpx.py          FIT → GPX (Onelap, Garmin import)
   api_feedback.py     /api/feedback + /api/admin/feedback*, /api/admin/mail*
   mailer.py           SMTP e-mail küldés (env: SMTP_*, FEEDBACK_TO)
 """
@@ -47,6 +54,7 @@ import api_feedback
 import api_garmin
 import api_invite
 import api_onelap
+import api_devices
 import api_notify
 import api_public
 import api_records
@@ -74,6 +82,7 @@ app.register_blueprint(api_backup.bp)
 app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)
 app.register_blueprint(api_onelap.bp)
+app.register_blueprint(api_devices.bp)
 app.register_blueprint(api_public.bp)
 app.register_blueprint(api_records.bp)
 app.register_blueprint(api_notify.bp)
@@ -89,6 +98,10 @@ from strava_sync import start_scheduler  # noqa: E402
 start_scheduler()
 import onelap_sync  # noqa: E402
 onelap_sync.start_scheduler()   # automatikus Onelap (Magene) import
+import garmin_sync  # noqa: E402
+garmin_sync.start_scheduler()   # automatikus Garmin Connect import
+import device_sync  # noqa: E402
+device_sync.start_scheduler()   # automatikus Wahoo / Polar import
 surface_local.start_scheduler()   # havi burkolat-adatbázis frissítés
 
 

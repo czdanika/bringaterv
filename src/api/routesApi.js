@@ -574,6 +574,11 @@ export const routesApi = {
     uploadCourse(routeId) {
       return fetchJson(`${BASE}/garmin/course/${encodeURIComponent(routeId)}`, { method: "POST" });
     },
+    autoSync: {
+      get()  { return fetchJson(`${BASE}/garmin/auto-sync`); },
+      save(body) { return fetchJson(`${BASE}/garmin/auto-sync`, { method: "PUT", body: JSON.stringify(body) }); },
+      runNow() { return fetchJson(`${BASE}/garmin/auto-sync/run`, { method: "POST" }); },
+    },
     // könyvtári mentés nélkül (pl. betelt kvótánál)
     uploadCourseGpx(name, gpx, type) {
       return fetchJson(`${BASE}/garmin/course`, { method: "POST", body: JSON.stringify({ name, gpx, type }) });
@@ -621,5 +626,32 @@ export const routesApi = {
     uploadGpx(name, gpx) {
       return fetchJson(`${BASE}/onelap/route`, { method: "POST", body: JSON.stringify({ name, gpx }) });
     },
+  },
+
+  // Wahoo / Polar (hivatalos OAuth-os API-k, csak import)
+  devices(provider) {
+    const P = `${BASE}/${provider}`;
+    return {
+      status()     { return fetchJson(`${P}/status`); },
+      connect()    { return fetchJson(`${P}/connect`); },
+      disconnect() { return fetchJson(`${P}/disconnect`, { method: "DELETE" }); },
+      activities({ days = 30, limit = 30 } = {}) {
+        return fetchJson(`${P}/activities?${new URLSearchParams({ days, limit })}`);
+      },
+      importActivity(id)     { return fetchJson(`${P}/import/${encodeURIComponent(id)}`, { method: "POST" }); },
+      removeFromDenyList(id) { return fetchJson(`${P}/deny-list/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+      appConfig: {
+        get()      { return fetchJson(`${P}/app-config`); },
+        save(client_id, client_secret) {
+          return fetchJson(`${P}/app-config`, { method: "PUT", body: JSON.stringify({ client_id, client_secret }) });
+        },
+        remove()   { return fetchJson(`${P}/app-config`, { method: "DELETE" }); },
+      },
+      autoSync: {
+        get()      { return fetchJson(`${P}/auto-sync`); },
+        save(body) { return fetchJson(`${P}/auto-sync`, { method: "PUT", body: JSON.stringify(body) }); },
+        runNow()   { return fetchJson(`${P}/auto-sync/run`, { method: "POST" }); },
+      },
+    };
   },
 };

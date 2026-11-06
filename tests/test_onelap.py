@@ -38,6 +38,8 @@ def test_onelap_import_modal(page):
         const r = await fetch('/api/onelap/auto-sync', {headers: {Authorization: 'Bearer ' + localStorage.getItem('bringaterv_jwt')}});
         return (await r.json()).enabled;
     }""")
+    # a panel a kapcsolat-státusz után töltődik be (aszinkron) – megvárjuk
+    page.wait_for_function(f"document.querySelector('#onelapAutoToggle').checked === {str(bool(auto)).lower()}", timeout=10000)
     assert page.locator("#onelapAutoToggle").is_checked() == bool(auto)
     assert page.locator("#onelapAutoOpts").is_hidden() == (not auto)
     page.select_option("#onelapImportRange", "365")

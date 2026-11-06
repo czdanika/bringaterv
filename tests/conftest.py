@@ -129,6 +129,11 @@ def real_errors(pg):
         if e.startswith("HTTP ") and BASE not in e:
             print(f"\n  [figyelmeztetés, külső szolgáltatás] {e}")
             continue
+        # Külső szolgáltatás CORS-hibája (pl. a Nominatim korlátozáskor CORS-fejléc nélkül ad 429-et)
+        m = re.match(r"Access to fetch at '(https?://[^/']+)", e)
+        if m and not BASE.startswith(m.group(1)):
+            print(f"\n  [figyelmeztetés, külső szolgáltatás] {e[:160]}")
+            continue
         own.append(e)
     return own
 

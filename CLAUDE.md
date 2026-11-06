@@ -44,6 +44,14 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_garmin.py       # /api/garmin/* (status, connect, mfa, weight, activities, import, course)
 │   ├── onelap_service.py   # OnelapFit helperek: aláírt kérések, token+refresh, FIT→GPX (fitdecode), útvonal-feltöltés
 │   ├── api_onelap.py       # /api/onelap/* (status, connect, disconnect, activities, import, deny-list, route)
+│   ├── onelap_sync.py      # automatikus OnelapFit import (háttér-szinkron)
+│   ├── garmin_sync.py      # automatikus Garmin import (eredeti FIT)
+│   ├── fit_gpx.py          # közös FIT → GPX (fitdecode)
+│   ├── device_import.py    # Wahoo / Polar közös: user-szintű app-kulcsok, OAuth state, tokenek, mentés FIT-ből
+│   ├── wahoo_service.py    # Wahoo Cloud API (import)
+│   ├── polar_service.py    # Polar AccessLink v3 (import)
+│   ├── device_sync.py      # automatikus Wahoo / Polar import
+│   ├── api_devices.py      # /api/<wahoo|polar>/* (status, connect, callback, app-config, activities, import, auto-sync)
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
@@ -100,6 +108,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         │                   #   aktivitás-import modal, course feltöltés. Self-bootstrap.
         ├── onelap.js       # OnelapFit kapcsolat, import modal (initOnelap, getOnelapStatus);
         │                   #   az útvonal-küldés a library.js „onelap-route” művelete
+        ├── deviceImport.js # Wahoo / Polar: saját app-kulcsok, OAuth popup, import ablak (initDeviceImports)
+        ├── autoSync.js     # közös „Automatikus import” panel (Garmin, OnelapFit, Wahoo, Polar)
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,
@@ -294,7 +304,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.33.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.34.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

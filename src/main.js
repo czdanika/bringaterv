@@ -11,7 +11,7 @@ import { createRouteStore } from "./state/routeStore.js";
 import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { fitToGpx } from "./gpx/fit.js";
-import { createToast, formatDistance } from "./ui/dom.js";
+import { createToast, formatDistance, showResultDialog } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
@@ -25,6 +25,7 @@ import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsI
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin, getGarminStatus } from "./ui/garmin.js";
 import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
+import { initDeviceImports } from "./ui/deviceImport.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
@@ -2254,6 +2255,9 @@ initGarmin({ showToast });
 // ── OnelapFit (Magene) ───────────────────────────────────────────────────────
 initOnelap({ showToast });
 
+// ── Wahoo / Polar (hivatalos API-k, csak import) ──────────────────────────────
+initDeviceImports({ showToast });
+
 // ── Ismétlődés-védelem (szerveroldali beállítás: importDedup, alapból be) ─────
 // Ugyanaz az edzés több forrásból (pl. Magene → Onelap ÉS Strava) ne kerüljön be kétszer.
 (async () => {
@@ -2405,6 +2409,7 @@ function syncMapStyleButtons(style) {
 }
 
 function clearAllRouteState() {
+  _loadedPlanName = null;
   clearImportedGeometries();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
@@ -3152,6 +3157,10 @@ function promptFilename(suggested) {
   });
 }
 
+// A könyvtárból / közösségi útvonalakból tervezésre töltött útvonal neve – a Mentés
+// ablak ezt ajánlja (különben a „Rajt – Cél” jellegű név megy fel az eszközre is)
+let _loadedPlanName = null;
+
 function buildExportName(waypoints) {
   const first = waypoints[0]?.name;
   const last = waypoints[waypoints.length - 1]?.name;
@@ -3162,7 +3171,7 @@ function buildExportName(waypoints) {
 
 function openExportModal() {
   const state = store.getState();
-  const suggestedName = buildExportName(state.waypoints);
+  const suggestedName = _loadedPlanName || buildExportName(state.waypoints);
   const today = new Date().toISOString().slice(0, 10);
   const suggestedFilename = `${slugify(suggestedName)}-${today}`;
 
@@ -3717,7 +3726,7 @@ function fmtMinutesHuman(min) {
 }
 
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
-// Az utoljára mentett terv – ugyanazt a tervet (pl. Mentés, majd Küldés Onelapra) ne mentsük kétszer
+// Az utoljára mentett terv – ugyanazt a tervet (pl. Mentés, majd Küldés OnelapFitre) ne mentsük kétszer
 let _lastSavedPlan = null;
 
 /** A tervezett útvonal mentése a könyvtárba; visszaadja az új azonosítót. */
@@ -3743,46 +3752,64 @@ async function savePlanToLibrary(payload = buildExportPayload()) {
 // ── Küldés eszközre: Onelap / Garmin (mentés a könyvtárba + feltöltés) ─────────
 const DEVICE_TARGETS = {
   onelap: {
-    label: "Onelapra", settings: "Beállítások → OnelapFit",
+    label: "OnelapFitre", app: "OnelapFit", icon: "./assets/brands/onelapfit.png",
+    settings: "Beállítások → OnelapFit",
     byId:  (id) => routesApi.onelap.uploadRoute(id),
     byGpx: (p) => routesApi.onelap.uploadGpx(p.name, p.content),
     name:  (res, p) => res.name || p.name,
-    where: "az OnelapFit appban az útvonalaid között, onnan szinkronizáld a komputerre",
+    where: "Az OnelapFit appban az útvonalaid között találod – onnan szinkronizáld a komputerre.",
   },
   garmin: {
-    label: "Garminra", settings: "Beállítások → Garmin Connect",
+    label: "Garminra", app: "Garmin", icon: "./assets/brands/garmin.svg",
+    settings: "Beállítások → Garmin Connect",
     byId:  (id) => routesApi.garmin.uploadCourse(id),
     byGpx: (p) => routesApi.garmin.uploadCourseGpx(p.name, p.content, p.selectedMode),
     name:  (res, p) => res.course_name || p.name,
-    where: "a Garmin Connect appban course-ként, onnan szinkronizáld az órára / komputerre",
+    where: "A Garmin Connect appban course-ként találod – onnan szinkronizáld az órára / komputerre.",
   },
 };
 
-async function sendPlanToDevice(kind) {
+async function sendPlanToDevice(kind, btn) {
   const t = DEVICE_TARGETS[kind];
   if (!activeGeometry || activeGeometry.length < 2) { showToast("Előbb tervezz egy útvonalat."); return; }
   const payload = buildExportPayload();
-  elements.exportOverlay.hidden = true;
-  showToast(`Mentés és küldés ${t.label}…`);
+  // A Mentés ablak nyitva marad, a gomb mutatja, hogy dolgozik
+  const footerBtns = [...elements.exportOverlay.querySelectorAll(".export-footer button")];
+  const origHtml = btn.innerHTML;
+  footerBtns.forEach((b) => { b.disabled = true; });
+  btn.textContent = `Küldés ${t.label}…`;
   // A könyvtári mentés jó, de nem feltétel: ha nem sikerül (pl. betelt kvóta),
   // a tervet közvetlenül küldjük el
   let id = null, saveErr = null;
+  let dialog;
   try { id = await savePlanToLibrary(payload); } catch (err) { saveErr = err; }
   try {
     const res = id ? await t.byId(id) : await t.byGpx(payload);
     const name = t.name(res, payload);
-    showToast(id ? `✓ „${name}” elmentve és elküldve ${t.label} – ${t.where}`
-                 : `✓ „${name}” elküldve ${t.label} – ${t.where}. A könyvtárba nem került be: ${saveErr?.message || "mentési hiba"}`,
-              8000);
+    const km = payload.distanceKm != null ? ` (${num(payload.distanceKm, 1)} km)` : "";
+    dialog = {
+      ok: true, icon: t.icon, title: `Elküldve: ${t.app}`,
+      lines: [`„${name}”${km} sikeresen felment.`, t.where,
+              id ? "A könyvtáradba is elmentettük."
+                 : `A könyvtárba nem került be: ${saveErr?.message || "mentési hiba"}`],
+    };
     if (id) loadRouteLibrary().catch(() => {});
   } catch (err) {
     console.error(`Küldési hiba (${kind}):`, err);
-    const m = err.message?.toLowerCase() || "";
-    showToast(m.includes("kapcsolat") ? `A kapcsolat nem él – ${t.settings}` : `Küldés ${t.label} sikertelen: ${err.message}`, 8000);
+    const conn = (err.message || "").toLowerCase().includes("kapcsolat");
+    dialog = {
+      ok: false, icon: t.icon, title: `Nem sikerült a küldés: ${t.app}`,
+      lines: conn ? [`A kapcsolat nem él – csatlakozz újra: ${t.settings}.`] : [err.message || "Ismeretlen hiba."],
+    };
+  } finally {
+    footerBtns.forEach((b) => { b.disabled = false; });
+    btn.innerHTML = origHtml;
   }
+  elements.exportOverlay.hidden = true;
+  showResultDialog(dialog);
 }
-document.querySelector("#exportOnelap")?.addEventListener("click", () => sendPlanToDevice("onelap"));
-document.querySelector("#exportGarmin")?.addEventListener("click", () => sendPlanToDevice("garmin"));
+document.querySelector("#exportOnelap")?.addEventListener("click", (e) => sendPlanToDevice("onelap", e.currentTarget));
+document.querySelector("#exportGarmin")?.addEventListener("click", (e) => sendPlanToDevice("garmin", e.currentTarget));
 
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {
   const payload = buildExportPayload();
@@ -4032,6 +4059,7 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     const { waypoints, segmentedGeom } = loadResult;
 
     clearAllRouteState();
+    _loadedPlanName = routeName || null;
     switchTab("plan");
     autoOpenElevation = true;
     store.replaceWaypoints(waypoints, {

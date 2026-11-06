@@ -18,7 +18,6 @@ import base64
 import re
 import fcntl
 import hashlib
-import io
 import json
 import os
 import time
@@ -34,12 +33,7 @@ from config import log
 from storage import _user_dir, _user_routes_dir
 from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
-try:
-    import fitdecode
-    FIT_AVAILABLE = True
-except ImportError:
-    fitdecode = None
-    FIT_AVAILABLE = False
+from fit_gpx import FIT_AVAILABLE, _xml, fit_to_gpx
 
 _BASE        = "https://api-fitness.rfsvr.com"
 _APIKEY      = "6b14dcd729a8234487734f50c6335995"   # az app BuildConfigjából (protokoll-kulcs)
@@ -159,16 +153,16 @@ def _call(method: str, path: str, sess: dict, query: dict | None = None,
         resp = requests.request(method, url, data=raw, timeout=timeout,
                                 headers=_headers(path, query, sess, ctype))
     except requests.RequestException as exc:
-        raise OnelapApiError(f"Az Onelap szerver nem érhető el: {exc}") from exc
+        raise OnelapApiError(f"Az OnelapFit szerver nem érhető el: {exc}") from exc
     try:
         j = resp.json()
     except ValueError:
-        raise OnelapApiError(f"Váratlan válasz az Onelaptól (HTTP {resp.status_code})")
+        raise OnelapApiError(f"Váratlan válasz az OnelapFittől (HTTP {resp.status_code})")
     code = j.get("code")
     if code == 403 or resp.status_code in (401, 403):
         raise OnelapAuthError(j.get("error") or "Authorization fail")
     if code != 200:
-        raise OnelapApiError(j.get("error") or j.get("msg") or f"Onelap hiba (code {code})")
+        raise OnelapApiError(j.get("error") or j.get("msg") or f"OnelapFit hiba (code {code})")
     return j.get("data")
 
 
@@ -181,7 +175,7 @@ def onelap_login(user_id: str, account: str, password: str) -> dict:
               body={"account": account, "password": _md5(password)})
     uid = str((d.get("userinfo") or {}).get("uid") or "")
     if not d.get("token") or not uid:
-        raise OnelapApiError("Az Onelap belépés nem adott tokent.")
+        raise OnelapApiError("Az OnelapFit belépés nem adott tokent.")
     data = {
         "account":       account,
         "uid":           uid,
@@ -222,7 +216,7 @@ def onelap_session(user_id: str) -> dict | None:
             data = _load_user_onelap(user_id)   # a másik worker közben frissíthetett
             if data.get("token") and _token_exp(data["token"]) - time.time() < _REFRESH_BEFORE_S:
                 if _token_exp(data.get("refresh_token")) <= time.time():
-                    raise OnelapAuthError("Lejárt az Onelap munkamenet.")
+                    raise OnelapAuthError("Lejárt az OnelapFit munkamenet.")
                 data = _refresh(user_id, data)
     return {"uid": data["uid"], "region": data.get("region") or "2",
             "auth": data["token"], "device_id": data.get("device_id")}
@@ -353,110 +347,6 @@ def onelap_list_activities(sess: dict, user_id: str, days: int = 30, limit: int 
     return out
 
 
-# ── FIT → GPX (a frontend fit.js-ével azonos GPX-formátum) ───────────────────
-
-_SEMI = 180.0 / 2 ** 31
-
-
-def _fv(frame, *names):
-    """Az első létező, nem-None mező értéke a FIT üzenetből."""
-    for n in names:
-        if frame.has_field(n):
-            v = frame.get_value(n)
-            if v is not None:
-                return v
-    return None
-
-
-def _fit_sport(sport) -> str:
-    s = str(sport or "").lower()
-    if "run" in s:  return "running"
-    if "walk" in s: return "walking"
-    if "hik" in s:  return "hiking"
-    return "cycling"
-
-
-def _xml(s: str) -> str:
-    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            .replace('"', "&quot;").replace("'", "&apos;"))
-
-
-def fit_to_gpx(fit_bytes: bytes, name: str) -> tuple:
-    """FIT → (GPX szöveg, session-összesítő dict). Pont nélküli FIT → ("", {...})."""
-    points, session = [], {}
-    with fitdecode.FitReader(io.BytesIO(fit_bytes), check_crc=fitdecode.CrcCheck.DISABLED) as fr:
-        for frame in fr:
-            if frame.frame_type != fitdecode.FIT_FRAME_DATA:
-                continue
-            if frame.name == "record":
-                lat, lon = _fv(frame, "position_lat"), _fv(frame, "position_long")
-                if lat is None or lon is None:
-                    continue
-                points.append({
-                    "lat":   lat * _SEMI, "lon": lon * _SEMI,
-                    "ele":   _fv(frame, "enhanced_altitude", "altitude"),
-                    "time":  _fv(frame, "timestamp"),
-                    "hr":    _fv(frame, "heart_rate"),
-                    "cad":   _fv(frame, "cadence"),
-                    "power": _fv(frame, "power"),
-                    "temp":  _fv(frame, "temperature"),
-                })
-            elif frame.name == "session" and not session:
-                session = {
-                    "sport":       _fit_sport(_fv(frame, "sport")),
-                    "start_time":  _fv(frame, "start_time"),
-                    "moving_s":    _fv(frame, "total_timer_time"),
-                    "elapsed_s":   _fv(frame, "total_elapsed_time"),
-                    "distance_m":  _fv(frame, "total_distance"),
-                    "ascent_m":    _fv(frame, "total_ascent"),
-                    "calories":    _fv(frame, "total_calories"),
-                    "avg_hr":      _fv(frame, "avg_heart_rate"),
-                    "max_hr":      _fv(frame, "max_heart_rate"),
-                    "avg_power":   _fv(frame, "avg_power"),
-                    "max_power":   _fv(frame, "max_power"),
-                    "avg_cadence": _fv(frame, "avg_cadence"),
-                    "avg_speed":   _fv(frame, "enhanced_avg_speed", "avg_speed"),
-                    "max_speed":   _fv(frame, "enhanced_max_speed", "max_speed"),
-                }
-    if not points:
-        return "", session
-
-    def iso(t):
-        return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if isinstance(t, datetime) else None
-
-    lines = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<gpx version="1.1" creator="Bringaterv (Onelap import)"',
-        '  xmlns="http://www.topografix.com/GPX/1/1"',
-        '  xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"',
-        '  xmlns:gpxpx="http://www.garmin.com/xmlschemas/PowerExtension/v1">',
-    ]
-    start = iso(session.get("start_time")) or iso(points[0]["time"])
-    if start:
-        lines.append(f"  <metadata><time>{start}</time></metadata>")
-    lines += ["  <trk>", f"    <name>{_xml(name)}</name>", "    <trkseg>"]
-    for p in points:
-        lines.append(f'      <trkpt lat="{p["lat"]:.7f}" lon="{p["lon"]:.7f}">')
-        if p["ele"] is not None:
-            lines.append(f"        <ele>{float(p['ele']):.2f}</ele>")
-        t = iso(p["time"])
-        if t:
-            lines.append(f"        <time>{t}</time>")
-        tpx = [(k, tag) for k, tag in (("hr", "hr"), ("cad", "cad"), ("temp", "atemp")) if p[k] is not None]
-        if tpx or p["power"] is not None:
-            lines.append("        <extensions>")
-            if tpx:
-                lines.append("          <gpxtpx:TrackPointExtension>")
-                lines += [f"            <gpxtpx:{tag}>{p[k]}</gpxtpx:{tag}>" for k, tag in tpx]
-                lines.append("          </gpxtpx:TrackPointExtension>")
-            if p["power"] is not None:
-                lines.append(f"          <gpxpx:PowerExtension><gpxpx:PowerInWatts>{p['power']}</gpxpx:PowerInWatts></gpxpx:PowerExtension>")
-            lines.append("        </extensions>")
-        lines.append("      </trkpt>")
-    lines += ["    </trkseg>", "  </trk>", "</gpx>"]
-    return "\n".join(lines), session
-
-
 def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int,
                            dedup: bool = False) -> dict:
     """Egy Onelap-edzés FIT-jét letölti, GPX-et készít belőle, és menti a könyvtárba
@@ -471,7 +361,7 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
     rides = _list_rides(sess, start_ts - 86400, start_ts + 86400) if start_ts else []
     ride = next((r for r in rides if str(r.get("did")) == ride_id), None)
     if ride is None:
-        return {"ok": False, "error": "Az edzés nem található az Onelapon (törölték?)."}
+        return {"ok": False, "error": "Az edzés nem található az OnelapFitben (törölték?)."}
     # Ismétlődés-védelem: ugyanez az edzés más forrásból (pl. Strava) már megvan
     if dedup:
         dup = find_cross_source_duplicate(idx, int(ride.get("start_time") or 0),
@@ -490,7 +380,7 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
         raise OnelapApiError(f"A FIT letöltése sikertelen: {exc}") from exc
     fit_bytes = resp.content
     if fit_bytes[8:12] != b".FIT":
-        return {"ok": False, "error": "Az Onelap nem FIT fájlt adott vissza."}
+        return {"ok": False, "error": "Az OnelapFit nem FIT fájlt adott vissza."}
 
     gpx_text, s = fit_to_gpx(fit_bytes, "Onelap")
     sport = s.get("sport") or "cycling"
@@ -546,18 +436,23 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
 # ÚTVONAL-FELTÖLTÉS (tervezett útvonal → OnelapFit útvonalkönyv → Magene)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _set_gpx_name(gpx_text: str, name: str) -> str:
-    """Az Onelap a GPX első <name> mezőjéből veszi az útvonal nevét → a könyvtári név legyen."""
+def _prepare_route_gpx(gpx_text: str, name: str) -> str:
+    """Feltöltés előtti tisztítás:
+    – az útpontok (<wpt>: a tervezés fordulópontjai utcanevekkel) kikerülnek – az OnelapFit
+      ezeket külön pontokként rakja az útvonalra (élesben 101 db egy 204 km-es körön);
+      a komputer a nyomvonalon navigál;
+    – minden <name> (metaadat, nyomvonal) a könyvtári név legyen – az OnelapFit innen veszi."""
+    gpx_text = re.sub(r"<wpt\b.*?</wpt>\s*", "", gpx_text, flags=re.DOTALL)
     tag = f"<name>{_xml(name)}</name>"
     if re.search(r"<name>.*?</name>", gpx_text, re.DOTALL):
-        return re.sub(r"<name>.*?</name>", lambda _m: tag, gpx_text, count=1, flags=re.DOTALL)
+        return re.sub(r"<name>.*?</name>", lambda _m: tag, gpx_text, flags=re.DOTALL)
     return re.sub(r"(<(?:trk|rte)>)", lambda m: m.group(1) + tag, gpx_text, count=1)
 
 
 def onelap_upload_route(sess: dict, name: str, gpx_text: str) -> dict:
     """Nyers GPX feltöltése a roadbook végpontra (nem multipart, application/xml).
     Visszaad: {ok, nid, name, points}."""
-    raw = _set_gpx_name(gpx_text, (name or "Bringaterv útvonal")[:60]).encode("utf-8")
+    raw = _prepare_route_gpx(gpx_text, (name or "Bringaterv útvonal")[:60]).encode("utf-8")
     if len(raw) > _MAX_GPX_BYTES:
         return {"ok": False, "error": "Az útvonal GPX-e nagyobb 20 MB-nál."}
     if b"<trkpt" not in raw and b"<rtept" not in raw:

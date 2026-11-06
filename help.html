@@ -139,7 +139,7 @@
           <tr><td class="path">Kezdő</td><td>Indításkor ez nyílik: gyors műveletek (új útvonal, GPX / FIT betöltése, Könyvtár, Közösségi utak, Statisztikák), a legutóbbi edzésed térképpel és egy kattintásos Elemzéssel, a mai / holnapi tekerési időjárás szél-ajánlással, a mentett terveid, összesítő a céljaiddal, forma (Eddington-számmal, sorozattal), „egy éve ezen a napon” emlék és aktivitás-naptár.</td></tr>
           <tr><td class="path">Tervezés</td><td>Új útvonal tervezése a térképen: pontok, tervezési módok, becsült idő, szint- és szélelemzés, mentés.</td></tr>
           <tr><td class="path">Elemzés</td><td>Egy rögzített edzés (GPX / FIT) részletes elemzése: adatok, színezett térkép, diagramok, pulzuszónák.</td></tr>
-          <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin, Onelap), megosztás.</td></tr>
+          <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin, OnelapFit, Wahoo, Polar), megosztás.</td></tr>
           <tr><td class="path">Statok</td><td>Összesítők, havi statisztika, személyes rekordok, Eddington-szám, edzésterhelés, hőtérkép.</td></tr>
         </table>
         <p>A jobb felső sarokban a <b>☀ / ☾</b> gomb a világos/sötét témát váltja, a <b>☰</b> menüben érhető el a Beállítások, az Egérműveletek és billentyűparancsok, a Telepítés appként, ez a súgó, az Adatkezelés és a Kijelentkezés (adminnak az Admin felület is).</p>
@@ -334,7 +334,7 @@
         </ul>
 
         <h3 id="mentes">Mentés, letöltés</h3>
-        <p>A <b>Mentés</b> ablakban: név, típus, leírás → <b>Mentés a könyvtárba</b>; <b>GPX letöltés</b> (fájlnév módosítható); <b>Megosztás</b> (kép, PDF, link – lásd <a href="#megosztas">Megosztás</a>). A könyvtárból az útvonal Garmin Connectre is küldhető navigációhoz.</p>
+        <p>A <b>Mentés</b> ablakban: név, típus, leírás → <b>Mentés a könyvtárba</b>; <b>GPX letöltés</b> (fájlnév módosítható); <b>Megosztás</b> (kép, PDF, link – lásd <a href="#megosztas">Megosztás</a>). A <b>Küldés Garminra</b> / <b>Küldés OnelapFitre</b> gomb (ha a kapcsolat be van állítva) az útvonalat egyben a könyvtárba menti és az eszközre küldi; a végén felugró ablak mutatja, sikerült-e. Ugyanez a könyvtárból is megy.</p>
       </section>
 
       <!-- ───────────────────────────────────────────────────────────── -->
@@ -394,7 +394,7 @@
           <li><b>Térképes nézet</b> (a nézetváltó középső gombja): a szűrt elemek nyomvonala egy térképen – narancs az edzés, kék a tervezett útvonal, lila a közösségi. Rámutatva kiemelődik, kattintásra listát kapsz az ott futó elemekről, és innen betöltheted vagy a „⋯” menüt is elérheted.</li>
           <li><b>Típusfülek</b> a lista fölött, darabszámmal: <b>Összes · Edzés · Terv · Közösségi</b>.</li>
           <li>Alattuk a <b>kereső</b> (név és hely szerint) és a <b>sport</b> chipek (Bringa, Futás, Túra, Gyaloglás, Egyéb).</li>
-          <li>A <b>Szűrők</b> gomb (rajta az aktív szűrők száma): forrás (Saját, Strava, Garmin, Onelap, FIT), táv és edzésidő csúszkával, közösségi útvonalaknál helyszín. Mellette a <b>Törlés</b> minden szűrőt visszaállít. Telefonon a Szűrők alulról nyíló lapként jelenik meg.</li>
+          <li>A <b>Szűrők</b> gomb (rajta az aktív szűrők száma): forrás (Saját, Strava, Garmin, OnelapFit, Wahoo, Polar, FIT), táv és edzésidő csúszkával, közösségi útvonalaknál helyszín. Mellette a <b>Törlés</b> minden szűrőt visszaállít. Telefonon a Szűrők alulról nyíló lapként jelenik meg.</li>
           <li><b>Rendezés</b> a lista oszlopfejléceire kattintva (dátum, név, idő, táv, kcal, terhelés).</li>
           <li>A <b>forrás</b> halk felirat (Saját, Strava, Garmin, FIT); a tervek mellett „terv” jelölés; a statisztikából kizárt edzések halványak, „nem számít bele” felirattal.</li>
           <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
@@ -407,13 +407,14 @@
           <tr><td>Szerkesztés</td><td>Név, típus, leírás módosítása.</td></tr>
           <tr><td>Letöltés</td><td>GPX, és ha van, az eredeti FIT.</td></tr>
           <tr><td>Megosztás</td><td>Kép, PDF, nyilvános link (lásd <a href="#megosztas">Megosztás</a>).</td></tr>
-          <tr><td>Küldés Garminra</td><td>Tervezett útvonal feltöltése Garmin Connect course-ként navigációhoz.</td></tr>
+          <tr><td>Küldés Garminra</td><td>Tervezett útvonal feltöltése Garmin Connect course-ként navigációhoz (csak Garmin-kapcsolattal látszik).</td></tr>
+          <tr><td>Küldés OnelapFitre</td><td>Tervezett útvonal az OnelapFit útvonalai közé – onnan a Magene komputerre (csak OnelapFit-kapcsolattal látszik).</td></tr>
           <tr><td>Frissítés Stravából</td><td>Stravás edzés adatainak (kalória, Relative Effort, teljesítmény, helyszín…) újraletöltése.</td></tr>
           <tr><td>Statisztikába számít</td><td>Ki-be kapcsolható, hogy az edzés beleszámítson-e a Statokba és a rekordokba.</td></tr>
           <tr><td>Törlés</td><td>Végleges törlés (megerősítést kér). Stravás / Garmines edzés törlés után nem jön vissza automatikusan – kivéve, ha a Strava automatikus importnál bekapcsoltad a <a href="#auto-import">Törölt edzések visszatöltése</a> kapcsolót.</td></tr>
         </table>
         <h3>Importálás</h3>
-        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b>, <b>Onelapból</b> (ha a kapcsolat be van állítva).</p>
+        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b>, <b>OnelapFitből</b>, <b>Wahoo-ból</b>, <b>Polarból</b> (ha a kapcsolat be van állítva). A Garmin, OnelapFit, Wahoo és Polar ablak tetején az <b>Automatikus import</b> is bekapcsolható (5, 15, 30 percenként vagy óránként, „Ellenőrzés most” gombbal).</p>
       </section>
 
       <section id="kozossegi">
@@ -561,7 +562,7 @@
         <p>Strava-kapcsolat nélkül is behozhatod az edzéseidet:</p>
         <ul>
           <li><b>Egy edzés:</b> a Strava weboldalán nyisd meg az edzést → <b>⋯</b> menü → <b>Export Original</b> (eredeti FIT) vagy <b>Export GPX</b>, majd a Bringaterv <span class="path">Könyvtár → Import → GPX / FIT fájlból</span>.</li>
-          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, a Magene az Onelap-kapcsolattal, más eszközök (Wahoo, Bryton…) a saját appjukból exportált FIT / GPX fájllal.</li>
+          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, a Magene az OnelapFit-kapcsolattal, a Wahoo és a Polar a saját kapcsolatával (lásd <a href="#wahoo-polar">Wahoo és Polar</a>), más eszközök (Bryton, Hammerhead…) a saját appjukból exportált FIT / GPX fájllal.</li>
         </ul>
       </section>
 
@@ -570,8 +571,9 @@
         <ul>
           <li><b>Csatlakozás</b>: <span class="path">Beállítások → Garmin Connect</span>, Garmin e-mail és jelszó; kétlépcsős azonosítás (MFA) esetén a kódot is kéri. A jelszót nem tároljuk, csak a belépési tokent (kb. 1 évig érvényes).</li>
           <li><b>Testsúly-szinkron</b>: az okosmérleg legutóbbi mérése (súly, testzsír) egy gombbal átvehető a kerékpáros profilba – ez a szél- és kalóriaszámítás bemenete.</li>
-          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>.</li>
-          <li><b>Útvonal küldése Garminra</b>: a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
+          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>. Az eredeti FIT-et tölti le (pulzus, kadencia, teljesítmény), és az a könyvtárban is megmarad; ha nincs, a Garmin GPX-exportját.</li>
+          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új Garmin-edzéseket, és magától behozza őket (értesítéssel). A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a más forrásból (Strava, OnelapFit) meglévőket sem.</li>
+          <li><b>Útvonal küldése Garminra</b>: tervezés után a <b>Mentés</b> ablakban, vagy a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
         </ul>
       </section>
 
@@ -580,15 +582,48 @@
         <p>A Magene kerékpáros komputerek az <b>OnelapFit</b> appal szinkronizálnak – a Bringaterv ezen keresztül éri el őket.</p>
         <ul>
           <li><b>Csatlakozás</b>: <span class="path">Beállítások → OnelapFit</span>, az OnelapFit e-mail és jelszó. Ha az appba e-mailes kóddal lépsz be, előbb állíts be jelszót az appban (<i>Elfelejtett jelszó</i>). A jelszót nem tároljuk, csak a belépési tokent; ez magától frissül, amíg 60 napon belül megnyitod a Bringatervet.</li>
-          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Onelapból</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény). A GPS nélküli (görgős) edzések kimaradnak.</li>
-          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket (értesítéssel). Az Onelapnak nincs azonnali értesítése (webhook), ezért csak időközös ellenőrzés van. A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a Stravából már meglévőket sem.</li>
-          <li><b>Útvonal küldése a komputerre</b>: tervezés után a <b>Mentés</b> ablakban <b>Küldés Onelapra</b> (egyben a könyvtárba is menti), vagy a könyvtárban egy tervezett útvonalnál <b>… → Küldés Onelapra</b>. Az OnelapFit útvonalai közé kerül, onnan szinkronizáld a komputerre navigációhoz.</li>
+          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → OnelapFitből</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény). A GPS nélküli (görgős) edzések kimaradnak.</li>
+          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket (értesítéssel). Az OnelapFitnek nincs azonnali értesítése (webhook), ezért csak időközös ellenőrzés van. A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a Stravából már meglévőket sem.</li>
+          <li><b>Útvonal küldése a komputerre</b>: tervezés után a <b>Mentés</b> ablakban <b>Küldés OnelapFitre</b> (egyben a könyvtárba is menti), vagy a könyvtárban egy tervezett útvonalnál <b>… → Küldés OnelapFitre</b>. Az OnelapFit útvonalai közé kerül, onnan szinkronizáld a komputerre navigációhoz.</li>
+        </ul>
+      </section>
+
+      <section id="wahoo-polar">
+        <h2>Wahoo és Polar</h2>
+        <p>A Wahoo (ELEMNT, KICKR) és a Polar (órák, Polar Flow) edzései a gyártók hivatalos kapcsolatán keresztül importálhatók. Ehhez mindenki egyszer létrehoz egy saját, ingyenes <b>fejlesztői alkalmazást</b> a gyártónál (kb. 5 perc), és annak kulcsait megadja a Bringatervben – mint a Stravánál. A belépés a gyártó saját oldalán történik, a jelszavadat a Bringaterv nem látja.</p>
+
+        <h3 id="wahoo-app">Wahoo – saját alkalmazás</h3>
+        <ol>
+          <li>Nyisd meg a <a href="https://developers.wahooligan.com/applications" target="_blank" rel="noopener">developers.wahooligan.com</a> oldalt, és lépj be a Wahoo-fiókoddal.</li>
+          <li>Hozz létre egy új alkalmazást, típusa <b>Sandbox</b> – ez azonnal használható, nem kell a Wahoo jóváhagyására várni. Név pl. „Bringaterv – saját”, leírás: „Saját edzéseim importálása”.</li>
+          <li><b>Redirect URI</b>: a Bringaterv <span class="path">Beállítások → Wahoo</span> részében kiírt cím (a <b>Másolás</b> gombbal), pl. <code>https://…/api/wahoo/callback</code>.</li>
+          <li>Jogosultságok (scopes): <b>user_read</b>, <b>workouts_read</b>, <b>offline_data</b>.</li>
+          <li>Mentés után a kapott <b>Client ID</b>-t és <b>Client Secret</b>-et írd be a Beállításokban → <b>Mentés</b> → <b>Csatlakozás</b>.</li>
+        </ol>
+        <p class="tip">A Sandbox napi 250 kérést enged – egy embernek bőven elég (a 15 perces automatikus import kb. napi 100). A Wahoo csak a saját eszközein / appjaiban rögzített edzéseket adja ki (a máshonnan oda feltöltötteket nem).</p>
+
+        <h3 id="polar-app">Polar – saját kliens</h3>
+        <ol>
+          <li>Nyisd meg az <a href="https://admin.polaraccesslink.com" target="_blank" rel="noopener">admin.polaraccesslink.com</a> oldalt, és lépj be a Polar Flow fiókoddal.</li>
+          <li><b>Create new client</b>: név pl. „Bringaterv – saját”, leírás, elérhetőség. Ingyenes, jóváhagyás nélkül.</li>
+          <li><b>Authorization callback / Redirect URL</b>: a <span class="path">Beállítások → Polar</span> részben kiírt cím (<b>Másolás</b>).</li>
+          <li>A kapott <b>Client ID</b>-t és <b>Client Secret</b>-et írd be a Beállításokban → <b>Mentés</b> → <b>Csatlakozás</b>.</li>
+        </ol>
+        <p class="tip">A Polar csak a csatlakozás <i>után</i> feltöltött, legfeljebb 30 napos edzéseket adja ki. A régebbieket a Polar Flow-ból exportálva, a <span class="path">Könyvtár → Import → GPX / FIT fájlból</span> menüvel hozhatod be. Az adatok forrása a Polar Flow.</p>
+
+        <h3>Használat</h3>
+        <ul>
+          <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Wahoo-ból / Polarból</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény).</li>
+          <li><b>Automatikus import</b>: ugyanabban az ablakban, 5, 15, 30 percenként vagy óránként – mint a Garminnál és az OnelapFitnél.</li>
+          <li>A kulcsok később a <span class="path">Beállítások → Wahoo / Polar → Saját alkalmazás kulcsai</span> alatt módosíthatók vagy törölhetők (törléskor a kapcsolat is megszűnik, a már importált edzések megmaradnak).</li>
+          <li>Útvonal küldése Wahoo / Polar eszközre egyelőre nincs.</li>
+          <li><b>Ha a csatlakozás hibát ad</b>: a leggyakoribb ok, hogy a Redirect URI nem pontosan egyezik (http / https, port, a végén a <code>/callback</code>) – másold be újra a Beállításokból.</li>
         </ul>
       </section>
 
       <section id="ismetlodes">
         <h2>Ismétlődés-védelem</h2>
-        <p>Ugyanaz az edzés több helyről is bejöhet – a Magene például az Onelapra és a Stravára is feltölti. <span class="path">Beállítások → Edzés-import → Ismétlődés-védelem</span> (alapból <b>be</b>): egyik import (Strava – az automatikus is –, Garmin, Onelap) sem hozza be azt az edzést, ami más forrásból már a könyvtárban van. Azonosnak számít, ha az indulás legfeljebb 15 perccel, a táv legfeljebb 5%-kal tér el. Az import ablakban ezek <b>„Hasonló van”</b> jelölést kapnak, és ha mégis kijelölöd, <b>„Kihagyva – már megvan”</b> lesz. Kikapcsolva minden forrás külön bekerül.</p>
+        <p>Ugyanaz az edzés több helyről is bejöhet – a Magene például az OnelapFitre és a Stravára is feltölti. <span class="path">Beállítások → Edzés-import → Ismétlődés-védelem</span> (alapból <b>be</b>): egyik import (Strava – az automatikus is –, Garmin, OnelapFit) sem hozza be azt az edzést, ami más forrásból már a könyvtárban van. Azonosnak számít, ha az indulás legfeljebb 15 perccel, a táv legfeljebb 5%-kal tér el. Az import ablakban ezek <b>„Hasonló van”</b> jelölést kapnak, és ha mégis kijelölöd, <b>„Kihagyva – már megvan”</b> lesz. Kikapcsolva minden forrás külön bekerül.</p>
       </section>
 
       <section id="ertesitesek">
@@ -596,7 +631,7 @@
         <p><span class="path">Beállítások → Értesítések</span></p>
         <ol>
           <li><b>Ezen az eszközön → Engedélyezés</b> – a rendszer engedélyt kér; minden eszközön (telefon, tablet, gép) külön kell engedélyezni.</li>
-          <li>Válaszd ki, miről kérsz értesítést: <b>új edzés importálva</b>, <b>új személyes rekord</b>, <b>Strava-kapcsolat megszakadt</b>.</li>
+          <li>Válaszd ki, miről kérsz értesítést: <b>új edzés importálva</b> (Strava, Garmin, OnelapFit, Wahoo, Polar automatikus importja), <b>új személyes rekord</b>, <b>kapcsolati hiba</b> (ha valamelyik kapcsolat megszakadt), <b>útvonal elküldve az eszközre</b> (Garmin, OnelapFit).</li>
           <li><b>Próbaértesítés</b> – 5 mp múlva érkezik, közben bezárhatod az appot.</li>
         </ol>
         <p>Az értesítésre koppintva megnyílik az edzés az Elemzésben.</p>
@@ -626,6 +661,7 @@
           <tr><td class="path">Strava kapcsolat</td><td>Lásd <a href="#strava">Strava</a>.</td></tr>
           <tr><td class="path">Garmin Connect</td><td>Lásd <a href="#garmin">Garmin Connect</a>.</td></tr>
           <tr><td class="path">OnelapFit</td><td>Lásd <a href="#onelap">OnelapFit</a>.</td></tr>
+          <tr><td class="path">Wahoo, Polar</td><td>Lásd <a href="#wahoo-polar">Wahoo és Polar</a>.</td></tr>
           <tr><td class="path">Edzés-import</td><td>Lásd <a href="#ismetlodes">Ismétlődés-védelem</a>.</td></tr>
           <tr><td class="path">Backup és visszaállítás</td><td>Lásd <a href="#mentes-backup">Adatok mentése</a>.</td></tr>
         </table>

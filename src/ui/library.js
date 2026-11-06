@@ -17,6 +17,7 @@ import { openSubmitRouteModal } from "./submitRoute.js";
 import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
 import { getOnelapStatus } from "./onelap.js";
+import { showResultDialog } from "./dom.js";
 import { getGarminStatus } from "./garmin.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ export function escapeHtml(s) {
 }
 
 function sourceLabel(src) {
-  return { strava: "Strava", garmin: "Garmin", onelap: "Onelap", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
+  return { strava: "Strava", garmin: "Garmin", onelap: "OnelapFit", wahoo: "Wahoo", polar: "Polar", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
 }
 
 export function libraryRouteSportKey(route) {
@@ -141,6 +142,8 @@ export function libraryRouteSource(route, category) {
   if (route.strava_id) return "strava";
   if (route.garmin_id) return "garmin";
   if (route.onelap_id) return "onelap";
+  if (route.wahoo_id)  return "wahoo";
+  if (route.polar_id)  return "polar";
   if (route.has_fit)   return "fit";
   return "manual";
 }
@@ -631,6 +634,7 @@ async function runAction(act, btn) {
         btn.disabled = true;
         const labelSpan = btn.childNodes[btn.childNodes.length - 1];
         labelSpan.textContent = "Feltöltés Garminra…";
+        _toast("Küldés Garminra…", 60000);
         try {
           const res = await _api.garmin.uploadCourse(route.id);
           // Megjegyezzük memóriában is, hogy a re-render is mutassa
@@ -651,24 +655,33 @@ async function runAction(act, btn) {
             a.textContent = "↗ Garmin course";
             btn.after(a);
           }
-          _toast(`✓ Garminra feltöltve: „${res.course_name}" (${res.distance_km} km, +${res.elevation_gain_m} m) – nézd meg a Garmin Connect appban`);
+          _toast("", 1);
+          showResultDialog({ ok: true, icon: "./assets/brands/garmin.svg", title: "Elküldve: Garmin",
+            lines: [`„${res.course_name}” (${res.distance_km} km, +${res.elevation_gain_m} m) sikeresen felment.`,
+                    "A Garmin Connect appban course-ként találod – onnan szinkronizáld az órára / komputerre."] });
         } catch (err) {
           labelSpan.textContent = already ? "✓ Feltöltve – újraküldés" : "Küldés Garminra";
-          if (err.message?.toLowerCase().includes("nincs garmin") || err.message?.includes("409"))
-            _toast("Előbb csatlakozz Garminhoz: Beállítások → Garmin Connect");
-          else _toast("Garmin feltöltés sikertelen: " + err.message);
+          _toast("", 1);
+          const conn = err.message?.toLowerCase().includes("garmin kapcsolat") || err.message?.includes("409");
+          showResultDialog({ ok: false, icon: "./assets/brands/garmin.svg", title: "Nem sikerült a küldés: Garmin",
+            lines: [conn ? "A kapcsolat nem él – csatlakozz újra: Beállítások → Garmin Connect." : err.message] });
         } finally { btn.disabled = false; }
       } else if (act === "onelap-route") {
-        if (route.onelap_uploaded_at && !confirm("Ezt az útvonalat korábban már elküldted az Onelapra.\n\nKüldöd újra? Az OnelapFitben új útvonal jön létre (a régit ott törölheted).")) return;
-        _toast("Küldés az Onelapra…");
+        if (route.onelap_uploaded_at && !confirm("Ezt az útvonalat korábban már elküldted az OnelapFitre.\n\nKüldöd újra? Az OnelapFitben új útvonal jön létre (a régit ott törölheted).")) return;
+        _toast("Küldés az OnelapFitre…", 60000);
         try {
           const res = await _api.onelap.uploadRoute(route.id);
           for (const r of [route, ..._data.routes.filter(x => x.id === route.id)]) r.onelap_uploaded_at = res.onelap_uploaded_at;
-          _toast(`✓ Elküldve az Onelapra: „${res.name}” – az OnelapFit appban az útvonalaid között, onnan szinkronizáld a komputerre`, 8000);
+          _toast("", 1);
+          const km = route.distance != null ? ` (${num(route.distance, 1)} km)` : "";
+          showResultDialog({ ok: true, icon: "./assets/brands/onelapfit.png", title: "Elküldve: OnelapFit",
+            lines: [`„${res.name}”${km} sikeresen felment.`,
+                    "Az OnelapFit appban az útvonalaid között találod – onnan szinkronizáld a komputerre."] });
         } catch (err) {
-          if (err.message?.toLowerCase().includes("onelap kapcsolat"))
-            _toast("Az Onelap kapcsolat nem él – Beállítások → OnelapFit");
-          else _toast("Onelap feltöltés sikertelen: " + err.message);
+          _toast("", 1);
+          const conn = err.message?.toLowerCase().includes("onelapfit kapcsolat");
+          showResultDialog({ ok: false, icon: "./assets/brands/onelapfit.png", title: "Nem sikerült a küldés: OnelapFit",
+            lines: [conn ? "A kapcsolat nem él – csatlakozz újra: Beállítások → OnelapFit." : err.message] });
         }
       } else if (act === "share") {
         btn.disabled = true; setLabel("Betöltés…");
@@ -939,13 +952,13 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
     items.push({ href: `https://www.strava.com/activities/${route.strava_id}`, icon: "external-link", label: "Megnyitás Stravában" });
   }
   if (!isWorkout && !isSample && getGarminStatus()?.connected) {
-    items.push({ act: "garmin-course", icon: "watch", label: route.garmin_course_id ? "Újraküldés Garminra" : "Küldés Garminra" });
+    items.push({ act: "garmin-course", img: "garmin.svg", label: route.garmin_course_id ? "Újraküldés Garminra" : "Küldés Garminra" });
   }
   if (route.garmin_course_id) {
     items.push({ href: `https://connect.garmin.com/modern/course/${route.garmin_course_id}`, icon: "external-link", label: "Garmin course megnyitása" });
   }
   if (!isWorkout && !isSample && getOnelapStatus()?.connected) {
-    items.push({ act: "onelap-route", icon: "bike", label: route.onelap_uploaded_at ? "Újraküldés Onelapra" : "Küldés Onelapra" });
+    items.push({ act: "onelap-route", img: "onelapfit.png", label: route.onelap_uploaded_at ? "Újraküldés OnelapFitre" : "Küldés OnelapFitre" });
   }
   if (!isSample) {
     items.push({ act: "submit-community", icon: "users", label: "Beküldés a közösbe" });
@@ -982,7 +995,7 @@ function openRouteActionMenu(route, category, isSample, anchor, opts = {}) {
         ${routeActionItems(route, category, isSample, opts).map((it) => it.sep ? '<div class="lib-menu-sep"></div>'
           : it.href
             ? `<a class="lib-menu-item" role="menuitem" href="${it.href}" target="_blank" rel="noopener"><i data-lucide="${it.icon}" aria-hidden="true"></i><span>${it.label}</span></a>`
-            : `<button class="lib-menu-item${it.danger ? " is-danger" : ""}" role="menuitem" type="button" data-act="${it.act}"><i data-lucide="${it.icon}" aria-hidden="true"></i><span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ""}</button>`
+            : `<button class="lib-menu-item${it.danger ? " is-danger" : ""}" role="menuitem" type="button" data-act="${it.act}">${it.img ? `<img class="brand-icon" src="./assets/brands/${it.img}" width="16" height="16" alt="">` : `<i data-lucide="${it.icon}" aria-hidden="true"></i>`}<span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ""}</button>`
         ).join("")}
       </div>
     </div>`;

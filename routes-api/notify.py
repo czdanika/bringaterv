@@ -27,8 +27,8 @@ from config import MULTI_DATA_DIR, log
 EVENTS = {
     "new_workout": "Új edzés importálva",
     "new_record":  "Új személyes rekord",
-    "connection":  "Kapcsolati hiba (Strava, Onelap)",
-    "route_sent":  "Útvonal elküldve az eszközre (Onelap, Garmin)",
+    "connection":  "Kapcsolati hiba (Strava, Garmin, OnelapFit)",
+    "route_sent":  "Útvonal elküldve az eszközre (OnelapFit, Garmin)",
 }
 _DEFAULT_EVENTS = {k: True for k in EVENTS}
 
