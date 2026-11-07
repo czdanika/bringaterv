@@ -78,6 +78,10 @@
             <i data-lucide="bookmark" aria-hidden="true"></i>
             <span class="rail-label">Könyvtár</span>
           </button>
+          <button class="sidebar-tab rail-tab" data-tab="gear" type="button" title="Felszerelés – bringák, alkatrészek, karbantartás">
+            <i data-lucide="bike" aria-hidden="true"></i>
+            <span class="rail-label">Felszerelés</span>
+          </button>
           <button class="sidebar-tab rail-tab" data-tab="stats" type="button" title="Statisztikák">
             <i data-lucide="bar-chart-2" aria-hidden="true"></i>
             <span class="rail-label">Statok</span>
@@ -475,7 +479,7 @@
               <section class="m-file-summary" id="mFileSummary" aria-label="Edzés összefoglaló">
                 <div class="m-file-head">
                   <span class="m-file-ico"><i data-lucide="bike" aria-hidden="true"></i></span>
-                  <div class="m-file-titles"><div class="m-file-title" id="mFileTitle">—</div><div class="m-file-sub" id="mFileSub"></div></div>
+                  <div class="m-file-titles"><div class="m-file-title" id="mFileTitle">—</div><div class="m-file-sub" id="mFileSub"></div><div class="m-file-equip" id="mFileEquip" hidden></div></div>
                   <div class="f-more-wrap">
                     <button type="button" class="icon-button f-more-btn" id="fFileMoreBtn" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu" aria-expanded="false"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
                     <div class="plan-pop plan-menu" id="fFileMenu" role="menu" hidden>
@@ -541,6 +545,11 @@
                 <div class="file-meta-row" id="fileMetaStartRow" hidden>
                   <i data-lucide="calendar-clock" aria-hidden="true"></i>
                   <span id="fileMetaStart"></span>
+                </div>
+                <div class="file-meta-row" id="fileMetaEquipRow" hidden>
+                  <i data-lucide="bike" aria-hidden="true"></i>
+                  <span id="fileMetaEquip"></span>
+                  <span id="fileMetaSensors" class="file-meta-sensors"></span>
                 </div>
               </div>
 
@@ -974,6 +983,23 @@
                   <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
                 </div>
                     </div>
+                    <div class="library-filter-group" id="libraryMetricGroup">
+                      <span class="library-filter-label">Mért adat</span>
+                      <div class="library-type-chips">
+                  <button class="lib-type-chip is-active" data-lib-metric="all" type="button">Mind</button>
+                  <button class="lib-type-chip" data-lib-metric="hr" type="button" title="Pulzussal rögzített edzések">Pulzus</button>
+                  <button class="lib-type-chip" data-lib-metric="power" type="button" title="Wattmérővel rögzített edzések">Teljesítmény</button>
+                  <button class="lib-type-chip" data-lib-metric="cad" type="button" title="Kadenciaszenzorral rögzített edzések">Kadencia</button>
+                </div>
+                    </div>
+                    <div class="library-filter-group" id="libraryBikeGroup" hidden>
+                      <span class="library-filter-label">Bringa</span>
+                      <div class="library-type-chips" id="libraryBikeChips"></div>
+                    </div>
+                    <div class="library-filter-group" id="libraryDeviceGroup" hidden>
+                      <span class="library-filter-label">Eszköz</span>
+                      <div class="library-type-chips" id="libraryDeviceChips"></div>
+                    </div>
                     <div class="library-filter-group">
                 <div class="library-filter-label-row">
                   <span class="library-filter-label">Távolság</span>
@@ -1026,6 +1052,15 @@
           <i data-lucide="inbox" aria-hidden="true"></i>
           <p>Nincs találat a szűrési feltételeknek megfelelően.</p>
         </div>
+      </div>
+
+      <!-- FELSZERELÉS (a térkép helyén – gear.js tölti ki) -->
+      <div id="gearMain" class="gear-main" hidden>
+        <div class="gear-main-header">
+          <h1 class="lib-title">Felszerelés</h1>
+          <span class="gear-main-sub">bringák, alkatrészek, karbantartás</span>
+        </div>
+        <div id="libraryGearView" class="gear-view"></div>
       </div>
 
       <!-- KEZDŐLAP (a térkép helyén, teljes szélességben – home.js tölti ki) -->
@@ -1542,6 +1577,7 @@
               <span class="chart-section-title">Teljesítmény</span>
               <div class="chart-stats" id="statsPower"></div>
               <div class="chart-head-actions">
+                <button class="chart-mode-btn" id="powerSmoothBtn" type="button" title="Simítás: a másodperces watt tüskés – mozgóátlaggal jobban látszik a terhelés (Nyers / 10 mp / 30 mp). A számok mindig a nyers adatból.">Simítás: 10 mp</button>
                 <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / zónák szerint) – minden grafikonra">Zónaszín</button>
                 <button id="closeChartPower" class="elevation-panel-close" type="button" title="Bezárás">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
@@ -1680,6 +1716,11 @@
           <div class="export-field">
             <label class="export-label" for="libraryEditDesc">Leírás <span class="export-optional">(opcionális)</span></label>
             <textarea id="libraryEditDesc" class="export-textarea" rows="3" placeholder="Rövid leírás az útvonalról…"></textarea>
+          </div>
+          <div class="export-field" id="libraryEditBikeField" hidden>
+            <label class="export-label" for="libraryEditBike">Bringa</label>
+            <select id="libraryEditBike" class="export-input"></select>
+            <p class="export-field-hint" id="libraryEditBikeHint"></p>
           </div>
         </div>
         <div class="export-footer">
@@ -2791,8 +2832,25 @@
       <label class="karvonen-slider-label" for="hrLthrSlider">Laktátküszöb pulzus (LTHR)</label>
       <span class="karvonen-slider-value" id="hrLthrOut">160</span>
     </div>
-    <input type="range" min="130" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
-    <div class="karvonen-slider-bounds"><span>130</span><span>200</span></div>
+    <input type="range" min="100" max="200" step="1" value="160" id="hrLthrSlider" class="karvonen-slider">
+    <div class="karvonen-slider-bounds"><span>100</span><span>200</span></div>
+    <p class="settings-label-text" style="margin-top:12px">Zónák száma</p>
+    <div class="settings-unit-group">
+      <label class="settings-unit-btn">
+        <input type="radio" name="hrZoneCount" value="5" checked>
+        <span class="hint-target" data-hint="5 zóna (Z1–Z5) – a Strava és a Garmin alapnézete; az átlagos edzésekhez bőven elég.">
+          5 zóna
+          <small>alap</small>
+        </span>
+      </label>
+      <label class="settings-unit-btn">
+        <input type="radio" name="hrZoneCount" value="7">
+        <span class="hint-target" data-hint="7 zóna (Friel) – a Z5 három részre bomlik: Z5a küszöb felett, Z5b VO2max, Z5c anaerob. Az OnelapFit / Magene is így mutatja. Intervallumedzéshez hasznos; pontos (mért) LTHR kell hozzá. Minden nézetre érvényes: térkép, grafikon, zónaelemzés, megosztás, PDF.">
+          7 zóna
+          <small>Friel · OnelapFit</small>
+        </span>
+      </label>
+    </div>
   </div>
 
   <!-- Egyedi zónahatárok (csak Egyedi módban) -->

@@ -52,12 +52,35 @@ export const ZONE_DEFS_LTHR = [
 ];
 
 /**
- * LTHR (laktátküszöb pulzus) alapján számolja az 5 pulzuszónát.
- * Joe Friel / WKO / Magene kompatibilis módszer.
- * @param {number} lthr - laktátküszöb pulzus
+ * Joe Friel 7 zónás LTHR-modellje (kerékpár): a Z5 három részre bontva – így a
+ * küszöb feletti intervallumok (Z5a), a VO2max (Z5b) és az anaerob (Z5c) szétválik.
+ * Az OnelapFit / Magene is 7 pulzuszónát mutat. Határok: 81 / 90 / 94 / 100 / 103 / 106 % of LTHR.
  */
-export function calculateZonesLTHR(lthr) {
-  return ZONE_DEFS_LTHR.map(z => ({
+export const ZONE_DEFS_LTHR7 = [
+  { id: 'Z1',  name: 'Z1 Recovery',   sub: 'Regeneráció',      low: 0.50, high: 0.81, color: '#888780',
+    hint: 'Regeneráció – a laktátküszöb 81%-a alatt. Aktív pihenés, könnyű pörgetés.' },
+  { id: 'Z2',  name: 'Z2 Aerobic',    sub: 'Aerob alap',       low: 0.81, high: 0.90, color: '#1D9E75',
+    hint: 'Aerob alap – 81–89% of LTHR. Kényelmes, hosszan tartható tempó, az alapozás fő zónája.' },
+  { id: 'Z3',  name: 'Z3 Tempo',      sub: 'Tempó',            low: 0.90, high: 0.94, color: '#378ADD',
+    hint: 'Tempó – 90–93% of LTHR. Érezhető, de tartható erőfeszítés.' },
+  { id: 'Z4',  name: 'Z4 Threshold',  sub: 'Küszöb alatt',     low: 0.94, high: 1.00, color: '#EF9F27',
+    hint: 'Küszöb alatt – 94–99% of LTHR. Versenyiram, 20–60 percig tartható.' },
+  { id: 'Z5a', name: 'Z5a Threshold+', sub: 'Küszöb felett',   low: 1.00, high: 1.03, color: '#E8703A',
+    hint: 'Küszöb felett – 100–102% of LTHR. Hosszabb (5–20 perces) kemény intervallumok zónája.' },
+  { id: 'Z5b', name: 'Z5b VO2max',    sub: 'Aerob kapacitás',  low: 1.03, high: 1.06, color: '#E24B4A',
+    hint: 'Aerob kapacitás (VO2max) – 103–106% of LTHR. 3–8 perces intervallumok, nagyon kemény.' },
+  { id: 'Z5c', name: 'Z5c Anaerobic', sub: 'Anaerob',          low: 1.06, high: 1.15, color: '#9B1C4B',
+    hint: 'Anaerob – 106% of LTHR felett. Rövid, maximális erőkifejtés; a pulzus itt késve követi a terhelést, ezt a zónát a teljesítmény jobban méri.' },
+];
+
+/**
+ * LTHR (laktátküszöb pulzus) alapján számolja a pulzuszónákat.
+ * Joe Friel / WKO / Magene kompatibilis módszer.
+ * @param {number} lthr  - laktátküszöb pulzus
+ * @param {number} count - 5 (alap) vagy 7 (Friel: Z5a / Z5b / Z5c)
+ */
+export function calculateZonesLTHR(lthr, count = 5) {
+  return (count === 7 ? ZONE_DEFS_LTHR7 : ZONE_DEFS_LTHR).map(z => ({
     ...z,
     low:     Math.round(lthr * z.low),
     high:    Math.round(lthr * z.high),

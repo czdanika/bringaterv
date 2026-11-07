@@ -33,7 +33,7 @@ from config import log
 from storage import _user_dir, _user_routes_dir
 from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
-from fit_gpx import FIT_AVAILABLE, _xml, fit_to_gpx
+from fit_gpx import FIT_AVAILABLE, _xml, equipment_fields, fit_to_gpx
 
 _BASE        = "https://api-fitness.rfsvr.com"
 _APIKEY      = "6b14dcd729a8234487734f50c6335995"   # az app BuildConfigjából (protokoll-kulcs)
@@ -425,6 +425,7 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
         "avg_cadence":   s.get("avg_cadence"),
         "avg_speed_kmh": round(avg_sp * 3.6, 2) if avg_sp else None,
         "max_speed_kmh": round(max_sp * 3.6, 2) if max_sp else None,
+        **equipment_fields(s.get("equipment")),
     }
     idx = _load_index(idx_path)   # a letöltés alatt változhatott
     idx.append(entry)

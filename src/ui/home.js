@@ -11,6 +11,7 @@
  *   updateHome({ tab, hasRoute })   – fülváltáskor / a store változásakor
  */
 
+import { dueTasks } from "../equipment.js";
 import { num } from "../format.js";
 import { calcEddington, calcTrainingLoad } from "./statsPanel.js";
 import { renderRouteMapPreview, loadCardPreview } from "./library.js";
@@ -50,6 +51,7 @@ export function initHome({ api, getUser, actions }) {
   }
 
   window.addEventListener("bringaterv:settingsHydrated", () => { if (_state.tab === "home") render(); });
+  window.addEventListener("bringaterv:gearChanged", () => { if (_state.tab === "home") render(); });
 
   _main?.addEventListener("click", (e) => {
     const el = e.target.closest("[data-home]");
@@ -58,6 +60,7 @@ export function initHome({ api, getUser, actions }) {
     if (act === "open") _actions.openItem?.(el.dataset.id, el.dataset.name || "", el.dataset.target);
     else if (act === "statsView") _actions.statsView?.(el.dataset.view);
     else if (act === "editGoals") openGoalsModal();
+    else if (act === "openGear") _actions.openGear?.();
     else _actions[act]?.();
   });
 }
@@ -161,6 +164,11 @@ function template() {
         <h1>${name ? `Szia, ${esc(name)}!` : "Szia!"}</h1>
         <p>${esc(dateTxt)}${wkKm ? ` · ezen a héten ${num(wkKm, 0)} km` : ""}</p>
       </header>
+      ${dueTasks().slice(0, 3).map((t) => `
+      <div class="home-bike-due${t.status === "due" ? " is-due" : ""}" role="status">
+        <span><b>${esc(t.target_name)}</b>${t.target_type === "component" && t.bike_name ? ` (${esc(t.bike_name)})` : ""}: ${esc(t.name)} – ${num(t.used, 0)} / ${num(t.interval, 0)} ${({ km: "km", hours: "óra", days: "nap" })[t.unit]}${t.status === "due" ? " · esedékes" : " · hamarosan"}</span>
+        <button type="button" class="strava-conn-btn strava-conn-btn--ghost" data-home="openGear">Felszerelés</button>
+      </div>`).join("")}
 
       <div class="home-qa">
         ${qa("plan", "plus", "Új útvonal", "", true)}

@@ -29,6 +29,7 @@ EVENTS = {
     "new_record":  "Új személyes rekord",
     "connection":  "Kapcsolati hiba (Strava, Garmin, OnelapFit)",
     "route_sent":  "Útvonal elküldve az eszközre (OnelapFit, Garmin)",
+    "gear_due":    "Szerviz esedékes (Felszerelés)",
 }
 _DEFAULT_EVENTS = {k: True for k in EVENTS}
 

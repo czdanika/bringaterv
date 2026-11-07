@@ -1,6 +1,7 @@
 import { num } from "../format.js";
 import { ensureQR, buildQrCanvas } from "./routePdf.js";
 import { CHART_SOLID_GRAY, isSolidChartMode } from "./elevationProfile.js";
+import { buildHrZoneColorFn } from "./settings.js";
 /**
  * Bringaterv – Workout Share Card Generator
  * ==========================================
@@ -825,13 +826,25 @@ function drawChart(ctx, c, s, points, id, box) {
     ctx.fillStyle = g;
   }
   ctx.fill();
-  ctx.beginPath();
-  series.forEach((p, i) => (i ? ctx.lineTo(toX(p.x), toY(p.v)) : ctx.moveTo(toX(p.x), toY(p.v))));
-  ctx.strokeStyle = color;
   ctx.lineWidth = 1.4 * s;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.stroke();
+  if (id === "hr" && !overlay && !solid) {
+    // Zónaszín mód: a pulzusvonal a beállított pulzuszónák színével (5 vagy 7 zóna) –
+    // mint az alkalmazás grafikonja és térképe
+    const zc = buildHrZoneColorFn();
+    for (let i = 1; i < series.length; i++) {
+      const a = series[i - 1], b = series[i];
+      ctx.beginPath(); ctx.moveTo(toX(a.x), toY(a.v)); ctx.lineTo(toX(b.x), toY(b.v));
+      ctx.strokeStyle = zc((a.v + b.v) / 2) || color;
+      ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    series.forEach((p, i) => (i ? ctx.lineTo(toX(p.x), toY(p.v)) : ctx.moveTo(toX(p.x), toY(p.v))));
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

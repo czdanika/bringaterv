@@ -79,13 +79,60 @@ export function buildCadData(geometry) {
 }
 
 /** Power adat: { dist, value: watts, lat, lng } */
-export function buildPowerData(geometry) {
+export function buildPowerData(geometry, smoothSec = 0) {
   if (!geometry || geometry.length < 2) return [];
   if (!geometry.some((p) => p.power != null)) return [];
   const dists = buildDistances(geometry);
+  const vals = smoothSec > 0 ? smoothByTime(geometry, "power", smoothSec) : geometry.map((p) => p.power ?? null);
   return geometry.map((pt, i) => ({
-    dist: dists[i], value: pt.power ?? null, lat: pt.lat, lng: pt.lng,
+    dist: dists[i], value: vals[i], lat: pt.lat, lng: pt.lng,
   }));
+}
+
+/**
+ * Időalapú mozgóátlag: minden pontban az előző `sec` másodperc átlaga (a geometria
+ * ritkított lehet, ezért nem pontszám, hanem idő szerint). Idő nélküli pontoknál
+ * a nyers érték marad.
+ */
+export function smoothByTime(geometry, key, sec) {
+  const out = new Array(geometry.length).fill(null);
+  let j = 0, sum = 0, n = 0;
+  for (let i = 0; i < geometry.length; i++) {
+    const p = geometry[i];
+    if (p[key] != null) { sum += p[key]; n++; }
+    if (p.time == null) { out[i] = p[key] ?? null; continue; }
+    while (j < i && geometry[j].time != null && p.time - geometry[j].time > sec * 1000) {
+      if (geometry[j][key] != null) { sum -= geometry[j][key]; n--; }
+      j++;
+    }
+    out[i] = n > 0 && p[key] != null ? sum / n : (p[key] ?? null);
+  }
+  return out;
+}
+
+/**
+ * Teljesítmény-összesítő a nyers (nem simított) adatokból.
+ * NP (normalizált teljesítmény): 30 mp-es mozgóátlag 4. hatványainak átlagából a 4. gyök.
+ * Munka: Σ watt × idő (a 10 mp-nél hosszabb kihagyásokat – megállás, jelvesztés – 10 mp-re vágva).
+ */
+export function powerSummary(geometry) {
+  const pts = (geometry || []).filter((p) => p.power != null);
+  if (!pts.length) return null;
+  const vals = pts.map((p) => p.power);
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const max = Math.max(...vals);
+  let np = null, kj = null;
+  if (pts.every((p) => p.time != null)) {
+    const r30 = smoothByTime(pts, "power", 30);
+    np = Math.pow(r30.reduce((a, v) => a + Math.pow(v, 4), 0) / r30.length, 0.25);
+    let j = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dt = Math.min((pts[i].time - pts[i - 1].time) / 1000, 10);
+      if (dt > 0) j += pts[i].power * dt;
+    }
+    kj = j / 1000;
+  }
+  return { avg, max, np, kj };
 }
 
 /** Pulzus adat: { dist, value: hr bpm, lat, lng } */

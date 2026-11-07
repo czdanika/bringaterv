@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 from flask import request
 
 from config import log
-from fit_gpx import _xml, fit_to_gpx
+from fit_gpx import _xml, equipment_fields, fit_to_gpx
 from storage import _user_dir, _user_routes_dir
 from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
@@ -354,6 +354,7 @@ def save_workout(user_id: str, provider: str, item_id, *, fit_bytes: bytes | Non
         "avg_cadence":   s.get("avg_cadence"),
         "avg_speed_kmh": round(avg_sp * 3.6, 2) if avg_sp else None,
         "max_speed_kmh": round(max_sp * 3.6, 2) if max_sp else None,
+        **equipment_fields(s.get("equipment")),
     }
     idx = _load_index(idx_path)          # a letöltés alatt változhatott
     idx.append(entry)

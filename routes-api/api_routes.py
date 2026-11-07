@@ -174,6 +174,21 @@ def save_route():
     }
     if start_dt:
         entry["start_time"] = start_dt.astimezone(timezone.utc).isoformat()
+    if route_type == "workout":
+        # mért adatok (teljesítmény, pulzus, kadencia) a teljes GPX-ből – a könyvtár-kártya,
+        # a Kezdőlap és a „Mért adat” szűrő ezekből dolgozik
+        try:
+            from gpx_metrics import fill_missing
+            fill_missing(entry, gpx_content)
+        except Exception as exc:
+            log.warning("Mért adatok számolása sikertelen (%s): %s", route_id, exc)
+        # felszerelés (eszköz, bringa, szenzorok): az eredeti FIT-ből, ennek híján a GPX
+        # metaadatából (a böngészős FIT → GPX is beleírja)
+        try:
+            from fit_gpx import equipment_fields, fit_equipment, gpx_equipment
+            entry.update(equipment_fields(fit_equipment(fit_bytes) if has_fit else gpx_equipment(gpx_content)))
+        except Exception as exc:
+            log.warning("Felszerelés kiolvasása sikertelen (%s): %s", route_id, exc)
     index = _load_index(idx)
     index.append(entry)
     try:
@@ -243,6 +258,11 @@ def update_route(route_id: str):
         surface = _clean_surface(data["surface"])
         if surface: entry["surface"] = surface
         else: entry.pop("surface", None)
+    if "bike_id" in data:
+        # „Bringáim”: a felhasználó kézzel rendelte hozzá (üres = automatikus, a bike_name alapján)
+        bid = str(data["bike_id"] or "").strip()[:40]
+        if bid: entry["bike_id"] = bid
+        else: entry.pop("bike_id", None)
     try:
         _save_index(index, idx)
     except OSError:

@@ -19,6 +19,7 @@
 import { analyzeSurface, MODE_LABELS } from "../map/surfaceAnalysis.js";
 import { SEGMENT_COLORS, getTileLayerDef } from "../map/mapAdapter.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, isSolidChartMode } from "./elevationProfile.js";
+import { buildHrZoneColorFn } from "./settings.js";
 
 const NAVY = "#2d4a5a";
 const ACCENT = "#e8461e";
@@ -261,7 +262,7 @@ function buildSpeedCanvas(speedData, opts = {}) {
 }
 
 // Általános távolság-alapú profil-grafikon (szint, sebesség, …)
-function buildProfileCanvas(rawData, { width = 1600, height = 300, rgb = [232, 70, 30], fromZero = false } = {}) {
+function buildProfileCanvas(rawData, { width = 1600, height = 300, rgb = [232, 70, 30], fromZero = false, colorFn = null } = {}) {
   const canvas = document.createElement("canvas");
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d");
@@ -306,9 +307,19 @@ function buildProfileCanvas(rawData, { width = 1600, height = 300, rgb = [232, 7
   grad.addColorStop(1, `rgba(${r},${g},${b},0.02)`);
   ctx.fillStyle = grad; ctx.fill();
 
-  ctx.beginPath();
-  data.forEach((d, i) => (i === 0 ? ctx.moveTo(sx(d.dist), sy(d.value)) : ctx.lineTo(sx(d.dist), sy(d.value))));
-  ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.lineCap = "round";
+  if (colorFn && !isSolidChartMode()) {
+    // zónaszín mód (pl. pulzus): szakaszonként a zóna színével
+    for (let i = 1; i < data.length; i++) {
+      const a = data[i - 1], c = data[i];
+      ctx.beginPath(); ctx.moveTo(sx(a.dist), sy(a.value)); ctx.lineTo(sx(c.dist), sy(c.value));
+      ctx.strokeStyle = colorFn((a.value + c.value) / 2) || `rgb(${r},${g},${b})`; ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    data.forEach((d, i) => (i === 0 ? ctx.moveTo(sx(d.dist), sy(d.value)) : ctx.lineTo(sx(d.dist), sy(d.value))));
+    ctx.strokeStyle = `rgb(${r},${g},${b})`; ctx.stroke();
+  }
 
   ctx.fillStyle = MUTED; ctx.textAlign = "center"; ctx.textBaseline = "top";
   const totalKm = dMax / 1000;
@@ -526,7 +537,7 @@ export async function exportRoutePdf(o) {
   const speedData = incSpeed ? buildSpeedData(geometry) : [];
   const speedCanvas = speedData.length ? buildSpeedCanvas(speedData) : null;
   const hrData = incHr ? buildHrData(geometry) : [];
-  const hrCanvas = hasData(hrData) ? buildProfileCanvas(hrData, { rgb: [220, 38, 38] }) : null;
+  const hrCanvas = hasData(hrData) ? buildProfileCanvas(hrData, { rgb: [220, 38, 38], colorFn: buildHrZoneColorFn() }) : null;
   const cadData = incCad ? buildCadData(geometry) : [];
   const cadCanvas = hasData(cadData) ? buildProfileCanvas(cadData, { rgb: [147, 51, 234], fromZero: true }) : null;
   const powData = incPower ? buildPowerData(geometry) : [];

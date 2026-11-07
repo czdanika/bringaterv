@@ -12,6 +12,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 - Edzéskönyvtár: kártya/lista nézet, sport-szűrő, szerkesztés, megosztó kép generálás
 - **Strava integráció:** OAuth kapcsolat, aktivitások importálása, per-user app credentials
 - **Garmin / OnelapFit:** edzés-import, útvonal küldése az eszközre
+- **Felszerelés (bal menü → Felszerelés):** bringák, alkatrészek, karbantartási emlékeztetők (km / üzemóra / nap), napló; edzés → bringa: kézi → fájl / Strava név („más néven”) → alapértelmezett (`gear.resolve_bike` = `src/equipment.js resolveBike`)
 - **Ismétlődés-védelem:** `importDedup` user-beállítás (alap: be) – más forrásból már meglévő edzést (indulás ±15 perc, táv ±5%, `utils.find_cross_source_duplicate`) egyik import sem hoz be
 - Statisztikák: havi bontás (kalória, Eddington, sport-lebontás), rekordok, Eddington-szám sportonként, edzésterhelés (CTL/ATL/TSB, A:C arány, monotonitás), hőtérkép
 - Beállítások: HR zóna (Karvonen), sebesség/kadencia/power zóna csúszkák, kerékpáros profil, backup/restore
@@ -52,6 +53,9 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── polar_service.py    # Polar AccessLink v3 (import)
 │   ├── device_sync.py      # automatikus Wahoo / Polar import
 │   ├── api_devices.py      # /api/<wahoo|polar>/* (status, connect, callback, app-config, activities, import, auto-sync)
+│   ├── gpx_metrics.py      # mért adatok (watt, pulzus, kadencia) + felszerelés pótlása a régi edzéseknél
+│   ├── gear.py             # Felszerelés: bringák, alkatrészek (időablak), karbantartás; km-számítás, push
+│   ├── api_gear.py         # /api/gear*, /api/routes/bulk-bike, óránkénti szerviz-értesítő
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
@@ -110,6 +114,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         │                   #   az útvonal-küldés a library.js „onelap-route” művelete
         ├── deviceImport.js # Wahoo / Polar: saját app-kulcsok, OAuth popup, import ablak (initDeviceImports)
         ├── autoSync.js     # közös „Automatikus import” panel (Garmin, OnelapFit, Wahoo, Polar)
+        ├── gear.js         # Felszerelés (főmenüpont): bringák, alkatrészek, karbantartás, napló, tömeges hozzárendelés
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,

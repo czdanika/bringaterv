@@ -33,6 +33,29 @@ const MSG_RECORD  = 20;
 const MSG_SESSION = 18;
 const MSG_LAP     = 19;
 const MSG_FILE_ID = 0;
+const MSG_BIKE_PROFILE = 6;
+const MSG_DEVICE_INFO = 23;
+
+// Felszerelés: gyártókód → név (FIT profil), ANT+ / Bluetooth szenzortípus → egységes kulcs
+// (ugyanaz, mint a szerver routes-api/fit_gpx.py táblája)
+const MAKERS = {
+  1: "Garmin", 6: "SRM", 7: "Quarq", 15: "Garmin", 23: "Suunto", 32: "Wahoo", 41: "Shimano",
+  48: "Pioneer", 51: "4iiii", 60: "Rotor", 63: "Specialized", 69: "Stages", 70: "Sigma", 86: "Elite",
+  89: "Tacx", 99: "Look", 107: "Magene", 112: "Bryton", 115: "iGPSPORT", 123: "Polar", 132: "CYCPLUS",
+  258: "Lezyne", 260: "Zwift", 263: "Favero", 265: "Strava", 267: "Bryton", 268: "SRAM",
+  289: "Hammerhead", 294: "Coros", 307: "Onelap", 310: "Decathlon",
+};
+const ANT_SENSORS = { 120: "heart_rate", 11: "power", 122: "cadence", 123: "speed", 121: "speed_cadence",
+  40: "radar", 35: "light", 36: "light", 17: "trainer", 124: "footpod", 16: "remote", 27: "remote",
+  31: "muscle_oxygen", 46: "aero" };
+const BLE_SENSORS = { 1: "heart_rate", 2: "power", 3: "speed_cadence", 4: "speed", 5: "cadence", 6: "footpod", 7: "trainer" };
+
+/** „C506_09470” → „C506” (a Magene a sorozatszámot is a névbe teszi) */
+function productLabel(name) {
+  if (typeof name !== "string" || !name.trim()) return "";
+  const [head, tail] = name.trim().split("_");
+  return tail && /^\d+$/.test(tail) ? head : name.trim();
+}
 
 /**
  * Részletes FIT parser. Visszaadja az értelmes üzeneteket.
@@ -58,6 +81,7 @@ export function parseFit(buffer) {
   const records  = [];
   const sessions = [];
   let fileId = null;
+  const equipment = {};
 
   let p = headerSize;
   while (p < dataEnd) {
@@ -125,13 +149,31 @@ export function parseFit(buffer) {
           sessions.push(decodeSession(out));
           break;
         case MSG_FILE_ID:
-          if (!fileId) fileId = decodeFileId(out);
+          if (!fileId) {
+            fileId = decodeFileId(out);
+            const dev = [MAKERS[out[1]] || "", productLabel(out[8])].filter(Boolean).join(" ");
+            if (dev) { equipment.device = dev; equipment.device_maker = (MAKERS[out[1]] || "").toLowerCase(); }
+          }
           break;
+        case MSG_BIKE_PROFILE:
+          if (!equipment.bike_name && typeof out[0] === "string" && out[0].trim()) equipment.bike_name = out[0].trim();
+          break;
+        case MSG_DEVICE_INFO: {
+          if (out[0] === 0) break;                                   // maga a rögzítő eszköz
+          const key = out[25] === 3 || out[25] === 2 ? BLE_SENSORS[out[1]] : ANT_SENSORS[out[1]];
+          if (!key) break;
+          (equipment.sensors ||= []).includes(key) || equipment.sensors.push(key);
+          if (key === "power" && !equipment.power_meter) {
+            const pm = [MAKERS[out[2]] || "", productLabel(out[27])].filter(Boolean).join(" ");
+            if (pm) equipment.power_meter = pm;
+          }
+          break;
+        }
         // Lap / egyéb üzeneteket figyelmen kívül hagyjuk
       }
     }
   }
-  return { records, sessions, fileId };
+  return { records, sessions, fileId, equipment };
 }
 
 /**
@@ -245,7 +287,7 @@ function decodeFileId(raw) {
  * @returns {string} GPX XML
  */
 export function fitToGpx(buffer, filename = "FIT import") {
-  const { records, sessions } = parseFit(buffer);
+  const { records, sessions, equipment } = parseFit(buffer);
   const pts = records.filter(Boolean);
   if (pts.length === 0) throw new Error("Nincs érvényes track pont a FIT fájlban");
 
@@ -256,13 +298,17 @@ export function fitToGpx(buffer, filename = "FIT import") {
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push('<gpx version="1.1" creator="Bringaterv (FIT import)"');
   lines.push('  xmlns="http://www.topografix.com/GPX/1/1"');
+  lines.push('  xmlns:bringaterv="https://bringaterv.app/gpx/1"');
   lines.push('  xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"');
   lines.push('  xmlns:gpxpx="http://www.garmin.com/xmlschemas/PowerExtension/v1">');
 
   // Metaadatok
-  if (sess.startTime) {
-    lines.push(`  <metadata><time>${sess.startTime.toISOString()}</time></metadata>`);
+  // Metaadat: kezdés + felszerelés (eszköz, bringa, szenzorok) – a szerver és a gpx.js is olvassa
+  let meta = sess.startTime ? `<time>${sess.startTime.toISOString()}</time>` : "";
+  if (Object.keys(equipment).length) {
+    meta += `<extensions><bringaterv:equipment>${escapeXml(JSON.stringify(equipment))}</bringaterv:equipment></extensions>`;
   }
+  if (meta) lines.push(`  <metadata>${meta}</metadata>`);
 
   lines.push('  <trk>');
   lines.push(`    <name>${escapeXml(trackName)}</name>`);

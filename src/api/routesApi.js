@@ -654,4 +654,34 @@ export const routesApi = {
       },
     };
   },
+
+  // Felszerelés (Könyvtár → Felszerelés): bringák, alkatrészek, karbantartás
+  gear: {
+    get()          { return fetchJson(`${BASE}/gear`); },
+    save(doc)      { return fetchJson(`${BASE}/gear`, { method: "PUT", body: JSON.stringify(doc) }); },
+    taskDone(body) { return fetchJson(`${BASE}/gear/task-done`, { method: "POST", body: JSON.stringify(body) }); },
+    bulkBike(ids, bike_id) {
+      return fetchJson(`${BASE}/routes/bulk-bike`, { method: "POST", body: JSON.stringify({ ids, bike_id }) });
+    },
+    /** Fotó feltöltése (a hívó már átméretezte – JPEG blob). */
+    async uploadPhoto(type, id, blob) {
+      // közvetlen fetch: a fetchJson az egyéni fejlécnél elhagyná az Authorization-t
+      const res = await fetch(`${BASE}/gear/photo/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
+        method: "POST", body: blob, headers: { ...authHeaders(), "Content-Type": blob.type || "image/jpeg" },
+      });
+      if (res.status === 401) { handle401(); throw new Error("Lejárt munkamenet"); }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    },
+    deletePhoto(type, id) {
+      return fetchJson(`${BASE}/gear/photo/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    /** A kép csak bejelentkezve érhető el → blob (az <img> nem küld Authorization fejlécet). */
+    async photoBlob(name) {
+      const res = await fetch(`${BASE}/gear/photo/${encodeURIComponent(name)}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.blob();
+    },
+  },
 };

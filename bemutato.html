@@ -145,6 +145,7 @@
         <a href="#kezdolap">Kezdőlap</a>
         <a href="#tervezes">Tervezés</a>
         <a href="#elemzes">Elemzés</a>
+        <a href="#felszereles">Felszerelés</a>
         <a href="#kozosseg">Közösség</a>
         <a href="#statisztikak">Statisztikák</a>
         <a href="#mobil">Mobil</a>
@@ -283,10 +284,10 @@
       </div>
       <div class="chips">
         <div class="chip"><h4>Sebesség</h4><p>Átlag és maximum, színezés a saját sebességsávjaid szerint.</p></div>
-        <div class="chip"><h4>Pulzus és pulzuszónák</h4><p>Mennyi időt töltöttél az egyes zónákban – idő és százalék.</p></div>
+        <div class="chip"><h4>Pulzus és pulzuszónák</h4><p>Mennyi időt töltöttél az egyes zónákban – idő és százalék, 5 vagy 7 zónával (mint az OnelapFit / Magene).</p></div>
         <div class="chip"><h4>Edzésterhelés (TRIMP)</h4><p>Az időtartamot és az intenzitást együtt súlyozó terhelésmutató.</p></div>
         <div class="chip"><h4>Kadencia</h4><p>Pedálfordulat a táv mentén, saját sávokkal.</p></div>
-        <div class="chip"><h4>Teljesítmény</h4><p>Wattok a térképen és grafikonon, csúcsteljesítmények 5 mp – 60 perc között.</p></div>
+        <div class="chip"><h4>Teljesítmény</h4><p>Wattok a térképen és grafikonon (simítható), átlag, NP, csúcs, kJ és W/kg, csúcsteljesítmények 5 mp – 60 perc között.</p></div>
         <div class="chip"><h4>Szintprofil és lejtés</h4><p>Emelkedő, ereszkedő, a meredek szakaszok kiemelve.</p></div>
         <div class="chip"><h4>Szélelemzés</h4><p>Szembe- és hátszél a tervezett útvonalon, a valós időjárás alapján.</p></div>
         <div class="chip"><h4>Kalória</h4><p>A Stravából, vagy becslés a saját kerékpáros profilodból.</p></div>
@@ -321,7 +322,7 @@
         <h2>A könyvtárad: minden útvonal és edzés egy helyen</h2>
         <ul>
           <li><b>Kártyás, listás vagy térképes nézet</b> – minden elem kis térképes előnézettel, a térképen az összes útvonalad egyszerre</li>
-            <li><b>Típusfülek és szűrők:</b> edzés, terv, közösségi; sportág, forrás, táv, időtartam, név, helyszín</li>
+            <li><b>Típusfülek és szűrők:</b> edzés, terv, közösségi; sportág, forrás, bringa, eszköz, mért adat (pulzus, teljesítmény, kadencia), táv, időtartam, név, helyszín</li>
             <li><b>Egy kattintás</b> az elemzéshez vagy a tervezéshez – minden más a ⋯ menüben</li>
             <li><b>Import:</b> GPX / FIT fájlból, Stravából, Garminból, OnelapFitből (Magene), Wahoo-ból, Polarból – kézzel vagy automatikusan (5–60 percenként), a FIT eredetije is megmarad, és ugyanaz az edzés nem kerül be kétszer</li>
             <li><b>Letöltés</b> GPX-ben vagy eredeti FIT-ben, és <b>teljes mentés</b> egy ZIP-fájlba – az adataid a tieid</li>
@@ -331,9 +332,29 @@
     </div>
   </section>
 
-  <!-- Közösségi útvonalak -->
-  <section id="kozosseg">
+  <!-- Felszerelés -->
+  <section id="felszereles">
     <div class="wrap feature">
+      <div class="f-text">
+        <span class="kicker">Felszerelés</span>
+        <h2>Mennyit ment a lánc? Mikor esedékes a szerviz?</h2>
+        <p class="sec-sub" style="color:var(--muted)">A bringáid és alkatrészeid saját menüpontot kaptak. A kilométereket az edzéseidből számolja, neked csak fel kell vinni, mi van a bringán.</p>
+        <ul>
+          <li><b>Bringák fotóval:</b> márka, modell, típus, súly, vásárlás, kezdő km – a km, az idő, az edzésszám és az idei km magától gyűlik</li>
+          <li><b>Magától tudja, melyik bringával mentél:</b> a komputer bringaprofiljából, a Strava bringanevéből, vagy az alapértelmezett bringából – és bármikor átírhatod, akár egyszerre több edzésnél is</li>
+          <li><b>Alkatrészek:</b> lánc, gumi, fékbetét, kazetta, kerék – bringát válthatnak (pl. téli kerékszett), a km mindig a megfelelő helyre kerül</li>
+          <li><b>Karbantartási emlékeztetők</b> km, üzemóra vagy idő alapján (láncolajozás 300 km, lánccsere 3000 km, nagyszerviz évente) – figyelmeztetés a Kezdőlapon és push-értesítés, ha esedékes</li>
+          <li><b>Napló</b> az elvégzett munkákról, dátummal, költséggel, megjegyzéssel</li>
+          <li><b>Eszközök és szenzorok:</b> melyik komputerrel vagy órával (Magene, Garmin, Wahoo, Apple Watch…), milyen pulzusövvel, wattmérővel mérted az edzést – a könyvtárban bringa és eszköz szerint is szűrhetsz</li>
+        </ul>
+      </div>
+      <div class="f-shot"><img src="./screenshots/felszereles.jpg" alt="Felszerelés: teendők, bringa fotóval, alkatrészek karbantartási csíkokkal" width="1440" height="840" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- Közösségi útvonalak -->
+  <section id="kozosseg" class="alt">
+    <div class="wrap feature rev">
       <div class="f-text">
         <span class="kicker">Közösség</span>
         <h2>Kipróbált útvonalak, mások ajánlásával</h2>
@@ -351,8 +372,8 @@
   </section>
 
   <!-- Statisztikák és rekordok -->
-  <section id="statisztikak" class="alt">
-    <div class="wrap feature rev">
+  <section id="statisztikak">
+    <div class="wrap feature">
       <div class="f-text">
         <span class="kicker">Statisztikák és rekordok</span>
         <h2>Lásd, ahogy fejlődsz</h2>
@@ -371,7 +392,7 @@
   </section>
 
   <!-- Mobil -->
-  <section id="mobil">
+  <section id="mobil" class="alt">
     <div class="wrap mobile-grid">
       <div class="f-text">
         <span class="kicker">Telefonon is</span>
@@ -380,8 +401,8 @@
         <ul>
           <li><b>Tervezés egy hüvelykujjal:</b> Apple Térkép-szerű felhúzható lap – felül a kereső, a számok és a mód, egy koppintásra minden eszköz; útvonal-javaslat is</li>
           <li><b>AI-elemzés</b> az edzés után, akár a parkolóban</li>
-          <li><b>Elemzés, könyvtár, statisztikák</b> ugyanúgy, mint gépen</li>
-          <li><b>Push értesítés,</b> ha új edzésed jött (Strava, Garmin, OnelapFit, Wahoo, Polar), ha az útvonal felment az eszközödre, vagy új rekordot értél el</li>
+          <li><b>Elemzés, könyvtár, felszerelés, statisztikák</b> ugyanúgy, mint gépen – a bringafotót akár a telefon kamerájával</li>
+          <li><b>Push értesítés,</b> ha új edzésed jött (Strava, Garmin, OnelapFit, Wahoo, Polar), ha az útvonal felment az eszközödre, ha szerviz esedékes, vagy új rekordot értél el</li>
           <li><b>Hibajelentés, ötlet</b> közvetlenül az appból – akár képernyőképpel</li>
         </ul>
       </div>
@@ -393,7 +414,7 @@
   </section>
 
   <!-- Integrációk és megosztás -->
-  <section class="alt">
+  <section>
     <div class="wrap">
       <div class="sec-head center">
         <span class="kicker">Kapcsolatok és megosztás</span>

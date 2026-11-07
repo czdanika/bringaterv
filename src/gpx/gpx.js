@@ -94,8 +94,18 @@ export async function importGpx(file, { sampleWaypoints = false } = {}) {
   const activityType = trkType || null;
   const activityDesc = metaDesc || null;
 
+  // Felszerelés (eszköz, bringa, szenzorok) – a saját FIT → GPX-ünk a metaadatba írja
+  let equipment = null;
+  try {
+    const eqNode = documentXml.getElementsByTagNameNS("*", "equipment")[0];
+    if (eqNode) equipment = JSON.parse(eqNode.textContent);
+  } catch { /* sérült – nem baj */ }
+
   // Timing from raw geometry (before simplification)
   const timing = calcTiming(geometryWithSpeed);
+  // Csúcsteljesítmény a ritkítás ELŐTT – a rövid (1–2 mp-es) tüske a ritkított geometriából kieshet
+  let maxPower = null;
+  for (const p of geometry) if (p.power != null && (maxPower == null || p.power > maxPower)) maxPower = p.power;
 
   return {
     geometry: simplifiedGeometry,
@@ -108,6 +118,8 @@ export async function importGpx(file, { sampleWaypoints = false } = {}) {
       startTime: timing.startTime,
       totalDuration: timing.totalDuration,
       movingDuration: timing.movingDuration,
+      maxPower,
+      equipment,
     },
   };
 }
@@ -140,8 +152,10 @@ function nodesToPoints(nodes) {
     const hr = hrNode ? Number(hrNode.textContent) : null;
     const cadNode = node.getElementsByTagNameNS("*", "cad")[0];
     const cad = cadNode ? Number(cadNode.textContent) : null;
-    // Power: Garmin uses <ns3:watts> / <gpxtpx:watts>, other tools use <power>
-    const wattsNode = node.getElementsByTagNameNS("*", "watts")[0]
+    // Power: Garmin PowerExtension <gpxpx:PowerInWatts> (a saját FIT → GPX-ünk is ezt írja),
+    // Garmin TrackPointExtension <ns3:watts> / <gpxtpx:watts>, más eszközök <power>
+    const wattsNode = node.getElementsByTagNameNS("*", "PowerInWatts")[0]
+                   || node.getElementsByTagNameNS("*", "watts")[0]
                    || node.getElementsByTagNameNS("*", "power")[0];
     const power = wattsNode ? Number(wattsNode.textContent) : null;
     const segModeNode = node.getElementsByTagNameNS("*", "segmentMode")[0];

@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.35.0 – 2026-11-07 – Felszerelés, teljesítmény mindenhol, 7 pulzuszóna
+
+### Verzió
+
+- **Felszerelés (új főmenüpont):** a bal oldali sávban (telefonon az alsó sávban) bringa ikonnal. Bringák (márka, modell, típus, súly, vásárlás, ár, kezdő km, „más néven”, alapértelmezett, nyugdíjazva) – a km, az idő, az edzésszám, az idei km és a szint magától számolódik a hozzárendelt edzésekből.
+- **Melyik bringával mentél:** kézi beállítás (az edzés szerkesztőjében, vagy a bringánál „Edzések hozzárendelése…” – tömegesen, eszköz és dátum szerint szűrve, csak a kerékpáros edzések) → a komputer bringaprofilja / a Strava bringaneve → bringanév nélküli kerékpáros edzésnél az alapértelmezett bringa. A Stravából jött név is felülírható. A fájlokból / Stravából jött, még fel nem vett bringanevek egy kattintással felvehetők vagy egy meglévőhöz köthetők (pl. a komputer „Cube” és a Strava „Cube AIM EX” neve).
+- **Alkatrészek és karbantartás:** lánc, gumi, fékbetét, kazetta, kerék, elem… – melyik bringán és mióta (bringát válthatnak, a km mindig a megfelelő helyre kerül; a leszerelt alkatrész a Raktárba). Emlékeztetők km, üzemóra vagy nap alapján, javaslatokkal (láncolajozás, lánccsere, nagyszerviz…); 90%-nál „hamarosan”, 100%-nál „esedékes”: Teendők a Felszerelés tetején, figyelmeztetés a Kezdőlapon, push-értesítés („Szerviz esedékes”, kikapcsolható). „Elvégezve” dátummal, költséggel, megjegyzéssel – a számláló újraindul, a munka a naplóba kerül.
+- **Bringafotó:** a bringa és az alkatrész kártyáján kép tölthető fel (telefonon a kamerával is). A böngésző feltöltés előtt kicsinyíti (legfeljebb 1280 px, néhány száz KB), a kártyán 4:3-as keretben, egészében látszik; nagyítható, cserélhető, törölhető. Csak a tulajdonos látja, és a mentésbe (backup) is bekerül.
+- **Rögzítő eszköz és szenzorok:** minden edzésnél látszik, milyen eszközzel (Magene C506, Garmin Edge, Apple Watch…), melyik bringával és milyen szenzorokkal (pulzusöv, kadencia, wattmérő, radar, lámpa…) készült – a FIT-fájlból, illetve a Stravából. Az Elemzés fejlécében, a könyvtár kártyáján és lenyitott sorában; a régebbi edzéseknél a háttérben töltődik be.
+- **Könyvtár szűrők:** új **Bringa**, **Eszköz** és **Mért adat** (pulzus, teljesítmény, kadencia) szűrő.
+- **Teljesítmény mindenhol:** a FIT-ből jött edzések wattadata eddig elveszett a könyvtárban – most mindenhol megvan (grafikon, térképszínezés, megosztó kép, PDF, statisztika). A teljesítmény-grafikon fejléce: Átlag, NP (normalizált teljesítmény), Max, Munka (kJ), W/kg; a vonal simítható (Nyers / 10 mp / 30 mp). A csúcsteljesítmény a pontos, simítás nélküli érték.
+- **7 pulzuszóna (opció):** Beállítások → Pulzuszónák → LTHR → Zónák száma: 5 vagy 7 (Friel – a Z5 három részre bomlik: Z5a, Z5b, Z5c; az OnelapFit / Magene is így mutatja). Mindenhol érvényes: térképszínezés, grafikonok és jelmagyarázat, zónaelemzés, AI-elemzés, megosztó kép és PDF (zónaszín módban), a beállítások zónaszínei.
+- **LTHR csúszka** 100-tól (eddig 130-tól).
+- **Beállítások:** a korábbi „Bringáim” szakasz kikerült – a bringák a Felszerelés menübe költöztek (a meglévők maguktól átjönnek).
+- **„Mi ez?” oldal és súgó:** a Felszerelés, a teljesítmény-elemzés és a 7 zóna leírása.
+- **Belül:** új `routes-api/gear.py`, `api_gear.py` (`/api/gear*`, `/api/routes/bulk-bike`, óránkénti szerviz-értesítő, fotók), `gpx_metrics.py` (mért adatok és felszerelés pótlása a régi edzéseknél), `fit_gpx.py` felszerelés-olvasás; frontend `src/equipment.js`, `src/ui/gear.js`. nginx: a statikus fájlok szabálya nem nyúl az `/api/` kérésekhez. Tesztek: `tests/test_gear.py`.
+
+---
+
 ## v1.34.0 – 2026-11-06 – Wahoo és Polar import, automatikus Garmin-import
 
 ### Verzió

@@ -126,8 +126,8 @@ export function fmtDurMs(ms) {
  * Edwards training load score (zone weights 1–5).
  */
 export function calcEdwards(zones) {
-  const weights = [1, 2, 3, 4, 5];
-  return Math.round(zones.reduce((sum, z, i) => sum + (z.durationMs / 60000) * weights[i], 0));
+  // Edwards: 1–5-ös súly; 7 zónánál a Z5a / Z5b / Z5c is 5-ös (az Edwards-pont ugyanaz marad)
+  return Math.round(zones.reduce((sum, z, i) => sum + (z.durationMs / 60000) * Math.min(i + 1, 5), 0));
 }
 
 /**
@@ -206,13 +206,14 @@ export function getHrZoneSettings() {
       maxMethod: s.maxMethod ?? 'tanaka',                // tanaka | classic | custom (max HR meghatározása)
       method:    s.method    ?? 'karvonen',              // karvonen | maxhr | lthr | custom (zónaszámítás)
       zoneModel: s.zoneModel ?? 'friel',                 // friel | equal
+      zoneCount: s.zoneCount === 7 ? 7 : 5,              // 7 = Friel Z5a/Z5b/Z5c (LTHR-módszernél)
       lthr:      s.lthr      ?? 160,
       customBoundaries: s.customBoundaries ?? [105, 139, 156, 173],
     };
   } catch {
     return {
       sex: 'male', birthYear: 1985, age: CURRENT_YEAR - 1985,
-      restHR: 60, maxHR: 190, maxMethod: 'tanaka', zoneModel: 'friel',
+      restHR: 60, maxHR: 190, maxMethod: 'tanaka', zoneModel: 'friel', zoneCount: 5,
       method: 'karvonen', lthr: 160, customBoundaries: [105, 139, 156, 173],
     };
   }
@@ -242,18 +243,22 @@ export function buildHrZoneColorFn() {
   };
 }
 
-/** Zónák kiszámolása a beállított módszer és zónamodell szerint */
-export function resolveZones(restHR, maxHR, method, zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173]) {
-  if (method === 'lthr')   return calculateZonesLTHR(lthr);
+/** Zónák kiszámolása a beállított módszer és zónamodell szerint.
+ *  zoneCount: alapból a mentett beállítás – így minden hívó (térkép, grafikon, elemzés,
+ *  megosztás, AI) követi az 5 / 7 zónás választást. */
+export function resolveZones(restHR, maxHR, method, zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173],
+                             zoneCount = getHrZoneSettings().zoneCount) {
+  if (method === 'lthr')   return calculateZonesLTHR(lthr, zoneCount);
   if (method === 'custom') return calculateZonesCustom(customBoundaries);
   const defs = zoneModel === 'friel' ? ZONE_DEFS_FRIEL : undefined;
   return method === 'maxhr' ? calculateZonesMaxHR(maxHR, defs) : calculateZones(restHR, maxHR, defs);
 }
 
-function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173]) {
+function renderKarvonenZonesList(restHR, maxHR, method = 'karvonen', zoneModel = 'friel', lthr = 160, customBoundaries = [105, 139, 156, 173],
+                                 zoneCount = getHrZoneSettings().zoneCount) {
   const list = document.getElementById('karvonenZonesList');
   if (!list) return;
-  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries);
+  const zones = resolveZones(restHR, maxHR, method, zoneModel, lthr, customBoundaries, zoneCount);
   const refLabel = method === 'maxhr' ? 'HRmax' : method === 'lthr' ? 'LTHR' : method === 'custom' ? '' : 'HRR';
   list.innerHTML = zones.map(z => `
     <div class="karvonen-zone-row" style="--zone-color:${z.color}">
@@ -271,6 +276,7 @@ function _initHrZoneSettings() {
   const maxMethodRadios = document.querySelectorAll('input[name="hrMaxMethod"]');
   const methodRadios    = document.querySelectorAll('input[name="hrMethod"]');
   const zoneModelRadios = document.querySelectorAll('input[name="hrZoneModel"]');
+  const zoneCountRadios = document.querySelectorAll('input[name="hrZoneCount"]');
   const birthYearInput  = document.getElementById('hrBirthYearInput');
   const ageDisplay      = document.getElementById('hrAgeDisplay');
   const rangeSlider     = document.getElementById('hrRangeSlider');
@@ -308,6 +314,7 @@ function _initHrZoneSettings() {
   maxMethodRadios.forEach(r => { r.checked = r.value === init.maxMethod; });
   methodRadios.forEach(r => { r.checked = r.value === init.method; });
   zoneModelRadios.forEach(r => { r.checked = r.value === init.zoneModel; });
+  zoneCountRadios.forEach(r => { r.checked = Number(r.value) === init.zoneCount; });
   birthYearInput.value = init.birthYear;
   restValue = init.restHR;
   maxValue  = init.maxHR;
@@ -319,6 +326,7 @@ function _initHrZoneSettings() {
   function currentMaxMethod() { return [...maxMethodRadios].find(r => r.checked)?.value ?? 'tanaka'; }
   function currentMethod()    { return [...methodRadios].find(r => r.checked)?.value ?? 'karvonen'; }
   function currentZoneModel() { return [...zoneModelRadios].find(r => r.checked)?.value ?? 'friel'; }
+  function currentZoneCount() { return Number([...zoneCountRadios].find(r => r.checked)?.value) === 7 ? 7 : 5; }
   function currentLthr()      { return parseInt(lthrSlider?.value ?? 160, 10); }
   function currentCustomBoundaries() {
     return customInputs.map(inp => parseInt(inp?.value ?? 0, 10));
@@ -392,16 +400,17 @@ function _initHrZoneSettings() {
     const maxMethod = currentMaxMethod();
     const method    = currentMethod();
     const zoneModel = currentZoneModel();
+    const zoneCount = currentZoneCount();
     const lthr      = currentLthr();
     const customBoundaries = currentCustomBoundaries();
     const payload = {
       sex, birthYear, age,
       rest: restValue, max: maxValue, maxMethod,
-      method, zoneModel, lthr, customBoundaries,
+      method, zoneModel, zoneCount, lthr, customBoundaries,
     };
     localStorage.setItem(HR_ZONES_KEY, JSON.stringify(payload));
     window.dispatchEvent(new CustomEvent('hrZonesChanged', { detail: payload }));
-    renderKarvonenZonesList(restValue, maxValue, method, zoneModel, lthr, customBoundaries);
+    renderKarvonenZonesList(restValue, maxValue, method, zoneModel, lthr, customBoundaries, zoneCount);
   }
 
   // Dual-handle slider drag logika
@@ -533,6 +542,7 @@ function _initHrZoneSettings() {
     maxMethodRadios.forEach(r => { r.checked = r.value === fresh.maxMethod; });
     methodRadios.forEach(r => { r.checked = r.value === fresh.method; });
     zoneModelRadios.forEach(r => { r.checked = r.value === fresh.zoneModel; });
+    zoneCountRadios.forEach(r => { r.checked = Number(r.value) === fresh.zoneCount; });
     birthYearInput.value = fresh.birthYear;
     restValue = fresh.restHR;
     maxValue  = fresh.maxHR;
@@ -577,6 +587,7 @@ function _initHrZoneSettings() {
     saveAndDispatch();
   }));
   zoneModelRadios.forEach(r => r.addEventListener('change', saveAndDispatch));
+  zoneCountRadios.forEach(r => r.addEventListener('change', saveAndDispatch));
   lthrSlider?.addEventListener('input', () => {
     if (lthrOut) lthrOut.textContent = currentLthr();
     saveAndDispatch();

@@ -32,7 +32,18 @@ from strava_service import (
     _save_user_strava,
     _user_strava_deny_path,
 )
+from fit_gpx import equipment_fields
 from utils import _load_index, _now_dt, _safe_id, _save_index, find_cross_source_duplicate
+
+
+def strava_equipment(activity: dict) -> dict:
+    """Index-mezők a Strava-aktivitás eszközéből és bringájából."""
+    dev = (activity.get("device_name") or "").strip()
+    return equipment_fields({
+        "device":       dev or None,
+        "device_maker": dev.split()[0].lower() if dev else None,
+        "bike_name":    ((activity.get("gear") or {}).get("name") or "").strip() or None,
+    })
 
 bp = Blueprint("api_strava", __name__)
 
@@ -410,6 +421,9 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         "location_city":         activity.get("location_city"),
         "location_country":      activity.get("location_country"),
         "gear_id":               activity.get("gear_id"),
+        # felszerelés: a Strava eszközneve (pl. „Garmin Edge 530”, „Apple Watch Series 9”) és
+        # a Stravában az edzéshez választott bringa
+        **strava_equipment(activity),
         "achievement_count":     activity.get("achievement_count"),
         "pr_count":              activity.get("pr_count"),
     }
@@ -610,6 +624,9 @@ def strava_refresh(route_id: str):
         "location_city":         activity.get("location_city"),
         "location_country":      activity.get("location_country"),
         "gear_id":               activity.get("gear_id"),
+        # felszerelés: a Strava eszközneve (pl. „Garmin Edge 530”, „Apple Watch Series 9”) és
+        # a Stravában az edzéshez választott bringa
+        **strava_equipment(activity),
         "achievement_count":     activity.get("achievement_count"),
         "pr_count":              activity.get("pr_count"),
         "refreshed_at":          _now_dt(),

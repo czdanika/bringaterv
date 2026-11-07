@@ -18,6 +18,8 @@ import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
 import { getOnelapStatus } from "./onelap.js";
 import { showResultDialog } from "./dom.js";
+import { getBikes, resolveBike, sensorLabels } from "../equipment.js";
+import { initGear } from "./gear.js";
 import { getGarminStatus } from "./garmin.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
@@ -31,6 +33,11 @@ export function initLibrary({
   libraryData, libraryFilter, DIST_MAX, DUR_MAX,
 }) {
   _api = api; _toast = toast; _downloadGpx = downloadGpx; _loadRoute = loadRoute;
+  initGear({
+    getWorkouts: () => _data.workouts || [],
+    onAssigned: () => loadRouteLibrary(),
+    showToast: (...a) => _toast?.(...a),
+  });
   _openShareCardWith = openShareCardWith; _openStravaImportModal = openStravaImportModal;
   _processImportedFile = processImportedFile; _refreshStravaStatus = refreshStravaStatus;
   _getStravaStatus = getStravaStatus;
@@ -61,6 +68,8 @@ export async function loadRouteLibrary() {
     _data.routes   = userRoutes.filter(r => !isWorkoutEntry(r));
     _data.workouts = userRoutes.filter(isWorkoutEntry);
     _data.samples  = samples;
+    // a Felszerelés nézet a friss edzésekből számol
+    window.dispatchEvent(new CustomEvent("bringaterv:libraryChanged"));
     if (elFilter) elFilter.hidden = false;
     renderLibraryGrid();
     window.dispatchEvent(new CustomEvent("bringaterv:libraryLoaded"));
@@ -352,7 +361,8 @@ export async function loadAndRenderExpandPreview(routeId) {
     const fullPts = nodes.map(n => {
       const hr  = n.getElementsByTagNameNS("*", "hr")[0];
       const cad = n.getElementsByTagNameNS("*", "cad")[0];
-      const wat = n.getElementsByTagNameNS("*", "watts")[0] || n.getElementsByTagNameNS("*", "power")[0];
+      const wat = n.getElementsByTagNameNS("*", "PowerInWatts")[0]      // saját FIT → GPX (Garmin PowerExtension)
+               || n.getElementsByTagNameNS("*", "watts")[0] || n.getElementsByTagNameNS("*", "power")[0];
       const tm  = n.querySelector("time")?.textContent;
       return { lat: parseFloat(n.getAttribute("lat")), lng: parseFloat(n.getAttribute("lon")),
                hr: hr ? Number(hr.textContent) : null, cad: cad ? Number(cad.textContent) : null,
@@ -410,6 +420,21 @@ export function openLibraryEditModal(route) {
   const editTypeVal = (route.type === "cycling" ? "asphalt" : route.type) ?? "asphalt";
   const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${editTypeVal}"]`);
   if (typeRadio) typeRadio.checked = true;
+  // Bringa (csak edzésnél): automatikus = a fájl / Strava bringaneve a Felszerelés szerint
+  const isWorkout = route.type === "workout";
+  const bikeField = document.querySelector("#libraryEditBikeField");
+  const bikeSel = document.querySelector("#libraryEditBike");
+  const garage = getBikes().filter((b) => !b.retired || b.id === route.bike_id);
+  if (bikeField) bikeField.hidden = !isWorkout;
+  if (bikeSel && isWorkout) {
+    const auto = resolveBike({ bike_name: route.bike_name })?.name;
+    bikeSel.innerHTML = `<option value="">Automatikus${auto ? ` (${escapeHtml(auto)})` : route.bike_name ? "" : " – nincs adat"}</option>` +
+      garage.map((b) => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join("");
+    bikeSel.value = route.bike_id && garage.some((b) => b.id === route.bike_id) ? route.bike_id : "";
+    document.querySelector("#libraryEditBikeHint").textContent = garage.length
+      ? "Az automatikus a fájlban / Stravában lévő bringanév alapján dönt."
+      : "Bringát a Felszerelés menüben vehetsz fel – utána itt választható.";
+  }
   overlay.hidden = false;
   window.lucide?.createIcons();
   setTimeout(() => nameInput.select(), 50);
@@ -420,11 +445,14 @@ export function openLibraryEditModal(route) {
     const newType = overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? route.type;
     const newDesc = descInput.value.trim();
     try {
-      const updated = await _api.updateRoute(route.id, { name: newName, type: newType, description: newDesc });
+      const patch = { name: newName, type: newType, description: newDesc };
+      if (isWorkout && bikeSel) patch.bike_id = bikeSel.value;
+      const updated = await _api.updateRoute(route.id, patch);
       route.name = updated.name; route.type = updated.type; route.description = updated.description;
+      route.bike_id = updated.bike_id;
       const updateInList = list => {
         const idx = list.findIndex(r => r.id === updated.id);
-        if (idx !== -1) { list[idx].name = updated.name; list[idx].type = updated.type; list[idx].description = updated.description; }
+        if (idx !== -1) { Object.assign(list[idx], { name: updated.name, type: updated.type, description: updated.description, bike_id: updated.bike_id }); }
       };
       updateInList(_data.routes); updateInList(_data.workouts);
       overlay.hidden = true;
@@ -482,6 +510,14 @@ function buildLibraryExpandRow(route, category, isSample) {
   else if (route.avg_watts != null)     mini.push(libMini("Teljesítmény", int(route.avg_watts), "W"));
   if (route.kilojoules != null)   mini.push(libMini("Munka", int(route.kilojoules), "kJ"));
   if (route.pr_count > 0)         mini.push(libMini("Személyes rekord", route.pr_count));
+  if (category === "workout") {
+    const bike = resolveBike(route)?.name;
+    if (bike)                     mini.push(libMini("Bringa", escapeHtml(bike)));
+    if (route.device)             mini.push(libMini("Eszköz", escapeHtml(route.device)));
+    if (route.power_meter)        mini.push(libMini("Wattmérő", escapeHtml(route.power_meter)));
+    const sens = sensorLabels(route);
+    if (sens.length)              mini.push(libMini("Szenzorok", escapeHtml(sens.join(", "))));
+  }
 
   // Fejléc-sor: sport + teljes dátum (+ hely) – a nyers „workout” helyett
   const sportLabel = libraryRouteSport(route);
@@ -853,6 +889,7 @@ export function buildLibraryListRow({ route, category, isSample }) {
       route.distance != null ? num(route.distance, 1) + " km" : "",
       route.duration != null ? libraryFormatDuration(route.duration) : "",
       route.elevation ? int(route.elevation) + " m" : "",
+      category === "workout" ? escapeHtml(resolveBike(route)?.name || "") : "",
     ].filter(Boolean).join(" · ")}</span></td>
     <td class="lib-col-num lib-col-dur">${route.duration != null ? libraryFormatDuration(route.duration) : "—"}</td>
     <td class="lib-col-num lib-col-dist">${route.distance != null ? num(route.distance, 1) + " km" : "—"}</td>
@@ -900,7 +937,7 @@ export function createLibraryCard(route, category, isSample) {
       </div>
       ${sampleDesc ? `<div class="library-card-desc">${escapeHtml(sampleDesc)}</div>` : ""}
       <div class="library-card-footer">
-        <span class="lib-src lib-src--${source}">${sampleFoot ? escapeHtml(sampleFoot) : srcLbl}</span>
+        <span class="lib-src lib-src--${source}">${sampleFoot ? escapeHtml(sampleFoot) : srcLbl}${isWorkout && resolveBike(route) ? ` · ${escapeHtml(resolveBike(route).name)}` : ""}</span>
         <div class="library-card-actions">
           <button class="library-card-load-btn" data-action="load-${isWorkout ? "file" : "plan"}" title="${isWorkout ? "Betöltés elemzéshez" : "Betöltés tervezésre"}">
             <i data-lucide="${isWorkout ? "chart-line" : "map-pin-plus"}" aria-hidden="true"></i>
@@ -1060,6 +1097,15 @@ export function renderLibraryGrid() {
     });
   }
   if (_filter.sport !== "all") filtered = filtered.filter(({ route }) => libraryRouteSportKey(route) === _filter.sport);
+  // Mért adat: a mentéskor / importkor számolt index-mezők alapján (tervek és minták kimaradnak)
+  if (_filter.metric === "hr") filtered = filtered.filter(({ route }) => route.avg_heartrate != null);
+  else if (_filter.metric === "power") filtered = filtered.filter(({ route }) =>
+    route.avg_watts != null || route.weighted_avg_watts != null);
+  else if (_filter.metric === "cad") filtered = filtered.filter(({ route }) => route.avg_cadence != null);
+  // Felszerelés: bringa (a Felszerelés szerint feloldva) és rögzítő eszköz
+  renderEquipmentFilters();
+  if (_filter.bike && _filter.bike !== "all") filtered = filtered.filter(({ route }) => bikeKey(route) === _filter.bike);
+  if (_filter.device && _filter.device !== "all") filtered = filtered.filter(({ route }) => deviceKey(route) === _filter.device);
 
   const q = _filter.query.toLowerCase().trim();
   if (q) filtered = filtered.filter(({ route }) => {
@@ -1146,10 +1192,55 @@ export function renderLibraryGrid() {
   }
 }
 
+// ── Felszerelés-szűrők: a gombok a meglévő edzésekből épülnek ────────────────
+function bikeKey(route) {
+  const r = resolveBike(route);
+  return r ? (r.id || `name:${r.name.toLowerCase()}`) : null;
+}
+function deviceKey(route) {
+  return route.device ? route.device.trim().toLowerCase() : null;
+}
+let _equipFilterSig = "";
+function renderEquipmentFilters() {
+  const workouts = _data.workouts || [];
+  const bikes = new Map(), devices = new Map();
+  for (const w of workouts) {
+    const bk = bikeKey(w);
+    if (bk) { const b = bikes.get(bk) || { label: resolveBike(w).name, n: 0 }; b.n++; bikes.set(bk, b); }
+    const dk = deviceKey(w);
+    if (dk) { const d = devices.get(dk) || { label: w.device.trim(), n: 0 }; d.n++; devices.set(dk, d); }
+  }
+  // csak akkor rajzolunk újra, ha változott a lista – kiválasztáskor csak az aktív jelölés vált
+  // (a kicserélt gomb miatt a Szűrők panel „kívülre kattintottak”-nak venné és bezárulna)
+  const sig = JSON.stringify([[...bikes], [...devices]]);
+  if (sig === _equipFilterSig) {
+    for (const [box, attr, prop] of [["#libraryBikeChips", "libBike", "bike"], ["#libraryDeviceChips", "libDevice", "device"]]) {
+      document.querySelectorAll(`${box} .lib-type-chip`).forEach((c) => c.classList.toggle("is-active", c.dataset[attr] === (_filter[prop] || "all")));
+    }
+    return;
+  }
+  _equipFilterSig = sig;
+  const chips = (attr, map, cur) => [`<button class="lib-type-chip${cur === "all" ? " is-active" : ""}" data-${attr}="all" type="button">Mind</button>`,
+    ...[...map].sort((a, b) => b[1].n - a[1].n).map(([k, v]) =>
+      `<button class="lib-type-chip${cur === k ? " is-active" : ""}" data-${attr}="${escapeHtml(k)}" type="button">${escapeHtml(v.label)} <small>${v.n}</small></button>`)].join("");
+  const fill = (groupId, chipsId, attr, map, prop) => {
+    const group = document.querySelector(groupId), box = document.querySelector(chipsId);
+    if (!group || !box) return;
+    group.hidden = map.size === 0;
+    if (_filter[prop] !== "all" && !map.has(_filter[prop])) _filter[prop] = "all";
+    box.innerHTML = chips(attr, map, _filter[prop] || "all");
+  };
+  fill("#libraryBikeGroup", "#libraryBikeChips", "lib-bike", bikes, "bike");
+  fill("#libraryDeviceGroup", "#libraryDeviceChips", "lib-device", devices, "device");
+}
+
 // ── Szűrők: aktív darabszám a gombon, törlés ─────────────────────────────────
 function activeFilterCount() {
   let n = 0;
   if (_filter.source !== "all") n++;
+  if (_filter.metric && _filter.metric !== "all") n++;
+  if (_filter.bike && _filter.bike !== "all") n++;
+  if (_filter.device && _filter.device !== "all") n++;
   if (_filter.distMin > 0 || _filter.distMax < _DIST_MAX) n++;
   if (_filter.durMin > 0 || _filter.durMax < _DUR_MAX) n++;
   if (_filter.type === "sample") n += (_filter.country ? 1 : 0) + (_filter.region ? 1 : 0);
@@ -1171,11 +1262,14 @@ function setRange(minId, maxId, lo, hi) {
   a.dispatchEvent(new Event("input"));
 }
 function clearLibraryFilters(all) {
-  Object.assign(_filter, { source: "all", country: "", region: "", shape: "all",
+  Object.assign(_filter, { source: "all", metric: "all", bike: "all", device: "all", country: "", region: "", shape: "all",
                            distMin: 0, distMax: _DIST_MAX, durMin: 0, durMax: _DUR_MAX });
   const reset = (attr, val) => document.querySelectorAll(`[${attr}]`).forEach((c) =>
     c.classList.toggle("is-active", c.getAttribute(attr) === val));
   reset("data-lib-source", "all");
+  reset("data-lib-metric", "all");
+  reset("data-lib-bike", "all");
+  reset("data-lib-device", "all");
   const shapeSel = document.querySelector("#libShapeSelect");
   if (shapeSel) { shapeSel.value = "all"; shapeSel.closest(".lib-shape-wrap")?.classList.remove("is-active"); }
   if (all) {
@@ -1263,6 +1357,8 @@ function _registerListeners() {
     chip.addEventListener("click", () => {
       document.querySelectorAll("[data-lib-type]").forEach(c => c.classList.remove("is-active"));
       chip.classList.add("is-active"); _filter.type = chip.dataset.libType;
+      // telefonon a fülsor görgethető: a kiválasztott fül legyen látható
+      chip.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
       updateLocationFilters();
       renderLibraryGrid();
     });
@@ -1283,6 +1379,23 @@ function _registerListeners() {
     chip.addEventListener("click", () => {
       document.querySelectorAll("[data-lib-source]").forEach(c => c.classList.remove("is-active"));
       chip.classList.add("is-active"); _filter.source = chip.dataset.libSource; renderLibraryGrid();
+    });
+  });
+  // Bringa / Eszköz: a gombok dinamikusak → delegált kezelés
+  for (const [boxId, attr, prop] of [["#libraryBikeChips", "libBike", "bike"], ["#libraryDeviceChips", "libDevice", "device"]]) {
+    document.querySelector(boxId)?.addEventListener("click", (e) => {
+      const chip = e.target.closest(".lib-type-chip");
+      if (!chip) return;
+      _filter[prop] = chip.dataset[attr];
+      renderLibraryGrid();
+    });
+  }
+  // a Felszerelés változása (név, más néven, alapértelmezett) a feliratokat és a szűrőt is érinti
+  window.addEventListener("bringaterv:gearChanged", () => { _equipFilterSig = ""; renderLibraryGrid(); });
+  document.querySelectorAll("[data-lib-metric]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("[data-lib-metric]").forEach(c => c.classList.remove("is-active"));
+      chip.classList.add("is-active"); _filter.metric = chip.dataset.libMetric; renderLibraryGrid();
     });
   });
   document.querySelectorAll("[data-lib-sport]").forEach(chip => {

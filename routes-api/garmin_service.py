@@ -19,7 +19,7 @@ import uuid
 
 from config import log
 from storage import _user_dir, _user_routes_dir
-from fit_gpx import fit_to_gpx
+from fit_gpx import equipment_fields, fit_to_gpx
 from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
 
 try:
@@ -472,6 +472,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
                     "duplicate_local_id": dup["id"], "duplicate_name": dup.get("name")}
 
     name = summary.get("activityName") or sdto.get("activityName") or f"Garmin {activity_id}"
+    fit_sess = {}
 
     # Elsőként az eredeti FIT (mint a Dreeve): teljesítmény, hőmérséklet is benne van, és
     # megmarad a könyvtárban. Ha nincs / nem olvasható, a Garmin GPX-exportja a tartalék.
@@ -479,7 +480,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
     gpx_text = ""
     if fit_bytes:
         try:
-            gpx_text, _sess = fit_to_gpx(fit_bytes, name)
+            gpx_text, fit_sess = fit_to_gpx(fit_bytes, name)
         except Exception as exc:
             log.warning("Garmin FIT feldolgozási hiba (%s): %s – GPX-tartalék", activity_id, exc)
             gpx_text, fit_bytes = "", None
@@ -533,6 +534,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         "avg_cadence":   sdto.get("averageBikeCadence") or sdto.get("averageRunCadence"),
         "avg_speed_kmh": round(avg_sp * 3.6, 2) if avg_sp else None,
         "max_speed_kmh": round(max_sp * 3.6, 2) if max_sp else None,
+        **equipment_fields(fit_sess.get("equipment") if fit_bytes else None),
     }
     idx.append(entry)
     _save_index(idx, idx_path)

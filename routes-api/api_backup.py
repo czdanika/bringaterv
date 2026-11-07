@@ -22,7 +22,7 @@ BACKUP_VERSION = 1
 # A settings.json mellett ezek is a profil részei (replace módban visszaállnak).
 # A strava.json (tokenek, client secret) és a strava_sync.json (webhook) szándékosan
 # kimarad: a Strava-kapcsolatot visszaállítás után újra kell csatlakoztatni.
-EXTRA_FILES = ("notifications.json", "strava_deleted.json")
+EXTRA_FILES = ("notifications.json", "strava_deleted.json", "gear.json")
 PRE_RESTORE_NAME = "pre_restore.zip"
 
 
@@ -44,6 +44,11 @@ def _build_user_backup_zip(user_id: str, user_email: str = None) -> io.BytesIO:
             fp = os.path.join(base, fn)
             if os.path.isfile(fp):
                 zf.write(fp, fn)
+        gp = os.path.join(base, "gear_photos")          # Felszerelés fotói
+        if os.path.isdir(gp):
+            for fn in sorted(os.listdir(gp)):
+                if os.path.isfile(os.path.join(gp, fn)):
+                    zf.write(os.path.join(gp, fn), f"gear_photos/{fn}")
         for sub in ("routes", "workouts"):
             d = os.path.join(base, sub)
             if not os.path.isdir(d):
@@ -110,6 +115,12 @@ def _restore_user_from_zip(user_id: str, zip_bytes: bytes, mode: str) -> dict:
             if fn in names:
                 with open(os.path.join(base, fn), "wb") as f:
                     f.write(zf.read(fn))
+        from gear import PHOTO_RE
+        for n in names:
+            if n.startswith("gear_photos/") and PHOTO_RE.match(n.split("/", 1)[1]):
+                os.makedirs(os.path.join(base, "gear_photos"), exist_ok=True)
+                with open(os.path.join(base, "gear_photos", n.split("/", 1)[1]), "wb") as f:
+                    f.write(zf.read(n))
 
     # routes/ + workouts/ feldolgozása
     for sub in ("routes", "workouts"):

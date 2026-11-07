@@ -14,6 +14,7 @@
 
 import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
 import { fitToGpx } from '../gpx/fit.js';
+import { equipmentLine, sensorLabels } from '../equipment.js';
 import { isSolidChartMode } from './elevationProfile.js';
 import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts } from './shareCard.js';
 import { reverseGeocode } from './search.js';
@@ -178,7 +179,8 @@ async function saveImportedToLibrary() {
 // ── Modul-szintű state ────────────────────────────────────────────────────────
 let _hasImportedFile = false;
 let _importedFileName = "";
-let _importedMeta = null;       // a betöltött fájl metaadatai (név, kezdés, mozgásidő) – mentéshez
+let _importedMeta = null;
+let _importedPeakPower = null;  // csúcsteljesítmény a teljes (ritkítás előtti) adatból       // a betöltött fájl metaadatai (név, kezdés, mozgásidő) – mentéshez
 let _importedGpxText  = null;
 let _importedFitBuffer = null;
 let _loadedLibraryRouteId = null;
@@ -196,6 +198,8 @@ export function getImportedColoredGeometry()  { return _importedColoredGeometry;
 export function getImportedHrGeometry()       { return _importedHrGeometry; }
 export function getImportedCadGeometry()      { return _importedCadGeometry; }
 export function getImportedPowerGeometry()    { return _importedPowerGeometry; }
+/** A betöltött edzés csúcsteljesítménye a ritkítás előtti, teljes adatból (null, ha nincs). */
+export function getImportedPeakPower()        { return _importedPeakPower; }
 export function getLoadedLibraryRouteId()     { return _loadedLibraryRouteId; }
 export function getLoadedIsSample()           { return _loadedIsSample; }
 export function getImportedFileName()         { return _importedFileName; }
@@ -260,6 +264,7 @@ function sportTypeLabel(t) {
 }
 
 export function populateFileTab({ filename, geometry, distanceMeters, ascentMeters, descentMeters, speedColored = false, meta = {}, isFit = false }) {
+  _importedPeakPower = Number(meta.maxPower) || null;
   document.querySelector("#fileEmptyState").hidden = true;
   const details = document.querySelector("#fileDetails");
   details.hidden = false;
@@ -273,7 +278,17 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   const typeRow  = document.querySelector("#fileMetaTypeRow");
   const descRow  = document.querySelector("#fileMetaDescRow");
   const startRow = document.querySelector("#fileMetaStartRow");
-  const hasMeta  = meta.name || meta.type || meta.desc || meta.startTime;
+  // Felszerelés: bringa (a Felszerelés szerint feloldva) · eszköz + szenzorok
+  const eq = meta.equipment || null;
+  const equipRow = document.querySelector("#fileMetaEquipRow");
+  const equipText = eq ? equipmentLine(eq) : "";
+  const sensors = eq ? sensorLabels(eq) : [];
+  if (equipRow) {
+    equipRow.hidden = !equipText && !sensors.length;
+    document.querySelector("#fileMetaEquip").textContent = equipText;
+    document.querySelector("#fileMetaSensors").textContent = sensors.length ? `Szenzorok: ${sensors.join(", ")}` : "";
+  }
+  const hasMeta  = meta.name || meta.type || meta.desc || meta.startTime || equipText || sensors.length;
   if (metaBlock) metaBlock.hidden = !hasMeta;
   if (nameRow)  { nameRow.hidden  = !meta.name; if (meta.name)  document.querySelector("#fileMetaName").textContent = meta.name; }
   if (typeRow)  { typeRow.hidden  = !meta.type; if (meta.type)  document.querySelector("#fileMetaType").textContent = sportTypeLabel(meta.type); }
@@ -369,7 +384,8 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   if (maxPowerRowEl) maxPowerRowEl.hidden = !hasPower;
   if (hasPower) {
     const avgPower = Math.round(powers.reduce((a, b) => a + b, 0) / powers.length);
-    const maxPower = Math.round(Math.max(...powers));
+    // a pontos csúcs a teljes (ritkítás előtti) adatból, ha megvan
+    const maxPower = Math.round(Math.max(...powers, Number(meta.maxPower) || 0));
     const avgPowerEl = document.querySelector("#fileAvgPower");
     const maxPowerEl = document.querySelector("#fileMaxPower");
     if (avgPowerEl) avgPowerEl.textContent = `${avgPower} W`;

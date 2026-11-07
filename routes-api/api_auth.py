@@ -70,6 +70,8 @@ SETTINGS_ALLOWED_KEYS = {
     "planSpeeds",
     # Ismétlődés-védelem: más forrásból már meglévő edzés ne kerüljön be újra (alap: be)
     "importDedup",
+    # „Bringáim” – a felhasználó bringái (név, típus, súly, más néven, alkatrész-emlékeztetők)
+    "bikes",
 }
 
 

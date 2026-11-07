@@ -16,7 +16,7 @@ import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
 import { initNavigation } from "./ui/navigation.js";
-import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
+import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, powerSummary, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
 import { MODE_NAMES, activityOf, segmentModeForSurface, fitSegmentModes, hikingBootSvg } from "./routeModes.js";
@@ -26,6 +26,8 @@ import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus
 import { initGarmin, getGarminStatus } from "./ui/garmin.js";
 import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
 import { initDeviceImports } from "./ui/deviceImport.js";
+import { loadGear } from "./equipment.js";
+import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
@@ -50,7 +52,7 @@ import {
   initFileTab, populateFileTab, clearFileTab, processImportedFile,
   updateFileSaveButtonState, setLoadedRoute, setImportedGeometries, clearImportedGeometries,
   getHasImportedFile, getImportedColoredGeometry, getImportedHrGeometry,
-  getImportedCadGeometry, getImportedPowerGeometry, getLoadedLibraryRouteId,
+  getImportedCadGeometry, getImportedPowerGeometry, getImportedPeakPower, getLoadedLibraryRouteId,
   getImportedFileName, getImportedGpxText, getLoadedIsSample,
 } from "./ui/fileTab.js";
 import { initAiAnalysis, refreshAiCard } from "./ui/aiAnalysis.js";
@@ -186,7 +188,7 @@ const tabStats    = document.querySelector("#tabStats");
 let currentTab = "plan";
 // ── Library state ──────────────────────────────────────────
 let _libraryData   = { routes: [], workouts: [], samples: [] };
-let _libraryFilter = { type: 'all', source: 'all', sport: 'all', query: '', country: '', region: '', shape: 'all', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
+let _libraryFilter = { type: 'all', source: 'all', metric: 'all', bike: 'all', device: 'all', sport: 'all', query: '', country: '', region: '', shape: 'all', sort: 'newest', distMin: 0, distMax: 500, durMin: 0, durMax: 600 };
 const DIST_MAX = 500;  // km
 const DUR_MAX  = 600;  // perc (10 óra)
 
@@ -223,6 +225,7 @@ function switchTab(name) {
   elements.appShell.classList.toggle("is-file-mode",    name === "file");
   elements.appShell.classList.toggle("is-library-mode", name === "library");
   elements.appShell.classList.toggle("is-stats-mode",   name === "stats");
+  elements.appShell.classList.toggle("is-gear-mode",    name === "gear");
   tabButtons.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
   const homeMain = document.querySelector("#homeMain");
   if (homeMain) homeMain.hidden = name !== "home";
@@ -234,6 +237,8 @@ function switchTab(name) {
   if (libraryMain) libraryMain.hidden = name !== "library";
   const statsMain = document.querySelector("#statsMain");
   if (statsMain) statsMain.hidden = name !== "stats";
+  const gearMain = document.querySelector("#gearMain");
+  if (gearMain) gearMain.hidden = name !== "gear";
   // Tervezés fülön crosshair + route kattintás engedélyezett, Elemzésen/Könyvtáron nem
   mapAdapter?.setRouteInteractive(name === "plan");
   // A térkép a Kezdőlap / Könyvtár / Statok alatt rejtve van (indításkor a Kezdőlap miatt
@@ -245,6 +250,11 @@ function switchTab(name) {
   if (name === "library" && tabLibrary) loadRouteLibrary();
   // Statisztikák fül megnyitásakor: betölt ha szükséges, majd renderel (statsManager.js)
   if (name === "stats") loadAndRenderStats();
+  // Felszerelés: a tömeges hozzárendeléshez az edzéslista is kell (ha még nincs betöltve)
+  if (name === "gear") {
+    renderGearView(document.querySelector("#libraryGearView"));
+    if (!_libraryData.workouts?.length) loadRouteLibrary();
+  }
   updateHome({ tab: name });
   window.lucide?.createIcons();
 }
@@ -258,7 +268,7 @@ function requestTabSwitch(targetTab) {
   const hasPlanData = store.getState().waypoints.length > 0;
 
   // Könyvtár / Kezdőlap fülre vagy onnan váltásnál nincs megerősítés szükséges
-  if (!tabLibrary || ["library", "home"].includes(targetTab) || ["library", "home"].includes(currentTab)) {
+  if (!tabLibrary || ["library", "home", "gear"].includes(targetTab) || ["library", "home", "gear"].includes(currentTab)) {
     switchTab(targetTab);
     return;
   }
@@ -874,6 +884,8 @@ initHome({
   api: routesApi,
   getUser,
   actions: {
+    // Felszerelés főmenüpont (pl. a Kezdőlap szerviz-figyelmeztetéséből)
+    openGear: () => switchTab("gear"),
     // „Új útvonal”: tiszta lappal. Az Elemzésből ott maradt edzést csendben elengedjük, egy
     // saját (félkész) tervnél rákérdezünk – ha mentve van, a Könyvtárban megmarad.
     plan: () => {
@@ -1237,7 +1249,7 @@ function chartConfig(type) {
     return {
       sectionEl: elements.chartPower,
       chartInst: powerChart,
-      build: () => buildPowerData(activeGeometry),
+      build: () => buildPowerData(activeGeometry, getPowerSmooth()),
       opts:  buildOpts("#EAB308", "W", v => getZoneColor("power", v)),
       btns: [elements.powerChartBtn],
     };
@@ -1300,6 +1312,29 @@ function renderChartSection(type) {
   return true;
 }
 
+// ── Teljesítmény-grafikon simítása (a nyers másodperces watt tüskés) ─────────
+const POWER_SMOOTH_STEPS = [0, 10, 30];
+function getPowerSmooth() {
+  try {
+    const raw = localStorage.getItem("bringaterv.powerSmooth");   // null → alapérték (Number(null) = 0 lenne)
+    const v = raw == null ? NaN : Number(raw);
+    return POWER_SMOOTH_STEPS.includes(v) ? v : 10;
+  } catch { return 10; }
+}
+function syncPowerSmoothBtn() {
+  const btn = document.querySelector("#powerSmoothBtn");
+  const v = getPowerSmooth();
+  if (btn) btn.textContent = v ? `Simítás: ${v} mp` : "Nyers";
+}
+document.querySelector("#powerSmoothBtn")?.addEventListener("click", () => {
+  const cur = getPowerSmooth();
+  const next = POWER_SMOOTH_STEPS[(POWER_SMOOTH_STEPS.indexOf(cur) + 1) % POWER_SMOOTH_STEPS.length];
+  try { localStorage.setItem("bringaterv.powerSmooth", String(next)); } catch { /* csak erre a munkamenetre */ }
+  syncPowerSmoothBtn();
+  if (visibleSections.has("power")) renderChartSection("power");
+});
+syncPowerSmoothBtn();
+
 // ── Grafikon-fejléc: kulcsszámok (nagy szám, kis mértékegység, felirat) ──────
 
 const CHART_STATS_EL = { elevation: "elevationInfo", speed: "statsSpeed", hr: "statsHr", cad: "statsCad", power: "statsPower", wind: "statsWind" };
@@ -1357,7 +1392,18 @@ function renderChartHeader(type, data) {
     const pedal = vals.filter((v) => v > 0);
     html += csStat(Math.round(avg(pedal)), "rpm", "Átlag (tekerés)") + csStat(Math.round(Math.max(...vals)), "rpm", "Maximum");
   } else if (type === "power") {
-    html += csStat(Math.round(avg(vals)), "W", "Átlag") + csStat(Math.round(Math.max(...vals)), "W", "Maximum");
+    // a számok a nyers (nem simított) adatokból – a grafikon simítása csak a megjelenítés
+    const ps = powerSummary(activeGeometry);
+    const peak = getImportedPeakPower();               // a teljes adatból (a ritkítás a tüskét levághatja)
+    if (ps && peak > ps.max) ps.max = peak;
+    if (ps) {
+      html += csStat(Math.round(ps.avg), "W", "Átlag");
+      if (ps.np != null) html += csStat(Math.round(ps.np), "W", "NP");
+      html += csStat(Math.round(ps.max), "W", "Maximum");
+      if (ps.kj != null) html += csStat(Math.round(ps.kj), "kJ", "Munka");
+      const kg = Number(getCyclistProfile()?.riderKg);
+      if (kg > 30) html += csStat(num(ps.avg / kg, 1), "W/kg", "Átlag / testsúly");
+    }
   }
   el.innerHTML = html;
 }
@@ -2212,6 +2258,8 @@ if (isAdmin()) {
   window.addEventListener("bringaterv:settingChanged", syncSettingsToServer);
   // HR zóna változás
   window.addEventListener("hrZonesChanged", syncSettingsToServer);
+  // zónaváltás (pl. 5 → 7 zóna): a nyitott pulzusgrafikon is a friss zónaszínekkel rajzolódjon
+  window.addEventListener("hrZonesChanged", () => { if (visibleSections.has("hr")) renderChartSection("hr"); });
 }
 
 // ── Strava ───────────────────────────────────────────────────────────────────
@@ -2229,8 +2277,13 @@ window.addEventListener("bringaterv:refit", () => mapAdapter.fitRoute?.());
   const params = new URLSearchParams(location.search);
   const openId = params.get("open");
   const settingsSection = params.get("settings");
-  if (!openId && !settingsSection) return;
+  const openGearTab = params.get("gear");                 // push: „Szerviz esedékes” → Felszerelés
+  if (!openId && !settingsSection && !openGearTab) return;
   history.replaceState(null, "", location.pathname);      // a frissítés ne nyissa meg újra
+  if (openGearTab) {
+    switchTab("gear");
+    return;
+  }
   if (settingsSection) {
     document.querySelector("#settingsButton")?.click();
     const sec = document.querySelector(`[data-settings-section="${CSS.escape(settingsSection)}"]`);
@@ -2257,6 +2310,9 @@ initOnelap({ showToast });
 
 // ── Wahoo / Polar (hivatalos API-k, csak import) ──────────────────────────────
 initDeviceImports({ showToast });
+
+// ── Felszerelés (bal menü → Felszerelés): a bringák a feliratokhoz, szűrőkhöz is kellenek ──
+loadGear();
 
 // ── Ismétlődés-védelem (szerveroldali beállítás: importDedup, alapból be) ─────
 // Ugyanaz az edzés több forrásból (pl. Magene → Onelap ÉS Strava) ne kerüljön be kétszer.
@@ -2835,6 +2891,14 @@ initAiAnalysis({
     const name = $id("fileMetaName")?.textContent?.trim() || $id("importedFileName")?.textContent?.trim() || "Edzés";
     $id("mFileTitle").textContent = name;
     $id("mFileSub").textContent = [$id("fileMetaType")?.textContent?.trim(), $id("fileMetaStart")?.textContent?.trim()].filter(Boolean).join(" · ");
+    // felszerelés: bringa · eszköz, mellette halványan a szenzorok
+    const eqLine = $id("fileMetaEquip")?.textContent?.trim() || "";
+    const eqSens = ($id("fileMetaSensors")?.textContent || "").replace(/^Szenzorok:\s*/, "").trim();
+    const eqEl = $id("mFileEquip");
+    if (eqEl) {
+      eqEl.hidden = !eqLine && !eqSens;
+      eqEl.innerHTML = (eqLine ? `<span>${escapeHtml(eqLine)}</span>` : "") + (eqSens ? `<small>${escapeHtml(eqSens)}</small>` : "");
+    }
     $id("fFileInfo").textContent = val("filePoints") ? `${val("filePoints")} trackpont${visible("importedFitBadge") ? " · FIT" : ""}` : "";
     const act = activeColor();
     const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : ["fileTotalDur", "Időtartam"];
@@ -3975,6 +4039,7 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     return;
   }
 
+  const libEntry = [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id);
   if (target === "file") {
     // Előbb a fül váltson (a térkép látható és méretezett legyen), csak utána rajzolunk
     // és illesztünk – rejtett térképen a fitBounds rossz nagyítást ad.
@@ -4015,7 +4080,12 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       speedColored: hasSpeed,
       // a könyvtári bejegyzés kalóriája (pl. Stravából) – ha nincs, a fül becsül
       meta: { ...(imported.meta ?? {}),
-              calories: [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id)?.calories },
+              calories: libEntry?.calories,
+              // felszerelés: a szerver (FIT / Strava) adata és a kézi bringa-hozzárendelés az erősebb
+              equipment: libEntry && (libEntry.device || libEntry.bike_name || libEntry.bike_id || libEntry.sensors?.length)
+                ? { device: libEntry.device, bike_name: libEntry.bike_name, bike_id: libEntry.bike_id,
+                    sensors: libEntry.sensors, power_meter: libEntry.power_meter }
+                : imported.meta?.equipment },
     });
     switchTab("file");
     setTimeout(() => mapAdapter.fitRoute(), 50);
