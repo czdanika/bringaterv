@@ -3017,7 +3017,9 @@ initAiAnalysis({
     // fejléc
     const name = $id("fileMetaName")?.textContent?.trim() || $id("importedFileName")?.textContent?.trim() || "Edzés";
     $id("mFileTitle").textContent = name;
-    $id("mFileSub").textContent = [$id("fileMetaType")?.textContent?.trim(), $id("fileMetaStart")?.textContent?.trim()].filter(Boolean).join(" · ");
+    // csak a látható sorokból (az előző fájl értéke a rejtett mezőben ottmaradhat)
+    $id("mFileSub").textContent = [visible("fileMetaTypeRow") && $id("fileMetaType")?.textContent?.trim(),
+      visible("fileMetaStartRow") && $id("fileMetaStart")?.textContent?.trim()].filter(Boolean).join(" · ");
     // felszerelés: bringa · eszköz, mellette halványan a szenzorok
     const eqLine = $id("fileMetaEquip")?.textContent?.trim() || "";
     const eqSens = ($id("fileMetaSensors")?.textContent || "").replace(/^Szenzorok:\s*/, "").trim();
@@ -3028,7 +3030,7 @@ initAiAnalysis({
     }
     $id("fFileInfo").textContent = val("filePoints") ? `${val("filePoints")} trackpont${visible("importedFitBadge") ? " · FIT" : ""}` : "";
     const act = activeColor();
-    const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : ["fileTotalDur", "Időtartam"];
+    const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : visible("fileTotalDurRow") ? ["fileTotalDur", "Időtartam"] : null;
     let stats;
     if (desktop) {
       // asztalon: 4 fő szám, a többi halk sorban
@@ -3036,7 +3038,7 @@ initAiAnalysis({
                visible("fileAscentRow") ? ["fileAscent", "Emelkedés" + (visible("fileDescentRow") && val("fileDescent")
                  ? ` <em class="f-desc" title="Ereszkedés – összesen ennyit mentél lefelé">· ${escapeHtml(val("fileDescent"))} ↓</em>` : "")] : null].filter(Boolean);
       // Strava-mintára: szürke sáv a terhelési mutatókkal, alatta Átlag | Max táblázat
-      const hrScore = [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
+      const hrScore = !visible("hrLegend") || !visible("hrZoneScores") ? "" : [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
         cell(it.querySelector(".hr-score-label")?.textContent?.trim() || "", it.querySelector(".hr-score-value")?.textContent?.trim() || "")).join("");
       const band = kcalMini() + hrScore;
       const fmtV = (t) => { const [n, u] = splitUnit(t); return n ? `${escapeHtml(n)}${u ? `<small>${escapeHtml(u)}</small>` : ""}` : ""; };

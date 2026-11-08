@@ -11,6 +11,7 @@ import { importGpx, calcElevationFromGeometry } from "./gpx/gpx.js";
 import { buildElevationData, buildHrData, buildCadData, buildPowerData, buildSpeedData, initElevationChart, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { getTileLayerDef } from "./map/mapAdapter.js";
 import { libraryRouteSportKey } from "./ui/library.js";
+import { locatorSvg } from "./map/locator.js";
 
 // Ugyanazok az ikonok, mint a könyvtár nézetben
 const SPORT_ICONS = { cycling: "bike", run: "footprints", hike: "mountain-snow", walk: "footprints", other: "activity" };
@@ -192,6 +193,13 @@ function renderMap(geometry) {
   _mapGeom = geometry.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   L.circleMarker(latlngs[0], { radius: 7, color: "#fff", weight: 2, fillColor: "#16a34a", fillOpacity: 1 }).addTo(map);
   L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#dc2626", fillOpacity: 1 }).addTo(map);
+  // tájoló: hol van az útvonal az országon belül (jobb alsó sarok)
+  const loc = locatorSvg(_mapGeom, { w: 92, h: 58, dark: document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches) });
+  if (loc) {
+    const ctl = L.control({ position: "bottomright" });
+    ctl.onAdd = () => { const d = L.DomUtil.create("div", "map-locator"); d.title = "Hol van? – az útvonal helye az országon belül"; d.innerHTML = loc; return d; };
+    ctl.addTo(map);
+  }
 
   // Fit csak akkor helyes, ha a konténer már megkapta a méretét – ezért
   // invalidateSize után fitelünk, maxZoom-mal a túlzott ránagyítás ellen,

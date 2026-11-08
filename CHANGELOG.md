@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.38.0 – 2026-11-08 – Tájoló térkép, karcsúbb Kezdőlap-gombok
+
+### Verzió
+
+- **Tájoló térkép:** hol van az útvonal az országon belül – kis Magyarország-körvonal (a szomszédokkal, ha az út átnyúlik), Balatonnal és Dunával, benne az útvonal helye (rövid útnál pont, hosszabbnál a nyomvonal). Könyvtár: a kártyákon a bélyegkép mellett és a lenyitott sor térképének sarkában; nyilvános nézőoldal: a térkép jobb alsó sarkában; PDF útvonallap: abban a sarokban, ahol nem takarja a nyomvonalat. Csempe-letöltés nélkül (`src/map/locator.js`, Natural Earth 50m körvonalak).
+- **Kezdőlap:** a gyorsgombok (Új útvonal, GPX / FIT betöltése, Könyvtár, Közösségi utak, Statisztikák) kisebbek, vékonyabbak – 34 px-es kapszulák 42 px helyett.
+- **Javítás – Elemzés:** ha egy edzés után idő / pulzus nélküli GPX-et (pl. tervet) töltöttél be, az összefoglalóban az előző fájl dátuma, időtartama és TRIMP / Edwards értéke maradt.
+
 ## v1.37.0 – 2026-11-08 – AI-leírás az útvonalakhoz, rendezett Elemzés-összefoglaló
 
 ### Verzió

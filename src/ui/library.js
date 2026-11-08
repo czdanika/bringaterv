@@ -22,6 +22,7 @@ import { deviceName, getBikes, resolveBike, sensorLabels } from "../equipment.js
 import { initGear } from "./gear.js";
 import { getGarminStatus } from "./garmin.js";
 import { attachAiDescribe } from "./aiDescribe.js";
+import { locatorSvg } from "../map/locator.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -252,6 +253,8 @@ function drawRouteMapPreview(slot, points) {
   const d = P.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join("");
   const st = P[0], en = P[P.length - 1], loop = Math.hypot(st[0] - en[0], st[1] - en[1]) < 8;
   const id = `pv${++_pvSeq}`;
+  // tájoló a sarokban: hol van az útvonal az országon belül (csak elég nagy előnézetnél)
+  const loc = W >= 180 && H >= 110 ? locatorSvg(points, { w: W >= 320 ? 76 : 62, h: W >= 320 ? 48 : 40, dark }) : "";
   const col = dark ? "#ff6a3d" : "#e8461e";
   const markers = small ? "" :
     (loop ? "" : `<circle cx="${en[0].toFixed(1)}" cy="${en[1].toFixed(1)}" r="4.5" fill="#fff" stroke="${dark ? "#eee" : "#111"}" stroke-width="2"/>`) +
@@ -266,8 +269,11 @@ function drawRouteMapPreview(slot, points) {
       <path d="${d}" fill="none" stroke="${dark ? "#000" : "#fff"}" stroke-opacity="${dark ? .55 : .95}" stroke-width="${small ? 3.6 : 5.5}" stroke-linejoin="round" stroke-linecap="round"/>
       <path d="${d}" fill="none" stroke="${col}" stroke-width="${small ? 1.8 : 2.6}" stroke-linejoin="round" stroke-linecap="round"${small ? "" : ` filter="url(#${id}s)"`}/>
       ${markers}
-    </svg>`;
+    </svg>${loc ? `<div class="lib-pv-locator" title="Hol van? – az útvonal helye az országon belül">${loc}</div>` : ""}`;
   slot.classList.add("lib-pv");
+  // kártyán a kis előnézet mellé külön tájoló
+  const cardLoc = small ? slot.parentElement?.querySelector(".library-card-locator") : null;
+  if (cardLoc) { cardLoc.innerHTML = locatorSvg(points, { w: 64, h: 40, dark }); cardLoc.hidden = !cardLoc.innerHTML; }
   return true;
 }
 
@@ -942,6 +948,7 @@ export function createLibraryCard(route, category, isSample) {
             ? escapeHtml([...new Set([route.location.settlement, route.location.region].filter(Boolean)), route.location.loop ? "körtúra" : ""].filter(Boolean).join(" · "))
             : smartDateTimeFormat(route)}</span>
         </div>
+        <div class="library-card-locator" hidden title="Hol van? – az útvonal helye az országon belül"></div>
         <div class="library-card-preview library-card-preview-slot" id="libCardPreview_${route.id}"></div>
       </div>
       <div class="library-card-stats">

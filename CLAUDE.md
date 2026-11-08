@@ -82,6 +82,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
     │   └── translations.js # hu / en szótár
     ├── map/
     │   ├── mapAdapter.js   # Leaflet wrapper (createMapAdapter, SEGMENT_COLORS)
+    │   ├── locator.js      # tájoló térkép (Magyarország + szomszédok körvonala): locatorSvg / drawLocator – könyvtár, view, PDF
     │   ├── tileLayers.js   # Alaptérkép-rétegek (tileLayers, TILE_LAYER_LABELS) – app + admin térkép
     │   └── surfaceAnalysis.js
     ├── state/
@@ -314,7 +315,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.37.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.38.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

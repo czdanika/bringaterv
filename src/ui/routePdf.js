@@ -20,6 +20,7 @@ import { analyzeSurface, MODE_LABELS } from "../map/surfaceAnalysis.js";
 import { SEGMENT_COLORS, getTileLayerDef } from "../map/mapAdapter.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, isSolidChartMode } from "./elevationProfile.js";
 import { buildHrZoneColorFn } from "./settings.js";
+import { drawLocator, locatorGeometry } from "../map/locator.js";
 
 const NAVY = "#2d4a5a";
 const ACCENT = "#e8461e";
@@ -531,6 +532,30 @@ export async function exportRoutePdf(o) {
   const mapCanvas = await buildMapCanvas(points, mapStyle, {
     width: mapBox.w * 8, height: mapBox.h * 8, routeColor: ACCENT,
   });
+  // tájoló a térkép bal alsó sarkában: hol van az útvonal az országon belül
+  try {
+    const ctx = mapCanvas.getContext("2d");
+    const lw = Math.round(mapCanvas.width * 0.16), lh = Math.round(lw * 0.63), m = Math.round(mapCanvas.width * 0.018), pd = Math.round(lw * 0.05);
+    // az a sarok, ahol a legkevesebb útvonal-képpont van (a nyomvonalat ne takarja)
+    const [ar, ag, ab] = hexToRgb(ACCENT);
+    const corners = [[m, mapCanvas.height - lh - m], [mapCanvas.width - lw - m, mapCanvas.height - lh - m], [m, m], [mapCanvas.width - lw - m, m]];
+    const routePx = ([cx, cy]) => {
+      let d;
+      try { d = ctx.getImageData(cx - pd, cy - pd, lw + 2 * pd, lh + 2 * pd).data; } catch (_) { return 0; }
+      let k = 0;
+      for (let i = 0; i < d.length; i += 16) if (Math.abs(d[i] - ar) + Math.abs(d[i + 1] - ag) + Math.abs(d[i + 2] - ab) < 90) k++;
+      return k;
+    };
+    const [x, y] = corners.map((c) => [c, routePx(c)]).sort((p, q) => p[1] - q[1])[0][0];
+    if (!locatorGeometry(points, lw, lh)) throw new Error("nincs körvonal");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);          // a térkép-rajzoló eltolása / vágása ne hasson rá
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.shadowColor = "rgba(0,0,0,.2)"; ctx.shadowBlur = pd * 1.5;
+    ctx.beginPath(); ctx.roundRect(x - pd, y - pd, lw + 2 * pd, lh + 2 * pd, pd * 2); ctx.fill();
+    ctx.restore();
+    drawLocator(ctx, points, x, y, lw, lh);
+  } catch (_) { /* a tájoló nem kötelező */ }
 
   const elevData = incElev ? buildElevationData(geometry) : [];
   const elevCanvas = elevData.length ? buildElevationCanvas(elevData) : null;
