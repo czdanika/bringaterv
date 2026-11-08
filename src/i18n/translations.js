@@ -264,7 +264,7 @@ export const translations = {
       distance: "Távolság",
       points: "Útvonalpontok",
       ascent: "↑ Emelkedő",
-      descent: "↓ Ereszkedő",
+      descent: "↓ Ereszkedés",
       avgSpeed: "⌀ Átlag sebesség",
       maxSpeed: "Max sebesség",
     },

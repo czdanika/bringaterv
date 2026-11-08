@@ -6,6 +6,7 @@
   PATCH  /api/ai/workout/<id>              az elemzés kézi szerkesztése
   DELETE /api/ai/workout/<id>              az elemzés törlése
   POST   /api/ai/route-request             útvonal-javaslat: szabad szöveges kérés → beállítások
+  POST   /api/ai/route-description         saját útvonal / edzés leírás-javaslata (megye, települések, burkolat, terep)
   GET    /api/admin/ai                     beállítás + felhasználás (admin)
   PUT    /api/admin/ai                     API-kulcs, alap napi limit (admin)
   POST   /api/admin/ai/test                kulcs ellenőrzése (admin)
@@ -14,9 +15,13 @@
 Az API-kulcs csak a szerveren van; a kliens sosem kapja meg.
 """
 
+import os
+import re
+
 from flask import Blueprint, abort, g, jsonify, request
 
 import ai_service
+import geo_location
 from auth import require_admin, require_auth
 from config import log
 from db import _db
@@ -85,6 +90,98 @@ def ai_route_request():
         abort(502, description=str(exc))
     ai_service.log_usage(g.user["id"], "route_request", "", model, usage)
     return jsonify({**result, "status": ai_service.status(g.user)})
+
+
+_TYPE_LABELS = {"asphalt": "aszfalt (országúti)", "cycling": "aszfalt (országúti)", "gravel": "gravel", "mtb": "MTB",
+                "walking": "séta", "hiking": "gyalogtúra", "workout": "megtett edzés"}
+_SURF_LABELS = {"asphalt": "aszfalt", "gravel": "murva", "mtb": "földút", "hiking": "ösvény"}
+_PT_RE = re.compile(r'<(trkpt|rtept)\b[^>]*?\blat="([-\d.]+)"[^>]*?\blon="([-\d.]+)"[^>]*?(?:/>|>(.*?)</\1>)', re.S)
+_ELE_RE = re.compile(r"<ele>\s*([-\d.]+)\s*</ele>")
+_WPT_NAME_RE = re.compile(r"<wpt\b[^>]*>.*?<name>([^<]{1,80})</name>.*?</wpt>", re.S)
+
+
+def _gpx_points(text: str) -> list:
+    """[[lat, lon, ele|None], …] a GPX track- / route-pontjaiból."""
+    out = []
+    for m in _PT_RE.finditer(text):
+        try:
+            ele = _ELE_RE.search(m.group(4) or "")
+            out.append([float(m.group(2)), float(m.group(3)), float(ele.group(1)) if ele else None])
+        except ValueError:
+            continue
+    return out
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+@bp.route("/api/ai/route-description", methods=["POST"])
+@require_auth
+def ai_route_description():
+    """Leírás-javaslat egy útvonalhoz: a nyomvonalból helyadat (megye, települések), a burkolat-
+    arányokból és a domborzatból. Tervezőből: points (+ surface, waypoints); könyvtárból: route_id."""
+    _check_quota()
+    data = request.get_json(silent=True) or {}
+    name, rtype = str(data.get("name") or "")[:120], str(data.get("type") or "")
+    dist, elev = _num(data.get("distance_km")), _num(data.get("elevation_m"))
+    surface = data.get("surface") if isinstance(data.get("surface"), dict) else {}
+    waypoints = [str(w)[:80] for w in (data.get("waypoints") or []) if isinstance(w, str) and w.strip()][:15]
+    pts = []
+    if data.get("route_id"):
+        user_dir, idx = _resolve_dirs()
+        rid = _safe_id(str(data["route_id"]))
+        entry = next((r for r in _load_index(idx) if r.get("id") == rid), None)
+        if not entry:
+            abort(404, description="Az útvonal nem található.")
+        try:
+            with open(os.path.join(user_dir, f"{rid}.gpx"), encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            abort(404, description="Az útvonal nyomvonala nem található.")
+        pts = _gpx_points(text)
+        if not waypoints:
+            waypoints = [w.strip() for w in _WPT_NAME_RE.findall(text) if w.strip()][:15]
+        name = name or entry.get("name") or ""
+        rtype = rtype or entry.get("type") or ""
+        dist = dist if dist is not None else _num(entry.get("distance"))
+        elev = elev if elev is not None else _num(entry.get("elevation"))
+        if not surface and isinstance(entry.get("surface"), dict):
+            for s in entry["surface"].get("segments") or []:
+                surface[s.get("mode")] = surface.get(s.get("mode"), 0) + (_num(s.get("distanceKm")) or 0)
+    else:
+        for p in (data.get("points") or [])[:2000]:
+            if isinstance(p, (list, tuple)) and len(p) >= 2 and _num(p[0]) is not None and _num(p[1]) is not None:
+                pts.append([_num(p[0]), _num(p[1]), _num(p[2]) if len(p) > 2 else None])
+    pts = [p for p in pts if -90 <= p[0] <= 90 and -180 <= p[1] <= 180]
+    if len(pts) < 2:
+        abort(400, description="Előbb tervezz egy útvonalat.")
+
+    loc = geo_location.locate(pts) or {}
+    eles = [p[2] for p in pts if p[2] is not None]
+    surf_total = sum(v for v in surface.values() if isinstance(v, (int, float)) and v > 0)
+    info = {
+        "nev": name, "tipus": _TYPE_LABELS.get(rtype, rtype),
+        "tav_km": round(dist, 1) if dist else None, "emelkedo_m": round(elev) if elev else None,
+        "legalacsonyabb_m": round(min(eles)) if eles else None, "legmagasabb_m": round(max(eles)) if eles else None,
+        "kor": loc.get("loop"), "orszagok": loc.get("countries"), "megye": loc.get("region"),
+        "rajt": loc.get("settlement"), "cel": (loc.get("places") or [None])[-1],
+        "telepulesek": (loc.get("places") or [])[:15], "utpontok": waypoints,
+        "burkolat": {(_SURF_LABELS.get(k, k)): f"{round(v / surf_total * 100)}%" for k, v in surface.items()
+                     if isinstance(v, (int, float)) and v > 0 and v / surf_total >= 0.01} if surf_total else None,
+        "jelenlegi_leiras": str(data.get("current") or "").strip()[:1000],
+    }
+    info = {k: v for k, v in info.items() if v not in (None, "", [], {})}
+    try:
+        desc, model, usage = ai_service.describe_route(info)
+    except ai_service.AIError as exc:
+        abort(502, description=str(exc))
+    ai_service.log_usage(g.user["id"], "route_description", str(data.get("route_id") or "")[:60], model, usage)
+    return jsonify({"description": desc, "location": {k: loc.get(k) for k in ("region", "settlement", "places")},
+                    "status": ai_service.status(g.user)})
 
 
 @bp.route("/api/ai/workout/<route_id>", methods=["POST"])

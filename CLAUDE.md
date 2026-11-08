@@ -118,6 +118,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── deviceImport.js # Wahoo / Polar: saját app-kulcsok, OAuth popup, import ablak (initDeviceImports)
         ├── autoSync.js     # közös „Automatikus import” panel (Garmin, OnelapFit, Wahoo, Polar)
         ├── gear.js         # Felszerelés (főmenüpont): bringák, alkatrészek, karbantartás, napló, tömeges hozzárendelés, eszközök (kép, összevonás)
+        ├── aiDescribe.js   # „AI-leírás” gomb a leírás-mezőkhöz (tervező mentés, könyvtár szerkesztés) → POST /api/ai/route-description
         ├── zoneDist.js     # Elemzés: zónaeloszlás a lenyíló adatpanelekben (+ térképi jelmagyarázat forrása)
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
@@ -313,7 +314,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.36.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.37.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

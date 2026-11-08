@@ -79,6 +79,7 @@ import {
   libraryRouteSportKey, libraryRouteSource, smartDateFormat,
 } from "./ui/library.js";
 import { isMobileLayout as isMobileLayoutMQ, mobileMQ } from "./layout.js";
+import { attachAiDescribe } from "./ui/aiDescribe.js";
 
 requireAuth();
 
@@ -2937,22 +2938,74 @@ initAiAnalysis({
   });
 
   const val = (id) => ($id(id)?.textContent || "").trim();
-  // „123 / 149 bpm” – az átlag mértékegysége elhagyható, ha utána jön a maximum
+  // Magyarázó buborékok a feliratokhoz (egyetlen lebegő elem – az oldalsáv széle nem vágja le)
+  const HINTS = {
+    "Táv": "A rögzített nyomvonal hossza.",
+    "Mozgásidő": "Csak az az idő, amíg haladtál – a megállások (piros lámpa, pihenő) nélkül.",
+    "Időtartam": "A rögzítés teljes ideje az indulástól az érkezésig.",
+    "Teljes idő": "A rögzítés teljes ideje a megállásokkal együtt (a mozgásidő ennél kevesebb).",
+    "Átlagsebesség": "Táv osztva a mozgásidővel – a megállások nem rontják (mint a Stravánál).",
+    "Emelkedés": "Összesen ennyi métert mentél felfelé (a fájl magasságadataiból, 3 m-es zajszűréssel). A ↓ érték az ereszkedés: összesen ennyit lefelé.",
+    "Sebesség": "Átlag: táv / mozgásidő. Max: a legnagyobb mért pillanatnyi sebesség.",
+    "Pulzus": "Átlagos és legmagasabb szívfrekvencia (ütés / perc) a pulzusmérő szerint.",
+    "Kadencia": "Pedálfordulat percenként (rpm). Az átlagban a gurulás (0 rpm) nem számít.",
+    "Teljesítmény": "Wattmérővel mért teljesítmény (W): átlag és a legnagyobb pillanatnyi érték.",
+    "Hőmérséklet": "A komputer / óra hőmérője szerinti átlag. „≈” jellel: nem mért, hanem az időjárás-archívumból (Open-Meteo) az indulás helyén.",
+    "Kalória": "Az elégetett energia. Forrás sorrendben: az eszköz / Strava értéke → wattmérős munkából → pulzusból (Keytel-képlet, kalibrálva) → sebességből becsült. Kattints az összevetéshez.",
+    "TRIMP": "Edzésterhelés (Banister TRIMP): az idő és a pulzus intenzitásának szorzata, a magasabb pulzus súlyosabban számít. Nagyjából: 50 alatt könnyű, 50–120 közepes, 120–250 kemény, afölött nagyon kemény edzés. Ebből számol a Statok → Edzésterhelés (CTL / ATL / TSB).",
+    "Edwards": "Edzésterhelés pulzuszónák szerint (Edwards): a zónákban töltött percek súlyozva – Z1 ×1, Z2 ×2 … Z5 ×5. Egyszerűbb, mint a TRIMP, a pulzuszóna-beállításaidon alapul.",
+    "Átlag": "Átlagérték az edzés egészére.",
+    "Max": "A legnagyobb mért érték.",
+  };
+  const hint = (label) => HINTS[label] ? ` data-hint="${escapeHtml(HINTS[label])}" tabindex="0"` : "";
+  (() => {
+    let tip = null;
+    const show = (el) => {
+      tip ??= Object.assign(document.createElement("div"), { className: "f-hint-tip", role: "tooltip" });
+      if (!tip.isConnected) document.body.appendChild(tip);
+      tip.textContent = el.dataset.hint;
+      tip.hidden = false;
+      const r = el.getBoundingClientRect(), w = Math.min(280, window.innerWidth - 16);
+      tip.style.width = w + "px";
+      tip.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+      const below = r.bottom + 8, h = tip.offsetHeight;
+      tip.style.top = (below + h > window.innerHeight - 8 ? r.top - h - 8 : below) + "px";
+    };
+    const hide = () => { if (tip) tip.hidden = true; };
+    box.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-hint]"); if (el) show(el); });
+    box.addEventListener("mouseout", (e) => { if (e.target.closest("[data-hint]") && !e.relatedTarget?.closest?.("[data-hint]")) hide(); });
+    box.addEventListener("focusin", (e) => { const el = e.target.closest("[data-hint]"); if (el) show(el); });
+    box.addEventListener("focusout", hide);
+    document.addEventListener("scroll", hide, true);
+  })();
+
+  // Adatrács (asztal): cellánként kis felirat, alatta az érték (mértékegység halványan), a maximum mellette
+  const splitUnit = (t) => {
+    const m = String(t || "").trim().match(/^([-−–\d\s,.:]+?)\s*([^\d\s,.:][^]*)?$/);
+    return m ? [m[1].trim(), (m[2] || "").trim()] : [String(t || "").trim(), ""];
+  };
+  const cell = (label, value, { sub = "", attrs = "", tag = "div", cls = "" } = {}) => {
+    const [n, u] = splitUnit(value);
+    return `<${tag} class="f-mini-cell${cls}"${attrs}><span class="f-mini-l"${hint(label)}>${escapeHtml(label)}</span>`
+      + `<span class="f-mini-v"><b>${escapeHtml(n)}</b>${u ? `<small>${escapeHtml(u)}</small>` : ""}</span>`
+      + (sub ? `<span class="f-mini-s">${sub}</span>` : "") + `</${tag}>`;
+  };
   const mini = (label, id, maxId) => {
     if (!visible(id + "Row")) return "";
-    const max = maxId && visible(maxId + "Row") ? val(maxId) : "";
-    const avg = max ? val(id).replace(/\s*[^\d\s,.]+$/, "") : val(id);
-    return `<span>${label} <b>${avg}</b>${max ? ` / ${max}` : ""}</span>`;
+    const max = maxId && visible(maxId + "Row") ? splitUnit(val(maxId))[0] : "";
+    return cell(label, val(id), { sub: max ? `max ${escapeHtml(max)}` : "" });
   };
 
   // Kalória: a forrással („Kalória (Strava)”), kattintásra az összevetés ablak (a rejtett kártya viszi)
   const kcalMini = () => {
     if (!visible("fileKcalRow")) return "";
     const label = ($id("fileKcalLabel")?.textContent || "Kalória").trim();
+    const src = (label.match(/\(([^)]+)\)/) || [])[1] || "";
     const click = $id("fileKcalRow").classList.contains("stat-card--click");
     return click
-      ? `<button type="button" class="f-mini-link" data-kcal-compare title="Összevetés: eszköz, teljesítmény, pulzus, becslés">${escapeHtml(label)} <b>${escapeHtml(val("fileKcal"))}</b> <i data-lucide="chevron-right" aria-hidden="true"></i></button>`
-      : `<span>${escapeHtml(label)} <b>${escapeHtml(val("fileKcal"))}</b></span>`;
+      ? cell("Kalória", val("fileKcal"), { tag: "button", cls: " f-mini-link", attrs: ' type="button" data-kcal-compare title="Összevetés: eszköz, teljesítmény, pulzus, becslés"',
+          sub: `${escapeHtml(src || "összevetés")} <i data-lucide="chevron-right" aria-hidden="true"></i>` })
+      : cell("Kalória", val("fileKcal"), { sub: escapeHtml(src) });
   };
   $id("fFileMini")?.addEventListener("click", (e) => {
     if (e.target.closest("[data-kcal-compare]")) $id("fileKcalRow")?.click();
@@ -2980,13 +3033,24 @@ initAiAnalysis({
     if (desktop) {
       // asztalon: 4 fő szám, a többi halk sorban
       stats = [["fileDistance", "Táv"], timeEl, visible("fileAvgSpeedRow") ? ["fileAvgSpeed", "Átlagsebesség"] : null,
-               visible("fileAscentRow") ? ["fileAscent", "Emelkedés"] : null].filter(Boolean);
-      const other = visible("fileMovingDurRow") && visible("fileTotalDurRow") ? `<span>Teljes idő <b>${val("fileTotalDur")}</b></span>` : "";
+               visible("fileAscentRow") ? ["fileAscent", "Emelkedés" + (visible("fileDescentRow") && val("fileDescent")
+                 ? ` <em class="f-desc" title="Ereszkedés – összesen ennyit mentél lefelé">· ${escapeHtml(val("fileDescent"))} ↓</em>` : "")] : null].filter(Boolean);
+      // Strava-mintára: szürke sáv a terhelési mutatókkal, alatta Átlag | Max táblázat
       const hrScore = [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
-        `<span>${it.querySelector(".hr-score-label")?.textContent} <b>${it.querySelector(".hr-score-value")?.textContent}</b></span>`).join("");
-      const miniHtml = [mini("Max. seb.", "fileMaxSpeed"), mini("Pulzus", "fileAvgHr", "fileMaxHr"),
-        mini("Kadencia", "fileAvgCad", "fileMaxCad"), mini("Teljesítmény", "fileAvgPower", "fileMaxPower"), mini("Hőmérséklet", "fileTemp"),
-        mini("Lejtés", "fileDescent"), kcalMini(), other, hrScore].join("");
+        cell(it.querySelector(".hr-score-label")?.textContent?.trim() || "", it.querySelector(".hr-score-value")?.textContent?.trim() || "")).join("");
+      const band = kcalMini() + hrScore;
+      const fmtV = (t) => { const [n, u] = splitUnit(t); return n ? `${escapeHtml(n)}${u ? `<small>${escapeHtml(u)}</small>` : ""}` : ""; };
+      const row = (label, id, maxId) => {
+        if (!visible(id + "Row")) return "";
+        const max = maxId && visible(maxId + "Row") ? fmtV(val(maxId)) : "";
+        return `<div class="f-tbl-row"><span><span class="f-hint"${hint(label)}>${label}</span></span><span>${fmtV(val(id))}</span><span>${max}</span></div>`;
+      };
+      const rows = [row("Sebesség", "fileAvgSpeed", "fileMaxSpeed"), row("Pulzus", "fileAvgHr", "fileMaxHr"),
+        row("Kadencia", "fileAvgCad", "fileMaxCad"), row("Teljesítmény", "fileAvgPower", "fileMaxPower"),
+        row("Hőmérséklet", "fileTemp"),
+        visible("fileMovingDurRow") && visible("fileTotalDurRow") ? row("Teljes idő", "fileTotalDur") : ""].join("");
+      const miniHtml = (band ? `<div class="f-band">${band}</div>` : "")
+        + (rows ? `<div class="f-tbl"><div class="f-tbl-row f-tbl-head"><span></span><span><span class="f-hint"${hint("Átlag")}>Átlag</span></span><span><span class="f-hint"${hint("Max")}>Max</span></span></div>${rows}</div>` : "");
       // csak változáskor írjuk át – különben a gomb a kurzor alatt kicserélődne, és a kattintás elveszne
       const miniEl = $id("fFileMini");
       if (miniEl.dataset.html !== miniHtml) {
@@ -2999,7 +3063,10 @@ initAiAnalysis({
       const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
       stats = [["fileDistance", "Táv"], timeEl, visible(third.avg + "Row") ? [third.avg, third.avgLabel] : null].filter(Boolean);
     }
-    $id("mFileStats").innerHTML = stats.map(([id, l]) => `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${l}</span></div>`).join("");
+    $id("mFileStats").innerHTML = stats.map(([id, l]) => {
+      const key = l.replace(/<[^]*$/, "").trim();
+      return `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${desktop && HINTS[key] ? `<span class="f-hint"${hint(key)}>${key}</span>${l.slice(key.length)}` : l}</span></div>`;
+    }).join("");
     renderZones(act);
     refreshAiCard();
     // színezés választó (csak az elérhető adatok)
@@ -3971,6 +4038,30 @@ document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async 
 });
 
 // Close modal
+// ── AI-leírás a mentés-ablakban: a nyomvonal, a burkolat (BRouter) és az útpontok neve alapján ──
+attachAiDescribe(elements.exportDesc, () => {
+  const g = activeGeometry || [];
+  if (g.length < 2) return null;
+  const state = store.getState();
+  const step = Math.max(1, Math.ceil(g.length / 1500));
+  const points = g.filter((_, i) => i % step === 0 || i === g.length - 1)
+    .map((p) => [+p.lat.toFixed(5), +p.lng.toFixed(5), Number.isFinite(p.ele) ? Math.round(p.ele) : null]);
+  // burkolat km-ben a BRouter pontonkénti jelöléséből (ha a pontok zöme jelölt)
+  let surface = null;
+  if (g.filter((p) => p.surf).length >= g.length * 0.9) {
+    surface = {};
+    for (let i = 1; i < g.length; i++) {
+      const m = g[i].surf || g[i - 1].surf;
+      if (m) surface[m] = (surface[m] || 0) + distMeters(g[i - 1], g[i]) / 1000;
+    }
+  }
+  const { name, selectedMode, distanceKm, ascentMeters } = buildExportPayload();
+  return {
+    name, type: selectedMode, distance_km: distanceKm, elevation_m: ascentMeters || null, points, surface,
+    waypoints: (state.waypoints || []).map((w) => w.name || w.label || "").filter(Boolean),
+  };
+});
+
 elements.exportClose?.addEventListener("click", () => {
   elements.exportOverlay.hidden = true;
 });

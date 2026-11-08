@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.37.0 – 2026-11-08 – AI-leírás az útvonalakhoz, rendezett Elemzés-összefoglaló
+
+### Verzió
+
+- **Elemzés – rendezett adatblokk (gépen):** a fő számok alatt a korábbi sortörő „halk sor” helyett Strava-mintára szürke sáv (Kalória – kattintásra az összevetés –, TRIMP, Edwards), alatta Átlag | Max táblázat (sebesség, pulzus, kadencia, teljesítmény, hőmérséklet, teljes idő); az ereszkedés az Emelkedés alatt (pl. „Emelkedés · 810 m ↓”) – a „Lejtés” szó a meredekség-színezésé marad. Minden felirat (Táv, Mozgásidő, Átlagsebesség, Emelkedés, Kalória, TRIMP, Edwards, a táblázat sorai, Átlag / Max) magyarázó buborékot kapott (pontozott aláhúzás, egérrel fölé vagy Tab-bal).
+- **AI-leírás az útvonalakhoz:** a tervező Mentés ablakában és a könyvtár Szerkesztés ablakában a leírás mellett „AI-leírás” gomb – a nyomvonalból a szerver kiszámolja a megyét, a rajtot / célt és az érintett településeket (OSM), a burkolat-arányokat (BRouter / tárolt vizsgálat) és a domborzatot, és ebből 2–3 mondatos leírást ír („Körtúra Veszprém vármegyében, … Vegyes burkolatú …”). A napi AI-keretből számít; a meglévő leírás tényeit megtartja. (`POST /api/ai/route-description`, `src/ui/aiDescribe.js`)
+
 ## v1.36.0 – 2026-11-08 – Hőmérséklet, kalória-összevetés, eszközképek, egységes Elemzés
 
 ### Verzió

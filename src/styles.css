@@ -7850,9 +7850,23 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   .f-more-btn[aria-expanded="true"] { background: var(--accent-soft); }
   .m-file-summary .m-sum-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 16px; }
   .m-file-summary .m-sum-stats .cs-stat > b { font-size: 22px; }
-  .f-mini { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 12px; font-size: 12.5px; color: var(--text-muted); }
+  /* Strava-mintára: szürke sáv (kalória, TRIMP, Edwards), alatta Átlag | Max táblázat */
+  .f-mini { display: block; margin-top: 14px; }
+  .f-desc { font-style: normal; color: var(--text-muted); white-space: nowrap; }
   .f-mini:empty { display: none; }
-  .f-mini b { color: var(--text); font-weight: 600; }
+  .f-band { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 0 -20px; padding: 12px 20px; background: var(--panel-strong); }
+  .f-mini-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
+  .f-tbl { margin-top: 10px; font-size: 13px; }
+  .f-tbl-row { display: grid; grid-template-columns: minmax(0, 1.25fr) 1fr 1fr; gap: 8px; padding: 5px 0; align-items: baseline; }
+  .f-tbl-row > span:first-child { color: var(--text); }
+  .f-tbl-row > span:not(:first-child) { font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+  .f-tbl-row small { font-size: 11px; color: var(--text-muted); margin-left: 3px; }
+  .f-tbl-head { padding: 0 0 4px; font-size: 12px; font-weight: 700; }
+  .f-mini-l { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .f-mini-v { font-size: 16px; line-height: 1.25; color: var(--text); white-space: nowrap; }
+  .f-mini-v b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .f-mini-v small { font-size: 11.5px; font-weight: 500; color: var(--text-muted); margin-left: 3px; }
+  .f-mini-s { font-size: 11px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
   .f-acts { display: flex; gap: 8px; margin-top: 16px; }
   .f-acts .lib-x-btn { flex: 1; justify-content: center; padding: 0 10px; }
   .f-acts [hidden] { display: none; }
@@ -8384,10 +8398,10 @@ body.is-navigating #toast { z-index: 3100; }
 .kcal-diff.is-up { color: #b45309; } .kcal-diff.is-down { color: #2563eb; }
 .kcal-foot { font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 10px 0 0; }
 
-.f-mini-link { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer;
-  text-decoration: underline dotted; text-underline-offset: 3px; }
-.f-mini-link:hover { color: var(--text); }
-.f-mini-link svg { width: 13px; height: 13px; }
+.f-mini-link { margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 10px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.f-mini-link:hover { background: var(--accent-soft); }
+.f-mini-link .f-mini-s { color: var(--brand); font-weight: 600; }
+.f-mini-link svg { width: 12px; height: 12px; }
 
 /* Elemzés: zónaeloszlás a lenyíló panelekben (zoneDist.js) – a pulzus-táblázat mintájára */
 .speed-legend-items.zone-dist { display: block; padding-left: 0; padding-right: 0; }
@@ -8406,3 +8420,23 @@ body.is-navigating #toast { z-index: 3100; }
 .settings-auto-status { font-size: 11.5px; color: var(--text-muted); }
 .settings-auto-status.is-error { color: #b45309; }
 .settings-auto-note { margin: 8px 0 0 26px; font-size: 11px; color: var(--text-muted); }
+
+/* ── AI-leírás gomb a leírás-mező címkéjében (aiDescribe.js) ── */
+.export-label.has-ai-desc { display: flex; align-items: center; gap: 6px; }
+.ai-desc-btn {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border); background: var(--panel-bg); color: var(--text);
+  border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.ai-desc-btn svg { width: 13px; height: 13px; color: #8b5cf6; }
+.ai-desc-btn:hover:not(:disabled) { border-color: #8b5cf6; }
+.ai-desc-btn:disabled { opacity: .55; cursor: default; }
+.ai-desc-btn.is-busy svg { animation: ai-desc-pulse 1s ease-in-out infinite; }
+@keyframes ai-desc-pulse { 50% { opacity: .3; } }
+.export-textarea.is-ai-busy { opacity: .6; }
+
+/* Elemzés: magyarázó buborék a feliratokon (main.js HINTS) */
+.m-file-summary [data-hint] { cursor: help; text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
+.m-file-summary [data-hint]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 3px; }
+.f-hint-tip { position: fixed; z-index: 4000; padding: 9px 11px; border-radius: 10px; background: var(--text); color: var(--bg);
+  font-size: 12px; line-height: 1.45; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18); pointer-events: none; }

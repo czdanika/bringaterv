@@ -202,6 +202,8 @@ export const routesApi = {
 
   aiStatus() { return fetchJson(`${BASE}/ai/status`); },
   /** Útvonal-javaslat: szabad szöveges kérés → beállítások ({ params, summary, unsupported, status }) */
+  /** Útvonal-leírás AI-val: { route_id } vagy { points, surface, waypoints, … } → { description, location, status } */
+  aiRouteDescription(data) { return fetchJson(`${BASE}/ai/route-description`, { method: "POST", body: JSON.stringify(data) }); },
   aiRouteRequest(data) { return fetchJson(`${BASE}/ai/route-request`, { method: "POST", body: JSON.stringify(data) }); },
   aiSetEnabled(enabled) {
     return fetchJson(`${BASE}/ai/me`, { method: "PUT", body: JSON.stringify({ enabled }) });

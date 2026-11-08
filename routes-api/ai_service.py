@@ -367,6 +367,43 @@ def describe_sample(info: dict) -> tuple[dict, str, object]:
             "season": data.get("season") if data.get("season") in ("all", "spring-autumn", "summer", "dry") else ""}, model, usage
 
 
+# ── Saját útvonal / edzés leírása (tervező mentése, könyvtár szerkesztése) ─────
+
+_ROUTE_DESC_SYSTEM = """Egy magyar kerékpáros útvonaltervező alkalmazásban a felhasználó saját útvonalához \
+(vagy megtett edzéséhez) írsz rövid leírást a könyvtárába. Az adatokat JSON-ban kapod: név, típus \
+(aszfalt / gravel / MTB / séta / túra / edzés), táv, emelkedő, legalacsonyabb és legmagasabb pont, \
+kör vagy A → B, ország, megye, rajt- és célpont települése, az érintett települések útvonal-sorrendben, \
+a burkolat-arányok (ha ismertek), a felhasználó által elnevezett útpontok, és ha van, a jelenlegi leírás.
+
+Írj magyarul egy "description" mezőt: 2–3 mondat (legfeljebb ~50 szó), tárgyilagos, tömör hangon, \
+például: „Körtúra Veszprém vármegyében, Balatonfüredről indulva Tihanyon és Aszófőn át. Vegyes \
+burkolatú, többnyire aszfaltos útszakaszok, egy rövidebb murvás résszel; dombos, néhány erősebb \
+emelkedővel.” Tartalma:
+- hol van (megye, ha több ország: az országok) és merre visz (a települések közül 2–5-öt említs, sorrendben);
+- milyen az út: burkolat (aszfalt / vegyes / murvás / földutas / ösvényes – az arányok alapján), \
+  terep (sík / hullámos / dombos / hegyes – az emelkedő és a táv aránya alapján: kb. 5 m/km alatt sík, \
+  5–12 hullámos, 12–20 dombos, 20 felett hegyes);
+- edzésnél múlt időben fogalmazz („… tekert kör”), tervnél jelen időben.
+Ne írd bele a pontos km-t és a szintet (azok külön látszanak), ne használj felkiáltójelet, ne szólítsd meg \
+az olvasót.
+
+Szabályok: csak a megadott adatokra és a megnevezett települések közismert jellemzőire támaszkodj; ne \
+találj ki konkrét látnivalót, kávézót vagy útszakasz-nevet. Ha a burkolat nem ismert, ne állíts róla \
+semmit. Ha van jelenlegi leírás, annak tényeit (pl. személyes megjegyzéseit) tartsd meg."""
+
+_ROUTE_DESC_SCHEMA = {
+    "type": "object",
+    "properties": {"description": {"type": "string"}},
+    "required": ["description"],
+    "additionalProperties": False,
+}
+
+
+def describe_route(info: dict) -> tuple[str, str, object]:
+    data, model, usage = _call(_ROUTE_DESC_SYSTEM, info, _ROUTE_DESC_SCHEMA, max_tokens=2000)
+    return str(data.get("description") or "").strip()[:800], model, usage
+
+
 # ── Fejlesztési fa: szabad szöveges ötlet → elhelyezett, megfogalmazott elemek (admin) ─────
 
 _ROADMAP_SYSTEM = """Egy magyar kerékpáros útvonaltervező és edzésnapló alkalmazás (Bringaterv) fejlesztési \

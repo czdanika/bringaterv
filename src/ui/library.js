@@ -21,6 +21,7 @@ import { showResultDialog } from "./dom.js";
 import { deviceName, getBikes, resolveBike, sensorLabels } from "../equipment.js";
 import { initGear } from "./gear.js";
 import { getGarminStatus } from "./garmin.js";
+import { attachAiDescribe } from "./aiDescribe.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -409,6 +410,7 @@ export async function loadCardPreview(routeId, isSample, slotEl = null) {
 }
 
 // ── Szerkesztési modal ────────────────────────────────────────────────────────
+let _editRoute = null;
 export function openLibraryEditModal(route) {
   const overlay   = document.querySelector("#libraryEditOverlay");
   const nameInput = document.querySelector("#libraryEditName");
@@ -417,6 +419,13 @@ export function openLibraryEditModal(route) {
   if (!overlay) return;
   nameInput.value = route.name;
   descInput.value = route.description ?? "";
+  // AI-leírás: a szerver a tárolt nyomvonalból dolgozik (a név és a típus a mezőkből)
+  _editRoute = route;
+  attachAiDescribe(descInput, () => _editRoute && {
+    route_id: _editRoute.id, name: nameInput.value.trim(),
+    type: _editRoute.type === "workout" ? "workout"
+      : overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? _editRoute.type,
+  });
   const editTypeVal = (route.type === "cycling" ? "asphalt" : route.type) ?? "asphalt";
   const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${editTypeVal}"]`);
   if (typeRadio) typeRadio.checked = true;
