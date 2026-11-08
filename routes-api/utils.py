@@ -1,8 +1,12 @@
 """Bringaterv API – közös segédfüggvények (ID, index fájl, dátum)."""
 
+import fcntl
 import json
 import os
 import re
+import shutil
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from config import log
@@ -34,6 +38,41 @@ def _clean_surface(raw):
             "analyzed_at": str(raw.get("analyzed_at") or "")[:40]}
 
 
+# ── Index zárolás ─────────────────────────────────────────────────────────────
+# Az index.json-t a kérések és a háttérszálak (mért adatok, hőmérséklet, időjárás pótlása)
+# is írják. A zár: szálon belül újra beléphető (threading), a gunicorn-folyamatok között
+# fájlzár (fcntl a <index>.lock fájlon). Írás közben mindig ez fogja, a háttér-írók pedig
+# az olvasás–módosítás–írás teljes idejére (index_lock).
+_locks: dict = {}
+_locks_guard = threading.Lock()
+_held = threading.local()
+
+
+@contextmanager
+def index_lock(path: str):
+    depth = getattr(_held, "d", {})
+    _held.d = depth
+    if depth.get(path):                         # ez a szál már fogja (pl. _save_index a zár alatt)
+        depth[path] += 1
+        try:
+            yield
+        finally:
+            depth[path] -= 1
+        return
+    with _locks_guard:
+        tl = _locks.setdefault(path, threading.Lock())
+    with tl:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path + ".lock", "a") as lf:
+            fcntl.flock(lf, fcntl.LOCK_EX)
+            depth[path] = 1
+            try:
+                yield
+            finally:
+                depth[path] = 0
+                fcntl.flock(lf, fcntl.LOCK_UN)
+
+
 def _load_index(path: str) -> list:
     if not os.path.exists(path):
         return []
@@ -42,18 +81,49 @@ def _load_index(path: str) -> list:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as exc:
         log.error("Index olvasási hiba (%s): %s", path, exc)
-        return []
+        # sérült fájl: az utolsó ép másolatból – üres listával a következő mentés az egész
+        # könyvtárat felülírná
+        try:
+            with open(path + ".bak", encoding="utf-8") as f:
+                data = json.load(f)
+            log.warning("Index visszaállítva a biztonsági másolatból (%s)", path)
+            return data
+        except (json.JSONDecodeError, OSError):
+            raise RuntimeError(f"Az index sérült, és nincs ép másolata: {path}") from exc
 
 
 def _save_index(index: list, path: str) -> None:
-    tmp  = path + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(index, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except OSError as exc:
-        log.error("Index írási hiba (%s): %s", path, exc)
-        raise
+    # egyedi ideiglenes fájl (két író soha nem keveredik egy fájlba), atomi csere, előtte
+    # az előző ép változat másolata (.bak)
+    tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with index_lock(path):
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(index, f, ensure_ascii=False, indent=2)
+            if os.path.exists(path):
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        json.load(f)                    # csak ép fájlról készül másolat
+                    shutil.copyfile(path, path + ".bak")
+                except (json.JSONDecodeError, OSError):
+                    pass
+            os.replace(tmp, path)
+        except OSError as exc:
+            log.error("Index írási hiba (%s): %s", path, exc)
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+
+
+def append_index(path: str, entry: dict) -> None:
+    """Új bejegyzés hozzáfűzése: zár alatt friss olvasás + írás (a hívó korábban betöltött listája
+    elavult lehet – pl. a letöltés alatt egy másik import vagy a háttér-pótlás is írt)."""
+    with index_lock(path):
+        idx = _load_index(path)
+        idx.append(entry)
+        _save_index(idx, path)
 
 
 def _now_date() -> str:

@@ -234,7 +234,7 @@ export function initNavigation(deps) {
         <button type="button" class="nav-btn nav-btn--stop" id="navStopBtn"><i data-lucide="square" aria-hidden="true"></i><span>Befejezés</span></button>
       </div>
     </div>`);
-  window.lucide?.createIcons({ nodes: [$("navBottom")] });
+  window.lucide?.createIcons({ root: $("navBottom") });
   $("mapNavFabBtn")?.addEventListener("click", start);
   $("navStopBtn").addEventListener("click", () => {
     if (nav?.arrived || confirm("Befejezed a navigációt?")) stop();
@@ -263,7 +263,7 @@ function paintVoice() {
   const b = $("navVoiceBtn");
   b.classList.toggle("is-off", nav.muted);
   b.innerHTML = `<i data-lucide="${nav.muted ? "volume-x" : "volume-2"}" aria-hidden="true"></i><span>${nav.muted ? "Néma" : "Hang"}</span>`;
-  window.lucide?.createIcons({ nodes: [b] });
+  window.lucide?.createIcons({ root: b });
 }
 
 const SIM = /[?&]navsim/.test(location.search);

@@ -18,7 +18,7 @@ import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
 import { getOnelapStatus } from "./onelap.js";
 import { showResultDialog } from "./dom.js";
-import { getBikes, resolveBike, sensorLabels } from "../equipment.js";
+import { deviceName, getBikes, resolveBike, sensorLabels } from "../equipment.js";
 import { initGear } from "./gear.js";
 import { getGarminStatus } from "./garmin.js";
 
@@ -486,7 +486,7 @@ export function toggleLibraryRowExpand(routeId) {
   const expandRow = buildLibraryExpandRow(route, category, isSample);
   mainRow.insertAdjacentElement("afterend", expandRow);
   loadAndRenderExpandPreview(routeId);
-  window.lucide?.createIcons({ nodes: [expandRow] });
+  window.lucide?.createIcons({ root: expandRow });
 }
 
 // ── Expand row felépítés ──────────────────────────────────────────────────────
@@ -509,11 +509,15 @@ function buildLibraryExpandRow(route, category, isSample) {
   if (route.weighted_avg_watts != null) mini.push(libMini("Teljesítmény (NP)", int(route.weighted_avg_watts), "W"));
   else if (route.avg_watts != null)     mini.push(libMini("Teljesítmény", int(route.avg_watts), "W"));
   if (route.kilojoules != null)   mini.push(libMini("Munka", int(route.kilojoules), "kJ"));
+  if (category === "workout" && route.avg_temp != null) {
+    const w = route.temp_source === "weather";
+    mini.push(libMini(w ? "Hőmérséklet (időjárás)" : "Hőmérséklet", num(route.avg_temp, 0), "°C"));
+  }
   if (route.pr_count > 0)         mini.push(libMini("Személyes rekord", route.pr_count));
   if (category === "workout") {
     const bike = resolveBike(route)?.name;
     if (bike)                     mini.push(libMini("Bringa", escapeHtml(bike)));
-    if (route.device)             mini.push(libMini("Eszköz", escapeHtml(route.device)));
+    if (route.device)             mini.push(libMini("Eszköz", escapeHtml(deviceName(route.device))));
     if (route.power_meter)        mini.push(libMini("Wattmérő", escapeHtml(route.power_meter)));
     const sens = sensorLabels(route);
     if (sens.length)              mini.push(libMini("Szenzorok", escapeHtml(sens.join(", "))));
@@ -786,6 +790,7 @@ async function runAction(act, btn) {
             if (num(route.avg_cadence))    extraStats.push([`${Math.round(route.avg_cadence)}`, "KADENCIA"]);
             if (num(route.avg_watts))      extraStats.push([`${Math.round(route.avg_watts)} W`, "ÁTL. TELJ."]);
             if (num(route.calories))       extraStats.push([`${Math.round(route.calories)}`, "KCAL"]);
+            if (route.avg_temp != null)    extraStats.push([`${Math.round(route.avg_temp)} °C`, "HŐMÉRSÉKLET"]);
           }
           const dateSrc = route.start_time || route.date;
           openRoutePdfModal({
@@ -862,7 +867,7 @@ function renderLibraryListView(items, container) {
   container.querySelectorAll("[data-sort-key]").forEach(btn => {
     btn.addEventListener("click", () => setLibraryListSort(btn.dataset.sortKey));
   });
-  window.lucide?.createIcons({ nodes: [container] });
+  window.lucide?.createIcons({ root: container });
 }
 
 // ── List nézet sor ────────────────────────────────────────────────────────────
@@ -1067,7 +1072,7 @@ function openRouteActionMenu(route, category, isSample, anchor, opts = {}) {
     runAction(item.dataset.act, item);
   });
   document.addEventListener("keydown", _menuKey);
-  window.lucide?.createIcons({ nodes: [ov] });
+  window.lucide?.createIcons({ root: ov });
 }
 
 // ── Fő render ─────────────────────────────────────────────────────────────────
@@ -1188,7 +1193,7 @@ export function renderLibraryGrid() {
     renderLibraryListView(filtered, list);
   } else {
     filtered.forEach(({ route, category, isSample }) => grid.append(createLibraryCard(route, category, isSample)));
-    window.lucide?.createIcons({ nodes: [grid] });
+    window.lucide?.createIcons({ root: grid });
   }
 }
 
@@ -1198,7 +1203,7 @@ function bikeKey(route) {
   return r ? (r.id || `name:${r.name.toLowerCase()}`) : null;
 }
 function deviceKey(route) {
-  return route.device ? route.device.trim().toLowerCase() : null;
+  return route.device ? deviceName(route.device).toLowerCase() : null;      // összevont nevek együtt
 }
 let _equipFilterSig = "";
 function renderEquipmentFilters() {
@@ -1208,7 +1213,7 @@ function renderEquipmentFilters() {
     const bk = bikeKey(w);
     if (bk) { const b = bikes.get(bk) || { label: resolveBike(w).name, n: 0 }; b.n++; bikes.set(bk, b); }
     const dk = deviceKey(w);
-    if (dk) { const d = devices.get(dk) || { label: w.device.trim(), n: 0 }; d.n++; devices.set(dk, d); }
+    if (dk) { const d = devices.get(dk) || { label: deviceName(w.device), n: 0 }; d.n++; devices.set(dk, d); }
   }
   // csak akkor rajzolunk újra, ha változott a lista – kiválasztáskor csak az aktív jelölés vált
   // (a kicserélt gomb miatt a Szűrők panel „kívülre kattintottak”-nak venné és bezárulna)

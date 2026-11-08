@@ -13,6 +13,7 @@ const SOURCES = [
   { toggle: "hrMapToggle",        legend: "hrLegend",        title: "Pulzus" },
   { toggle: "cadMapToggle",       legend: "cadLegend",       title: "Kadencia" },
   { toggle: "powerMapToggle",     legend: "powerLegend",     title: "Teljesítmény" },
+  { toggle: "tempMapToggle",      legend: "tempLegend",      title: "Hőmérséklet" },
   { toggle: "gradeMapToggle",     legend: "gradeLegend",     title: "Lejtés" },
   { toggle: "gradeMapTogglePlan", legend: "gradeLegendPlan", title: "Lejtés" },
   { toggle: "windMapTogglePlan",  legend: "windLegendPlan",  title: "Szél" },
@@ -34,6 +35,9 @@ function activeSource() {
 
 /** Sávok: [szín, felirat] – a .speed-legend-item vagy a pulzuszóna-sorokból */
 function itemsOf(legendEl) {
+  // zónaeloszlás-táblázat (zoneDist.js) – ugyanazok a sávok, mint a panelben
+  const dist = [...legendEl.querySelectorAll("[data-legend-label]")];
+  if (dist.length) return dist.map((r) => [r.dataset.legendColor, r.dataset.legendLabel]);
   const hrRows = [...legendEl.querySelectorAll(".hr-zone-row")];
   if (hrRows.length) {
     return hrRows.map((r) => {

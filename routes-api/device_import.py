@@ -24,7 +24,7 @@ from flask import request
 from config import log
 from fit_gpx import _xml, equipment_fields, fit_to_gpx
 from storage import _user_dir, _user_routes_dir
-from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
+from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate, append_index
 
 _TZ = ZoneInfo("Europe/Budapest")
 _DATA_ROOT = os.path.dirname(os.environ.get("MULTI_DATA_DIR", "/data/users").rstrip("/")) or "/data"
@@ -356,7 +356,10 @@ def save_workout(user_id: str, provider: str, item_id, *, fit_bytes: bytes | Non
         "max_speed_kmh": round(max_sp * 3.6, 2) if max_sp else None,
         **equipment_fields(s.get("equipment")),
     }
-    idx = _load_index(idx_path)          # a letöltés alatt változhatott
-    idx.append(entry)
-    _save_index(idx, idx_path)
+    append_index(idx_path, entry)        # zár alatt friss olvasás + írás (a letöltés alatt változhatott)
+    try:
+        import temp_weather
+        temp_weather.fill_soon(user_id)          # mért adatok, hőmérséklet (ha kell: időjárásból)
+    except Exception:
+        pass
     return {"ok": True, "skipped": False, "entry": entry}

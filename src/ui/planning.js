@@ -170,7 +170,7 @@ export function syncRouteModeButtons(mode) {
   if (_elements.routeModePicker) {
     _elements.routeModePicker.innerHTML =
       `${iconHtml}<span>${meta.label}</span><i data-lucide="chevron-down" class="sidebar-style-chevron" aria-hidden="true"></i>`;
-    window.lucide?.createIcons({ nodes: [_elements.routeModePicker] });
+    window.lucide?.createIcons({ root: _elements.routeModePicker });
   }
   // toolbar gomb: ikon + title frissítés
   if (_elements.mapRouteModePicker) {
@@ -179,7 +179,7 @@ export function syncRouteModeButtons(mode) {
       : meta.svg ?? _GRAVEL_PICKER_SVG;
     _elements.mapRouteModePicker.innerHTML = toolbarIcon;
     _elements.mapRouteModePicker.title = `Tervezési mód: ${meta.label}`;
-    window.lucide?.createIcons({ nodes: [_elements.mapRouteModePicker] });
+    window.lucide?.createIcons({ root: _elements.mapRouteModePicker });
   }
 }
 

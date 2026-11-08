@@ -71,7 +71,7 @@ export function open() {
   document.body.classList.add("is-suggesting");
   $("suggestPanel").hidden = false;
   renderForm(); renderResults(); drawStart();
-  window.lucide?.createIcons({ nodes: [$("suggestPanel")] });
+  window.lucide?.createIcons({ root: $("suggestPanel") });
   probeLocalBrouter();   // saját BRouter elérhető-e (akkor több változatot próbálunk ki)
   // AI-kérés mező: csak ha a felhasználónak elérhető az AI
   if (st.ai == null) routesApi.aiStatus().then((a) => { st.ai = a; renderAi(); }).catch(() => { st.ai = { configured: false }; });
@@ -149,12 +149,12 @@ function renderForm() {
       ${isFoot() ? "" : `<div><div class="sg-lbl">Forgalom</div>${seg("traffic", [["any", "Mindegy"], ["quiet", "Főutak kerülése"], ["cycle", "Kerékpárút előnyben"]], st.traffic)}</div>`}
       <div><div class="sg-lbl">Leghosszabb emelkedő</div>${seg("climb", CLIMBS, st.maxClimb ? String(st.maxClimb) : "")}</div>
     </div>` : ""}`;
-  window.lucide?.createIcons({ nodes: [$("sgOpts")] });
+  window.lucide?.createIcons({ root: $("sgOpts") });
   const ready = st.start && (st.loop || st.end);
   $("sgGo").disabled = !ready || st.busy;
   $("sgHint").textContent = !st.start ? "Bökj a térképre a rajthoz, vagy használd a saját helyed."
     : !st.loop && !st.end ? "Most bökj a térképre a célhoz." : "";
-  window.lucide?.createIcons({ nodes: [form] });
+  window.lucide?.createIcons({ root: form });
 }
 
 function renderResults() {
@@ -181,7 +181,7 @@ function renderResults() {
       </div>`;
     }).join("") +
     (st.results.length > st.shown ? `<button type="button" class="sg-more-res" data-sg-act="showmore"><i data-lucide="plus" aria-hidden="true"></i>Több javaslat (+${st.results.length - st.shown})</button>` : "");
-  window.lucide?.createIcons({ nodes: [box] });
+  window.lucide?.createIcons({ root: box });
 }
 
 // „Hasonló, de…”: a kiválasztott javaslatból kiinduló gyors módosítások
@@ -383,7 +383,7 @@ function renderAi() {
       <textarea id="sgAiText" rows="2" maxlength="500" placeholder="pl. 2 órás gravel kör Szentendréről, kevés forgalommal, nagy emelkedő nélkül"></textarea>
       <div class="sg-ai-row"><button type="button" class="sg-ai-go" data-sg-act="ai"><i data-lucide="sparkles" aria-hidden="true"></i><span>Kitöltés AI-val</span></button>
         <small id="sgAiLeft"></small></div>`;
-    window.lucide?.createIcons({ nodes: [box] });
+    window.lucide?.createIcons({ root: box });
     $("sgAiText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runAi(); });
   }
   $("sgAiLeft").textContent = a.remaining != null ? `ma még ${a.remaining} AI-kérés` : "";

@@ -120,7 +120,7 @@ export function refreshAiCard() {
       (stale ? `<div class="f-ai-stale"><i data-lucide="info" aria-hidden="true"></i><span>Az edzés azóta módosult – az elemzés a korábbi adatokon készült.
          <button type="button" class="f-ai-link is-strong" data-ai="rerun" ${_status.remaining > 0 ? "" : "disabled"}>Újragenerálás</button></span></div>` : "");
   }
-  window.lucide?.createIcons({ nodes: [box] });
+  window.lucide?.createIcons({ root: box });
 }
 
 async function onClick(e) {
@@ -224,7 +224,7 @@ function openExtended(id, entry) {
     }
   });
   document.body.append(ov);
-  window.lucide?.createIcons({ nodes: [ov] });
+  window.lucide?.createIcons({ root: ov });
   ov.querySelector(".ai-ext-x")?.focus();
 }
 

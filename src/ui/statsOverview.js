@@ -10,6 +10,8 @@
  */
 
 import { num } from "../format.js";
+import { personFrom, sumKcal } from "../calories.js";
+import { getCyclistProfile, getHrZoneSettings } from "./settings.js";
 
 const BRAND = "#e8461e";
 const MONTHS = ["jan", "febr", "márc", "ápr", "máj", "jún", "júl", "aug", "szept", "okt", "nov", "dec"];
@@ -193,6 +195,13 @@ export function renderOverview(allRoutes, { period = "year", sport = "all" } = {
   };
   const hours = s.min / 60;
   const avg = s.min > 0 ? s.km / hours : 0;
+  // energia: az Elemzés sorrendjében (eszköz / Strava → mért watt → pulzus → becslés)
+  const prof = getCyclistProfile(), person = personFrom(getHrZoneSettings(), prof);
+  const en = sumKcal(rs, person, prof);
+  const enPrev = pr.prev ? sumKcal(base.filter((r) => inRange(r, pr.prev[0], pr.prev[1])), person, prof).kcal : 0;
+  const enN = en.by.device + en.by.power + en.by.hr + en.by.met;
+  const enTitle = `Forrás: ${[[en.by.device, "eszköz / szolgáltatás"], [en.by.power, "wattmérő"], [en.by.hr, "pulzus"], [en.by.met, "becslés"]]
+    .filter(([n]) => n).map(([n, t]) => `${n} edzés ${t}`).join(", ") || "nincs adat"}`;
   if (!base.length) { box.innerHTML = `<div class="st-empty">Még nincs edzésed – tölts be egyet, vagy kösd be a Stravát.</div>`; return; }
 
   // évek összehasonlítása: az utolsó 3 év, amiben van adat (idei mindig)
@@ -239,6 +248,7 @@ export function renderOverview(allRoutes, { period = "year", sport = "all" } = {
       <div class="st-kpi"><b>${s.n}<small>edzés</small></b><div>${p && p.n ? `<span class="${s.n >= p.n ? "st-up" : "st-dn"}">${s.n >= p.n ? "▲" : "▼"} ${Math.abs(s.n - p.n)}</span> ${pr.prevLabel}` : "&nbsp;"}</div></div>
       <div class="st-kpi"><b>${km0(s.up)}<small>m</small></b><div>${s.up >= 8849 ? `${num(s.up / 8849, 1)}× Mount Everest` : delta(s.up, p?.up, " m") || "&nbsp;"}</div></div>
       <div class="st-kpi"><b>${hours >= 10 ? km0(hours) : num(hours, 1)}<small>óra</small></b><div>${avg ? `átlag ${num(avg, 1)} km/h` : "&nbsp;"}</div></div>
+      ${en.kcal > 0 ? `<div class="st-kpi" title="${enTitle}"><b>${km0(en.kcal)}<small>kcal</small></b><div>${delta(en.kcal, enPrev, " kcal") || (enN ? `átlag ${km0(en.kcal / enN)} kcal / edzés` : "&nbsp;")}</div></div>` : ""}
     </div>
     <div class="st-grid2">
       <section class="st-card">
@@ -402,7 +412,7 @@ export function renderYearReview(allRoutes, { userName = "" } = {}) {
     </div>`;
   box.querySelectorAll("[data-yr]").forEach((b) => b.addEventListener("click", () => { _yrYear = Number(b.dataset.yr); renderYearReview(allRoutes, { userName }); }));
   box.querySelector("#statsYearShare")?.addEventListener("click", () => shareYearImage(Y, d, userName));
-  window.lucide?.createIcons({ nodes: [box] });
+  window.lucide?.createIcons({ root: box });
 }
 
 /** Sztori-méretű (1080×1920) megosztó kép az évről. */

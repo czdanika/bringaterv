@@ -512,14 +512,14 @@
                   <button type="button" data-proxy="fileShareButton"><i data-lucide="share-2" aria-hidden="true"></i><span>Megosztás</span></button>
                   <button type="button" data-proxy="fileClearButton" class="m-tool-danger"><i data-lucide="x" aria-hidden="true"></i><span>Bezárás</span></button>
                 </div>
-                <div class="m-file-label">Térkép színezése</div>
+                <div class="m-file-label" id="mFileColorLabel">Térkép színezése</div>
                 <div class="m-chips" id="mFileColor" role="radiogroup" aria-label="Térkép színezése"></div>
                 <div class="f-zones" id="fFileZones" hidden>
                   <div class="plan-surface-bar" id="fFileZoneBar"></div>
                   <div class="plan-surface-legend" id="fFileZoneLegend"></div>
                 </div>
 
-                <div class="m-file-label">Grafikonok</div>
+                <div class="m-file-label" id="mFileChartsLabel">Grafikonok</div>
                 <div class="m-chips" id="mFileCharts" aria-label="Grafikonok"></div>
               </section>
               <div class="file-header">
@@ -610,6 +610,10 @@
                   <span>Max teljesítmény</span>
                   <strong id="fileMaxPower">—</strong>
                 </div>
+                <div class="stat-card" id="fileTempRow" hidden>
+                  <span id="fileTempLabel">⌀ Hőmérséklet</span>
+                  <strong id="fileTemp">—</strong>
+                </div>
                 <div class="stat-card" id="fileKcalRow" hidden>
                   <span id="fileKcalLabel">Kalória</span>
                   <strong id="fileKcal">—</strong>
@@ -620,7 +624,7 @@
               <div id="speedLegend" class="speed-legend" hidden>
                 <div class="speed-legend-header">
                   <button class="speed-legend-expand" type="button" aria-expanded="false">
-                    <span class="speed-legend-title">Sebesség térkép</span>
+                    <span class="speed-legend-title">Sebesség</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
                   <button class="hint-btn" type="button" data-hint-title="Sebesség térkép" data-hint="Az edzés sebességét színezi az útvonalon: hol mentél gyorsan és hol lassan. A sávhatárok a Beállítások → Adatzónák alatt módosíthatók. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
@@ -629,7 +633,7 @@
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Sebességtérkép be/ki">
+                  <label class="toggle-switch" title="Térkép színezése sebesség szerint (egyszerre egy színezés lehet bekapcsolva)">
                     <input id="speedMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
                   </label>
@@ -651,7 +655,7 @@
               <div id="cadLegend" class="speed-legend" hidden>
                 <div class="speed-legend-header">
                   <button class="speed-legend-expand" type="button" aria-expanded="false">
-                    <span class="speed-legend-title">Kadencia térkép</span>
+                    <span class="speed-legend-title">Kadencia</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
                   <button class="hint-btn" type="button" data-hint-title="Kadencia térkép" data-hint="A pedálfordulatszámot (fordulat/perc) színezi az útvonalon – csak ha az eszköz rögzített kadenciát. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
@@ -661,7 +665,7 @@
                       <line x1="3" y1="20" x2="21" y2="20"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Kadenciatérkép be/ki">
+                  <label class="toggle-switch" title="Térkép színezése kadencia szerint (egyszerre egy színezés lehet bekapcsolva)">
                     <input id="cadMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
                   </label>
@@ -681,7 +685,7 @@
               <div id="hrLegend" class="speed-legend hr-zone-analysis" hidden>
                 <div class="speed-legend-header">
                   <button class="speed-legend-expand" type="button" aria-expanded="false">
-                    <span class="speed-legend-title">Pulzuselemzés</span>
+                    <span class="speed-legend-title">Pulzus – zónák</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
                   <button class="hint-btn" type="button" data-hint-title="Pulzuselemzés" data-hint="A pulzust színezi az útvonalon, és megmutatja, mennyi időt töltöttél az egyes pulzuszónákban. A zónák a Beállítások → Elemzési beállítások alatt állíthatók (max és nyugalmi pulzus). A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
@@ -690,7 +694,7 @@
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Pulzustérkép be/ki">
+                  <label class="toggle-switch" title="Térkép színezése pulzuszónák szerint (egyszerre egy színezés lehet bekapcsolva)">
                     <input id="hrMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
                   </label>
@@ -705,7 +709,7 @@
               <div id="powerLegend" class="speed-legend" hidden>
                 <div class="speed-legend-header">
                   <button class="speed-legend-expand" type="button" aria-expanded="false">
-                    <span class="speed-legend-title">Teljesítmény térkép</span>
+                    <span class="speed-legend-title">Teljesítmény</span>
                     <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
                   </button>
                   <button class="hint-btn" type="button" data-hint-title="Teljesítmény térkép" data-hint="A teljesítményt (watt) színezi az útvonalon – csak wattmérővel rögzített edzésnél érhető el. A kapcsoló a térképen színezi az útvonalat, a diagram gomb részletes grafikont nyit, a fejlécre kattintva a jelmagyarázat nyílik le." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
@@ -714,7 +718,7 @@
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Teljesítménytérkép be/ki">
+                  <label class="toggle-switch" title="Térkép színezése teljesítmény szerint (egyszerre egy színezés lehet bekapcsolva)">
                     <input id="powerMapToggle" type="checkbox" checked>
                     <span class="toggle-track"></span>
                   </label>
@@ -732,6 +736,27 @@
                 </div>
               </div>
 
+              <!-- Hőmérséklet (csak grafikon – a térképen nem színez) -->
+              <div id="tempLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Hőmérséklet</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button class="hint-btn" type="button" data-hint-title="Hőmérséklet" data-hint="A rögzítő eszköz (pl. Garmin, Magene, Wahoo) hőmérséklet-mérése az edzés alatt: a kapcsoló a térképen színezi az útvonalat, a grafikon-ikon grafikont nyit, lenyitva az idő megoszlása hőmérséklet-sávonként. Ha az eszköz nem mér (Apple Watch, telefon), a kártyán az időjárás szerinti hőmérséklet látszik – grafikon és színezés ilyenkor nincs. Megjegyzés: a komputer napon és a testhez közel melegebbet mérhet a valósnál." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                  <button id="tempChartBtn" class="grade-chart-btn" type="button" title="Hőmérséklet-diagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Térkép színezése hőmérséklet szerint (egyszerre egy színezés lehet bekapcsolva)">
+                    <input id="tempMapToggle" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items" id="tempLegendItems"></div>
+              </div>
+
               <!-- Szintprofil / Lejtő térkép -->
               <div id="gradeLegend" class="speed-legend" hidden>
                 <div class="speed-legend-header">
@@ -746,7 +771,7 @@
                       <line x1="3" y1="20" x2="21" y2="20"/>
                     </svg>
                   </button>
-                  <label class="toggle-switch" title="Lejtőtérkép be/ki">
+                  <label class="toggle-switch" title="Térkép színezése lejtés szerint (egyszerre egy színezés lehet bekapcsolva)">
                     <input id="gradeMapToggle" type="checkbox">
                     <span class="toggle-track"></span>
                   </label>
@@ -1591,6 +1616,24 @@
             </div>
             <div class="chart-legend" id="legendPower" hidden></div>
           </div>
+          <div id="chartTemp" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Hőmérséklet</span>
+              <div class="chart-stats" id="statsTemp"></div>
+              <div class="chart-head-actions">
+                <button class="chart-mode-btn" type="button" data-chart-mode title="Színezés váltása (egyszínű / hőmérséklet szerint) – minden grafikonra">Zónaszín</button>
+                <button id="closeChartTemp" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                </button>
+              </div>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="tempCanvas"></canvas>
+            </div>
+            <div class="chart-legend" id="legendTemp" hidden></div>
+          </div>
           <!-- Szél szekció -->
           <div id="chartWind" class="chart-section" hidden>
             <div class="chart-section-header">
@@ -1669,7 +1712,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@1.70.0/dist/umd/lucide.js"></script>
     <script type="module" src="./src/main.js"></script>
     <!-- Tooltip singleton -->
     <div id="hintTooltip" class="hint-tooltip" hidden role="tooltip"></div>
@@ -3149,6 +3192,22 @@
       <div id="stravaConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
       </div>
+      <div class="settings-auto" id="stravaSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="stravaSetAutoToggle">
+          <span><b>Automatikus import</b> – az új Strava-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="stravaSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="stravaSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → Strava ablak tetején is (ott a sportágak és a webhook is).</p>
+      </div>
     </div>
   </section>
 
@@ -3219,6 +3278,22 @@
       <div id="garminConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
       </div>
+      <div class="settings-auto" id="garminSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="garminSetAutoToggle">
+          <span><b>Automatikus import</b> – az új Garmin-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="garminSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="garminSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → Garmin ablak tetején is.</p>
+      </div>
     </div>
   </section>
 
@@ -3234,6 +3309,22 @@
     <div class="settings-section-body">
       <div id="onelapConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+      <div class="settings-auto" id="onelapSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="onelapSetAutoToggle">
+          <span><b>Automatikus import</b> – az új OnelapFit-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="onelapSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="onelapSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → OnelapFit ablak tetején is.</p>
       </div>
     </div>
   </section>
@@ -3251,6 +3342,22 @@
       <div id="wahooConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
       </div>
+      <div class="settings-auto" id="wahooSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="wahooSetAutoToggle">
+          <span><b>Automatikus import</b> – az új Wahoo-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="wahooSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="wahooSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → Wahoo ablak tetején is.</p>
+      </div>
     </div>
   </section>
 
@@ -3266,6 +3373,22 @@
     <div class="settings-section-body">
       <div id="polarConnectionState" class="strava-conn-state">
         <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+      <div class="settings-auto" id="polarSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="polarSetAutoToggle">
+          <span><b>Automatikus import</b> – az új Polar-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="polarSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="polarSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → Polar ablak tetején is.</p>
       </div>
     </div>
   </section>

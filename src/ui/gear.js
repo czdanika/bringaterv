@@ -8,7 +8,7 @@
  */
 
 import { routesApi } from "../api/routesApi.js";
-import { BIKE_TYPES, getGear, getGearUsage, isCycling, loadGear, markTaskDone, resolveBike, saveGear } from "../equipment.js";
+import { BIKE_TYPES, applyGearResponse, getGear, getGearUsage, isCycling, loadGear, markTaskDone, owned, resolveBike, saveGear, workoutDay } from "../equipment.js";
 import { num } from "../format.js";
 
 const KINDS = { chain: "Lánc", tire: "Gumi", brake: "Fékbetét", cassette: "Kazetta", chainring: "Lánctányér",
@@ -60,6 +60,116 @@ export async function renderGearView(container) {
     await loadGear(true);
   }
   render();
+  autoDevicePhotos();
+}
+
+// ── Eszközképek: a felismert rögzítőkhöz magától (gyártó / Wikimedia Commons) ──
+let _autoDevDone = false;
+async function autoDevicePhotos() {
+  if (_autoDevDone) return;                         // munkamenetenként egyszer (új eszköz, kép, összevonás)
+  _autoDevDone = true;
+  try {
+    for (let i = 0; i < 8; i++) {                      // hívásonként legfeljebb 4 eszköz
+      const res = await routesApi.gear.autoDevicePhotos();
+      applyGearResponse(res);
+      if (!res.pending) break;
+    }
+  } catch { /* nem baj – kézzel is beállítható */ }
+}
+
+function deviceEntry(name) {
+  const n = String(name || "").trim().toLowerCase();
+  return (getGear().devices || []).find((d) => d.name.trim().toLowerCase() === n) || null;
+}
+
+/** Képválasztó egy eszközhöz: javaslatok (gyártó / Commons), webcím, saját feltöltés. */
+async function devicePhotoDialog(dev) {
+  const ov = document.createElement("div");
+  ov.className = "shortcut-overlay gear-modal-overlay";
+  ov.innerHTML = `<div class="export-panel gear-modal gear-dev-pick" role="dialog" aria-modal="true">
+    <div class="export-header"><h3>Kép – ${esc(dev.name)}</h3><button type="button" class="shortcut-close" data-x aria-label="Bezárás">×</button></div>
+    <div class="export-body">
+      <p class="gear-sub">Keresés a neten</p>
+      <form class="gear-url-row" data-search-form>
+        <input type="search" class="form-input gear-input" data-q value="${esc(dev.name)}" aria-label="Keresőszó" placeholder="pl. Garmin Edge 540">
+        <button type="submit" class="strava-conn-btn strava-conn-btn--ghost">Keresés</button></form>
+      <p class="gear-muted gear-small">Más típus vagy pontosabb név? Írd át, és keress újra (Magene-nél a gyártó oldalán, másoknál a Wikimedia Commons szabad képei között).</p>
+      <div class="gear-cands" data-cands><div class="gear-muted">Képek keresése…</div></div>
+      <p class="gear-sub">Kép webcímről</p>
+      <div class="gear-url-row"><input type="url" class="form-input gear-input" data-url placeholder="https://… (pl. a gyártó termékoldalán a képre jobb gombbal → Kép címének másolása)">
+        <button type="button" class="strava-conn-btn strava-conn-btn--ghost" data-url-go>Letöltés</button></div>
+      <p class="gear-muted gear-small">A kép csak neked látszik. Webcímről JPEG, PNG vagy WebP, legfeljebb 3 MB.</p>
+    </div>
+    <div class="export-footer">
+      ${dev.photo ? `<button type="button" class="export-confirm-btn export-confirm-btn--secondary" data-del>Kép törlése</button>` : ""}
+      <button type="button" class="export-confirm-btn export-confirm-btn--primary" data-upload>Saját kép feltöltése…</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const done = (res) => { applyGearResponse(res); ov.remove(); _toast("Kép beállítva"); };
+  const box = ov.querySelector("[data-cands]");
+  async function search(q) {
+    box.innerHTML = `<div class="gear-muted">Képek keresése…</div>`;
+    try {
+      const { candidates = [] } = await routesApi.gear.deviceCandidates(dev.id, q);
+      box.innerHTML = candidates.length
+        ? candidates.map((c) => `<button type="button" class="gear-cand" data-cand="${esc(c.url)}" title="${esc(c.title)} – ${esc(c.source)}">
+            <img src="${esc(c.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer"><small>${esc(c.title)}</small><small class="gear-cand-src">${esc(c.source)}</small></button>`).join("")
+        : `<div class="gear-muted">Nincs találat erre: „${esc(q)}”. Próbáld más néven, adj meg webcímet, vagy tölts fel saját képet.</div>`;
+    } catch {
+      box.innerHTML = `<div class="gear-muted">A keresés most nem sikerült – adj meg webcímet, vagy tölts fel saját képet.</div>`;
+    }
+  }
+  ov.querySelector("[data-search-form]").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = ov.querySelector("[data-q]").value.trim();
+    if (q) search(q);
+  });
+  const busy = (on) => ov.querySelector(".gear-modal").classList.toggle("is-busy", on);
+  ov.addEventListener("click", async (e) => {
+    if (e.target === ov || e.target.closest("[data-x]")) return ov.remove();
+    if (e.target.closest("[data-upload]")) { ov.remove(); return pickAndUpload("device", dev.id); }
+    if (e.target.closest("[data-del]")) {
+      if (!confirm("Törlöd az eszköz képét?")) return;
+      try { applyGearResponse(await routesApi.gear.deletePhoto("device", dev.id)); ov.remove(); }
+      catch (err) { _toast("Nem sikerült törölni: " + err.message); }
+      return;
+    }
+    const c = e.target.closest("[data-cand]");
+    const go = e.target.closest("[data-url-go]");
+    const url = c ? c.dataset.cand : go ? ov.querySelector("[data-url]").value.trim() : "";
+    if (!url) return;
+    busy(true);
+    try { done(await routesApi.gear.photoFromUrl("device", dev.id, url)); }
+    catch (err) { _toast("A kép nem tölthető le: " + err.message, 6000); }
+    finally { busy(false); }
+  });
+  search(dev.name);
+}
+
+const PHOTO_SRC = { upload: "saját feltöltés", url: "webcímről" };
+
+/** Összevonás: melyik másik eszköz ugyanez (pl. a Strava saját óra-appjával rögzítve)? */
+function mergeDialog(intoId) {
+  const devs = getGear().devices || [];
+  const into = devs.find((x) => x.id === intoId);
+  const others = devs.filter((x) => x.id !== intoId);
+  if (!into || !others.length) return;
+  const ov = document.createElement("div");
+  ov.className = "shortcut-overlay gear-modal-overlay";
+  ov.innerHTML = `<div class="export-panel gear-modal" role="dialog" aria-modal="true">
+    <div class="export-header"><h3>Összevonás – ${esc(into.name)}</h3><button type="button" class="shortcut-close" data-x aria-label="Bezárás">×</button></div>
+    <div class="export-body">
+      <p class="gear-muted">Melyik eszköz ugyanez, csak más néven? Az edzései ide kerülnek (statisztika, könyvtár-szűrő), a neve „más néven” lesz – bármikor szétválasztható.</p>
+      ${others.map((o) => `<button type="button" class="gear-merge-opt" data-merge-from="${esc(o.id)}"><b>${esc(o.name)}</b>${(o.aliases || []).length ? ` <small>+ ${o.aliases.length} más néven</small>` : ""}</button>`).join("")}
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click", async (e) => {
+    if (e.target === ov || e.target.closest("[data-x]")) return ov.remove();
+    const b = e.target.closest("[data-merge-from]");
+    if (!b) return;
+    try { applyGearResponse(await routesApi.gear.mergeDevices(b.dataset.mergeFrom, intoId)); ov.remove(); _toast("Összevonva"); }
+    catch (err) { _toast("Nem sikerült: " + err.message); }
+  });
 }
 
 // ── Fotók: átméretezés feltöltés előtt, betöltés bejelentkezve (blob) ─────────
@@ -136,7 +246,11 @@ async function openPhoto(type, id, name, title) {
   document.body.appendChild(ov);
   ov.addEventListener("click", async (e) => {
     if (e.target === ov || e.target.closest("[data-x]")) return ov.remove();
-    if (e.target.closest("[data-change]")) { ov.remove(); pickAndUpload(type, id); }
+    if (e.target.closest("[data-change]")) {
+      ov.remove();
+      const dev = type === "device" && (getGear().devices || []).find((x) => x.id === id);
+      return dev ? devicePhotoDialog(dev) : pickAndUpload(type, id);
+    }
     if (e.target.closest("[data-del]")) {
       if (!confirm("Törlöd a fotót?")) return;
       try { await routesApi.gear.deletePhoto(type, id); ov.remove(); await loadGear(true); }
@@ -215,8 +329,26 @@ function render() {
       ${gear.bikes.length ? `<select class="form-input" data-alias="${esc(x.name)}"><option value="">Ugyanaz, mint…</option>${gear.bikes.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select>` : ""}
     </div>`).join("")}</section>` : "";
 
+  const devCard = (d) => {
+    const de = deviceEntry(d.name);
+    const img = de
+      ? `<button type="button" class="gear-dev-img" data-photo-pick="device|${esc(de.id)}"${de.photo ? ` data-photo-name="${esc(de.photo)}" title="Kép nagyítása"` : ` title="Kép hozzáadása"`} aria-label="Kép">
+           ${de.photo ? "" : `<i data-lucide="camera" aria-hidden="true"></i><span>Kép hozzáadása</span>`}</button>`
+      : `<div class="gear-dev-img" aria-hidden="true"><i data-lucide="loader-circle" aria-hidden="true"></i></div>`;
+    const src = de?.photo ? (PHOTO_SRC[de.photo_source] || de.photo_source || "") : "";
+    return `<article class="gear-dev-card">${img}
+      <div class="gear-dev-body">
+        <h3 title="${esc(d.name)}">${esc(d.name)}</h3>
+        <div class="gear-dev-stats"><span><b>${d.count}</b> edzés</span><span><b>${num(d.km, 0)}</b> km</span><span><b>${fmtMin(d.min)}</b></span></div>
+        ${d.last ? `<p class="gear-dev-meta">Utoljára: ${esc(d.last)}</p>` : ""}
+        ${de?.aliases?.length ? `<p class="gear-dev-alias">más néven: ${de.aliases.map((a) => `<span class="gear-pill">${esc(a)}<button type="button" class="gear-pill-x" data-dev-split="${esc(de.id)}|${esc(a)}" title="Szétválasztás – újra külön eszköz" aria-label="Szétválasztás">×</button></span>`).join(" ")}</p>` : ""}
+        <div class="gear-dev-foot"><small>${src ? `Kép: ${esc(src)}` : ""}</small>
+          ${de && (gear.devices || []).length > 1 ? `<button type="button" class="gear-link" data-dev-merge="${esc(de.id)}" title="Ugyanaz az eszköz más néven (pl. másik appal rögzítve)">Összevonás</button>` : ""}
+          ${de ? `<button type="button" class="gear-link" data-dev-photo="${esc(de.id)}">${de.photo ? "Kép cseréje" : "Kép keresése"}</button>` : ""}</div>
+      </div></article>`;
+  };
   const devHtml = u.devices.length ? `<section class="gear-section"><h2>Eszközök <small>(rögzítők – a fájlokból / Stravából)</small></h2>
-    ${u.devices.map((d) => `<div class="gear-row"><span><b>${esc(d.name)}</b> <small>${d.count} edzés · ${num(d.km, 0)} km · ${fmtMin(d.min)}${d.last ? ` · utoljára ${esc(d.last)}` : ""}</small></span></div>`).join("")}</section>` : "";
+    <div class="gear-dev-grid">${u.devices.map(devCard).join("")}</div></section>` : "";
 
   const logs = [...gear.logs].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 30);
   const nameOf = (lg) => lg.target_type === "bike" ? gear.bikes.find((b) => b.id === lg.target_id)?.name
@@ -235,7 +367,7 @@ function render() {
       ${todo.map((t) => `<div class="gear-todo-item"><p class="gear-sub">${esc(t.target_name)}${t.target_type === "component" && t.bike_name ? ` · ${esc(t.bike_name)}` : ""}</p>${progressBar(t)}</div>`).join("")}</section>` : ""}
     ${bikeCards || `<div class="gear-empty"><p>Még nincs bringa a listádban.</p><p class="gear-muted">Vedd fel a bringáidat – vagy lent a fájlokból / Stravából felismert neveket egy kattintással. Utána alkatrészeket (lánc, gumi, fékbetét…) és karbantartási emlékeztetőket adhatsz hozzá; a km magától számolódik az edzéseidből.</p></div>`}
     ${stockHtml}${unknownHtml}${devHtml}${logHtml}`;
-  window.lucide?.createIcons({ nodes: [_container] });
+  window.lucide?.createIcons({ root: _container });
   hydratePhotos();
 }
 
@@ -456,7 +588,7 @@ function assignDialog(bikeId) {
       <div class="gear-assign-filters">
         <label class="gear-check"><input type="checkbox" data-f-unassigned checked> csak bringa nélküliek / más bringájúak</label>
         ${devices.length ? `<select class="form-input" data-f-device><option value="">Minden eszköz</option>${devices.map((d) => `<option>${esc(d)}</option>`).join("")}</select>` : ""}
-        <input class="form-input" data-f-from type="date" title="ettől">
+        <input class="form-input" data-f-from type="date" title="ettől" value="${esc(bike.purchase_date || "")}">
         <input class="form-input" data-f-to type="date" title="eddig">
         <label class="gear-check"><input type="checkbox" data-all> mind kijelölése</label>
       </div>
@@ -481,7 +613,7 @@ function assignDialog(bikeId) {
         <span class="gear-assign-date">${esc((w.start_time || w.date || "").slice(0, 10))}</span>
         <span class="gear-assign-name">${esc(w.name || "Edzés")}</span>
         <span>${num(Number(w.distance) || 0, 1)} km</span>
-        <small>${esc(resolveBike(w)?.name || "—")}${w.device ? " · " + esc(w.device) : ""}</small></label>`).join("")
+        <small>${esc(resolveBike(w)?.name || "—")}${w.device ? " · " + esc(w.device) : ""}${owned(bike, workoutDay(w)) ? "" : ` · <b class="gear-warn">a vásárlás előtt</b>`}</small></label>`).join("")
       : `<p class="gear-muted">Nincs a szűrésnek megfelelő edzés.</p>`;
   };
   draw();
@@ -508,14 +640,27 @@ function assignDialog(bikeId) {
 }
 
 // ── Események ────────────────────────────────────────────────────────────────
-function onClick(e) {
+async function onClick(e) {
   const t = e.target.closest("button");
   if (!t) return;
   const d = t.dataset;
   const gear = getGear();
+  if (d.devSplit) {
+    const [id, alias] = d.devSplit.split("|");
+    if (!confirm(`„${alias}” újra külön eszköz legyen?`)) return;
+    try { applyGearResponse(await routesApi.gear.splitDevice(id, alias)); _toast("Szétválasztva"); }
+    catch (err) { _toast("Nem sikerült: " + err.message); }
+    return;
+  }
+  if (d.devMerge) return mergeDialog(d.devMerge);
+  if (d.devPhoto) {
+    const dev = (gear.devices || []).find((x) => x.id === d.devPhoto);
+    return dev && devicePhotoDialog(dev);
+  }
   if (d.photoPick) {
     const [type, id] = d.photoPick.split("|");
-    const item = (type === "bike" ? gear.bikes : gear.components).find((x) => x.id === id);
+    const item = (type === "bike" ? gear.bikes : type === "device" ? (gear.devices || []) : gear.components).find((x) => x.id === id);
+    if (type === "device" && item && !item.photo) return devicePhotoDialog(item);
     return item?.photo ? openPhoto(type, id, item.photo, item.name) : pickAndUpload(type, id);
   }
   if ("bikeNew" in d) return bikeForm(null);

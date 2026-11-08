@@ -60,7 +60,8 @@ def cleanup_photos(uid: str, gear: dict) -> None:
     d = photo_dir(uid)
     if not os.path.isdir(d):
         return
-    used = {x.get("photo") for x in gear.get("bikes", []) + gear.get("components", []) if x.get("photo")}
+    used = {x.get("photo") for x in gear.get("bikes", []) + gear.get("components", []) + gear.get("devices", [])
+            if x.get("photo")}
     for fn in os.listdir(d):
         if fn not in used:
             try: os.remove(os.path.join(d, fn))
@@ -85,10 +86,74 @@ def load_gear(uid: str) -> dict:
         data = _migrate_from_settings(uid)
     except (OSError, json.JSONDecodeError):
         data = {}
-    for k in ("bikes", "components", "logs"):
+    for k in ("bikes", "components", "logs", "devices"):
         data.setdefault(k, [])
     data.setdefault("notified", {})
     return data
+
+
+def device_canon(gear: dict) -> dict:
+    """Nyers eszköznév (kisbetűs) → az összevont eszköz neve (a „más néven” listából)."""
+    out = {}
+    for d in gear.get("devices") or []:
+        for a in d.get("aliases") or []:
+            out[_norm(a)] = d["name"]
+    return out
+
+
+_STRAVA_APP_RE = re.compile(r"^\s*strava\s+app\s*\((.+)\)\s*$", re.I)
+
+
+def merge_device(gear: dict, src_id: str, dst_id: str) -> bool:
+    """src → dst (src neve és „más néven” listája dst-hez kerül, src törlődik)."""
+    src = next((d for d in gear["devices"] if d["id"] == src_id), None)
+    dst = next((d for d in gear["devices"] if d["id"] == dst_id), None)
+    if not src or not dst or src is dst:
+        return False
+    names = [src["name"], *(src.get("aliases") or [])]
+    dst["aliases"] = list(dict.fromkeys([*(dst.get("aliases") or []), *names]))[:30]
+    dst["split"] = [x for x in dst.get("split") or [] if _norm(x) not in {_norm(n) for n in names}]
+    if not dst.get("photo") and src.get("photo"):
+        dst["photo"], dst["photo_source"] = src["photo"], src.get("photo_source")
+    gear["devices"].remove(src)
+    return True
+
+
+def auto_merge_devices(gear: dict) -> bool:
+    """„Strava App (Apple Watch Series 7)” = ugyanaz az óra a Strava saját appjával rögzítve →
+    magától az „Apple Watch Series 7”-hez (ha a felhasználó szét nem választotta)."""
+    changed = False
+    for d in list(gear["devices"]):
+        m = _STRAVA_APP_RE.match(d.get("name") or "")
+        if not m:
+            continue
+        dst = next((x for x in gear["devices"] if _norm(x["name"]) == _norm(m.group(1))), None)
+        if dst and _norm(d["name"]) not in {_norm(x) for x in dst.get("split") or []}:
+            changed |= merge_device(gear, d["id"], dst["id"])
+    return changed
+
+
+def split_device(gear: dict, dev_id: str, alias: str) -> bool:
+    """Egy „más néven” név leválasztása – újra külön eszköz lesz (és magától sem vonjuk vissza)."""
+    d = next((x for x in gear["devices"] if x["id"] == dev_id), None)
+    if not d or _norm(alias) not in {_norm(a) for a in d.get("aliases") or []}:
+        return False
+    d["aliases"] = [a for a in d["aliases"] if _norm(a) != _norm(alias)]
+    d["split"] = list(dict.fromkeys([*(d.get("split") or []), alias]))[:30]
+    gear["devices"].append({"id": new_id("d"), "name": _str(alias), "photo": None, "photo_tried": False})
+    return True
+
+
+def ensure_devices(gear: dict, names) -> bool:
+    """A felismert rögzítő eszközök (név szerint) bejegyzése a fotóhoz. Igaz, ha bővült."""
+    have = {_norm(d.get("name")) for d in gear["devices"]} | set(device_canon(gear))
+    added = False
+    for n in names:
+        if n and _norm(n) not in have and len(gear["devices"]) < 100:
+            gear["devices"].append({"id": new_id("d"), "name": _str(n), "photo": None, "photo_tried": False})
+            have.add(_norm(n))
+            added = True
+    return added
 
 
 def save_gear(uid: str, data: dict) -> None:
@@ -206,7 +271,9 @@ def clean_gear(raw: dict, prev: dict, uid: str | None = None) -> dict:
                      "target_id": _str(lg.get("target_id"), 20), "task_id": _str(lg.get("task_id"), 20),
                      "task_name": _str(lg.get("task_name")), "date": _date(lg["date"]),
                      "cost": _num(lg.get("cost"), 0, 100_000_000), "note": _str(lg.get("note"), 300)})
-    return {"bikes": bikes, "components": comps, "logs": logs, "notified": prev.get("notified") or {}}
+    # az eszközök fotóját saját végpontok kezelik – a teljes mentés nem nyúl hozzájuk
+    return {"bikes": bikes, "components": comps, "logs": logs, "notified": prev.get("notified") or {},
+            "devices": prev.get("devices") or []}
 
 
 # ── Edzés → bringa, km-számítás ───────────────────────────────────────────────
@@ -220,19 +287,29 @@ def _is_cycling(e: dict) -> bool:
     return "cycl" in t or "ride" in t or "bike" in t
 
 
+def _owned(b: dict, day: str) -> bool:
+    """A bringa megvolt-e már az edzés napján (vásárlás dátuma nélkül: igen)."""
+    pd = b.get("purchase_date")
+    return not pd or not day or day >= pd
+
+
 def resolve_bike(e: dict, bikes: list):
-    """Az edzés bringája (bike dict) vagy None; plusz a nem felvett név (str) vagy None."""
+    """Az edzés bringája (bike dict) vagy None; plusz a nem felvett név (str) vagy None.
+    A kézi hozzárendelés (bike_id) mindig érvényes; az automatikus (név / más néven /
+    alapértelmezett) a vásárlás napja előtt nem – a Strava a régi edzésekre is ráteszi
+    az alapértelmezett bringáját."""
     if e.get("bike_id"):
         b = next((x for x in bikes if x["id"] == e["bike_id"]), None)
         if b:
             return b, None
+    day = _workout_day(e)
     n = _norm(e.get("bike_name"))
     if n:
         b = next((x for x in bikes if _norm(x["name"]) == n or n in {_norm(a) for a in x.get("aliases") or []}), None)
         if b:
-            return b, None
+            return (b, None) if _owned(b, day) else (None, None)     # ismert bringa, csak még nem volt meg
     default = next((x for x in bikes if x.get("is_default") and not x.get("retired")), None)
-    if default and _is_cycling(e) and not n:
+    if default and _is_cycling(e) and not n and _owned(default, day):
         return default, None
     return None, (e.get("bike_name") or "").strip() or None
 
@@ -265,6 +342,7 @@ def compute_usage(uid: str, gear: dict | None = None) -> dict:
     idx = _load_index(os.path.join(_user_routes_dir(uid), "index.json"))
     workouts = [e for e in idx if e.get("type") == "workout"]
     per_bike, unknown, devices = {}, {}, {}
+    canon = device_canon(gear)
     year = str(date.today().year)
     for e in workouts:
         day, km, mins = _workout_day(e), float(e.get("distance") or 0), float(e.get("duration") or 0)
@@ -281,7 +359,8 @@ def compute_usage(uid: str, gear: dict | None = None) -> dict:
             u = unknown.setdefault(_norm(uname), {"name": uname, "count": 0, "km": 0.0})
             u["count"] += 1; u["km"] += km
         if e.get("device"):
-            d = devices.setdefault(_norm(e["device"]), {"name": e["device"], "count": 0, "km": 0.0, "min": 0.0, "last": None})
+            dname = canon.get(_norm(e["device"]), e["device"])          # összevont nevek (más néven)
+            d = devices.setdefault(_norm(dname), {"name": dname, "count": 0, "km": 0.0, "min": 0.0, "last": None})
             d["count"] += 1; d["km"] += km; d["min"] += mins
             if day and (not d["last"] or day > d["last"]):
                 d["last"] = day

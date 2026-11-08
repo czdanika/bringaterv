@@ -20,7 +20,7 @@ import uuid
 from config import log
 from storage import _user_dir, _user_routes_dir
 from fit_gpx import equipment_fields, fit_to_gpx
-from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate
+from utils import _load_index, _now_dt, _save_index, find_cross_source_duplicate, append_index
 
 try:
     from garminconnect import (
@@ -537,7 +537,12 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         **equipment_fields(fit_sess.get("equipment") if fit_bytes else None),
     }
     idx.append(entry)
-    _save_index(idx, idx_path)
+    append_index(idx_path, entry)               # zár alatt friss olvasás + írás
+    try:
+        import temp_weather
+        temp_weather.fill_soon(user_id)          # mért adatok, hőmérséklet (ha kell: időjárásból)
+    except Exception:
+        pass
     return {"ok": True, "skipped": False, "entry": entry}
 
 

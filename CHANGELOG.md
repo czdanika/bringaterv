@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.36.0 – 2026-11-08 – Hőmérséklet, kalória-összevetés, eszközképek, egységes Elemzés
+
+### Verzió
+
+- **Hőmérséklet:** a komputer mérése (Garmin, Magene, Wahoo…) az Elemzésben kártyán, grafikonon (átlag, legalacsonyabb, legmagasabb) és térképszínezéssel; a Stravás edzéseknél is (az új importoknál azonnal, a régieknél a háttérben, fokozatosan). Ahol az óra nem mér (Apple Watch, telefon), az Open-Meteo időjárás-archívumából az indulás helyén, az edzés óráiban mért érték – „(időjárás)” jelöléssel. A Könyvtár lenyitott sorában és a PDF-ben is.
+- **Kalória-összevetés:** a „Kalória (forrás) ›” sorra kattintva egymás mellett a rögzítő eszköz / Strava / Garmin / OnelapFit értéke, a wattmérős munkából számolt, a pulzus alapú (Keytel-képlet az életkorod, nemed, testsúlyod alapján – legalább 3 wattmérős edzésből személyesen kalibrálva) és a sebességből becsült érték, eltéréssel. A Strava wattmérő nélkül becsült teljesítménye nem számít mérésnek. A kézzel feltöltött FIT-ből az eszköz saját kalóriája is bekerül.
+- **Energia a statisztikában:** új Energia csempe az Áttekintésben (forrásonkénti bontással), a havi táblázat és a „Legtöbb kalória” rekord is ugyanazt a sorrendet használja (eszköz → wattmérő → pulzus → becslés); a becslés csak kerékpárra (eddig a sétákat is a bringás táblázattal számolta).
+- **Elemzés – egységes adatpanelek (gépen):** Sebesség, Kadencia, Pulzus – zónák, Teljesítmény, Hőmérséklet, Szintprofil: a fejlécben a grafikon-ikon és a térképszínezés kapcsolója (egyszerre egy), lenyitva a zónaeloszlás színnel, tartománnyal, idővel (lejtésnél távval) és százalékkal; a térkép sarkában ugyanez a jelmagyarázat.
+- **Eszközök képpel:** a felismert rögzítők (komputerek, órák) magától képet kapnak – Magene-nél a gyártó oldaláról, másoknál a Wikimedia Commons szabad képei közül, csak biztos találatnál. Kép cseréje: keresés más néven, webcím, saját fotó. Eszközkártyák rácsban (edzés, km, idő, utoljára, képforrás).
+- **Eszközök összevonása:** a Strava ugyanazt az órát két néven adhatja át („Apple Watch Series 7” és „Strava App (Apple Watch Series 7)”) – a „Strava App (…)” magától összevonódik, bármely két eszköz kézzel is (kártya → Összevonás), és bármikor szétválasztható. A számokra, a könyvtár Eszköz szűrőjére és a feliratokra is érvényes.
+- **Javítás – bringa a vásárlás előtt:** a bringa vásárlási dátuma előtti edzésekhez az automatikus hozzárendelés (komputer / Strava bringaneve, alapértelmezett bringa) már nem rendeli hozzá a bringát; kézzel továbbra is lehet.
+- **Garmin-testsúly automatikusan (opció):** Beállítások → Garmin Connect – pipával az okosmérleg új mérése magától frissíti a kerékpáros profil testsúlyát (értesítéssel).
+- **Automatikus import a Beállításokban is:** a Strava, Garmin, OnelapFit, Wahoo és Polar szakaszban pipa és időköz – mindig egyformán áll az import ablakkal.
+- **Maximális sebesség** a kézzel feltöltött edzéseknél is (a GPX-ből, simítva).
+- **Javítás – könyvtár index:** az egyszerre futó mentések és háttér-pótlások már nem írhatják egymásra az index fájlt (zárolás, egyedi ideiglenes fájl); sérült indexnél a biztonsági másolatból olvas, nem üres listából.
+- **Javítás – felület:** az Elemzés összefoglalója üresjáratban folyamatosan újrarajzolta magát (az ikonok hibás frissítése miatt), ezért a kalória-sorra kattintás elveszett; a Kezdőlapról nyitott edzésnél hiányzott a kalória, a hőmérséklet és a felszerelés.
+- **„Mi ez?” oldal és súgó:** az új funkciók leírása, új képernyőképek egy bemutató fiók kitalált adataival.
+- **Belül:** új `routes-api/temp_weather.py`, `device_images.py`; `src/ui/zoneDist.js`; `tools/demo/` (bemutató fiók és a képernyőképek elkészítése szkripttel); lucide ikonkönyvtár rögzítve (1.70.0).
+
+---
+
 ## v1.35.0 – 2026-11-07 – Felszerelés, teljesítmény mindenhol, 7 pulzuszóna
 
 ### Verzió

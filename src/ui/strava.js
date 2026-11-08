@@ -58,6 +58,15 @@ export function initStrava({ showToast, loadRouteLibrary }) {
 
   // Automatikus import
   document.querySelector("#stravaAutoToggle")?.addEventListener("change", saveAutoSync);
+  // Beállítások → Strava: ugyanaz a kapcsoló és időköz (az import ablak elemeibe másoljuk, onnan mentünk)
+  const syncFromSettings = () => {
+    const t = document.querySelector("#stravaAutoToggle"), i = document.querySelector("#stravaAutoInterval");
+    if (t) t.checked = !!document.querySelector("#stravaSetAutoToggle")?.checked;
+    if (i) i.value = document.querySelector("#stravaSetAutoInterval")?.value || i.value;
+    saveAutoSync();
+  };
+  document.querySelector("#stravaSetAutoToggle")?.addEventListener("change", syncFromSettings);
+  document.querySelector("#stravaSetAutoInterval")?.addEventListener("change", syncFromSettings);
   document.querySelector("#stravaAutoInterval")?.addEventListener("change", saveAutoSync);
   document.querySelectorAll("#stravaAuto .strava-auto-chip input").forEach((cb) =>
     cb.addEventListener("change", saveAutoSync));
@@ -101,13 +110,19 @@ function renderAutoSync() {
   if (re) re.checked = !!d.reimport_deleted;
   renderWebhook(d.webhook || {});
   const st = document.querySelector("#stravaAutoStatus");
+  let txt = fmtAgo(d.last_check);
+  if (d.last_error) txt += ` · ⚠️ ${d.last_error}`;
+  else if (d.last_check) txt += d.last_imported ? ` · ${d.last_imported} új edzés importálva` : " · nincs új edzés";
   if (st) {
-    let txt = fmtAgo(d.last_check);
-    if (d.last_error) txt += ` · ⚠️ ${d.last_error}`;
-    else if (d.last_check) txt += d.last_imported ? ` · ${d.last_imported} új edzés importálva` : " · nincs új edzés";
     st.textContent = txt;
     st.classList.toggle("is-error", !!d.last_error);
   }
+  // Beállítások → Strava
+  const sT = document.querySelector("#stravaSetAutoToggle"), sI = document.querySelector("#stravaSetAutoInterval");
+  const sS = document.querySelector("#stravaSetAutoStatus");
+  if (sT) sT.checked = !!d.enabled;
+  if (sI) { sI.value = String(d.interval_min || 15); sI.disabled = !d.enabled; }
+  if (sS) { sS.textContent = d.enabled ? txt : ""; sS.classList.toggle("is-error", !!d.last_error); }
 }
 
 function renderWebhook(w) {
@@ -238,6 +253,10 @@ export async function refreshStravaStatus() {
     return;
   }
   renderStravaState(stateEl, _stravaStatus);
+  // Beállítások → Strava: automatikus import doboz csak kapcsolatnál
+  const setBox = document.querySelector("#stravaSetAuto");
+  if (setBox) setBox.hidden = !_stravaStatus?.connected;
+  if (_stravaStatus?.connected) loadAutoSync();
   await refreshStravaUserAppConfig();
   if (stravaImportItem) {
     const ok = _stravaStatus.connected;

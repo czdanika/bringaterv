@@ -13,7 +13,7 @@ from config import log
 from db import _db
 from storage import _resolve_dirs
 from strava_service import _add_strava_deny
-from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index
+from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index, append_index
 
 bp = Blueprint("api_routes", __name__)
 _TZ = ZoneInfo("Europe/Budapest")
@@ -174,6 +174,8 @@ def save_route():
     }
     if start_dt:
         entry["start_time"] = start_dt.astimezone(timezone.utc).isoformat()
+    if route_type == "workout" and data.get("sport_type") in ("cycling", "running", "walking", "hiking"):
+        entry["sport_type"] = data["sport_type"]          # a kliens tudja (pl. FIT sport, GPX <type>)
     if route_type == "workout":
         # mért adatok (teljesítmény, pulzus, kadencia) a teljes GPX-ből – a könyvtár-kártya,
         # a Kezdőlap és a „Mért adat” szűrő ezekből dolgozik
@@ -189,10 +191,17 @@ def save_route():
             entry.update(equipment_fields(fit_equipment(fit_bytes) if has_fit else gpx_equipment(gpx_content)))
         except Exception as exc:
             log.warning("Felszerelés kiolvasása sikertelen (%s): %s", route_id, exc)
-    index = _load_index(idx)
-    index.append(entry)
+        if has_fit and entry.get("calories") is None:
+            # a rögzítő eszköz saját kalóriája (Elemzés → Kalória összevetés)
+            try:
+                from fit_gpx import fit_to_gpx
+                cal = (fit_to_gpx(fit_bytes, name)[1] or {}).get("calories")
+                if cal:
+                    entry["calories"] = int(cal)
+            except Exception as exc:
+                log.warning("FIT kalória kiolvasása sikertelen (%s): %s", route_id, exc)
     try:
-        _save_index(index, idx)
+        append_index(idx, entry)          # zár alatt friss olvasás + írás
     except OSError:
         os.remove(gpx_path)
         if has_fit: os.remove(fit_path)
@@ -213,6 +222,12 @@ def save_route():
         ))
 
     log.info("Új útvonal: %s (%s)", route_id, name)
+    if route_type == "workout" and entry.get("temp_source") != "device":
+        try:
+            import temp_weather
+            temp_weather.fill_soon(g.user["id"])       # mért hőmérséklet nélkül: időjárásból
+        except Exception as exc:
+            log.warning("Időjárás-hőmérséklet indítása sikertelen: %s", exc)
     return jsonify({"id": route_id}), 201
 
 

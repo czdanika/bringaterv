@@ -970,6 +970,7 @@ function _initCyclistProfileSettings() {
   }
   function save() {
     const payload = {
+      ...getCyclistProfile(),          // a többi mező (pl. Garmin-testsúly kapcsoló, mérés dátuma) megmarad
       riderKg:  parseFloat(riderEl.value) || CYCLIST_PROFILE_DEFAULTS.riderKg,
       bikeKg:   parseFloat(bikeEl.value)  || CYCLIST_PROFILE_DEFAULTS.bikeKg,
       position: posEl.value || CYCLIST_PROFILE_DEFAULTS.position,

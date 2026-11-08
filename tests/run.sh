@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 
 if [ ! -x tests/.venv/bin/pytest ]; then
   python3 -m venv tests/.venv
-  tests/.venv/bin/pip install -q playwright pytest
+  tests/.venv/bin/pip install -q playwright pytest requests
 fi
 [ -f tests/.env ] && set -a && . tests/.env && set +a
 

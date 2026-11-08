@@ -16,7 +16,7 @@ from config import log
 from db import _db, _db_create_user
 from security import _hash_pw, _make_impersonation_token
 from storage import _user_routes_dir, _user_storage_stats
-from utils import _load_index, _now_date, _now_dt, _safe_id, _save_index
+from utils import _load_index, _now_date, _now_dt, _safe_id, _save_index, append_index
 
 bp = Blueprint("api_admin", __name__)
 
@@ -387,10 +387,8 @@ def admin_upload_user_route(user_id: str):
         "description": description,
         "has_fit":     has_fit,
     }
-    index = _load_index(idx_path)
-    index.append(entry)
     try:
-        _save_index(index, idx_path)
+        append_index(idx_path, entry)          # zár alatt friss olvasás + írás
     except OSError:
         os.remove(gpx_path)
         if has_fit: os.remove(fit_path)

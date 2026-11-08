@@ -142,7 +142,7 @@ function renderConnectedState(el, status) {
   loadGarminWeight();
 }
 
-async function loadGarminWeight() {
+async function loadGarminWeight() {   // (a végén vár a szerver-beállításokra – async)
   const row = document.querySelector("#garminWeightRow");
   if (!row) return;
   let w;
@@ -164,22 +164,62 @@ async function loadGarminWeight() {
       <button id="garminWeightSyncBtn" class="strava-conn-btn strava-conn-btn--ghost" type="button" style="font-size:11px;padding:4px 10px">
         Beírás a kerékpáros profilba
       </button>
-    </div>`;
-  row.querySelector("#garminWeightSyncBtn")?.addEventListener("click", () => syncWeightToProfile(w.weight_kg));
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer">
+      <input type="checkbox" id="garminAutoWeight"${readProfile().autoWeightGarmin ? " checked" : ""}>
+      <span>Automatikusan: új mérésnél frissítse a kerékpáros profil testsúlyát</span>
+    </label>`;
+  row.querySelector("#garminWeightSyncBtn")?.addEventListener("click", () => syncWeightToProfile(w.weight_kg, w.date));
+  row.querySelector("#garminAutoWeight")?.addEventListener("change", (e) => {
+    const p = readProfile();
+    p.autoWeightGarmin = e.target.checked;
+    writeProfile(p);
+    if (e.target.checked) autoApplyWeight(w);
+    else _showToast?.("Automatikus testsúly-frissítés kikapcsolva");
+  });
+  // a szerver-beállítások betöltése után (különben a régi profil felülírná a frissítést)
+  await settingsReady();
+  const cb = row.querySelector("#garminAutoWeight");
+  if (cb) cb.checked = !!readProfile().autoWeightGarmin;
+  autoApplyWeight(w);
 }
 
-function syncWeightToProfile(weightKg) {
+function settingsReady() {
+  return window.__bringatervSettingsLoaded ? Promise.resolve()
+    : new Promise((ok) => window.addEventListener("bringaterv:settingsLoaded", ok, { once: true }));
+}
+
+function readProfile() {
+  try { return JSON.parse(localStorage.getItem("bringaterv.cyclistProfile") || "{}") || {}; } catch { return {}; }
+}
+
+function writeProfile(profile) {
   // Ugyanaz a mentési út, mint a kézi profilszerkesztésnél:
   // localStorage + settingChanged event → debounced szerver sync (main.js)
-  let profile = {};
-  try { profile = JSON.parse(localStorage.getItem("bringaterv.cyclistProfile") || "{}") || {}; } catch {}
-  profile.riderKg = weightKg;
   localStorage.setItem("bringaterv.cyclistProfile", JSON.stringify(profile));
   window.dispatchEvent(new CustomEvent("bringaterv:settingChanged", { detail: { kind: "cyclistProfile" } }));
+}
+
+/** Bekapcsolt kapcsolónál: ha a mérleg mérése újabb, mint amit a profil utoljára kapott, és eltér. */
+function autoApplyWeight(w) {
+  const p = readProfile();
+  if (!p.autoWeightGarmin || !w?.weight_kg) return;
+  const newer = !p.weightDate || (w.date && w.date > p.weightDate);
+  if (newer && Math.abs((Number(p.riderKg) || 0) - w.weight_kg) >= 0.1) syncWeightToProfile(w.weight_kg, w.date, true);
+  else if (newer && w.date) { p.weightDate = w.date; writeProfile(p); }
+}
+
+function syncWeightToProfile(weightKg, date, auto = false) {
+  const profile = readProfile();
+  profile.riderKg = weightKg;
+  if (date) profile.weightDate = date;
+  profile.weightSource = "garmin";
+  writeProfile(profile);
   // Ha nyitva van a profil szekció, frissítsük a mezőt is
   const riderEl = document.getElementById("profileRiderKg");
   if (riderEl) riderEl.value = weightKg;
-  _showToast?.(`Testsúly frissítve a profilban: ${weightKg} kg`);
+  const d = date ? ` (${new Date(date).toLocaleDateString("hu-HU")})` : "";
+  _showToast?.(auto ? `Testsúly frissítve a Garmin mérlegről: ${weightKg} kg${d}` : `Testsúly frissítve a profilban: ${weightKg} kg`);
 }
 
 // ── Belépési űrlap (email + jelszó, majd MFA) ─────────────────────────────────

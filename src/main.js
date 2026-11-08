@@ -16,7 +16,7 @@ import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
 import { initNavigation } from "./ui/navigation.js";
-import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, powerSummary, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
+import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, buildTempData, tempColor, TEMP_BANDS, powerSummary, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
 import { MODE_NAMES, activityOf, segmentModeForSurface, fitSegmentModes, hikingBootSvg } from "./routeModes.js";
@@ -26,7 +26,18 @@ import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus
 import { initGarmin, getGarminStatus } from "./ui/garmin.js";
 import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
 import { initDeviceImports } from "./ui/deviceImport.js";
-import { loadGear } from "./equipment.js";
+import { deviceName, loadGear } from "./equipment.js";
+import { setCalorieWorkouts } from "./calories.js";
+
+// Kalória-összevetés: kinek a számítása a könyvtári érték (a Keytel-kalibrációhoz az edzéslista kell)
+const CAL_SRC = { strava: "Strava", garmin: "Garmin Connect", onelap: "OnelapFit", wahoo: "Wahoo", polar: "Polar" };
+function calorieSourceOf(e) {
+  if (!e?.calories) return {};
+  const dev = e.device ? deviceName(e.device) : "";
+  const src = CAL_SRC[e.source];
+  return { caloriesShort: src || "eszköz",
+           caloriesSource: src ? `${src} számítása${dev ? ` (${dev})` : ""}` : `A rögzítő eszköz számítása${dev ? ` (${dev})` : ""}` };
+}
 import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { openShareModal } from "./ui/shareModal.js";
@@ -413,6 +424,10 @@ const elements = {
   hrCanvas: document.querySelector("#hrCanvas"),
   cadCanvas: document.querySelector("#cadCanvas"),
   powerCanvas: document.querySelector("#powerCanvas"),
+  tempCanvas: document.querySelector("#tempCanvas"),
+  closeChartTemp: document.querySelector("#closeChartTemp"),
+  tempChartBtn: document.querySelector("#tempChartBtn"),
+  chartTemp: document.querySelector("#chartTemp"),
   closeChartElevation: document.querySelector("#closeChartElevation"),
   closeChartSpeed: document.querySelector("#closeChartSpeed"),
   closeChartHr: document.querySelector("#closeChartHr"),
@@ -427,6 +442,7 @@ const elements = {
   hrMapToggle: document.querySelector("#hrMapToggle"),
   cadMapToggle: document.querySelector("#cadMapToggle"),
   powerMapToggle: document.querySelector("#powerMapToggle"),
+  tempMapToggle: document.querySelector("#tempMapToggle"),
   gradeLegend: document.querySelector("#gradeLegend"),
   gradeLegendPlan: document.querySelector("#gradeLegendPlan"),
   gradeMapToggle: document.querySelector("#gradeMapToggle"),
@@ -573,7 +589,7 @@ function renderToolbarOrderSettings() {
     });
     list.append(li);
   });
-  window.lucide?.createIcons({ nodes: [list] });
+  window.lucide?.createIcons({ root: list });
   initToolbarDragDrop(list);
 }
 
@@ -1043,11 +1059,12 @@ const speedChart     = elements.speedCanvas ? initElevationChart(elements.speedC
 const hrChart        = elements.hrCanvas    ? initElevationChart(elements.hrCanvas, makeHoverHandler())    : null;
 const cadChart       = elements.cadCanvas   ? initElevationChart(elements.cadCanvas, makeHoverHandler())   : null;
 const powerChart     = elements.powerCanvas ? initElevationChart(elements.powerCanvas, makeHoverHandler()) : null;
+const tempChart      = elements.tempCanvas  ? initElevationChart(elements.tempCanvas, makeHoverHandler())  : null;
 const windCanvasEl   = document.querySelector("#windCanvas");
 const windChart      = windCanvasEl ? initElevationChart(windCanvasEl, makeHoverHandler()) : null;
 
 // Az összes chart feltöltve — szinkronizálás mostantól működik
-chartSync.all = [elevationChart, speedChart, hrChart, cadChart, powerChart, windChart].filter(Boolean);
+chartSync.all = [elevationChart, speedChart, hrChart, cadChart, powerChart, tempChart, windChart].filter(Boolean);
 
 // Melyik chart szekciók látszanak (elevation / speed / hr) — itt deklarálva, hogy
 // updateElevationButton() és a chart control függvények egyaránt hozzáférjenek
@@ -1114,7 +1131,7 @@ function updateElevationButton(geometry) {
     if (gradeActive) mapAdapter.renderGradeRoute(activeGeometry);
   }
   // A nyitott grafikonok frissítése (adat, fejléc, jelölők) – egy helyen, típusonként
-  ["elevation", "speed", "hr", "cad", "power"].forEach((type) => {
+  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
     if (visibleSections.has(type)) renderChartSection(type);
   });
 }
@@ -1126,6 +1143,7 @@ function applyRouteLayer(type) {
   if (elements.hrMapToggle)    elements.hrMapToggle.checked    = false;
   if (elements.cadMapToggle)   elements.cadMapToggle.checked   = false;
   if (elements.powerMapToggle) elements.powerMapToggle.checked = false;
+  if (elements.tempMapToggle)  elements.tempMapToggle.checked  = false;
   if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
   if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
 
@@ -1134,6 +1152,7 @@ function applyRouteLayer(type) {
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
   mapAdapter.clearPowerRoute();
+  mapAdapter.clearTempRoute();
   mapAdapter.clearGradeRoute();
 
   // 3. Aktív réteg bekapcsolása
@@ -1162,6 +1181,12 @@ function applyRouteLayer(type) {
         mapAdapter.renderPowerRoute(getImportedPowerGeometry());
       }
       break;
+    case "temp":
+      if (activeGeometry.some((p) => p.temp != null)) {
+        if (elements.tempMapToggle) elements.tempMapToggle.checked = true;
+        mapAdapter.renderTempRoute(activeGeometry, tempColor);
+      }
+      break;
     case "grade":
       if (activeGeometry.length > 1) {
         if (elements.gradeMapToggle) elements.gradeMapToggle.checked = true;
@@ -1174,11 +1199,15 @@ function applyRouteLayer(type) {
       if (activeGeometry.length > 1) mapAdapter.renderRoute(activeGeometry, store.getState().mode);
   }
   setTimeout(refreshMapLegend, 0);   // jelmagyarázat a térképen
+  // (a panel nem nyílik le magától – csak a címre / nyílra kattintva)
 }
 
 // Toggle event handlerek — kizárólagos logika
 elements.speedMapToggle?.addEventListener("change", (e) => {
   applyRouteLayer(e.target.checked ? "speed" : null);
+});
+elements.tempMapToggle?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "temp" : null);
 });
 elements.hrMapToggle?.addEventListener("change", (e) => {
   applyRouteLayer(e.target.checked ? "hr" : null);
@@ -1254,6 +1283,18 @@ function chartConfig(type) {
       btns: [elements.powerChartBtn],
     };
   }
+  if (type === "temp") {
+    return {
+      sectionEl: elements.chartTemp,
+      chartInst: tempChart,
+      build: () => buildTempData(activeGeometry),
+      opts:  buildOpts("#06B6D4", "°C", tempColor, {
+        minRange: 6,
+        formatTip: (pt) => [`${kmTxt(pt)} · ${num(pt.value, 1)} °C`],
+      }),
+      btns: [elements.tempChartBtn],
+    };
+  }
   // "elevation" (alapértelmezett)
   return {
     sectionEl: elements.chartElevation,
@@ -1273,7 +1314,7 @@ function syncElevationBtnState() {
   const anyOpen = visibleSections.size > 0;
   if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", anyOpen);
 
-  ["elevation", "speed", "hr", "cad", "power"].forEach((type) => {
+  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
     const { btns } = chartConfig(type);
     const active = visibleSections.has(type);
     btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
@@ -1337,7 +1378,7 @@ syncPowerSmoothBtn();
 
 // ── Grafikon-fejléc: kulcsszámok (nagy szám, kis mértékegység, felirat) ──────
 
-const CHART_STATS_EL = { elevation: "elevationInfo", speed: "statsSpeed", hr: "statsHr", cad: "statsCad", power: "statsPower", wind: "statsWind" };
+const CHART_STATS_EL = { elevation: "elevationInfo", speed: "statsSpeed", hr: "statsHr", cad: "statsCad", power: "statsPower", temp: "statsTemp", wind: "statsWind" };
 const csStat = (value, unit, label, dot) =>
   `<div class="cs-stat"><b>${value}${unit ? `<small>${unit}</small>` : ""}</b><span>${dot ? `<i style="background:${dot}"></i>` : ""}${label}</span></div>`;
 const csChip = (text, label, cls = "", title = "") =>
@@ -1404,6 +1445,13 @@ function renderChartHeader(type, data) {
       const kg = Number(getCyclistProfile()?.riderKg);
       if (kg > 30) html += csStat(num(ps.avg / kg, 1), "W/kg", "Átlag / testsúly");
     }
+  } else if (type === "temp") {
+    // a számok a nyers (nem simított) mérésből
+    const raw = (activeGeometry || []).map((p) => p.temp).filter((v) => v != null);
+    if (raw.length) {
+      html += csStat(num(avg(raw), 1), "°C", "Átlag") + csStat(num(Math.min(...raw), 1), "°C", "Legalacsonyabb")
+            + csStat(num(Math.max(...raw), 1), "°C", "Legmagasabb");
+    }
   }
   el.innerHTML = html;
 }
@@ -1428,6 +1476,8 @@ function renderChartLegend(type) {
          + item("#22C55E", "lejtő") + item("#7F1D1D", "meredek (> 8%)");
   } else if (zones && type === "hr") {
     html = hrZones().map((z) => item(z.color, `${z.id} ${z.low}–${z.high}`)).join("");
+  } else if (zones && type === "temp") {
+    html = TEMP_BANDS.map(([lo, hi, c]) => item(c, lo == null ? `< ${hi} °C` : hi == null ? `${lo}+ °C` : `${lo}–${hi} °C`)).join("");
   } else if (zones && ["speed", "cad", "power"].includes(type)) {
     const b = getZoneBoundaries(type);
     html = ZONE_COLORS.map((c, i) => item(c, i === 0 ? `< ${b[0]}` : i === b.length ? `${b[b.length - 1]}+` : `${b[i - 1]}–${b[i]}`)).join("");
@@ -1479,7 +1529,7 @@ document.addEventListener("click", (e) => {
     cc.mode = cc.mode === "zones" ? "solid" : "zones";
     try { localStorage.setItem("bringaterv.chartColors", JSON.stringify(cc)); } catch {}
     window.dispatchEvent(new CustomEvent("bringaterv:settingChanged", { detail: { kind: "chartColors" } }));
-    ["elevation", "speed", "hr", "cad", "power"].forEach((t) => { if (visibleSections.has(t)) renderChartSection(t); });
+    ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((t) => { if (visibleSections.has(t)) renderChartSection(t); });
     return;
   }
   if (e.target.closest("[data-open-speeds]")) {
@@ -1521,6 +1571,7 @@ elements.speedChartBtn?.addEventListener("click", () => handleChartBtn("speed"))
 elements.hrChartBtn?.addEventListener("click",    () => handleChartBtn("hr"));
 elements.cadChartBtn?.addEventListener("click",   () => handleChartBtn("cad"));
 elements.powerChartBtn?.addEventListener("click", () => handleChartBtn("power"));
+elements.tempChartBtn?.addEventListener("click",  () => handleChartBtn("temp"));
 
 // X gombok az egyes szekciókhoz
 elements.closeChartElevation?.addEventListener("click", () => hideChartSection("elevation"));
@@ -1528,6 +1579,7 @@ elements.closeChartSpeed?.addEventListener("click",     () => hideChartSection("
 elements.closeChartHr?.addEventListener("click",        () => hideChartSection("hr"));
 elements.closeChartCad?.addEventListener("click",       () => hideChartSection("cad"));
 elements.closeChartPower?.addEventListener("click",     () => hideChartSection("power"));
+elements.closeChartTemp?.addEventListener("click",      () => hideChartSection("temp"));
 
 function updateElevationPanelInfo(data) {
   renderChartHeader("elevation", data);
@@ -1540,7 +1592,7 @@ function openElevationPanel() {
 
 // Minden szekció bezárása (pl. új fájl betöltésekor)
 function closeElevationPanel() {
-  ["elevation", "speed", "hr", "cad", "power"].forEach((type) => {
+  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
     const cfg = chartConfig(type);
     if (cfg.sectionEl) cfg.sectionEl.hidden = true;
   });
@@ -1570,6 +1622,7 @@ const elevationResizeObserver = new ResizeObserver(() => {
   hrChart?.resize();
   cadChart?.resize();
   powerChart?.resize();
+  tempChart?.resize();
   windChart?.resize();
 });
 if (elements.elevationPanel) elevationResizeObserver.observe(elements.elevationPanel);
@@ -1728,7 +1781,7 @@ store.subscribe(async (state) => {
   const nameSignature = state.waypoints.map((wp) => wp.name || "").join("\u0001");
   if (nameSignature !== lastNameSignature) {
     lastNameSignature = nameSignature;
-    for (const t of ["elevation", "speed", "hr", "cad", "power"]) {
+    for (const t of ["elevation", "speed", "hr", "cad", "power", "temp"]) {
       if (visibleSections.has(t)) renderChartSection(t);
     }
   }
@@ -1970,7 +2023,7 @@ document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdap
     if (bottom !== null) { popup.style.bottom = bottom + "px"; popup.style.top = "auto"; }
     else                 { popup.style.top = top + "px";    popup.style.bottom = "auto"; }
     popup.hidden = false;
-    window.lucide?.createIcons({ nodes: [popup] });
+    window.lucide?.createIcons({ root: popup });
     setTimeout(() => input.focus(), 30);
   }
 
@@ -2229,7 +2282,12 @@ if (isAdmin()) {
     if (changed) {
       window.dispatchEvent(new CustomEvent('bringaterv:settingsHydrated'));
     }
-  }).catch(() => { /* offline – marad a localStorage */ });
+  }).catch(() => { /* offline – marad a localStorage */ })
+    .finally(() => {
+      // aki a szerver-beállításokra vár (pl. a Garmin-testsúly frissítése), az most írhat
+      window.__bringatervSettingsLoaded = true;
+      window.dispatchEvent(new CustomEvent("bringaterv:settingsLoaded"));
+    });
 
   // Mentéskor (saveSetting felülírása) – debounced szerver sync
   let _settingsSyncTimer = null;
@@ -2312,6 +2370,7 @@ initOnelap({ showToast });
 initDeviceImports({ showToast });
 
 // ── Felszerelés (bal menü → Felszerelés): a bringák a feliratokhoz, szűrőkhöz is kellenek ──
+setCalorieWorkouts(() => _libraryData.workouts || []);
 loadGear();
 
 // ── Ismétlődés-védelem (szerveroldali beállítás: importDedup, alapból be) ─────
@@ -2471,6 +2530,7 @@ function clearAllRouteState() {
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
   mapAdapter.clearPowerRoute();
+  mapAdapter.clearTempRoute?.();
   mapAdapter.clearGradeRoute();
   mapAdapter.renderRoute([]);
   store.clear();
@@ -2794,7 +2854,7 @@ function setLoopStart(id) {
     new MutationObserver(sync).observe(src, { attributes: true, attributeFilter: ["disabled", "class"] });
     sync();
   });
-  window.lucide?.createIcons({ nodes: [$id("mTools"), $id("mMapUndo"), $id("mSumStats")].filter(Boolean) });
+  [$id("mTools"), $id("mMapUndo"), $id("mSumStats")].filter(Boolean).forEach((root) => window.lucide?.createIcons({ root }));
 
   $id("mLoopToggle")?.addEventListener("change", (e) => setLoop(e.target.checked));
   $id("mSumElev")?.addEventListener("click", () => document.getElementById("gradeLegendChartBtnPlan")?.click());
@@ -2822,6 +2882,7 @@ const ANALYSIS_METRICS = [
   { key: "hr",    label: "Pulzus",       legend: "hrLegend",    toggle: "hrMapToggle",    chart: "hrChartBtn",          avg: "fileAvgHr",    avgLabel: "Átl. pulzus",  field: "hr",    unit: "bpm" },
   { key: "cad",   label: "Kadencia",     legend: "cadLegend",   toggle: "cadMapToggle",   chart: "cadChartBtn",         avg: "fileAvgCad",   avgLabel: "Átl. kadencia", field: "cad",  unit: "rpm" },
   { key: "power", label: "Teljesítmény", legend: "powerLegend", toggle: "powerMapToggle", chart: "powerChartBtn",       avg: "fileAvgPower", avgLabel: "Átl. telj.",   field: "power", unit: "W" },
+  { key: "temp",  label: "Hőmérséklet",  legend: "tempLegend",  toggle: "tempMapToggle",             chart: "tempChartBtn",        avg: "fileTemp",     avgLabel: "Hőmérséklet",  field: "temp",  unit: "°C" },
   { key: "grade", label: "Szint",        legend: "gradeLegend", toggle: "gradeMapToggle", chart: "gradeLegendChartBtn", avg: "fileAscent",   avgLabel: "Emelkedés",    field: "ele",   unit: "m" },
 ];
 
@@ -2884,6 +2945,19 @@ initAiAnalysis({
     return `<span>${label} <b>${avg}</b>${max ? ` / ${max}` : ""}</span>`;
   };
 
+  // Kalória: a forrással („Kalória (Strava)”), kattintásra az összevetés ablak (a rejtett kártya viszi)
+  const kcalMini = () => {
+    if (!visible("fileKcalRow")) return "";
+    const label = ($id("fileKcalLabel")?.textContent || "Kalória").trim();
+    const click = $id("fileKcalRow").classList.contains("stat-card--click");
+    return click
+      ? `<button type="button" class="f-mini-link" data-kcal-compare title="Összevetés: eszköz, teljesítmény, pulzus, becslés">${escapeHtml(label)} <b>${escapeHtml(val("fileKcal"))}</b> <i data-lucide="chevron-right" aria-hidden="true"></i></button>`
+      : `<span>${escapeHtml(label)} <b>${escapeHtml(val("fileKcal"))}</b></span>`;
+  };
+  $id("fFileMini")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-kcal-compare]")) $id("fileKcalRow")?.click();
+  });
+
   function render() {
     if ($id("fileDetails")?.hidden) return;
     const desktop = !mobileMQ.matches;
@@ -2910,9 +2984,16 @@ initAiAnalysis({
       const other = visible("fileMovingDurRow") && visible("fileTotalDurRow") ? `<span>Teljes idő <b>${val("fileTotalDur")}</b></span>` : "";
       const hrScore = [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
         `<span>${it.querySelector(".hr-score-label")?.textContent} <b>${it.querySelector(".hr-score-value")?.textContent}</b></span>`).join("");
-      $id("fFileMini").innerHTML = [mini("Max. seb.", "fileMaxSpeed"), mini("Pulzus", "fileAvgHr", "fileMaxHr"),
-        mini("Kadencia", "fileAvgCad", "fileMaxCad"), mini("Teljesítmény", "fileAvgPower", "fileMaxPower"),
-        mini("Lejtés", "fileDescent"), mini("Kalória", "fileKcal"), other, hrScore].join("");
+      const miniHtml = [mini("Max. seb.", "fileMaxSpeed"), mini("Pulzus", "fileAvgHr", "fileMaxHr"),
+        mini("Kadencia", "fileAvgCad", "fileMaxCad"), mini("Teljesítmény", "fileAvgPower", "fileMaxPower"), mini("Hőmérséklet", "fileTemp"),
+        mini("Lejtés", "fileDescent"), kcalMini(), other, hrScore].join("");
+      // csak változáskor írjuk át – különben a gomb a kurzor alatt kicserélődne, és a kattintás elveszne
+      const miniEl = $id("fFileMini");
+      if (miniEl.dataset.html !== miniHtml) {
+        miniEl.innerHTML = miniHtml;
+        miniEl.dataset.html = miniHtml;
+        window.lucide?.createIcons({ root: miniEl });
+      }
     } else {
       // mobilon: táv, idő, és a színezett adat átlaga (alapból átlagsebesség)
       const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
@@ -2924,7 +3005,7 @@ initAiAnalysis({
     // színezés választó (csak az elérhető adatok)
     const avail = available();
     $id("mFileColor").innerHTML = [`<button type="button" class="m-chip${act ? "" : " is-active"}" data-color="">Nincs</button>`]
-      .concat(avail.map((m) => `<button type="button" class="m-chip${act === m ? " is-active" : ""}" data-color="${m.key}">${m.label}</button>`)).join("");
+      .concat(avail.filter((m) => m.toggle).map((m) => `<button type="button" class="m-chip${act === m ? " is-active" : ""}" data-color="${m.key}">${m.label}</button>`)).join("");
     // (a színskála a térkép sarkában jelenik meg – itt nem ismételjük)
     // grafikonok (több is nyitva lehet)
     $id("mFileCharts").innerHTML = avail.filter((m) => $id(m.chart))
@@ -3038,7 +3119,7 @@ initAiAnalysis({
     const c = $id(m.chart); if (c) new MutationObserver(later).observe(c, { attributes: true, attributeFilter: ["class"] });
   });
   mobileMQ.addEventListener?.("change", later);
-  window.lucide?.createIcons({ nodes: [box] });
+  window.lucide?.createIcons({ root: box });
   later();
 })();
 
@@ -3994,6 +4075,7 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
   mapAdapter.clearHrRoute();
   mapAdapter.clearCadRoute();
   mapAdapter.clearPowerRoute();
+  mapAdapter.clearTempRoute?.();
   mapAdapter.clearGradeRoute();
   clearFileTab();
   applyRouteLayer(null);
@@ -4039,7 +4121,14 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
     return;
   }
 
-  const libEntry = [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id);
+  const findEntry = () => [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id);
+  // a Kezdőlapról / értesítésből nyitva a könyvtár még nincs betöltve – a bejegyzés adatai
+  // (kalória, időjárás szerinti hőmérséklet, felszerelés) nélküle hiányoznának
+  let libEntry = findEntry();
+  if (!libEntry && !isSample) {
+    try { await loadRouteLibrary(); } catch { /* offline – a GPX-ből dolgozunk */ }
+    libEntry = findEntry();
+  }
   if (target === "file") {
     // Előbb a fül váltson (a térkép látható és méretezett legyen), csak utána rajzolunk
     // és illesztünk – rejtett térképen a fitBounds rossz nagyítást ad.
@@ -4081,9 +4170,15 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       // a könyvtári bejegyzés kalóriája (pl. Stravából) – ha nincs, a fül becsül
       meta: { ...(imported.meta ?? {}),
               calories: libEntry?.calories,
+              ...calorieSourceOf(libEntry),
+              // a Strava wattmérő nélkül is becsül wattot (device_watts: false) – az nem mérés
+              kilojoules: libEntry?.device_watts === false ? null : libEntry?.kilojoules,
+              // hőmérséklet a könyvtárból (az eszköz mérése, vagy az időjárás – ha az eszköz nem mért)
+              temp: libEntry?.avg_temp != null ? { avg_temp: libEntry.avg_temp, min_temp: libEntry.min_temp,
+                    max_temp: libEntry.max_temp, temp_source: libEntry.temp_source } : null,
               // felszerelés: a szerver (FIT / Strava) adata és a kézi bringa-hozzárendelés az erősebb
               equipment: libEntry && (libEntry.device || libEntry.bike_name || libEntry.bike_id || libEntry.sensors?.length)
-                ? { device: libEntry.device, bike_name: libEntry.bike_name, bike_id: libEntry.bike_id,
+                ? { device: deviceName(libEntry.device), bike_name: libEntry.bike_name, bike_id: libEntry.bike_id,
                     sensors: libEntry.sensors, power_meter: libEntry.power_meter }
                 : imported.meta?.equipment },
     });

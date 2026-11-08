@@ -348,18 +348,19 @@
           <li>Könyvtárból: kattints egy edzés kártyájára.</li>
         </ul>
         <h3>Adatok</h3>
-        <p>Felül az edzés neve, sportja és ideje, mellette a <b>⋯</b> menü (GPX letöltése, Megosztás / PDF, a trackpontok száma, Bezárás). Alatta a négy fő szám: <b>táv, idő</b> (mozgási idő, ha van), <b>átlagsebesség, emelkedés</b>; egy halk sorban a többi: max. sebesség, pulzus és kadencia (átlag / max), teljesítmény, lejtés, <b>kalória</b> (Stravából, vagy becslés a kerékpáros profilból), és pulzusnál a TRIMP / Edwards-pont.</p>
+        <p>Felül az edzés neve, sportja és ideje, mellette a <b>⋯</b> menü (GPX letöltése, Megosztás / PDF, a trackpontok száma, Bezárás). Alatta a négy fő szám: <b>táv, idő</b> (mozgási idő, ha van), <b>átlagsebesség, emelkedés</b>; egy halk sorban a többi: max. sebesség, pulzus és kadencia (átlag / max), teljesítmény, lejtés, <b>kalória</b>, és pulzusnál a TRIMP / Edwards-pont.</p>
+        <p><b>Kalória-összevetés</b>: a „Kalória (forrás) … ›” sorra (telefonon a Kalória kártyára) kattintva egymás mellett látod a számításokat: a <b>rögzítő eszköz / szolgáltatás</b> saját értékét (Strava, Garmin, OnelapFit, Wahoo, Polar, vagy a FIT-fájlban lévő érték), a <b>teljesítményből</b> számoltat (wattmérővel a legpontosabb: a pedálmunka kJ-ban ≈ kcal), a <b>pulzusból</b> számoltat (Keytel-képlet az életkorod, nemed és testsúlyod alapján) és a <b>becslést</b> sebességből, szintből és testsúlyból. A kártya a legmegbízhatóbbat mutatja (eszköz → teljesítmény → pulzus → becslés), mellette az eltérés százalékban. A pulzus alapú érték <b>kalibrálódik</b>: ha legalább 3 olyan edzésed van, ahol wattmérő és pulzusmérő is volt, ezekből személyes szorzót számol. A Strava wattmérő nélkül becsült teljesítménye ebbe nem számít bele.</p>
         <p>A térképen az útvonal fölé húzva az egeret egy buborék mutatja az adott pont sebességét, pulzusát, kadenciáját, teljesítményét és magasságát.</p>
         <h3 id="terkep-szinezes">Térkép színezése</h3>
         <ul>
-          <li>A <b>Térkép színezése</b> választóval: <b>Nincs, Sebesség, Pulzus, Kadencia, Teljesítmény, Szint</b> – csak az jelenik meg, amihez az edzésben van adat; egyszerre egy lehet aktív.</li>
-          <li>Alatta a <b>zónaeloszlás-sáv</b>: mennyi időt töltöttél az egyes zónákban (pulzusnál a pulzuszónák – 5 vagy 7 zóna, a beállítás szerint –, sebességnél, kadenciánál és teljesítménynél az adatzónák szerint).</li>
-          <li>A <b>Grafikonok</b> chipekkel nyithatók meg a diagramok a térkép alján (több is lehet nyitva egymás alatt).</li>
+          <li><b>Adatpanelek</b> (gépen a bal oldalon, adatonként egy lenyíló sor – csak amihez az edzésben van adat): <b>Sebesség, Kadencia, Pulzus – zónák, Teljesítmény, Hőmérséklet, Szintprofil</b>. A fejlécben a grafikon-ikon nyitja a grafikont, a kapcsoló színezi a térképet (egyszerre egy színezés lehet bekapcsolva). A címre vagy a nyílra kattintva lenyílik: a zónák színnel, tartománnyal, idővel (lejtésnél távval) és százalékkal – a térkép sarkában ugyanez a jelmagyarázat. Telefonon a Térkép színezése és a Grafikonok gombsor.</li>
+          <li>Telefonon: a <b>Térkép színezése</b> gombsor (egyszerre egy), alatta a <b>zónaeloszlás-sáv</b>, és a <b>Grafikonok</b> gombsor (több grafikon is lehet nyitva egymás alatt).</li>
+          <li>Pulzusnál a pulzuszónák (5 vagy 7 zóna, a beállítás szerint), sebességnél, kadenciánál és teljesítménynél az adatzónák, hőmérsékletnél hidegtől melegig 7 sáv, lejtésnél emelkedő / sík / lejtő sávok.</li>
           <li>A színskála a térkép sarkában is megjelenik (koppintásra összecsukható).</li>
         </ul>
         <p>A sebesség-, kadencia- és teljesítménysávok a <span class="path">Beállítások → Adatzónák</span> alatt, a pulzuszónák az <span class="path">Elemzési beállítások</span> alatt állíthatók.</p>
         <h3>Diagramok</h3>
-        <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény és szél – mind egységes kinézetű. Fejlécük a legfontosabb számokat mutatja (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és tempó; a többinél átlag és maximum; a teljesítménynél <b>Átlag, NP</b> (normalizált teljesítmény), <b>Max, Munka</b> (kJ) és <b>W/kg</b> – a testsúly a kerékpáros profilból). A teljesítmény-grafikonon a <b>Nyers / 10 mp / 30 mp</b> gombbal simíthatod a vonalat (a wattmérő másodpercenként erősen ugrál); a maximum mindig a pontos, simítás nélküli csúcs. A <b>Zónaszín</b> gombbal a vonal a zónák / lejtés szerint színeződik, ilyenkor jelmagyarázat is megjelenik. Az egérrel (telefonon az ujjaddal vízszintesen húzva) mozogva minden nyitott diagramon és a térképen is ugyanaz a pont látszik; a címke csak azon a diagramon jelenik meg, amelyiken mozogsz. Tervezésnél a rajt (A), a cél (B) és a közbenső útvonalpontok is jelölve vannak. Függőlegesen húzva továbbra is görgethető az oldal.</p>
+        <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény és szél – mind egységes kinézetű. Fejlécük a legfontosabb számokat mutatja (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és tempó; a többinél átlag és maximum; a teljesítménynél <b>Átlag, NP</b> (normalizált teljesítmény), <b>Max, Munka</b> (kJ) és <b>W/kg</b> – a testsúly a kerékpáros profilból). A teljesítmény-grafikonon a <b>Nyers / 10 mp / 30 mp</b> gombbal simíthatod a vonalat (a wattmérő másodpercenként erősen ugrál); a maximum mindig a pontos, simítás nélküli csúcs. A <b>hőmérséklet-grafikon</b> (ha az eszköz mért hőmérsékletet: Garmin, Magene, Wahoo…) átlagot, legalacsonyabb és legmagasabb értéket mutat; a vonal 60 mp-es simítással látszik, zónaszín módban hidegtől (kék) melegig (piros) színezve. A <b>Zónaszín</b> gombbal a vonal a zónák / lejtés szerint színeződik, ilyenkor jelmagyarázat is megjelenik. Az egérrel (telefonon az ujjaddal vízszintesen húzva) mozogva minden nyitott diagramon és a térképen is ugyanaz a pont látszik; a címke csak azon a diagramon jelenik meg, amelyiken mozogsz. Tervezésnél a rajt (A), a cél (B) és a közbenső útvonalpontok is jelölve vannak. Függőlegesen húzva továbbra is görgethető az oldal.</p>
         <h3 id="pulzuselemzes">Pulzuselemzés</h3>
         <p>A <b>Pulzus</b> színezésnél a zónasáv megmutatja, mennyi időt töltöttél az egyes pulzuszónákban; a fő számok alatt két terhelésmutató is látszik:</p>
         <ul>
@@ -415,7 +416,7 @@
           <tr><td>Törlés</td><td>Végleges törlés (megerősítést kér). Stravás / Garmines edzés törlés után nem jön vissza automatikusan – kivéve, ha a Strava automatikus importnál bekapcsoltad a <a href="#auto-import">Törölt edzések visszatöltése</a> kapcsolót.</td></tr>
         </table>
         <h3>Importálás</h3>
-        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b>, <b>OnelapFitből</b>, <b>Wahoo-ból</b>, <b>Polarból</b> (ha a kapcsolat be van állítva). A Garmin, OnelapFit, Wahoo és Polar ablak tetején az <b>Automatikus import</b> is bekapcsolható (5, 15, 30 percenként vagy óránként, „Ellenőrzés most” gombbal).</p>
+        <p>A <b>+ Import</b> menü: <b>GPX / FIT fájlból</b>, <b>Strava-ból</b>, <b>Garminból</b>, <b>OnelapFitből</b>, <b>Wahoo-ból</b>, <b>Polarból</b> (ha a kapcsolat be van állítva). A Strava, Garmin, OnelapFit, Wahoo és Polar ablak tetején az <b>Automatikus import</b> is bekapcsolható (5, 15, 30 percenként vagy óránként, „Ellenőrzés most” gombbal) – ugyanez pipával a <b>Beállítások</b> adott szakaszában is; a kettő mindig egyformán áll.</p>
       </section>
 
       <section id="kozossegi">
@@ -460,14 +461,15 @@
         <h2>Statisztikák</h2>
         <table>
           <tr><th>Nézet</th><th>Tartalom</th></tr>
-          <tr><td class="path">Áttekintés</td><td>Összes km, edzésszám, szintemelkedés, idő; havi km és szint diagram; sportág-megoszlás. Időszak: Idén / 12 hónap / Összes; sportszűrő.</td></tr>
-          <tr><td class="path">Havi statisztikák</td><td>Hónaponkénti táblázat, sportonként lenyitható.</td></tr>
+          <tr><td class="path">Áttekintés</td><td>Összes km, edzésszám, szintemelkedés, idő, <b>energia</b> (kcal; rámutatva: hány edzésnél melyik forrásból); havi km és szint diagram; sportág-megoszlás. Időszak: Idén / 12 hónap / Összes; sportszűrő.</td></tr>
+          <tr><td class="path">Havi statisztikák</td><td>Hónaponkénti táblázat (kalóriával), sportonként lenyitható.</td></tr>
           <tr><td class="path">Személyes rekordok</td><td>Lásd lent.</td></tr>
           <tr><td class="path">Eddington-szám</td><td>A legnagyobb E szám, amelyre igaz: legalább E napon tekertél legalább E km-t. Megmutatja, hány nap hiányzik a következőhöz.</td></tr>
           <tr><td class="path">Edzésterhelés</td><td>CTL (fitnesz, 42 napos átlag), ATL (fáradtság, 7 napos), TSB (forma = CTL − ATL). A napi terhelés az edzésidő percben.</td></tr>
           <tr><td class="path">Hőtérkép</td><td>Az összes edzésed nyomvonala egy térképen, sportonként szűrhetően.</td></tr>
         </table>
         <div class="tip"><b>Mi számít bele?</b>Csak azok az edzések, amelyeknél a könyvtárban be van kapcsolva a „statisztikába számít” – a tervezett útvonalak nem.</div>
+        <div class="tip"><b>Kalória a statisztikában</b>Edzésenként ugyanaz, mint az Elemzés kártyáján: a rögzítő eszköz vagy a szolgáltatás (Strava, Garmin, OnelapFit…) értéke; ha nincs, a wattmérős munka; ha az sincs, a pulzusból számolt (Keytel, a wattmérős edzéseidből kalibrálva); végül – csak kerékpáros edzésnél – a sebességből, szintből és testsúlyból becsült érték. A Strava wattmérő nélkül becsült teljesítménye nem számít mérésnek.</div>
         <h3 id="rekordok">Személyes rekordok</h3>
         <ul>
           <li>Fülek: <b>Kerékpár / Futás / Gyalog</b>; időszak: <b>Összes, 1 év, 6 hónap, 12 hét, 4 hét</b>.</li>
@@ -571,9 +573,9 @@
         <h2>Garmin Connect</h2>
         <ul>
           <li><b>Csatlakozás</b>: <span class="path">Beállítások → Garmin Connect</span>, Garmin e-mail és jelszó; kétlépcsős azonosítás (MFA) esetén a kódot is kéri. A jelszót nem tároljuk, csak a belépési tokent (kb. 1 évig érvényes).</li>
-          <li><b>Testsúly-szinkron</b>: az okosmérleg legutóbbi mérése (súly, testzsír) egy gombbal átvehető a kerékpáros profilba – ez a szél- és kalóriaszámítás bemenete.</li>
+          <li><b>Testsúly-szinkron</b>: az okosmérleg legutóbbi mérése (súly, testzsír) egy gombbal átvehető a kerékpáros profilba – ez a szél-, kalória- és W/kg-számítás bemenete. Az <b>Automatikusan</b> pipával az app minden indításkor megnézi a mérleget, és ha újabb mérés van, magától frissíti a profilt (értesítéssel). A beállítás minden eszközödön érvényes; kikapcsolva csak a gombbal frissül.</li>
           <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>. Az eredeti FIT-et tölti le (pulzus, kadencia, teljesítmény), és az a könyvtárban is megmarad; ha nincs, a Garmin GPX-exportját.</li>
-          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új Garmin-edzéseket, és magától behozza őket (értesítéssel). A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a más forrásból (Strava, OnelapFit) meglévőket sem.</li>
+          <li><b>Automatikus import</b>: ugyanebben az ablakban – vagy a <span class="path">Beállítások → Garmin Connect</span> alatt pipával, a kettő mindig egyformán áll – kapcsolható be: 5, 15, 30 percenként vagy óránként ellenőrzi az új Garmin-edzéseket, és magától behozza őket (értesítéssel). A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a más forrásból (Strava, OnelapFit) meglévőket sem.</li>
           <li><b>Útvonal küldése Garminra</b>: tervezés után a <b>Mentés</b> ablakban, vagy a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
         </ul>
       </section>
@@ -584,7 +586,7 @@
         <ul>
           <li><b>Csatlakozás</b>: <span class="path">Beállítások → OnelapFit</span>, az OnelapFit e-mail és jelszó. Ha az appba e-mailes kóddal lépsz be, előbb állíts be jelszót az appban (<i>Elfelejtett jelszó</i>). A jelszót nem tároljuk, csak a belépési tokent; ez magától frissül, amíg 60 napon belül megnyitod a Bringatervet.</li>
           <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → OnelapFitből</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény). A GPS nélküli (görgős) edzések kimaradnak.</li>
-          <li><b>Automatikus import</b>: ugyanebben az ablakban kapcsolható be – 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket (értesítéssel). Az OnelapFitnek nincs azonnali értesítése (webhook), ezért csak időközös ellenőrzés van. A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a Stravából már meglévőket sem.</li>
+          <li><b>Automatikus import</b>: ugyanebben az ablakban – vagy a <span class="path">Beállítások → OnelapFit</span> alatt pipával – kapcsolható be: 5, 15, 30 percenként vagy óránként ellenőrzi az új edzéseket, és magától behozza őket (értesítéssel). Az OnelapFitnek nincs azonnali értesítése (webhook), ezért csak időközös ellenőrzés van. A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a Stravából már meglévőket sem.</li>
           <li><b>Útvonal küldése a komputerre</b>: tervezés után a <b>Mentés</b> ablakban <b>Küldés OnelapFitre</b> (egyben a könyvtárba is menti), vagy a könyvtárban egy tervezett útvonalnál <b>… → Küldés OnelapFitre</b>. Az OnelapFit útvonalai közé kerül, onnan szinkronizáld a komputerre navigációhoz.</li>
         </ul>
       </section>
@@ -634,12 +636,23 @@
         <p>Saját menüpont a bal oldali sávban (telefonon az alsó sávban, a Könyvtár mellett), bringa ikonnal.</p>
         <ul>
           <li><b>Bringák</b>: név, márka, modell, típus, súly, vásárlás dátuma, ár, <b>kezdő km</b> (ami az első itteni edzés előtt már rajta volt), „más néven”, alapértelmezett, nyugdíjazva. A km, az idő, az edzésszám és az idei km magától számolódik a hozzárendelt edzésekből.</li>
-          <li><b>Melyik edzés melyik bringa</b>: 1) amit kézzel beállítasz (Szerkesztés, vagy a bringánál <b>Edzések hozzárendelése…</b> – tömegesen, eszköz és dátum szerint szűrve); 2) a fájl / Strava bringaneve (a „más néven” listával); 3) bringanév nélküli kerékpáros edzésnél az <b>alapértelmezett</b> bringa. A Stravából jött név is felülírható – a Bringaterv a Stravába nem ír vissza.</li>
+          <li><b>Melyik edzés melyik bringa</b>: 1) amit kézzel beállítasz (Szerkesztés, vagy a bringánál <b>Edzések hozzárendelése…</b> – tömegesen, eszköz és dátum szerint szűrve); 2) a fájl / Strava bringaneve (a „más néven” listával); 3) bringanév nélküli kerékpáros edzésnél az <b>alapértelmezett</b> bringa. A Stravából jött név is felülírható – a Bringaterv a Stravába nem ír vissza. Ha a bringánál megadod a <b>vásárlás dátumát</b>, az automatikus hozzárendelés (2. és 3. pont) az ennél régebbi edzésekre nem érvényes – a Strava ugyanis a régi edzésekre is ráteszi az alapértelmezett bringáját. Kézzel ilyenkor is hozzárendelheted (a tömeges ablakban „a vásárlás előtt” jelöléssel látszik).</li>
           <li><b>Felismert bringák</b>: a fájlokból / Stravából jött, még fel nem vett nevek – egy kattintással felvehetők, vagy egy meglévőhöz köthetők („Ugyanaz, mint…”, pl. a komputer „Cube” és a Strava „Cube AIM EX” neve).</li>
           <li><b>Alkatrészek</b> (lánc, gumi, fékbetét, kazetta, kerék, elem…): melyik bringán vannak, és mióta. Bringát váltva (pl. téli kerékszett) a km bringánként helyesen gyűlik; a leszerelt alkatrész a <b>Raktárba</b> kerül.</li>
           <li><b>Fotó</b>: a bringa / alkatrész kártyáján a kis kép-mezőre koppintva tölthetsz fel képet (telefonon akár a kamerával). A böngésző feltöltés előtt kicsinyíti (a hosszabb oldal legfeljebb 1280 px, néhány száz KB), így a nagy telefonos fotó is gyorsan átmegy. A képre koppintva nagyítva látod, és itt cserélheted vagy törölheted. A fotók csak neked látszanak, és a mentésbe (backup) is bekerülnek.</li>
           <li><b>Karbantartás</b>: feladatok bringánként vagy alkatrészenként – km, üzemóra vagy nap alapján (pl. lánc csere 3000 km, láncolajozás 300 km, nagyszerviz évente). 90%-nál „hamarosan”, 100%-nál „esedékes”: a Felszerelés tetején a <b>Teendők</b>, a <b>Kezdőlapon</b> figyelmeztetés, és <b>push-értesítés</b> (Beállítások → Értesítések → „Szerviz esedékes”). Elvégzés után: <b>Elvégezve</b> (dátum, költség, megjegyzés) – a számláló újraindul, és bekerül a <b>karbantartási naplóba</b>.</li>
-          <li><b>Eszközök</b>: a felismert rögzítők (pl. Magene C506, Apple Watch) edzésszámmal és km-rel.</li>
+          <li><b>Eszközök</b>: a felismert rögzítők (pl. Magene C506, Apple Watch) edzésszámmal, km-rel és képpel. A képet a Bringaterv magától keresi: Magene eszköznél a gyártó termékoldaláról, másoknál (Apple Watch, Garmin, Wahoo…) a Wikimedia Commons szabad képei közül – csak akkor rakja be, ha biztos a találat. Ha nincs kép, rossz, vagy más eszközöd van, koppints a <b>Kép cseréje</b> / <b>Kép keresése</b> gombra: a keresőmezőben átírhatod a nevet (pl. pontosabb típus) és újra kereshetsz, választhatsz a javaslatok közül, megadhatsz egy webcímet (pl. a gyártó oldalán a képre jobb gombbal → Kép címének másolása), vagy feltölthetsz saját fotót.</li>
+          <li><b>Eszközök összevonása</b>: a Strava ugyanazt az órát többféle néven adhatja át – például „Apple Watch Series 7”, ha az óra saját Edzés appjával rögzítettél, és „Strava App (Apple Watch Series 7)”, ha a Strava óra-appjával. A „Strava App (…)” nevet a Bringaterv magától összevonja az órával; bármely két eszközt kézzel is összevonhatsz (kártya → <b>Összevonás</b>). Az összevont név „más néven” látszik a kártyán, a <b>×</b>-szel újra külön eszköz lesz. Az összevonás a számokra, a könyvtár Eszköz szűrőjére és a feliratokra is érvényes.</li>
+        </ul>
+      </section>
+
+      <section id="homerseklet">
+        <h2>Hőmérséklet</h2>
+        <ul>
+          <li><b>Mért hőmérséklet</b>: a legtöbb kerékpáros komputer és sportóra (Garmin, Magene, Wahoo, Bryton…) méri, és a FIT-fájlba írja – az Elemzésben átlag-kártya és grafikon, a Könyvtár lenyitott sorában az átlag, a PDF-ben is.</li>
+          <li><b>Stravából</b>: ha az eszköz mérte, a Strava is továbbadja – az új importoknál azonnal megvan, a régebbi Stravás edzéseknél a háttérben, fokozatosan töltődik be (a Strava korlátja miatt óránként néhány tucat).</li>
+          <li><b>Időjárás szerint</b>: az Apple Watch, a telefon és sok óra nem mér környezeti hőmérsékletet. Ezeknél az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> időjárás-archívumából látszik az indulás helyén, az edzés óráiban mért hőmérséklet – „(időjárás)” jelöléssel és ≈ jellel, grafikon nélkül. Mentés után pár másodperc, régebbi edzéseknél legfeljebb egy óra, mire megjelenik.</li>
+          <li>A komputer a napon, a kormányon vagy a testhez közel melegebbet mérhet a valósnál, ezért a mért és az időjárás szerinti érték eltérhet.</li>
         </ul>
       </section>
 

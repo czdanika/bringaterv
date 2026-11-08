@@ -9,6 +9,10 @@
  *   #<prefix>AutoToggle, #<prefix>AutoInterval, #<prefix>AutoOpts,
  *   #<prefix>AutoStatus, #<prefix>AutoRunBtn
  * api: { get(), save({ enabled, interval_min }), runNow() }
+ *
+ * Ugyanez a Beállítások szakaszában is (#<prefix>SetAuto doboz, #<prefix>SetAutoToggle,
+ * #<prefix>SetAutoInterval, #<prefix>SetAutoStatus): ha a jelölés megvan, ugyanarról az
+ * állapotról vezéreljük – a két hely mindig egyformán áll. A doboz csak kapcsolatnál látszik.
  */
 
 function fmtAgo(iso) {
@@ -21,25 +25,29 @@ function fmtAgo(iso) {
 
 export function createAutoSyncPanel({ prefix, api, label, showToast, onNewWorkouts }) {
   const $ = (id) => document.querySelector(`#${prefix}${id}`);
+  const SETS = [prefix, `${prefix}Set`];                 // import ablak + Beállítások
+  const $s = (set, id) => document.querySelector(`#${set}${id}`);
   let state = null;
   let seenTotal = null;
   let timer = null;
 
   function render() {
     if (!state) return;
-    const toggle = $("AutoToggle");
-    if (toggle) toggle.checked = !!state.enabled;
-    const opts = $("AutoOpts");
-    if (opts) opts.hidden = !state.enabled;
-    const sel = $("AutoInterval");
-    if (sel) sel.value = String(state.interval_min || 15);
-    const st = $("AutoStatus");
-    if (st) {
-      let txt = fmtAgo(state.last_check);
-      if (state.last_error) txt += ` · ⚠️ ${state.last_error}`;
-      else if (state.last_check) txt += state.last_imported ? ` · ${state.last_imported} új edzés importálva` : " · nincs új edzés";
-      st.textContent = txt;
-      st.classList.toggle("is-error", !!state.last_error);
+    let txt = fmtAgo(state.last_check);
+    if (state.last_error) txt += ` · ⚠️ ${state.last_error}`;
+    else if (state.last_check) txt += state.last_imported ? ` · ${state.last_imported} új edzés importálva` : " · nincs új edzés";
+    for (const set of SETS) {
+      const toggle = $s(set, "AutoToggle");
+      if (toggle) toggle.checked = !!state.enabled;
+      const opts = $s(set, "AutoOpts");
+      if (opts) opts.hidden = !state.enabled;
+      const sel = $s(set, "AutoInterval");
+      if (sel) { sel.value = String(state.interval_min || 15); if (set !== prefix) sel.disabled = !state.enabled; }
+      const st = $s(set, "AutoStatus");
+      if (st) {
+        st.textContent = state.enabled || set === prefix ? txt : "";
+        st.classList.toggle("is-error", !!state.last_error);
+      }
     }
   }
 
@@ -63,9 +71,9 @@ export function createAutoSyncPanel({ prefix, api, label, showToast, onNewWorkou
     seenTotal = total;
   }
 
-  async function save() {
-    const enabled = !!$("AutoToggle")?.checked;
-    const interval_min = Number($("AutoInterval")?.value || 15);
+  async function save(set = prefix) {
+    const enabled = !!$s(set, "AutoToggle")?.checked;
+    const interval_min = Number($s(set, "AutoInterval")?.value || $("AutoInterval")?.value || 15);
     try {
       state = await api.save({ enabled, interval_min });
       render();
@@ -91,7 +99,13 @@ export function createAutoSyncPanel({ prefix, api, label, showToast, onNewWorkou
     }
   }
 
+  function showSettingsBox(on) {
+    const box = document.querySelector(`#${prefix}SetAuto`);
+    if (box) box.hidden = !on;
+  }
+
   function start() {
+    showSettingsBox(true);                               // csak kapcsolatnál
     clearInterval(timer);
     load().then(() => {
       if (!state?.enabled) return;
@@ -104,10 +118,12 @@ export function createAutoSyncPanel({ prefix, api, label, showToast, onNewWorkou
     });
   }
 
-  function stop() { clearInterval(timer); }
+  function stop() { clearInterval(timer); showSettingsBox(false); }
 
-  $("AutoToggle")?.addEventListener("change", save);
-  $("AutoInterval")?.addEventListener("change", save);
+  for (const set of SETS) {
+    $s(set, "AutoToggle")?.addEventListener("change", () => save(set));
+    $s(set, "AutoInterval")?.addEventListener("change", () => save(set));
+  }
   $("AutoRunBtn")?.addEventListener("click", runNow);
 
   return { start, stop };

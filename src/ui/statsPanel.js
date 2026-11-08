@@ -5,8 +5,8 @@
  * Nincs backend-változás – minden számítás frontenden történik.
  */
 
-import { estimateKcal } from '../calories.js';
-import { getCyclistProfile } from './settings.js';
+import { personFrom, sumKcal } from '../calories.js';
+import { getCyclistProfile, getHrZoneSettings } from './settings.js';
 import { num, dur } from "../format.js";
 
 const MONTHS_HU = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
@@ -68,13 +68,11 @@ function fmtMinVerbose(min) {
   return parts.join(' ');
 }
 
+// Kalória: ugyanaz a sorrend, mint az Elemzés kártyáján (eszköz / Strava → mért teljesítmény →
+// pulzus, kalibrálva → becslés csak kerékpárra) – calories.js workoutKcal
 function calcKcalForRoutes(routes) {
   const profile = getCyclistProfile();
-  return routes.reduce((sum, r) => {
-    if (!r.distance || !r.duration) return sum;
-    const { kcal } = estimateKcal(r.distance, r.duration / 60, r.elevation || 0, profile);
-    return sum + kcal;
-  }, 0);
+  return sumKcal(routes, personFrom(getHrZoneSettings(), profile), profile).kcal;
 }
 
 function calcEddingtonMonth(routes) {

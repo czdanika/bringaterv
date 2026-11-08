@@ -255,7 +255,7 @@ def _add_strava_deny(user_id: str, strava_id: int) -> None:
 
 # ── GPX builder ───────────────────────────────────────────────────────────────
 
-def _build_gpx_from_streams(name, sport_type, start_dt, latlng, altitude, times, hr, cad, power) -> str:
+def _build_gpx_from_streams(name, sport_type, start_dt, latlng, altitude, times, hr, cad, power, temp=None) -> str:
     """GPX XML építése Strava streams-ből."""
     import xml.sax.saxutils as sx
     out = []
@@ -278,10 +278,12 @@ def _build_gpx_from_streams(name, sport_type, start_dt, latlng, altitude, times,
         h = hr[i]  if i < len(hr)  else None
         c = cad[i] if i < len(cad) else None
         p = power[i] if i < len(power) else None
-        if h is not None or c is not None or p is not None:
+        tc = temp[i] if temp and i < len(temp) else None
+        if h is not None or c is not None or p is not None or tc is not None:
             out.append('      <extensions>')
-            if h is not None or c is not None:
+            if h is not None or c is not None or tc is not None:
                 out.append('        <gpxtpx:TrackPointExtension>')
+                if tc is not None: out.append(f'          <gpxtpx:atemp>{tc}</gpxtpx:atemp>')
                 if h is not None: out.append(f'          <gpxtpx:hr>{h}</gpxtpx:hr>')
                 if c is not None: out.append(f'          <gpxtpx:cad>{c}</gpxtpx:cad>')
                 out.append('        </gpxtpx:TrackPointExtension>')

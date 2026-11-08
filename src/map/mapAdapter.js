@@ -842,6 +842,18 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     if (map.hasLayer(cadRouteGroup)) map.removeLayer(cadRouteGroup);
   }
 
+  // Hőmérséklet szerinti színezés (a színt a hívó adja: elevationProfile.tempColor)
+  const tempRouteGroup = L.layerGroup();
+  function renderTempRoute(geometry, colorFn) {
+    renderSegments(tempRouteGroup, geometry, p => (p.temp == null ? null : colorFn(p.temp)), "#9CA3AF");
+    routeLayer.setLatLngs([]);
+    if (!map.hasLayer(tempRouteGroup)) tempRouteGroup.addTo(map);
+  }
+  function clearTempRoute() {
+    tempRouteGroup.clearLayers();
+    if (map.hasLayer(tempRouteGroup)) map.removeLayer(tempRouteGroup);
+  }
+
   function powerColor(watts) { return zoneColor('power', watts); }
 
   function renderPowerRoute(geometry) {
@@ -1425,6 +1437,12 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       }
     },
     clearPowerRoute,
+    renderTempRoute: (geometry, colorFn) => {
+      hoverGeometry = geometry;
+      renderTempRoute(geometry, colorFn);
+      if (geometry.length > 1) map.fitBounds(L.latLngBounds(geometry.map(p => [p.lat, p.lng])), fitOptions());
+    },
+    clearTempRoute,
     renderWindRoute,
     clearWindRoute,
     renderSurfaceRoute,

@@ -12,6 +12,8 @@
 
 import { num, int, dur } from "../format.js";
 import { sparkStep } from "./sparkline.js";
+import { keytelCalibration, personFrom, workoutKcal } from "../calories.js";
+import { getCyclistProfile, getHrZoneSettings } from "./settings.js";
 
 // ── Beállítások ──────────────────────────────────────────────────────────────
 const SPORTS = {
@@ -177,7 +179,7 @@ function draw(el, allRoutes) {
   }
 
   el.innerHTML = head + highlightSection(rows, cfg) + effortsSection(rows, cfg) + peaksSection(rows);
-  window.lucide?.createIcons({ nodes: [el] });
+  window.lucide?.createIcons({ root: el });
 }
 
 /** Kártya egy rekordhoz: érték, név, dátum, előző rekord + mini fejlődésgörbe. */
@@ -204,6 +206,11 @@ function recordCard(label, prog, fmt, { lowerIsBetter = false, extra = "" } = {}
     </div>`;
 }
 
+function kcalOf() {
+  const prof = getCyclistProfile(), person = personFrom(getHrZoneSettings(), prof), calib = keytelCalibration(person);
+  return (r) => workoutKcal(r, person, calib, prof)?.kcal ?? NaN;
+}
+
 function highlightSection(rows, cfg) {
   const recs = _records?.items;
   const avgSpeed = (r) => {
@@ -221,7 +228,8 @@ function highlightSection(rows, cfg) {
       : recordCard("Legjobb átlagsebesség", progression(rows, avgSpeed), (v) => `${num(v, 1)} km/h`),
     recordCard("Legnagyobb sebesség", progression(rows, (r) => (r.max_speed_kmh > 0 && r.max_speed_kmh < 110 ? r.max_speed_kmh : NaN)), (v) => `${num(v, 1)} km/h`),
     recs ? recordCard("Leghosszabb mászás", progression(rows, (r) => recs.get(r.id)?.climb?.gain_m), (v) => `${int(v)} m`) : "",
-    recordCard("Legtöbb kalória", progression(rows, (r) => r.calories), (v) => `${int(v)} kcal`),
+    // kalória: az eszköz / Strava értéke, különben mért watt → pulzus → becslés (mint az Elemzés)
+    recordCard("Legtöbb kalória", progression(rows, kcalOf()), (v) => `${int(v)} kcal`),
   ].filter(Boolean);
   return `
     <section class="rec-section">

@@ -271,7 +271,7 @@
           <h2>Minden edzés, minden részlet</h2>
           <p style="color:var(--muted)">Töltsd be a GPX- vagy FIT-fájlt (Garmin, Magene, Wahoo, Bryton, Hammerhead…), vagy hagyd, hogy a Stravából, Garminból, OnelapFitből, Wahoo-ból vagy Polarból magától bejöjjön.</p>
           <ul>
-            <li><b>Színezett útvonal a térképen</b> sebesség, pulzus, kadencia, teljesítmény vagy lejtés szerint – alatta a <b>zónaeloszlás</b>: mennyi időt töltöttél az egyes zónákban</li>
+            <li><b>Színezett útvonal a térképen</b> sebesség, pulzus, kadencia, teljesítmény, hőmérséklet vagy lejtés szerint – adatonként egy lenyíló panel a grafikonnal és a <b>zónaeloszlással</b>: mennyi időt töltöttél az egyes zónákban</li>
             <li><b>Grafikonok</b> egymás alatt – végighúzva az ujjad a térképen is mutatja, hol jártál</li>
             <li><b>A fő számok egy pillantásra,</b> a többi adat egy halk sorban: mozgási idő, maximumok, kalória, TRIMP</li>
           </ul>
@@ -290,7 +290,8 @@
         <div class="chip"><h4>Teljesítmény</h4><p>Wattok a térképen és grafikonon (simítható), átlag, NP, csúcs, kJ és W/kg, csúcsteljesítmények 5 mp – 60 perc között.</p></div>
         <div class="chip"><h4>Szintprofil és lejtés</h4><p>Emelkedő, ereszkedő, a meredek szakaszok kiemelve.</p></div>
         <div class="chip"><h4>Szélelemzés</h4><p>Szembe- és hátszél a tervezett útvonalon, a valós időjárás alapján.</p></div>
-        <div class="chip"><h4>Kalória</h4><p>A Stravából, vagy becslés a saját kerékpáros profilodból.</p></div>
+        <div class="chip"><h4>Kalória – összevetve</h4><p>Az eszköz / Strava értéke mellett a wattmérős, a pulzus alapú (Keytel, a saját adataidból kalibrálva) és a becsült érték, eltéréssel.</p></div>
+        <div class="chip"><h4>Hőmérséklet</h4><p>Grafikon és térképszínezés a komputer mérése szerint; ahol az óra nem mér, az időjárás szerinti érték.</p></div>
       </div>
     </div>
   </section>
@@ -324,7 +325,7 @@
           <li><b>Kártyás, listás vagy térképes nézet</b> – minden elem kis térképes előnézettel, a térképen az összes útvonalad egyszerre</li>
             <li><b>Típusfülek és szűrők:</b> edzés, terv, közösségi; sportág, forrás, bringa, eszköz, mért adat (pulzus, teljesítmény, kadencia), táv, időtartam, név, helyszín</li>
             <li><b>Egy kattintás</b> az elemzéshez vagy a tervezéshez – minden más a ⋯ menüben</li>
-            <li><b>Import:</b> GPX / FIT fájlból, Stravából, Garminból, OnelapFitből (Magene), Wahoo-ból, Polarból – kézzel vagy automatikusan (5–60 percenként), a FIT eredetije is megmarad, és ugyanaz az edzés nem kerül be kétszer</li>
+            <li><b>Import:</b> GPX / FIT fájlból, Stravából, Garminból, OnelapFitből (Magene), Wahoo-ból, Polarból – kézzel vagy automatikusan (5–60 percenként, egy pipa a Beállításokban), a FIT eredetije is megmarad, és ugyanaz az edzés nem kerül be kétszer</li>
             <li><b>Letöltés</b> GPX-ben vagy eredeti FIT-ben, és <b>teljes mentés</b> egy ZIP-fájlba – az adataid a tieid</li>
           </ul>
       </div>
@@ -345,7 +346,7 @@
           <li><b>Alkatrészek:</b> lánc, gumi, fékbetét, kazetta, kerék – bringát válthatnak (pl. téli kerékszett), a km mindig a megfelelő helyre kerül</li>
           <li><b>Karbantartási emlékeztetők</b> km, üzemóra vagy idő alapján (láncolajozás 300 km, lánccsere 3000 km, nagyszerviz évente) – figyelmeztetés a Kezdőlapon és push-értesítés, ha esedékes</li>
           <li><b>Napló</b> az elvégzett munkákról, dátummal, költséggel, megjegyzéssel</li>
-          <li><b>Eszközök és szenzorok:</b> melyik komputerrel vagy órával (Magene, Garmin, Wahoo, Apple Watch…), milyen pulzusövvel, wattmérővel mérted az edzést – a könyvtárban bringa és eszköz szerint is szűrhetsz</li>
+          <li><b>Eszközök képpel:</b> melyik komputerrel vagy órával (Magene, Garmin, Wahoo, Apple Watch…), milyen pulzusövvel, wattmérővel mérted az edzést – a képet magától megkeresi, és ha ugyanaz az óra két néven jön (pl. a Strava appjával), összevonja; a könyvtárban bringa és eszköz szerint is szűrhetsz</li>
         </ul>
       </div>
       <div class="f-shot"><img src="./screenshots/felszereles.jpg" alt="Felszerelés: teendők, bringa fotóval, alkatrészek karbantartási csíkokkal" width="1440" height="840" loading="lazy"></div>
@@ -384,6 +385,7 @@
           <li><b>Legjobb idők távokra</b> (5–200 km, futásnál 400 m – maraton) – akkor is, ha egy hosszabb edzés közepén futottad / tekerted</li>
           <li><b>Eddington-szám</b> – és hány nap hiányzik a következőhöz</li>
           <li><b>Edzésterhelés:</b> fitnesz, fáradtság, forma (CTL / ATL / TSB)</li>
+          <li><b>Energia:</b> mennyi kalóriát égettél az időszakban – edzésenként a legpontosabb elérhető forrásból</li>
           <li><b>Hőtérkép</b> az összes edzésed nyomvonalából</li>
         </ul>
       </div>
@@ -427,7 +429,7 @@
         </div>
         <div class="pillar">
           <h3>Garmin Connect</h3>
-          <p>Edzés-import az eredeti FIT-tel – kézzel vagy automatikusan –, okosmérleg testsúly-szinkron, és a megtervezett útvonal egy gombbal az órádra vagy a bringás navidra, a tervezésből is.</p>
+          <p>Edzés-import az eredeti FIT-tel – kézzel vagy automatikusan –, okosmérleg: a testsúly magától frissül a profilodban (kalória, W/kg), és a megtervezett útvonal egy gombbal az órádra vagy a bringás navidra, a tervezésből is.</p>
         </div>
         <div class="pillar">
           <h3>OnelapFit (Magene)</h3>

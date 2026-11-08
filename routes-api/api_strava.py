@@ -33,7 +33,7 @@ from strava_service import (
     _user_strava_deny_path,
 )
 from fit_gpx import equipment_fields
-from utils import _load_index, _now_dt, _safe_id, _save_index, find_cross_source_duplicate
+from utils import _load_index, _now_dt, _safe_id, _save_index, find_cross_source_duplicate, append_index
 
 
 def strava_equipment(activity: dict) -> dict:
@@ -336,11 +336,11 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         if dup:
             raise StravaDuplicate(dup)
 
-    # Streams (latlng, altitude, time, heartrate, cadence, watts)
+    # Streams (latlng, altitude, time, heartrate, cadence, watts, temp)
     try:
         sr = requests.get(f"{STRAVA_API_BASE}/activities/{activity_id}/streams",
                           headers={"Authorization": f"Bearer {token}"},
-                          params={"keys": "latlng,altitude,time,heartrate,cadence,watts", "key_by_type": "true"},
+                          params={"keys": "latlng,altitude,time,heartrate,cadence,watts,temp", "key_by_type": "true"},
                           timeout=30)
         if sr.status_code == 401:
             _delete_user_strava(user_id)
@@ -360,6 +360,7 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
     hr       = streams.get("heartrate", {}).get("data", []) or [None] * len(latlng)
     cad      = streams.get("cadence", {}).get("data", []) or [None] * len(latlng)
     pow_     = streams.get("watts", {}).get("data", []) or [None] * len(latlng)
+    temp     = streams.get("temp", {}).get("data", []) or None
 
     # Start timestamp ISO 8601
     try:
@@ -372,7 +373,7 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         name=activity.get("name") or f"Strava {activity_id}",
         sport_type=activity.get("sport_type") or activity.get("type") or "cycling",
         start_dt=start_dt,
-        latlng=latlng, altitude=altitude, times=times, hr=hr, cad=cad, power=pow_,
+        latlng=latlng, altitude=altitude, times=times, hr=hr, cad=cad, power=pow_, temp=temp,
     )
 
     # Mentés
@@ -426,9 +427,22 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         **strava_equipment(activity),
         "achievement_count":     activity.get("achievement_count"),
         "pr_count":              activity.get("pr_count"),
+        "strava_temp_v":         1,     # a „temp” adatsort már lekértük (ha nincs: időjárás)
     }
-    idx.append(new_entry)
-    _save_index(idx, idx_path)
+    # hőmérséklet (és ami még hiányzik) a GPX-ből; mért adat nélkül az időjárás pótolja
+    try:
+        from gpx_metrics import fill_missing
+        fill_missing(new_entry, gpx)
+    except Exception as exc:
+        log.warning("Mért adatok számolása sikertelen (Strava %s): %s", activity_id, exc)
+    idx.append(new_entry)                       # a hívó listája (ismétlődés-vizsgálat a következőnél)
+    append_index(idx_path, new_entry)           # zár alatt friss olvasás + írás
+    if new_entry.get("temp_source") != "device":
+        try:
+            import temp_weather
+            temp_weather.fill_soon(user_id)
+        except Exception:
+            pass
 
     return new_entry
 

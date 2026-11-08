@@ -53,12 +53,15 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── polar_service.py    # Polar AccessLink v3 (import)
 │   ├── device_sync.py      # automatikus Wahoo / Polar import
 │   ├── api_devices.py      # /api/<wahoo|polar>/* (status, connect, callback, app-config, activities, import, auto-sync)
-│   ├── gpx_metrics.py      # mért adatok (watt, pulzus, kadencia) + felszerelés pótlása a régi edzéseknél
-│   ├── gear.py             # Felszerelés: bringák, alkatrészek (időablak), karbantartás; km-számítás, push
+│   ├── gpx_metrics.py      # mért adatok (watt, pulzus, kadencia, hőmérséklet, max. sebesség) + felszerelés pótlása; Strava „temp” utólag
+│   ├── temp_weather.py     # hőmérséklet az Open-Meteo időjárásból, ahol az eszköz nem mért (temp_source „weather”)
+│   ├── device_images.py    # eszközképek: Magene termékoldal / Wikimedia Commons, biztonságos letöltés webcímről
+│   ├── gear.py             # Felszerelés: bringák, alkatrészek (időablak), karbantartás, eszközök (kép, összevonás); km-számítás, push
 │   ├── api_gear.py         # /api/gear*, /api/routes/bulk-bike, óránkénti szerviz-értesítő
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
+├── tools/demo/             # bemutató fiók (seed_demo.py) + a Mi ez? képernyőképei (shoot.py) – tests/.env: DEMO_USER/PASS
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
     ├── styles.css          # Teljes CSS
@@ -68,7 +71,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
     ├── auth.js             # JWT kezelés, requireAuth, logout
     ├── appSettings.js      # LocalStorage beállítások (getSettings, saveSetting)
     ├── karvonen.js         # HR zóna számítás (calculateZones, calculateTRIMP, ZONE_DEFS_FRIEL)
-    ├── calories.js         # MET-alapú kalóriabecslés (estimateKcal) – használja statsPanel.js
+    ├── calories.js         # kalória: MET-becslés, Keytel (kalibrált), teljesítményből; workoutKcal / sumKcal (Elemzés, Statok)
     ├── api/
     │   └── routesApi.js    # Backend API kliens (fetch wrapper-ek, strava.* alcsoport)
     ├── gpx/
@@ -114,7 +117,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         │                   #   az útvonal-küldés a library.js „onelap-route” művelete
         ├── deviceImport.js # Wahoo / Polar: saját app-kulcsok, OAuth popup, import ablak (initDeviceImports)
         ├── autoSync.js     # közös „Automatikus import” panel (Garmin, OnelapFit, Wahoo, Polar)
-        ├── gear.js         # Felszerelés (főmenüpont): bringák, alkatrészek, karbantartás, napló, tömeges hozzárendelés
+        ├── gear.js         # Felszerelés (főmenüpont): bringák, alkatrészek, karbantartás, napló, tömeges hozzárendelés, eszközök (kép, összevonás)
+        ├── zoneDist.js     # Elemzés: zónaeloszlás a lenyíló adatpanelekben (+ térképi jelmagyarázat forrása)
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,
@@ -309,7 +313,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.35.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.36.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

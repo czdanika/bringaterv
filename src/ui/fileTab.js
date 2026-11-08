@@ -21,8 +21,9 @@ import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
 import { openRoutePdfModal, shareRouteUrl, ensureLinkPublic } from './routePdfModal.js';
 import { num, int, durMs } from "../format.js";
-import { estimateKcal } from "../calories.js";
-import { getCyclistProfile } from "./settings.js";
+import { estimateKcal, hrTimeStats, keytelCalibration, keytelKcal, powerKcal } from "../calories.js";
+import { getCyclistProfile, getHrZoneSettings } from "./settings.js";
+import { renderZoneDists } from "./zoneDist.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _store, _mapAdapter, _api, _elements, _i18n, _showToast, _switchTab;
@@ -395,25 +396,50 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   const powerLegendEl = document.querySelector("#powerLegend");
   if (powerLegendEl) powerLegendEl.hidden = !hasPower;
 
-  // Kalória: a könyvtári (Strava) érték, különben becslés a kerékpáros profilból
-  // (táv, idő, szint – csak kerékpáros edzésnél, a becslő arra készült)
+  // Hőmérséklet: az eszköz mérése (GPX atemp); ha nincs, a könyvtár időjárás-adata (meta.temp)
+  {
+    const temps = geometry.map(p => p.temp).filter(t => t != null);
+    const row = document.querySelector("#fileTempRow");
+    const legend = document.querySelector("#tempLegend");
+    let t = null, weather = false;
+    if (temps.length >= 5) {
+      t = { avg: temps.reduce((a, b) => a + b, 0) / temps.length, min: Math.min(...temps), max: Math.max(...temps) };
+    } else if (meta.temp?.avg_temp != null) {
+      t = { avg: meta.temp.avg_temp, min: meta.temp.min_temp, max: meta.temp.max_temp };
+      weather = meta.temp.temp_source === "weather";
+    }
+    const fmtT = (v) => `${num(v, 0)} °C`;
+    if (row) {
+      row.hidden = !t;
+      if (t) {
+        document.querySelector("#fileTemp").textContent = (weather ? "≈ " : "") + fmtT(t.avg);
+        document.querySelector("#fileTempLabel").textContent = weather ? "⌀ Hőmérséklet (időjárás)" : "⌀ Hőmérséklet";
+        row.title = (t.min != null && t.max != null ? `${fmtT(t.min)} – ${fmtT(t.max)}` : "")
+          + (weather ? " · az indulás helyén mért időjárás (az eszköz nem mért hőmérsékletet)" : "");
+      }
+    }
+    if (legend) legend.hidden = !(temps.length >= 5);       // grafikon és színezés csak mért adatból
+  }
+  // zónaeloszlás a lenyíló panelekben (sebesség, kadencia, teljesítmény, hőmérséklet, lejtés)
+  try { renderZoneDists(geometry); } catch (err) { console.error("Zónaeloszlás hiba:", err); }
+
+  // Kalória: minden elérhető számítás (eszköz / Strava, teljesítmény, pulzus – Keytel,
+  // kalibrálva –, MET-becslés); a kártya a legmegbízhatóbbat mutatja, kattintásra összevetés
   {
     const row = document.querySelector("#fileKcalRow");
-    let kcal = Number(meta.calories) || 0, estimated = false;
-    const durMsVal = meta.movingDuration || meta.totalDuration || 0;
-    const isBike = !meta.type || /cycl|ride|bik|gravel|mtb/i.test(meta.type);
-    if (!kcal && isBike && durMsVal > 0 && distanceMeters > 0) {
-      try {
-        kcal = estimateKcal(distanceMeters / 1000, durMsVal / 3600000, ascentMeters || 0, getCyclistProfile()).kcal;
-        estimated = true;
-      } catch { kcal = 0; }
-    }
+    _kcalMethods = calorieMethods({ geometry, meta, distanceMeters, ascentMeters });
+    const best = _kcalMethods.find((m) => m.primary);
     if (row) {
-      row.hidden = !(kcal > 0);
-      if (kcal > 0) {
-        document.querySelector("#fileKcal").textContent = `${int(kcal)} kcal`;
-        document.querySelector("#fileKcalLabel").textContent = estimated ? "Kalória (becsült)" : "Kalória";
-        row.title = estimated ? "Becslés a táv, az idő, a szintemelkedés és a kerékpáros profil (Beállítások) alapján" : "";
+      row.hidden = !best;
+      if (best) {
+        document.querySelector("#fileKcal").textContent = `${int(best.kcal)} kcal`;
+        document.querySelector("#fileKcalLabel").textContent = `Kalória (${best.short})`;
+        row.title = _kcalMethods.length > 1 ? "Kattints az összevetéshez (eszköz, teljesítmény, pulzus, becslés)" : best.note;
+        row.classList.toggle("stat-card--click", _kcalMethods.length > 1);
+        if (!row.dataset.kcalBound) {
+          row.dataset.kcalBound = "1";
+          row.addEventListener("click", () => { if (_kcalMethods.length > 1) openKcalCompare(_kcalMethods); });
+        }
       }
     }
   }
@@ -459,6 +485,77 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
   window.lucide?.createIcons();
 }
 
+// ── Kalória: számítások és összevetés ────────────────────────────────────────
+let _kcalMethods = [];
+
+function calorieMethods({ geometry, meta, distanceMeters, ascentMeters }) {
+  const out = [];
+  const movingMin = (meta.movingDuration || meta.totalDuration || 0) / 60000;
+  const isBike = !meta.type || /cycl|ride|bik|gravel|mtb/i.test(meta.type);
+  const hrS = getHrZoneSettings(), prof = getCyclistProfile();
+  const person = { kg: Number(prof.riderKg) || 75, age: hrS.age, sex: hrS.sex };
+  if (Number(meta.calories) > 0) {
+    out.push({ key: "ext", kcal: Math.round(meta.calories), short: meta.caloriesShort || "eszköz",
+               label: meta.caloriesSource || "A rögzítő eszköz számítása",
+               note: "A rögzítő eszköz / szolgáltatás saját értéke – ezt a te profiloddal (súly, pulzus, esetleg VO2max) számolja." });
+  }
+  // teljesítményből: a munka (kJ) – a könyvtári érték, különben átlag watt × mozgásidő
+  const pw = geometry.map((p) => p.power).filter((v) => v != null);
+  const kj = Number(meta.kilojoules) || (pw.length && movingMin > 0 ? pw.reduce((a, b) => a + b, 0) / pw.length * movingMin * 60 / 1000 : 0);
+  if (kj > 0) {
+    out.push({ key: "power", kcal: powerKcal(kj), short: "teljesítményből", label: "Teljesítményből (wattmérő)",
+               note: `${int(kj)} kJ pedálmunka. Wattmérővel ez a legpontosabb: ~24%-os hatásfokkal a kJ ≈ kcal.` });
+  }
+  // pulzusból (Keytel), kalibrálva a wattmérős edzéseidből
+  const hs = hrTimeStats(geometry);
+  if (hs) {
+    const minutes = movingMin > 0 ? movingMin : hs.minutes;
+    const raw = keytelKcal({ ...person, avgHr: hs.avgHr, minutes });
+    if (raw) {
+      const cal = keytelCalibration(person);
+      out.push({ key: "hr", kcal: Math.round(raw * cal.factor), short: "pulzusból",
+                 label: cal.calibrated ? `Pulzusból (Keytel, kalibrálva ${cal.n} edzés alapján)` : "Pulzusból (Keytel-képlet)",
+                 note: `Átlagpulzus ${Math.round(hs.avgHr)} bpm, ${person.age} év, ${person.kg} kg, ${person.sex === "female" ? "nő" : "férfi"} (Beállítások).`
+                   + (cal.calibrated ? ` A képlet nyers értéke ${int(raw)} kcal; a wattmérős edzéseid alapján ×${cal.factor.toFixed(2)}.`
+                                     : ` Kalibráláshoz legalább 3 wattmérős, pulzussal mért edzés kell (most ${cal.n}).`) });
+    }
+  }
+  if (isBike && movingMin > 0 && distanceMeters > 0) {
+    try {
+      const e = estimateKcal(distanceMeters / 1000, movingMin / 60, ascentMeters || 0, prof).kcal;
+      if (e > 0) out.push({ key: "met", kcal: e, short: "becsült", label: "Becslés (sebesség, szint, testsúly)",
+                            note: "MET-táblázat az átlagsebességhez + az emelkedés munkája – pulzus és watt nélkül is működik." });
+    } catch { /* nincs becslés */ }
+  }
+  const order = ["ext", "power", "hr", "met"];
+  const best = order.map((k) => out.find((m) => m.key === k)).find(Boolean);
+  if (best) best.primary = true;
+  return out;
+}
+
+function openKcalCompare(methods) {
+  const best = methods.find((m) => m.primary);
+  const ov = document.createElement("div");
+  ov.className = "shortcut-overlay";
+  const diff = (m) => {
+    if (m === best || !best?.kcal) return "";
+    const d = Math.round((m.kcal - best.kcal) / best.kcal * 100);
+    return `<span class="kcal-diff ${d > 0 ? "is-up" : d < 0 ? "is-down" : ""}">${d > 0 ? "+" : ""}${d}%</span>`;
+  };
+  ov.innerHTML = `<div class="export-panel kcal-compare" role="dialog" aria-modal="true">
+    <div class="export-header"><h3>Kalória – összevetés</h3><button type="button" class="shortcut-close" data-x aria-label="Bezárás">×</button></div>
+    <div class="export-body">
+      ${methods.map((m) => `<div class="kcal-row${m.primary ? " is-primary" : ""}">
+        <div class="kcal-row-head"><b>${m.label}</b><span><strong>${int(m.kcal)}</strong> kcal ${diff(m)}</span></div>
+        <p>${m.note}</p></div>`).join("")}
+      <p class="kcal-foot">Az eltérés a kiemelt értékhez képest. A kalória mindig becslés: a pulzus alapú képletek
+        általánosak (edzett embernél gyakran 10–30%-kal eltérnek), a wattmérős érték a legpontosabb. Az életkor, a nem
+        és a testsúly a Beállításokban (Pulzuszónák, Kerékpáros profil) módosítható.</p>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-x]")) ov.remove(); });
+}
+
 export function clearFileTab() {
   _hasImportedFile = false;
   document.querySelector("#fileEmptyState").hidden = false;
@@ -467,6 +564,8 @@ export function clearFileTab() {
   const hrLeg = document.querySelector("#hrLegend");
   const cadLeg = document.querySelector("#cadLegend");
   const powerLeg = document.querySelector("#powerLegend");
+  const tempLeg = document.querySelector("#tempLegend");
+  if (tempLeg) tempLeg.hidden = true;
   if (speedLeg) speedLeg.hidden = true;
   if (hrLeg) hrLeg.hidden = true;
   if (cadLeg) cadLeg.hidden = true;

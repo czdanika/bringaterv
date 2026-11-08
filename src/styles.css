@@ -5791,6 +5791,44 @@ body.is-drag-over::after {
 .gear-card-title { flex: 1; min-width: 0; }
 .gear-comp-head { align-items: center; }
 .gear-photo-view { width: min(720px, calc(100vw - 24px)); }
+.gear-dev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.gear-dev-card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-bg); overflow: hidden; }
+.gear-dev-img { aspect-ratio: 16 / 10; width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 0; cursor: pointer;
+  background: var(--panel-strong) center / contain no-repeat; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: var(--text-muted); font: inherit; font-size: 12.5px; -webkit-appearance: none; appearance: none; }
+.gear-dev-img.has-photo { background-color: #fff; background-origin: content-box; padding: 10px; }
+.gear-dev-img svg { width: 22px; height: 22px; }
+.gear-dev-body { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; flex: 1; }
+.gear-dev-body h3 { margin: 0; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gear-dev-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--text-muted); }
+.gear-dev-stats b { color: var(--text); font-weight: 650; }
+.gear-dev-meta { margin: 0; font-size: 12px; color: var(--text-muted); }
+.gear-dev-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
+.gear-dev-foot small { flex: 1; min-width: 0; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gear-dev-foot .gear-link { flex: none; white-space: nowrap; }
+@media (max-width: 560px) { .gear-dev-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .gear-dev-body { padding: 8px 10px 10px; } }
+.gear-dev-pick { width: min(640px, calc(100vw - 24px)); }
+.gear-dev-pick.is-busy { opacity: .6; pointer-events: none; }
+.gear-cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.gear-cand { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
+.gear-cand:hover { border-color: var(--brand); }
+.gear-cands > .gear-muted { grid-column: 1 / -1; }
+.gear-warn { color: #b45309; font-weight: 600; }
+.gear-dev-alias { margin: 0; font-size: 11.5px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.gear-dev-alias .gear-pill { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; }
+.gear-pill-x { border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; }
+.gear-pill-x:hover { color: var(--text); }
+.gear-dev-foot { flex-wrap: wrap; }
+.gear-merge-opt { display: block; width: 100%; text-align: left; padding: 10px 12px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel-bg); color: var(--text); font: inherit; cursor: pointer; }
+.gear-merge-opt:hover { border-color: var(--brand); }
+.gear-merge-opt small { color: var(--text-muted); }
+.gear-cand img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
+.gear-cand small { font-size: 10.5px; color: #374151; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gear-cand small.gear-cand-src { color: #6b7280; }
+.gear-url-row { display: flex; gap: 8px; }
+.gear-url-row .gear-input { flex: 1; min-width: 0; }
+.gear-small { font-size: 12px; margin-top: 6px; }
 .gear-photo-view img { width: 100%; height: auto; max-height: 70vh; object-fit: contain; border-radius: 10px; }
 .gear-view { padding: 4px 0 40px; display: flex; flex-direction: column; gap: 14px; max-width: 980px; }
 .gear-loading, .gear-empty { padding: 24px; text-align: center; color: var(--text-muted); }
@@ -7793,8 +7831,14 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 @media (min-width: 769px) and (min-height: 501px), (min-width: 769px) and (pointer: fine) {
   .m-file-summary { display: block; padding: 18px 20px 18px; border-bottom: 1px solid var(--line); }
   /* a régi blokkok asztalon rejtve – a működést (kapcsolók, gombok) továbbra is ők viszik */
-  #fileDetails > .file-header, #fileMetaBlock, #fileDetails .file-stats, #planFromFileBtn, #fileDetails .file-actions,
-  #speedLegend, #cadLegend, #hrLegend, #powerLegend, #gradeLegend { display: none !important; }
+  #fileDetails > .file-header, #fileMetaBlock, #fileDetails .file-stats, #planFromFileBtn, #fileDetails .file-actions { display: none !important; }
+  /* lenyíló panelek adatonként (sebesség, pulzus, kadencia, teljesítmény, hőmérséklet, szint) – a fejlécben
+     a grafikon-ikon és a térképszínezés kapcsolója (egyszerre egy aktív); a chipsorok asztalon rejtve */
+  #mFileColorLabel, #mFileColor, #mFileChartsLabel, #mFileCharts { display: none !important; }
+  .m-file-summary .f-zones { margin-top: 16px; }
+  /* a zónaeloszlás a lenyíló panelekben látszik – a külön sáv asztalon nem kell */
+  #fFileZones { display: none !important; }
+  :is(#speedLegend, #hrLegend, #cadLegend, #powerLegend, #tempLegend, #gradeLegend) { padding-left: 20px; padding-right: 20px; }
   .m-file-head { display: flex; align-items: flex-start; gap: 10px; }
   .m-file-ico, .m-file-strip, .m-file-tools { display: none !important; }
   .m-file-titles { flex: 1; min-width: 0; }
@@ -8326,3 +8370,39 @@ body.is-navigating #toast { z-index: 3100; }
 .nav-ask-btns { display: flex; flex-direction: column; gap: 8px; }
 .nav-btn--primary { background: var(--brand); color: #fff; }
 @media (min-width: 769px) { .nav-ask { left: 50%; right: auto; transform: translate(-50%, -50%); width: min(440px, calc(100% - 20px)); } }
+
+/* Kalória-összevetés (Elemzés → Kalória kártya) */
+.stat-card--click { cursor: pointer; }
+.stat-card--click:hover { border-color: var(--brand); }
+.kcal-compare { width: min(560px, calc(100vw - 24px)); }
+.kcal-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; }
+.kcal-row.is-primary { border-color: var(--brand); background: var(--brand-soft, rgba(232,70,30,.06)); }
+.kcal-row-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.kcal-row-head strong { font-size: 18px; }
+.kcal-row p { margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+.kcal-diff { font-size: 12px; font-weight: 600; margin-left: 4px; color: var(--text-muted); }
+.kcal-diff.is-up { color: #b45309; } .kcal-diff.is-down { color: #2563eb; }
+.kcal-foot { font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 10px 0 0; }
+
+.f-mini-link { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 3px; }
+.f-mini-link:hover { color: var(--text); }
+.f-mini-link svg { width: 13px; height: 13px; }
+
+/* Elemzés: zónaeloszlás a lenyíló panelekben (zoneDist.js) – a pulzus-táblázat mintájára */
+.speed-legend-items.zone-dist { display: block; padding-left: 0; padding-right: 0; }
+.speed-legend.is-expanded .speed-legend-items.zone-dist { max-height: 520px; }
+.zone-dist .hr-zone-row, #hrLegend .hr-zone-row { grid-template-columns: 104px 1fr 48px 38px; padding: 6px 0; }
+.zone-dist .hr-zone-row-name { font-size: 11.5px; white-space: nowrap; }
+
+/* Beállítások → Strava / Garmin / OnelapFit / Wahoo / Polar: automatikus import (az import ablakkal szinkronban) */
+.settings-auto { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-strong); }
+.settings-auto[hidden] { display: none; }
+.settings-auto-check { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
+.settings-auto-check input { margin-top: 2px; flex: none; width: 16px; height: 16px; accent-color: var(--brand); }
+.settings-auto-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 0 26px; }
+.settings-auto-int { width: auto; min-width: 140px; padding: 5px 8px; font-size: 12px; }
+.settings-auto-int:disabled { opacity: .5; }
+.settings-auto-status { font-size: 11.5px; color: var(--text-muted); }
+.settings-auto-status.is-error { color: #b45309; }
+.settings-auto-note { margin: 8px 0 0 26px; font-size: 11px; color: var(--text-muted); }

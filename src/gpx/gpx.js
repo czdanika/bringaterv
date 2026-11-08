@@ -158,6 +158,9 @@ function nodesToPoints(nodes) {
                    || node.getElementsByTagNameNS("*", "watts")[0]
                    || node.getElementsByTagNameNS("*", "power")[0];
     const power = wattsNode ? Number(wattsNode.textContent) : null;
+    // Hőmérséklet: Garmin TrackPointExtension <gpxtpx:atemp> (a saját FIT → GPX és a Strava-import is ezt írja)
+    const tempNode = node.getElementsByTagNameNS("*", "atemp")[0];
+    const temp = tempNode ? Number(tempNode.textContent) : null;
     const segModeNode = node.getElementsByTagNameNS("*", "segmentMode")[0];
     const segmentMode = segModeNode?.textContent?.trim() || null;
     let trail = null;
@@ -170,6 +173,7 @@ function nodesToPoints(nodes) {
       hr: hr != null && Number.isFinite(hr) && hr > 0 ? hr : null,
       cad: cad != null && Number.isFinite(cad) && cad >= 0 ? cad : null,
       power: power != null && Number.isFinite(power) && power >= 0 ? power : null,
+      temp: temp != null && Number.isFinite(temp) && temp > -40 && temp < 60 ? temp : null,
       name: localizeName(node.querySelector("name")?.textContent) || `${index + 1}. pont`,
       note: node.querySelector("desc")?.textContent || "",
       segmentMode,

@@ -677,6 +677,24 @@ export const routesApi = {
     deletePhoto(type, id) {
       return fetchJson(`${BASE}/gear/photo/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
+    /** Kép webcímről – a szerver tölti le (csak nyilvános http/https cím, JPEG/PNG/WebP, ≤ 3 MB). */
+    photoFromUrl(type, id, url) {
+      return fetchJson(`${BASE}/gear/photo/${encodeURIComponent(type)}/${encodeURIComponent(id)}/from-url`,
+        { method: "POST", body: JSON.stringify({ url }) });
+    },
+    /** A felismert eszközök bejegyzése + biztos kép (gyártó / Wikimedia Commons); „pending”: még hátra. */
+    autoDevicePhotos() {
+      return fetchJson(`${BASE}/gear/devices/auto-photos`, { method: "POST" });
+    },
+    mergeDevices(from, into) {
+      return fetchJson(`${BASE}/gear/devices/merge`, { method: "POST", body: JSON.stringify({ from, into }) });
+    },
+    splitDevice(id, alias) {
+      return fetchJson(`${BASE}/gear/devices/${encodeURIComponent(id)}/split`, { method: "POST", body: JSON.stringify({ alias }) });
+    },
+    deviceCandidates(id, q = "") {
+      return fetchJson(`${BASE}/gear/devices/${encodeURIComponent(id)}/candidates${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+    },
     /** A kép csak bejelentkezve érhető el → blob (az <img> nem küld Authorization fejlécet). */
     async photoBlob(name) {
       const res = await fetch(`${BASE}/gear/photo/${encodeURIComponent(name)}`, { headers: authHeaders() });

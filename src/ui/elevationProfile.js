@@ -78,6 +78,31 @@ export function buildCadData(geometry) {
   }));
 }
 
+/** Hőmérséklet: { dist, value: °C, lat, lng } – 60 mp-es simítással (a szenzor 1 °C-os
+ *  lépcsői és a napsütés / árnyék tüskéi nélkül jobban látszik a menet) */
+export function buildTempData(geometry) {
+  if (!geometry || geometry.length < 2) return [];
+  if (!geometry.some((p) => p.temp != null)) return [];
+  const dists = buildDistances(geometry);
+  const vals = smoothByTime(geometry, "temp", 60);
+  return geometry.map((pt, i) => ({
+    dist: dists[i], value: vals[i] != null ? Math.round(vals[i] * 10) / 10 : null, lat: pt.lat, lng: pt.lng,
+  }));
+}
+
+/** Hőmérséklet szín (hideg kék → meleg piros) */
+export function tempColor(t) {
+  if (t == null) return "#9CA3AF";
+  if (t < 0) return "#6366F1";
+  if (t < 8) return "#3B82F6";
+  if (t < 15) return "#06B6D4";
+  if (t < 22) return "#22C55E";
+  if (t < 28) return "#EAB308";
+  if (t < 33) return "#F97316";
+  return "#EF4444";
+}
+export const TEMP_BANDS = [[null, 0, "#6366F1"], [0, 8, "#3B82F6"], [8, 15, "#06B6D4"], [15, 22, "#22C55E"], [22, 28, "#EAB308"], [28, 33, "#F97316"], [33, null, "#EF4444"]];
+
 /** Power adat: { dist, value: watts, lat, lng } */
 export function buildPowerData(geometry, smoothSec = 0) {
   if (!geometry || geometry.length < 2) return [];

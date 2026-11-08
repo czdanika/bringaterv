@@ -78,6 +78,10 @@ def page(pw, browser, device, request):
 
     def guard(route):
         req = route.request
+        if req.method == "POST" and req.url.endswith("/api/gear/devices/auto-photos"):
+            # a Felszerelés megnyitásakor magától fut (eszközképek, összevonás) – teszt alatt üres válasz
+            route.fulfill(status=200, content_type="application/json", body='{"pending": 0}')
+            return
         if req.method != "GET" and "/api/auth/login" not in req.url:
             blocked.append(f"{req.method} {req.url}")
             route.fulfill(status=503, body="blocked by test")

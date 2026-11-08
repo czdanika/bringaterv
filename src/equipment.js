@@ -27,13 +27,16 @@ const norm = (s) => String(s ?? "").trim().toLowerCase();
 // ── Felszerelés-tár (szerver: /api/gear – Felszerelés főmenüpont) ─────────────
 // A felszerelés a szerveren él (gear.json), a km-et és a feladatok állapotát is a szerver
 // számolja; itt csak gyorsítótár. A régi „Bringáim” (settings) első betöltéskor átköltözik.
-let _gear = { bikes: [], components: [], logs: [] };
+let _gear = { bikes: [], components: [], logs: [], devices: [] };
 let _usage = null;
 let _loading = null;
 
 export function getGear() { return _gear; }
 export function getGearUsage() { return _usage; }
 export function getBikes() { return _gear?.bikes || []; }
+
+/** Szerverválasz (gear + usage) alkalmazása – pl. a fotó-végpontok után. */
+export function applyGearResponse(res) { _apply(res); }
 
 function _apply(res) {
   if (!res?.gear) return;
@@ -74,19 +77,35 @@ export function resolveBike(entry, bikes = getBikes()) {
     const b = bikes.find((x) => x.id === entry.bike_id);
     if (b) return { id: b.id, name: b.name, bike: b };
   }
+  // automatikusan csak a vásárlás napjától (a Strava a régi edzésekre is ráteszi a bringáját)
+  const day = workoutDay(entry);
   const n = norm(entry.bike_name);
   if (n) {
     const b = bikes.find((x) => norm(x.name) === n || (x.aliases || []).some((a) => norm(a) === n));
-    return b ? { id: b.id, name: b.name, bike: b } : { id: null, name: entry.bike_name.trim(), bike: null };
+    if (b) return owned(b, day) ? { id: b.id, name: b.name, bike: b } : null;
+    return { id: null, name: entry.bike_name.trim(), bike: null };
   }
   const def = bikes.find((x) => x.is_default && !x.retired);
-  return def && isCycling(entry) ? { id: def.id, name: def.name, bike: def } : null;
+  return def && isCycling(entry) && owned(def, day) ? { id: def.id, name: def.name, bike: def } : null;
+}
+
+export const workoutDay = (e) => String(e?.date || e?.start_time || "").slice(0, 10);
+/** Megvolt-e már a bringa az edzés napján (vásárlás dátuma nélkül: igen). = gear._owned */
+export const owned = (b, day) => !b?.purchase_date || !day || day >= b.purchase_date;
+
+/** Az eszköz neve az összevonás után: a „Strava App (Apple Watch Series 7)” → „Apple Watch
+ *  Series 7”, ha a Felszerelésben össze van vonva („más néven”). Ugyanaz, mint gear.device_canon. */
+export function deviceName(raw) {
+  const n = norm(raw);
+  if (!n) return raw || null;
+  const d = (_gear.devices || []).find((x) => (x.aliases || []).some((a) => norm(a) === n));
+  return d ? d.name : String(raw).trim();
 }
 
 /** Rövid felirat: „Cube AIM EX · Apple Watch Series 7” (ami van). */
 export function equipmentLine(entry, bikes) {
   const bike = resolveBike(entry, bikes)?.name;
-  return [bike, entry?.device].filter(Boolean).join(" · ");
+  return [bike, deviceName(entry?.device)].filter(Boolean).join(" · ");
 }
 
 export function sensorLabels(entry) {
