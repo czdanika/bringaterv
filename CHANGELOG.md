@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.41.0 – 2026-11-09 – Bryton, pontnevek a szerveren, sok pontos tervek
+
+### Verzió
+
+- **Bryton kapcsolat (új):** Beállítások → Bryton (Bryton Active fiók, a jelszót nem tároljuk, a belépés ~90 napig él). Import az eredeti FIT-tel, automatikus import, törlés → tiltólista. Útvonal küldése a Bryton Active „tervezett utak” közé – a Bryton saját útvonal-formátumában (BrytonDirections FIT, saját Python-kódolóval), **kanyar-utasításokkal**: a Tervezőből a BRouter kanyarjai, a könyvtárból a nyomvonal irányváltásaiból számolva. Élőben kipróbálva: a küldött útvonal megjelent a telefonos appban. (`bryton_service.py`, `api_bryton.py`, `bryton_sync.py`, `src/ui/bryton.js`; új függőség: websocket-client)
+- **Javítás – útpontok nevei:** sok pontnál a nevek nagy része hiányzott („7. pont”): a böngésző másodpercenként ~8 kérést küldött a Nominatimnak (megengedett: 1), ami letiltotta. Most a szerver kérdez – szabályosan, sorban – és ~11 m-es rácson eltárolja a neveket (`/data/geocode_names.json`, közös): a közösségi és mentett útvonalak második betöltéstől azonnal névvel jönnek, az első betöltéskor a nevek folyamatosan töltődnek (kb. 1,3 mp / pont). A „7. pont”-szerű helyőrző nevű pontok is nevet kapnak. (`api_geo.py`, `geo_location.place_name`)
+- **Javítás – sok pontos terv betöltése:** a burkolat-vizsgálat után (szakaszonkénti tervezés) 100 pontnál 100 útvonal-kérés ment egyszerre, a szerver kérés-korlátja egy részüket elutasította, a kliens ezt leállásnak vette és a nyilvános BRouterre váltott – hiányzó szakaszok, üres idő / szintprofil. Most legfeljebb 4 kérés fut egyszerre, a korlát (nginx: 429) esetén a kliens vár és újrapróbál, és nem vált át.
+
 ## v1.40.0 – 2026-11-09 – iGPSport, köztes pontok elrejtése
 
 ### Verzió

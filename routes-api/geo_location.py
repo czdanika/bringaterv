@@ -141,3 +141,115 @@ def locate(points: list) -> dict | None:
         "loop": _hav(pts[0], pts[-1]) < 1000,
         "start": [round(pts[0][0], 5), round(pts[0][1], 5)],
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Útpont-nevek (utcaszint) – a tervező pontjaihoz („Móricz Zsigmond utca 12”, „Tihany, kikötő”)
+# A böngésző eddig közvetlenül, ~8 kérés/mp-cel kérdezte a Nominatimot → sok pontnál letiltott,
+# a pontok név nélkül maradtak. Most a szerver kérdez (1 kérés/mp, a workerek között is),
+# és ~11 m-es rácson tárolja: ugyanazt a pontot senkinek nem kell újra lekérdezni.
+# ══════════════════════════════════════════════════════════════════════════════
+
+import fcntl
+
+_NAMES_PATH = os.path.join(os.path.dirname(_CACHE_PATH), "geocode_names.json")
+_THROTTLE_PATH = os.path.join(os.path.dirname(_CACHE_PATH), "nominatim.throttle")
+_names = None
+_names_dirty = [0, 0.0]          # [nem mentett db, utolsó mentés ideje]
+
+
+def _names_cache() -> dict:
+    global _names
+    if _names is None:
+        try:
+            with open(_NAMES_PATH, encoding="utf-8") as f:
+                _names = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            _names = {}
+    return _names
+
+
+def _flush_names(force: bool = False) -> None:
+    if not _names_dirty[0] or (not force and _names_dirty[0] < 20 and time.time() - _names_dirty[1] < 30):
+        return
+    try:
+        disk = {}
+        try:
+            with open(_NAMES_PATH, encoding="utf-8") as f:
+                disk = json.load(f)                      # a többi worker közben írhatott
+        except (OSError, json.JSONDecodeError):
+            pass
+        disk.update(_names)
+        with open(_NAMES_PATH + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(disk, f, ensure_ascii=False)
+        os.replace(_NAMES_PATH + ".tmp", _NAMES_PATH)
+        _names.update(disk)
+        _names_dirty[0], _names_dirty[1] = 0, time.time()
+    except OSError as exc:
+        log.warning("Útpontnév-gyorsítótár mentési hiba: %s", exc)
+
+
+def _name_key(lat: float, lon: float) -> str:
+    return f"{lat:.4f},{lon:.4f}"
+
+
+def place_name_cached(lat: float, lon: float):
+    """A tárolt név (str), "" ha ismert, hogy nincs neve, None ha még nem kérdeztük."""
+    return _names_cache().get(_name_key(lat, lon))
+
+
+def _label(addr: dict) -> str:
+    """Mint a kliens buildPlaceName-je: nevezetesség (út) / utca házszám / utca / településrész."""
+    poi = next((addr.get(k) for k in ("amenity", "tourism", "leisure", "shop", "historic", "office", "public_transport") if addr.get(k)), "")
+    road = next((addr.get(k) for k in ("road", "pedestrian", "path", "footway", "cycleway", "track") if addr.get(k)), "")
+    if poi and road:
+        return f"{poi} ({road})"
+    if poi:
+        return poi
+    if road and addr.get("house_number"):
+        return f"{road} {addr['house_number']}"
+    if road:
+        return road
+    return next((addr.get(k) for k in ("suburb", "quarter", "neighbourhood", "village", "town", "city", "hamlet") if addr.get(k)), "")
+
+
+def place_name(lat: float, lon: float):
+    """Útpont neve (gyorsítótárral). None: a Nominatim most nem válaszolt (később újra lehet próbálni)."""
+    key = _name_key(lat, lon)
+    hit = _names_cache().get(key)
+    if hit is not None:
+        return hit
+    os.makedirs(os.path.dirname(_THROTTLE_PATH), exist_ok=True)
+    with open(_THROTTLE_PATH, "a+") as tf:               # 1 kérés / mp az összes worker között
+        fcntl.flock(tf, fcntl.LOCK_EX)
+        try:
+            hit = _names_cache().get(key)
+            if hit is not None:
+                return hit
+            tf.seek(0)
+            try:
+                last = float(tf.read().strip() or 0)
+            except ValueError:
+                last = 0.0
+            wait = 1.05 - (time.time() - last)
+            if wait > 0:
+                time.sleep(wait)
+            try:
+                r = requests.get(_URL, params={"format": "jsonv2", "lat": lat, "lon": lon, "zoom": 18,
+                                               "addressdetails": 1, "accept-language": "hu"},
+                                 headers={"User-Agent": _ua()}, timeout=12)
+                ok = r.status_code == 200
+                addr = ((r.json() or {}).get("address") or {}) if ok else None
+            except Exception as exc:
+                log.warning("Nominatim (név) hiba: %s", exc)
+                addr = None
+            tf.seek(0); tf.truncate(); tf.write(str(time.time())); tf.flush()
+        finally:
+            fcntl.flock(tf, fcntl.LOCK_UN)
+    if addr is None:
+        return None
+    name = _label(addr)[:80]
+    _names[key] = name
+    _names_dirty[0] += 1
+    _flush_names()
+    return name

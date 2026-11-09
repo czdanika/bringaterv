@@ -29,6 +29,10 @@ Modulok:
   igpsport_service.py iGPSport helperek (token, FIT-import, útvonal-feltöltés)
   api_igpsport.py     /api/igpsport/*
   igpsport_sync.py    automatikus iGPSport import + lejárat-figyelmeztetés
+  bryton_service.py   Bryton Active (Meteor DDP): belépés, FIT-import, útvonal (BrytonDirections FIT)
+  api_bryton.py       /api/bryton/*
+  bryton_sync.py      automatikus Bryton import
+  api_geo.py          /api/geo/place-name(s) – útpont-nevek a szerveren, gyorsítótárral
   garmin_sync.py      automatikus Garmin import (háttér-szinkron)
   device_import.py    Wahoo / Polar közös rész (OAuth state, tokenek, mentés FIT-ből)
   wahoo_service.py    Wahoo Cloud API (import)
@@ -61,6 +65,8 @@ import api_garmin
 import api_invite
 import api_onelap
 import api_igpsport
+import api_bryton
+import api_geo
 import api_devices
 import api_gear
 import api_notify
@@ -91,6 +97,8 @@ app.register_blueprint(api_strava.bp)
 app.register_blueprint(api_garmin.bp)
 app.register_blueprint(api_onelap.bp)
 app.register_blueprint(api_igpsport.bp)
+app.register_blueprint(api_bryton.bp)
+app.register_blueprint(api_geo.bp)
 app.register_blueprint(api_devices.bp)
 app.register_blueprint(api_gear.bp)
 app.register_blueprint(api_public.bp)
@@ -110,6 +118,8 @@ import onelap_sync  # noqa: E402
 onelap_sync.start_scheduler()   # automatikus Onelap (Magene) import
 import igpsport_sync  # noqa: E402
 igpsport_sync.start_scheduler()   # automatikus iGPSport import
+import bryton_sync  # noqa: E402
+bryton_sync.start_scheduler()   # automatikus Bryton import
 import garmin_sync  # noqa: E402
 garmin_sync.start_scheduler()   # automatikus Garmin Connect import
 import device_sync  # noqa: E402

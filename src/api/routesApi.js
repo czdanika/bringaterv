@@ -663,6 +663,35 @@ export const routesApi = {
     },
   },
 
+  // Bryton Active (user-szintű, nem hivatalos API – a munkamenet kb. 90 napig él)
+  bryton: {
+    status() { return fetchJson(`${BASE}/bryton/status`); },
+    connect(email, password) {
+      return fetchJson(`${BASE}/bryton/connect`, { method: "POST", body: JSON.stringify({ email, password }) });
+    },
+    disconnect() { return fetchJson(`${BASE}/bryton/disconnect`, { method: "DELETE" }); },
+    activities({ limit = 30 } = {}) {
+      return fetchJson(`${BASE}/bryton/activities?${new URLSearchParams({ limit })}`);
+    },
+    importActivity(id) {
+      return fetchJson(`${BASE}/bryton/import/${encodeURIComponent(id)}`, { method: "POST", body: "{}" });
+    },
+    removeFromDenyList(id) {
+      return fetchJson(`${BASE}/bryton/deny-list/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    uploadRoute(routeId, hints) {
+      return fetchJson(`${BASE}/bryton/route/${encodeURIComponent(routeId)}`, { method: "POST", body: JSON.stringify({ hints: hints || null }) });
+    },
+    autoSync: {
+      get()  { return fetchJson(`${BASE}/bryton/auto-sync`); },
+      save(body) { return fetchJson(`${BASE}/bryton/auto-sync`, { method: "PUT", body: JSON.stringify(body) }); },
+      runNow() { return fetchJson(`${BASE}/bryton/auto-sync/run`, { method: "POST" }); },
+    },
+    uploadGpx(name, gpx, hints) {
+      return fetchJson(`${BASE}/bryton/route`, { method: "POST", body: JSON.stringify({ name, gpx, hints: hints || null }) });
+    },
+  },
+
   // Wahoo / Polar (hivatalos OAuth-os API-k, csak import)
   devices(provider) {
     const P = `${BASE}/${provider}`;

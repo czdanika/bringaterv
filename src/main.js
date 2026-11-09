@@ -12,7 +12,7 @@ import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
 import { fitToGpx } from "./gpx/fit.js";
 import { createToast, formatDistance, showResultDialog } from "./ui/dom.js";
-import { searchPlaces, reverseGeocode, reverseTown } from "./ui/search.js";
+import { searchPlaces, reverseGeocode, reverseTown, cachedPlaceNames } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
 import { initNavigation } from "./ui/navigation.js";
@@ -26,12 +26,13 @@ import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus
 import { initGarmin, getGarminStatus } from "./ui/garmin.js";
 import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
 import { initIgpsport, getIgpsportStatus } from "./ui/igpsport.js";
+import { initBryton, getBrytonStatus } from "./ui/bryton.js";
 import { initDeviceImports } from "./ui/deviceImport.js";
 import { deviceName, loadGear } from "./equipment.js";
 import { setCalorieWorkouts } from "./calories.js";
 
 // Kalória-összevetés: kinek a számítása a könyvtári érték (a Keytel-kalibrációhoz az edzéslista kell)
-const CAL_SRC = { strava: "Strava", garmin: "Garmin Connect", onelap: "OnelapFit", igpsport: "iGPSport", wahoo: "Wahoo", polar: "Polar" };
+const CAL_SRC = { strava: "Strava", garmin: "Garmin Connect", onelap: "OnelapFit", igpsport: "iGPSport", bryton: "Bryton", wahoo: "Wahoo", polar: "Polar" };
 function calorieSourceOf(e) {
   if (!e?.calories) return {};
   const dev = e.device ? deviceName(e.device) : "";
@@ -2421,6 +2422,9 @@ initOnelap({ showToast });
 // ── iGPSport (nem hivatalos API: import + útvonal-küldés) ─────────────────────
 initIgpsport({ showToast });
 
+// ── Bryton Active (nem hivatalos API: import + útvonal-küldés kanyarokkal) ────
+initBryton({ showToast });
+
 // ── Wahoo / Polar (hivatalos API-k, csak import) ──────────────────────────────
 initDeviceImports({ showToast });
 
@@ -3455,6 +3459,8 @@ function openExportModal() {
   if (onelapBtn) onelapBtn.hidden = !getOnelapStatus()?.connected;
   const igpBtn = document.querySelector("#exportIgpsport");
   if (igpBtn) igpBtn.hidden = !getIgpsportStatus()?.connected;
+  const brBtn = document.querySelector("#exportBryton");
+  if (brBtn) brBtn.hidden = !getBrytonStatus()?.connected;
   const garminBtn = document.querySelector("#exportGarmin");
   if (garminBtn) garminBtn.hidden = !getGarminStatus()?.connected;
   elements.exportOverlay.hidden = false;
@@ -3598,17 +3604,29 @@ function buildAnchorWaypoints(dpIndices, imported, segments = null) {
  * fordított geokódolással. Tűz-és-elfelejt (nem kell await-elni).
  * 120 ms szünet van minden kérés között a rate limit betartásához.
  */
+/** Helyőrző név („7. pont”, „Útpont”) – ilyenkor is elnevezzük a pontot. */
+const isPlaceholderName = (n) => !n || /^\d+\.\s*pont$/i.test(n.trim()) || /^(útpont|waypoint|point \d+)$/i.test(n.trim());
+let _geocodeRun = 0;
 async function geocodeNamelessWaypoints() {
-  const toGeocode = store.getState().waypoints.filter(wp => !wp.name);
-  for (const wp of toGeocode) {
-    if (!store.getState().waypoints.some(w => w.id === wp.id)) continue;
+  const run = ++_geocodeRun;                       // új betöltés → a régi kör leáll
+  const alive = (wp) => run === _geocodeRun && store.getState().waypoints.some((w) => w.id === wp.id && isPlaceholderName(w.name));
+  const todo = store.getState().waypoints.filter((wp) => isPlaceholderName(wp.name));
+  if (!todo.length) return;
+  // 1. a szerveren már tárolt nevek egyszerre (közösségi / mentett útvonalnál jellemzően mind)
+  const cached = await cachedPlaceNames(todo);
+  const rest = [];
+  todo.forEach((wp, i) => {
+    if (cached[i] && alive(wp)) store.updateWaypoint(wp.id, { name: cached[i] });
+    else if (cached[i] == null) rest.push(wp);
+  });
+  // 2. a többi sorban (a szerver 1 kérés/mp-cel kérdez – sok pontnál ez eltart egy darabig)
+  for (const wp of rest) {
+    if (!alive(wp)) { if (run !== _geocodeRun) return; continue; }
     const name = await reverseGeocode(wp.lat, wp.lng);
-    if (name && store.getState().waypoints.some(w => w.id === wp.id)) {
-      store.updateWaypoint(wp.id, { name });
-    }
-    await new Promise(r => setTimeout(r, 120));
+    if (name && alive(wp)) store.updateWaypoint(wp.id, { name });
   }
 }
+window.__geocodeWaypoints = geocodeNamelessWaypoints;
 
 // ── GPX betöltés előnézet + szegmensvizsgálat modal ──────────────────────────
 
@@ -4030,6 +4048,15 @@ const DEVICE_TARGETS = {
     name:  (res, p) => res.name || p.name,
     where: "Az OnelapFit appban az útvonalaid között találod – onnan szinkronizáld a komputerre.",
   },
+  bryton: {
+    label: "Brytonra", app: "Bryton", icon: "./assets/brands/bryton.png",
+    settings: "Beállítások → Bryton",
+    // a BRouter kanyar-utasításai is mennek (a komputer jelzi a kanyarokat)
+    byId:  (id) => routesApi.bryton.uploadRoute(id, currentRouteHints()),
+    byGpx: (p) => routesApi.bryton.uploadGpx(p.name, p.content, currentRouteHints()),
+    name:  (res, p) => res.name || p.name,
+    where: "A Bryton Active appban a tervezett utak között találod – onnan szinkronizáld a komputerre.",
+  },
   igpsport: {
     label: "iGPSportra", app: "iGPSport", icon: "./assets/brands/igpsport.png",
     settings: "Beállítások → iGPSport",
@@ -4047,6 +4074,13 @@ const DEVICE_TARGETS = {
     where: "A Garmin Connect appban course-ként találod – onnan szinkronizáld az órára / komputerre.",
   },
 };
+
+/** A tervezett útvonal BRouter kanyar-utasításai (ha az útvonal geometriájához tartoznak). */
+function currentRouteHints() {
+  const st = store.getState();
+  const h = st.routeHintsLen === st.routeGeometry?.length ? st.routeHints : null;
+  return Array.isArray(h) ? h.filter((x) => Number.isInteger(x.i) && Number.isInteger(x.cmd)).map((x) => ({ i: x.i, cmd: x.cmd })) : null;
+}
 
 async function sendPlanToDevice(kind, btn) {
   const t = DEVICE_TARGETS[kind];
@@ -4089,6 +4123,7 @@ async function sendPlanToDevice(kind, btn) {
 }
 document.querySelector("#exportOnelap")?.addEventListener("click", (e) => sendPlanToDevice("onelap", e.currentTarget));
 document.querySelector("#exportIgpsport")?.addEventListener("click", (e) => sendPlanToDevice("igpsport", e.currentTarget));
+document.querySelector("#exportBryton")?.addEventListener("click", (e) => sendPlanToDevice("bryton", e.currentTarget));
 document.querySelector("#exportGarmin")?.addEventListener("click", (e) => sendPlanToDevice("garmin", e.currentTarget));
 
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {

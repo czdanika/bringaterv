@@ -20,14 +20,20 @@ export async function probeLocalBrouter() {
   try { await brouterFetch("lonlats=19.0437,47.4989|19.0450,47.5010&profile=fastbike&alternativeidx=0&format=geojson"); } catch { /* nem baj */ }
   return localBrouterOk();
 }
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function brouterFetch(query) {
   if (Date.now() > _localBrouterDownUntil) {
     try {
-      const res = await fetch(`/brouter?${query}`);
+      let res = await fetch(`/brouter?${query}`);
+      // 429 / 503: a szerver kérés-korlátja (sok szakasz egyszerre) – ez nem leállás: rövid várakozás, újra
+      for (let attempt = 1; (res.status === 429 || res.status === 503) && attempt <= 5; attempt++) {
+        await _sleep(300 * attempt + Math.random() * 300);
+        res = await fetch(`/brouter?${query}`);
+      }
       if (res.ok) { _localBrouterOkAt = Date.now(); return res; }
       // 502/503/504: nincs (vagy épp indul) a konténer; 404: régi frontend-konfig. Egyéb
       // (pl. a terület nincs a csempékben) csak erre a kérésre vált a nyilvánosra.
-      if ([404, 502, 503, 504].includes(res.status)) _localBrouterDownUntil = Date.now() + 10 * 60e3;
+      if ([404, 502, 504].includes(res.status)) _localBrouterDownUntil = Date.now() + 10 * 60e3;
     } catch {
       _localBrouterDownUntil = Date.now() + 10 * 60e3;
     }
@@ -1334,13 +1340,17 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     const hasMixedSegments = waypoints.slice(0, -1).some((wp) => wp.segmentMode != null || wp.trail?.id);
 
     if (hasMixedSegments) {
-      const segmentResults = await Promise.all(
-        waypoints.slice(0, -1).map((from, i) => {
-          const to = waypoints[i + 1];
-          const segMode = from.segmentMode ?? mode ?? "asphalt";
-          return routeSegment(from, to, segMode, markedOnly);
-        })
-      );
+      // legfeljebb 4 kérés egyszerre (100 pontnál 100 párhuzamos kérést a szerver korlátja elutasítana)
+      const pairs = waypoints.slice(0, -1).map((from, i) => [from, waypoints[i + 1]]);
+      const segmentResults = new Array(pairs.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(4, pairs.length) }, async () => {
+        while (next < pairs.length) {
+          const i = next++;
+          const [from, to] = pairs[i];
+          segmentResults[i] = await routeSegment(from, to, from.segmentMode ?? mode ?? "asphalt", markedOnly);
+        }
+      }));
       const fullGeometry = segmentResults.flatMap((seg, i) =>
         i === 0 ? seg.geometry : seg.geometry.slice(1)
       );

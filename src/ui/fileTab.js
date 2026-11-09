@@ -685,11 +685,11 @@ export async function processImportedFile(file) {
   }
   setTimeout(() => _mapAdapter.fitRoute(), 50);
 
-  for (const wp of _store.getState().waypoints) {
+  // a pontok elnevezése: közös, szerveroldali (gyorsítótáras) elnevező – main.js geocodeNamelessWaypoints
+  if (window.__geocodeWaypoints) window.__geocodeWaypoints();
+  else for (const wp of _store.getState().waypoints) {
     const name = await reverseGeocode(wp.lat, wp.lng);
-    if (name && _store.getState().waypoints.some((w) => w.id === wp.id)) {
-      _store.updateWaypoint(wp.id, { name });
-    }
+    if (name && _store.getState().waypoints.some((w) => w.id === wp.id)) _store.updateWaypoint(wp.id, { name });
   }
 }
 

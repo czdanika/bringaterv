@@ -933,6 +933,11 @@
                   <span>iGPSportból</span>
                   <span class="lib-import-igpsport-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
                 </button>
+                <button class="library-import-item" id="libraryImportBrytonItem" data-import-src="bryton" type="button" disabled title="Bryton kapcsolat szükséges – Beállítások → Bryton">
+                  <img class="brand-icon" src="./assets/brands/bryton.png" width="14" height="14" alt="Bryton">
+                  <span>Brytonból</span>
+                  <span class="lib-import-bryton-status" style="margin-left:auto;font-size:10px;color:var(--muted)">nincs kapcsolat</span>
+                </button>
                 <button class="library-import-item" id="libraryImportWahooItem" data-import-src="wahoo" type="button" disabled title="Wahoo-kapcsolat szükséges – Beállítások → Wahoo">
                   <img class="brand-icon" src="./assets/brands/wahoo.png" width="14" height="14" alt="Wahoo">
                   <span>Wahoo-ból</span>
@@ -1010,6 +1015,7 @@
                   <button class="lib-type-chip" data-lib-source="garmin" type="button" title="Garmin Connectről szinkronizált">Garmin</button>
                   <button class="lib-type-chip" data-lib-source="onelap" type="button" title="OnelapFitből importált">OnelapFit</button>
                   <button class="lib-type-chip" data-lib-source="igpsport" type="button" title="iGPSportból importált">iGPSport</button>
+                  <button class="lib-type-chip" data-lib-source="bryton" type="button" title="Brytonból importált">Bryton</button>
                   <button class="lib-type-chip" data-lib-source="wahoo" type="button" title="Wahoo-ból importált">Wahoo</button>
                   <button class="lib-type-chip" data-lib-source="polar" type="button" title="Polarból importált">Polar</button>
                   <button class="lib-type-chip" data-lib-source="fit" type="button" title="FIT fájlból importált">FIT</button>
@@ -1854,6 +1860,10 @@
             <img class="brand-icon" src="./assets/brands/garmin.svg" width="18" height="18" alt="">
             Küldés Garminra
           </button>
+          <button id="exportBryton" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés a Bryton Active tervezett útjai közé (kanyar-utasításokkal) – onnan a komputer navigál rajta">
+            <img class="brand-icon" src="./assets/brands/bryton.png" width="18" height="18" alt="">
+            Küldés Brytonra
+          </button>
           <button id="exportIgpsport" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés az iGPSport útvonalai közé (privátként) – onnan a komputer navigál rajta">
             <img class="brand-icon" src="./assets/brands/igpsport.png" width="18" height="18" alt="">
             Küldés iGPSportra
@@ -2404,6 +2414,88 @@
         </label>
         <span id="igpsportImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
         <button id="igpsportImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import kiválasztottakat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bryton import modal (a Strava/Garmin modál osztályaival) -->
+  <div id="brytonImportOverlay" class="shortcut-overlay" hidden>
+    <div class="strava-import-panel">
+      <div class="strava-import-header">
+        <h3>
+          <img class="brand-icon" src="./assets/brands/bryton.png" width="20" height="20" alt="Bryton">
+          Bryton import
+        </h3>
+        <button id="brytonImportClose" class="shortcut-close" type="button" aria-label="Bezárás">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="strava-import-body">
+        <!-- Automatikus import (háttér-szinkron; a Brytonnak nincs webhookja) -->
+        <section class="strava-auto" id="brytonAuto">
+          <div class="strava-auto-row">
+            <div class="strava-auto-text">
+              <strong>Automatikus import</strong>
+              <span>Az új Bryton-edzések maguktól bekerülnek a könyvtárba.</span>
+            </div>
+            <label class="toggle-switch" title="Automatikus import be/ki">
+              <input id="brytonAutoToggle" type="checkbox">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="strava-auto-opts" id="brytonAutoOpts" hidden>
+            <label class="strava-import-control">
+              <span>Ellenőrzés</span>
+              <select id="brytonAutoInterval">
+                <option value="5">5 percenként</option>
+                <option value="15" selected>15 percenként</option>
+                <option value="30">30 percenként</option>
+                <option value="60">óránként</option>
+              </select>
+            </label>
+            <div class="strava-auto-foot">
+              <span id="brytonAutoStatus" class="strava-auto-status"></span>
+              <button id="brytonAutoRunBtn" class="strava-list-btn" type="button">Ellenőrzés most</button>
+            </div>
+          </div>
+        </section>
+        <div class="strava-import-controls">
+          <label class="strava-import-control">
+            <span>Max edzés</span>
+            <select id="brytonImportLimit">
+              <option value="30" selected>30</option>
+              <option value="60">60</option>
+              <option value="100">100</option>
+              
+            </select>
+          </label>
+          <button id="brytonImportListBtn" class="strava-list-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Listázás
+          </button>
+        </div>
+        <div id="brytonImportStatus" class="strava-import-status"></div>
+        <div id="brytonImportProgress" class="strava-import-progress" hidden>
+          <div class="strava-progress-header">
+            <span id="brytonProgressLabel">Importálás folyamatban…</span>
+            <span id="brytonProgressCount" class="strava-progress-count">0 / 0</span>
+          </div>
+          <div class="strava-progress-track">
+            <div id="brytonProgressBar" class="strava-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="brytonProgressCurrent" class="strava-progress-current"></div>
+        </div>
+        <div id="brytonImportList" class="strava-import-list"></div>
+      </div>
+      <div class="strava-import-footer" id="brytonImportFooter" hidden>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="brytonImportSelectAll"> Mindent ami új
+        </label>
+        <span id="brytonImportSummary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
+        <button id="brytonImportRunBtn" class="strava-list-btn strava-list-btn--primary" type="button" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Import kiválasztottakat
         </button>
@@ -3456,6 +3548,38 @@
           <span id="igpsportSetAutoStatus" class="settings-auto-status"></span>
         </div>
         <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → iGPSport ablak tetején is.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-section" data-settings-section="bryton">
+    <h4 class="settings-section-title">
+      <img class="brand-icon" src="./assets/brands/bryton.png" width="18" height="18" alt="Bryton">
+      Bryton
+      <button class="hint-btn" type="button" data-hint="A Bryton (Rider) kerékpáros komputerek a Bryton Active appal szinkronizálnak. Csatlakoztatás után a Könyvtár → Import → Brytonból menüben letöltheted az edzéseidet (az eredeti FIT-tel), és a tervezett útvonalakat (Tervező → Mentés, vagy a könyvtárban … → Küldés Brytonra) a Bryton Active tervezett útjai közé küldheted – kanyar-utasításokkal, onnan a komputer navigál rajta. A jelszót nem tároljuk; a belépés kb. 90 napig érvényes, lejárat előtt értesítünk. Nem hivatalos kapcsolat – ha a Bryton változtat, átmenetileg leállhat." aria-label="Segítség">
+        <i data-lucide="info" aria-hidden="true"></i>
+      </button>
+      <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
+    </h4>
+    <div class="settings-section-body">
+      <div id="brytonConnectionState" class="strava-conn-state">
+        <span class="strava-conn-loading">Állapot lekérdezése…</span>
+      </div>
+      <div class="settings-auto" id="brytonSetAuto" hidden>
+        <label class="settings-auto-check">
+          <input type="checkbox" id="brytonSetAutoToggle">
+          <span><b>Automatikus import</b> – az új Bryton-edzések maguktól bekerülnek a könyvtárba</span>
+        </label>
+        <div class="settings-auto-row">
+          <select id="brytonSetAutoInterval" class="form-input settings-auto-int" aria-label="Ellenőrzés gyakorisága">
+            <option value="5">5 percenként</option>
+            <option value="15" selected>15 percenként</option>
+            <option value="30">30 percenként</option>
+            <option value="60">óránként</option>
+          </select>
+          <span id="brytonSetAutoStatus" class="settings-auto-status"></span>
+        </div>
+        <p class="settings-auto-note">Ugyanez a beállítás a Könyvtár → Import → Bryton ablak tetején is.</p>
       </div>
     </div>
   </section>

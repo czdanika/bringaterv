@@ -17,7 +17,34 @@ export async function reverseTown(lat, lng, small = false) {
   }
 }
 
+import { getToken } from "../auth.js";
+
+// ── Útpont-nevek a szerveren (gyorsítótárral, a Nominatim 1 kérés/mp szabálya szerint) ──
+// A böngészőből közvetlenül, sok ponttal a Nominatim letilt – a szerver sorban kérdez és megjegyzi.
+const authHdr = () => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+let _serverGeoOk = true;
+
+/** A szerveren már tárolt nevek egyszerre: [név | "" (nincs neve) | null (még nem ismert)] */
+export async function cachedPlaceNames(points) {
+  if (!_serverGeoOk || !getToken() || !points.length) return points.map(() => null);
+  try {
+    const res = await fetch("/api/geo/place-names", { method: "POST", headers: { "Content-Type": "application/json", ...authHdr() },
+      body: JSON.stringify({ points: points.map((p) => [p.lat, p.lng]) }) });
+    if (!res.ok) throw new Error(String(res.status));
+    return (await res.json()).names || points.map(() => null);
+  } catch { return points.map(() => null); }
+}
+
 export async function reverseGeocode(lat, lng) {
+  // 1. a szerver (tárolt név, vagy sorban lekérdezve)
+  if (_serverGeoOk && getToken()) {
+    try {
+      const res = await fetch(`/api/geo/place-name?lat=${lat}&lng=${lng}`, { headers: authHdr() });
+      if (res.ok) return (await res.json()).name || null;
+      if (res.status === 404) _serverGeoOk = false;           // régi szerver – közvetlen lekérdezés
+    } catch { /* hálózati hiba – próbáljuk közvetlenül */ }
+  }
+  // 2. közvetlenül a Nominatimtól (pl. régi szerver, nincs belépés)
   try {
     const url = new URL("https://nominatim.openstreetmap.org/reverse");
     url.searchParams.set("format", "jsonv2");

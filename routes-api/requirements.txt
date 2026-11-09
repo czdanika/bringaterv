@@ -7,6 +7,7 @@ bcrypt==4.2.1
 requests==2.32.3
 garminconnect==0.3.5
 fitdecode==0.10.0      # OnelapFit (Magene) edzés-import: FIT → GPX
+websocket-client==1.8.0  # Bryton Active (Meteor DDP websocket)
 pywebpush>=2.0,<3
 tzdata
 anthropic>=1.17,<2

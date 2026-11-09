@@ -11,7 +11,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 - Útvonaltervezés (BRouter alapú routing, szegmensenként eltérő mód, szél-elemzés)
 - Edzéskönyvtár: kártya/lista nézet, sport-szűrő, szerkesztés, megosztó kép generálás
 - **Strava integráció:** OAuth kapcsolat, aktivitások importálása, per-user app credentials
-- **Garmin / OnelapFit / iGPSport:** edzés-import, útvonal küldése az eszközre
+- **Garmin / OnelapFit / iGPSport / Bryton:** edzés-import, útvonal küldése az eszközre
 - **Felszerelés (bal menü → Felszerelés):** bringák, alkatrészek, karbantartási emlékeztetők (km / üzemóra / nap), napló; edzés → bringa: kézi → fájl / Strava név („más néven”) → alapértelmezett (`gear.resolve_bike` = `src/equipment.js resolveBike`)
 - **Ismétlődés-védelem:** `importDedup` user-beállítás (alap: be) – más forrásból már meglévő edzést (indulás ±15 perc, táv ±5%, `utils.find_cross_source_duplicate`) egyik import sem hoz be
 - Statisztikák: havi bontás (kalória, Eddington, sport-lebontás), rekordok, Eddington-szám sportonként, edzésterhelés (CTL/ATL/TSB, A:C arány, monotonitás), hőtérkép
@@ -61,6 +61,10 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── device_images.py    # eszközképek: Magene termékoldal / Wikimedia Commons, biztonságos letöltés webcímről
 │   ├── gear.py             # Felszerelés: bringák, alkatrészek (időablak), karbantartás, eszközök (kép, összevonás); km-számítás, push
 │   ├── api_gear.py         # /api/gear*, /api/routes/bulk-bike, óránkénti szerviz-értesítő
+│   ├── bryton_service.py   # Bryton Active (Meteor DDP websocket): belépés (~90 nap), FIT-import, útvonal: saját BrytonDirections FIT-kódoló + kanyarok
+│   ├── api_bryton.py       # /api/bryton/* (status, connect, activities, import, auto-sync, route)
+│   ├── bryton_sync.py      # automatikus Bryton import + lejárat előtti push
+│   ├── api_geo.py          # /api/geo/place-name(s) – útpont-nevek a szerveren (Nominatim 1 kérés/mp, gyorsítótár: geocode_names.json)
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
@@ -117,6 +121,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── garmin.js       # ÖNÁLLÓ plug-in modul (nincs a main.js-be drótozva, külön
         │                   #   <script> includolva). Garmin kapcsolat+MFA, testsúly-szinkron,
         │                   #   aktivitás-import modal, course feltöltés. Self-bootstrap.
+        ├── bryton.js       # Bryton kapcsolat, import ablak (igpsport.js mintájára); küldés: library „bryton-route” + Mentés ablak (BRouter-kanyarokkal)
         ├── igpsport.js     # iGPSport kapcsolat, import ablak (onelap.js mintájára); küldés: library „igpsport-route” + Mentés ablak
         ├── onelap.js       # OnelapFit kapcsolat, import modal (initOnelap, getOnelapStatus);
         │                   #   az útvonal-küldés a library.js „onelap-route” művelete
@@ -321,7 +326,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.40.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.41.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)
