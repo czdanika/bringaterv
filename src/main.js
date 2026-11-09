@@ -80,6 +80,7 @@ import {
 } from "./ui/library.js";
 import { isMobileLayout as isMobileLayoutMQ, mobileMQ } from "./layout.js";
 import { attachAiDescribe } from "./ui/aiDescribe.js";
+import { initSampleEdit } from "./ui/sampleEdit.js";
 
 requireAuth();
 
@@ -930,7 +931,7 @@ initHome({
 });
 {
   const p = new URLSearchParams(location.search);
-  if (!p.get("open") && !p.get("route") && !p.get("settings")) switchTab("home");
+  if (!p.get("open") && !p.get("route") && !p.get("settings") && !p.get("editSample")) switchTab("home");
 }
 initInstallPrompt({ menuItem: document.getElementById("installAppButton") });
 // A GPX/FIT fájlválasztók szándékosan accept-szűrő NÉLKÜL vannak: a Safari (Mac és
@@ -967,6 +968,22 @@ checkForUpdate(); // GitHub release ellenőrzés – oldalbetöltéskor
 
 // Mély-link: ?route=<id> → útvonal betöltése tervezésre (PDF QR-kódból nyitható)
 try {
+  // Admin: közösségi útvonal nyomvonalának szerkesztése (?editSample=<id>, az admin felületről)
+  initSampleEdit({
+    loadRouteFromLibrary,
+    showToast,
+    buildPayload: (sample) => {
+      const state = store.getState();
+      if (!state.routeGeometry?.length || (state.waypoints || []).length < 2) return null;
+      const mode = state.mode === "cycling" ? "asphalt" : state.mode;
+      const gpx = exportGpx({ waypoints: state.waypoints, geometry: state.routeGeometry, name: sample.name, desc: sample.description, mode });
+      const distanceKm = state.distanceMeters > 0 ? Math.round(state.distanceMeters / 100) / 10 : null;
+      const ascentMeters = state.ascentMeters > 0 ? state.ascentMeters : 0;
+      const descentMeters = state.descentMeters > 0 ? state.descentMeters : 0;
+      const durationMin = distanceKm != null ? calcEstimatedTimeMixed(state.routeSegments, mode, distanceKm, ascentMeters, descentMeters, true) : null;
+      return { gpx, distanceKm, ascentMeters, durationMin };
+    },
+  }).catch((err) => console.warn("Közösségi útvonal szerkesztése:", err));
   const routeParam = new URLSearchParams(location.search).get("route");
   if (routeParam) {
     loadRouteFromLibrary(routeParam, false, "", "plan")

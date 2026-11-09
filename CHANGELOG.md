@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.39.0 – 2026-11-09 – Ismétlődő edzések, admin nyomvonal-szerkesztés
+
+### Verzió
+
+- **Ismétlődő edzések:** a Könyvtárban új „Ismétlődések” gomb (gépen és mobilon is) – kilistázza az ugyanabból az edzésből több forrásból bekerült példányokat (indulás ±15 perc, táv ±5%), csoportonként kiválasztható, melyik maradjon (javaslat: a több mért adattal), a többi kihagyható a statisztikából vagy törölhető. A „Beleszámít a statisztikába” bekapcsolásakor felugró ablak, ha ugyanez az edzés már számít: „Csak ez számítson” (a másik kimarad) / „Mindkettő” / „Mégse”. (`src/ui/duplicates.js`)
+- **Admin – közösségi útvonal nyomvonalának szerkesztése:** a Közösségi útvonalak listájában „✎ Nyomvonal” gomb (és a Szerkeszt ablakban) → az útvonal új lapon a Tervezőben nyílik, minden tervezőeszközzel (pontok húzása, beszúrása, törlése, szakaszmód, BRouter); a fül tetején „Mentés a közösségi útvonalba”. A szerver lecseréli a GPX-et, frissíti a távot / szintet / időt, újraszámolja a helyadatot; az előző nyomvonal megmarad, „↶ Előző” gombbal visszaállítható (oda-vissza). Beépített útvonalnál a felülírás a custom mappába kerül. (`PUT /api/admin/samples/<id>/gpx`, `POST …/gpx/restore`, `src/ui/sampleEdit.js`)
+- **Javítás – nyilvános nézőoldal:** az emelkedő a forrás (Strava / eszköz) értéke volt, az ereszkedő viszont a nyomvonalból számolt – a kettő nem illett össze (pl. sík körön 16 m fel / 12 m le). Most az ereszkedő is a forrás emelkedőjéből jön, a rajt és a cél magasságkülönbségével korrigálva.
+
 ## v1.38.0 – 2026-11-08 – Tájoló térkép, karcsúbb Kezdőlap-gombok
 
 ### Verzió

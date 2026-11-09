@@ -3,15 +3,16 @@
 import json
 import os
 import re
+import shutil
 import threading
 
-from flask import Blueprint, abort, jsonify, request
+from flask import Blueprint, abort, g, jsonify, request
 
 import geo_location
 
 from auth import require_admin, require_auth
-from config import CUSTOM_SAMPLES_DIR, SAMPLES_DIR
-from utils import _clean_surface, _safe_id
+from config import CUSTOM_SAMPLES_DIR, SAMPLES_DIR, log
+from utils import _clean_surface, _now_dt, _safe_id
 
 bp = Blueprint("api_samples", __name__)
 
@@ -44,6 +45,8 @@ def _sample_entry(sid: str, meta: dict, custom: bool) -> dict:
         "location":    meta.get("location") or {},
         "surface":     meta.get("surface"),      # tárolt burkolat-vizsgálat (ha van)
         "custom":      custom,
+        "gpx_backup":  os.path.isfile(os.path.join(CUSTOM_SAMPLES_DIR, f"{sid}.gpx.bak")),   # visszaállítható előző nyomvonal
+        "gpx_edited_at": meta.get("gpx_edited_at", ""),
     }
 
 
@@ -183,13 +186,96 @@ def admin_update_sample(sample_id: str):
     return jsonify(_sample_entry(sample_id, meta, True))
 
 
+@bp.route("/api/admin/samples/<sample_id>/gpx", methods=["PUT"])
+@require_auth
+@require_admin
+def admin_replace_sample_gpx(sample_id: str):
+    """A nyomvonal cseréje (a Tervezőben szerkesztve): {gpx, distance, elevation, duration}.
+    Az előző nyomvonal <id>.gpx.bak néven megmarad (egy lépés visszavonható); a burkolat-vizsgálat
+    elavul, a helyadat a háttérben újraszámolódik."""
+    sample_id = _safe_id(sample_id)
+    directory = _sample_dir(sample_id)
+    if not directory:
+        abort(404, description="Nincs ilyen útvonal.")
+    data = request.get_json(silent=True) or {}
+    gpx = str(data.get("gpx") or "")
+    if len(gpx) > 15_000_000:
+        abort(400, description="Túl nagy GPX.")
+    from api_submissions import _clean_points
+    if "<gpx" not in gpx[:2000] or len(_clean_points(gpx)) < 2:
+        abort(400, description="Érvénytelen nyomvonal – legalább két pont kell.")
+    os.makedirs(CUSTOM_SAMPLES_DIR, exist_ok=True)
+    target = os.path.join(CUSTOM_SAMPLES_DIR, f"{sample_id}.gpx")
+    current = os.path.join(directory, f"{sample_id}.gpx")
+    shutil.copyfile(current, target + ".bak")              # előző változat (beépítettnél az eredeti)
+    tmp = target + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(gpx)
+    os.replace(tmp, target)
+    meta = _merged_meta(directory, sample_id)
+    for key in ("distance", "duration", "elevation"):
+        try:
+            if data.get(key) is not None:
+                meta[key] = round(float(data[key]), 1)
+        except (TypeError, ValueError):
+            pass
+    meta.pop("surface", None)                               # a régi nyomvonalé volt
+    meta["gpx_edited_at"] = _now_dt()
+    with open(os.path.join(CUSTOM_SAMPLES_DIR, f"{sample_id}.json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    threading.Thread(target=_locate_one, args=(CUSTOM_SAMPLES_DIR, sample_id), daemon=True).start()
+    log.info("Közösségi útvonal nyomvonala cserélve: %s (admin: %s)", sample_id, g.user["email"])
+    return jsonify(_sample_entry(sample_id, meta, True))
+
+
+@bp.route("/api/admin/samples/<sample_id>/gpx/restore", methods=["POST"])
+@require_auth
+@require_admin
+def admin_restore_sample_gpx(sample_id: str):
+    """Az előző nyomvonal visszaállítása (a .bak-ból); a jelenlegi lesz az új .bak (oda-vissza váltható)."""
+    sample_id = _safe_id(sample_id)
+    target = os.path.join(CUSTOM_SAMPLES_DIR, f"{sample_id}.gpx")
+    bak = target + ".bak"
+    if not os.path.isfile(bak):
+        abort(404, description="Nincs visszaállítható előző nyomvonal.")
+    from api_submissions import _clean_points
+    with open(bak, encoding="utf-8") as f:
+        old = f.read()
+    if os.path.isfile(target):
+        os.replace(target, target + ".swap")
+    os.replace(bak, target)
+    if os.path.isfile(target + ".swap"):
+        os.replace(target + ".swap", bak)
+    # táv és szint a visszaállított nyomvonalból
+    pts = _clean_points(old)
+    meta = _merged_meta(CUSTOM_SAMPLES_DIR, sample_id)
+    if len(pts) >= 2:
+        meta["distance"] = round(sum(geo_location._hav(a, b) for a, b in zip(pts, pts[1:])) / 1000, 1)
+        asc, base = 0.0, None                              # emelkedés 3 m-es zajszűréssel (mint a kliens)
+        for p in pts:
+            if len(p) < 3 or p[2] is None:
+                continue
+            if base is None or p[2] < base - 3:
+                base = p[2]
+            elif p[2] - base >= 3:
+                asc += p[2] - base; base = p[2]
+        if asc:
+            meta["elevation"] = round(asc)
+    meta.pop("surface", None)
+    meta["gpx_edited_at"] = _now_dt()
+    with open(os.path.join(CUSTOM_SAMPLES_DIR, f"{sample_id}.json"), "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    threading.Thread(target=_locate_one, args=(CUSTOM_SAMPLES_DIR, sample_id), daemon=True).start()
+    return jsonify(_sample_entry(sample_id, meta, True))
+
+
 @bp.route("/api/admin/samples/<sample_id>", methods=["DELETE"])
 @require_auth
 @require_admin
 def admin_delete_sample(sample_id: str):
     sample_id = _safe_id(sample_id)
     deleted = False
-    for ext in (".gpx", ".json"):
+    for ext in (".gpx", ".json", ".gpx.bak"):
         p = os.path.join(CUSTOM_SAMPLES_DIR, f"{sample_id}{ext}")
         if os.path.isfile(p):
             os.remove(p)

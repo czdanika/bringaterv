@@ -362,6 +362,10 @@ export const routesApi = {
     submissionGpx(id)                 { return fetchText(`${BASE}/admin/submissions/${encodeURIComponent(id)}/gpx`); },
     locateSample(id)                  { return fetchJson(`${BASE}/admin/samples/${encodeURIComponent(id)}/locate`, { method: "POST" }); },
     locateSamples(start)              { return fetchJson(`${BASE}/admin/samples/locate`, start ? { method: "POST" } : {}); },
+    /** Közösségi útvonal nyomvonalának cseréje (Tervezőben szerkesztve): { gpx, distance, elevation, duration } */
+    replaceSampleGpx(id, data)        { return fetchJson(`${BASE}/admin/samples/${encodeURIComponent(id)}/gpx`, { method: "PUT", body: JSON.stringify(data) }); },
+    /** Az előző nyomvonal visszaállítása (oda-vissza váltható) */
+    restoreSampleGpx(id)              { return fetchJson(`${BASE}/admin/samples/${encodeURIComponent(id)}/gpx/restore`, { method: "POST" }); },
     listUserRoutes(userId)            { return fetchJson(`${BASE}/admin/users/${userId}/routes`); },
     getUserRouteGpx(userId, routeId)  { return fetchText(`${BASE}/admin/users/${userId}/routes/${encodeURIComponent(routeId)}/gpx`); },
     async getUserRouteFit(userId, routeId) {

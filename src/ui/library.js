@@ -23,6 +23,7 @@ import { initGear } from "./gear.js";
 import { getGarminStatus } from "./garmin.js";
 import { attachAiDescribe } from "./aiDescribe.js";
 import { locatorSvg } from "../map/locator.js";
+import { initDuplicates, askOnStatsInclude, openDuplicateFinder } from "./duplicates.js";
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
 let _api, _toast, _downloadGpx, _loadRoute, _openShareCardWith;
@@ -45,6 +46,12 @@ export function initLibrary({
   _getStravaStatus = getStravaStatus;
   _data = libraryData; _filter = libraryFilter;
   _DIST_MAX = DIST_MAX; _DUR_MAX = DUR_MAX;
+  initDuplicates({
+    api: _api, getData: () => _data, toast: (...a) => _toast?.(...a),
+    // statisztika / felszerelés újraszámol, a lista frissül
+    onChanged: () => { renderLibraryGrid(); window.dispatchEvent(new CustomEvent("bringaterv:libraryChanged")); },
+  });
+  document.querySelector("#libraryDupBtn")?.addEventListener("click", () => openDuplicateFinder());
   _registerListeners();
 }
 
@@ -592,6 +599,8 @@ function buildLibraryExpandRow(route, category, isSample) {
   td.querySelector("[data-stats-toggle]")?.addEventListener("change", async (e) => {
     const input = e.target, next = input.checked;
     input.disabled = true;
+    // bekapcsoláskor: van-e már számító párja (pl. ugyanez Stravából és Magenéből)?
+    if (next && !(await askOnStatsInclude(route))) { input.checked = false; input.disabled = false; return; }
     try {
       await _api.updateRoute(route.id, { include_in_stats: next });
       route.include_in_stats = next;
@@ -656,6 +665,7 @@ async function runAction(act, btn) {
         openSubmitRouteModal(route);
       } else if (act === "toggle-stats") {
         const next = route.include_in_stats === false;
+        if (next && !(await askOnStatsInclude(route))) return;
         btn.disabled = true;
         try {
           await _api.updateRoute(route.id, { include_in_stats: next });

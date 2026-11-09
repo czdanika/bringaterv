@@ -241,8 +241,15 @@ function renderStats(meta, geometry, gmeta) {
 
   const { ascentMeters, descentMeters } = calcElevationFromGeometry(geometry);
   const asc = meta.elevationM ?? (ascentMeters || null);
+  // Az emelkedő és az ereszkedő ugyanabból a forrásból legyen: ha az emelkedő a forrás (Strava / eszköz)
+  // értéke, az ereszkedőt abból vezetjük le – a kettő különbsége = a rajt és a cél magasságkülönbsége
+  let desc = descentMeters || null;
+  if (meta.elevationM != null) {
+    const eles = geometry.map((p) => p.ele).filter((v) => Number.isFinite(v));
+    desc = eles.length > 1 ? Math.max(0, meta.elevationM + (eles[0] - eles[eles.length - 1])) : null;
+  }
   if (asc != null) cards.push(["↑ Emelkedő", `${Math.round(asc)} m`]);
-  if (descentMeters) cards.push(["↓ Ereszkedő", `${Math.round(descentMeters)} m`]);
+  if (desc) cards.push(["↓ Ereszkedő", `${Math.round(desc)} m`]);
 
   const speed = buildSpeedData(geometry);
   const avgSpeed = meta.avgSpeed || ((movingMin || totalMin) && distKm ? distKm / ((movingMin || totalMin) / 60) : null) || avg(speed);
