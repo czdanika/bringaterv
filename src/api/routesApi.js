@@ -634,6 +634,35 @@ export const routesApi = {
     },
   },
 
+  // iGPSport (user-szintű, nem hivatalos API – a token 7 napig él)
+  igpsport: {
+    status() { return fetchJson(`${BASE}/igpsport/status`); },
+    connect(email, password) {
+      return fetchJson(`${BASE}/igpsport/connect`, { method: "POST", body: JSON.stringify({ email, password }) });
+    },
+    disconnect() { return fetchJson(`${BASE}/igpsport/disconnect`, { method: "DELETE" }); },
+    activities({ limit = 30 } = {}) {
+      return fetchJson(`${BASE}/igpsport/activities?${new URLSearchParams({ limit })}`);
+    },
+    importActivity(id) {
+      return fetchJson(`${BASE}/igpsport/import/${encodeURIComponent(id)}`, { method: "POST", body: "{}" });
+    },
+    removeFromDenyList(id) {
+      return fetchJson(`${BASE}/igpsport/deny-list/${encodeURIComponent(id)}`, { method: "DELETE" });
+    },
+    uploadRoute(routeId) {
+      return fetchJson(`${BASE}/igpsport/route/${encodeURIComponent(routeId)}`, { method: "POST" });
+    },
+    autoSync: {
+      get()  { return fetchJson(`${BASE}/igpsport/auto-sync`); },
+      save(body) { return fetchJson(`${BASE}/igpsport/auto-sync`, { method: "PUT", body: JSON.stringify(body) }); },
+      runNow() { return fetchJson(`${BASE}/igpsport/auto-sync/run`, { method: "POST" }); },
+    },
+    uploadGpx(name, gpx, mode, description) {
+      return fetchJson(`${BASE}/igpsport/route`, { method: "POST", body: JSON.stringify({ name, gpx, mode, description }) });
+    },
+  },
+
   // Wahoo / Polar (hivatalos OAuth-os API-k, csak import)
   devices(provider) {
     const P = `${BASE}/${provider}`;

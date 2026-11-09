@@ -11,7 +11,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 - Útvonaltervezés (BRouter alapú routing, szegmensenként eltérő mód, szél-elemzés)
 - Edzéskönyvtár: kártya/lista nézet, sport-szűrő, szerkesztés, megosztó kép generálás
 - **Strava integráció:** OAuth kapcsolat, aktivitások importálása, per-user app credentials
-- **Garmin / OnelapFit:** edzés-import, útvonal küldése az eszközre
+- **Garmin / OnelapFit / iGPSport:** edzés-import, útvonal küldése az eszközre
 - **Felszerelés (bal menü → Felszerelés):** bringák, alkatrészek, karbantartási emlékeztetők (km / üzemóra / nap), napló; edzés → bringa: kézi → fájl / Strava név („más néven”) → alapértelmezett (`gear.resolve_bike` = `src/equipment.js resolveBike`)
 - **Ismétlődés-védelem:** `importDedup` user-beállítás (alap: be) – más forrásból már meglévő edzést (indulás ±15 perc, táv ±5%, `utils.find_cross_source_duplicate`) egyik import sem hoz be
 - Statisztikák: havi bontás (kalória, Eddington, sport-lebontás), rekordok, Eddington-szám sportonként, edzésterhelés (CTL/ATL/TSB, A:C arány, monotonitás), hőtérkép
@@ -46,6 +46,9 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── onelap_service.py   # OnelapFit helperek: aláírt kérések, token+refresh, FIT→GPX (fitdecode), útvonal-feltöltés
 │   ├── api_onelap.py       # /api/onelap/* (status, connect, disconnect, activities, import, deny-list, route)
 │   ├── onelap_sync.py      # automatikus OnelapFit import (háttér-szinkron)
+│   ├── igpsport_service.py # iGPSport (nem hivatalos API): belépés (7 napos token), FIT-import, útvonal-feltöltés (OSS)
+│   ├── api_igpsport.py     # /api/igpsport/* (status, connect, activities, import, auto-sync, route)
+│   ├── igpsport_sync.py    # automatikus iGPSport import + lejárat előtti push
 │   ├── garmin_sync.py      # automatikus Garmin import (eredeti FIT)
 │   ├── fit_gpx.py          # közös FIT → GPX (fitdecode)
 │   ├── device_import.py    # Wahoo / Polar közös: user-szintű app-kulcsok, OAuth state, tokenek, mentés FIT-ből
@@ -114,6 +117,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── garmin.js       # ÖNÁLLÓ plug-in modul (nincs a main.js-be drótozva, külön
         │                   #   <script> includolva). Garmin kapcsolat+MFA, testsúly-szinkron,
         │                   #   aktivitás-import modal, course feltöltés. Self-bootstrap.
+        ├── igpsport.js     # iGPSport kapcsolat, import ablak (onelap.js mintájára); küldés: library „igpsport-route” + Mentés ablak
         ├── onelap.js       # OnelapFit kapcsolat, import modal (initOnelap, getOnelapStatus);
         │                   #   az útvonal-küldés a library.js „onelap-route” művelete
         ├── deviceImport.js # Wahoo / Polar: saját app-kulcsok, OAuth popup, import ablak (initDeviceImports)
@@ -317,7 +321,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.39.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.40.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.40.0 – 2026-11-09 – iGPSport, köztes pontok elrejtése
+
+### Verzió
+
+- **iGPSport kapcsolat (új):** Beállítások → iGPSport (e-mail + jelszó, a jelszót nem tároljuk; a belépés 7 napig érvényes, lejárat előtt push). Könyvtár → Import → iGPSportból: edzéslista dedup-jelzéssel, import az eredeti FIT-tel (az iGPSport kínai idő szerinti indulási idejét a FIT UTC-idejével váltjuk ki), automatikus import, törlés → tiltólista. Útvonal küldése: Tervező → Mentés → „Küldés iGPSportra” és a könyvtár ⋯ menüje – privát útvonalként, típussal és kör / A→B formával. Forrás-szűrő, ismétlődés-kezelés, kalória-forrás is ismeri. Nem hivatalos API (`igpsport_service.py`, `api_igpsport.py`, `igpsport_sync.py`, `src/ui/igpsport.js`).
+- **Tervező – köztes pontok elrejtése:** sok útpontnál a jelölők eltakarták a térképet és a színezést. Új gomb a térkép jobb felső sarkában (legalább 3 pontnál) és a Tervező ⋯ menüjében: a köztes pontok eltűnnek, a rajt, a cél és az útvonal (színezéssel, km-jelekkel) marad; a beállítást a böngésző megjegyzi.
+- **Mi ez? oldal:** iGPSport a leírásban és saját kártyával a kapcsolatok között; a telefonos képek újra iPhone-arányúak (780×1688) – a nyitókép telefonja zömök volt, mert a fotózó a böngészősáv nélküli, 3×-os iPhone-profilt használta (`tools/demo/shoot.py` javítva).
+
 ## v1.39.0 – 2026-11-09 – Ismétlődő edzések, admin nyomvonal-szerkesztés
 
 ### Verzió

@@ -258,7 +258,17 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     onMapClick({ lat, lng });
   });
 
+  // Köztes pontok elrejtése (sok pontnál eltakarják a térképet / a színezést) – a rajt és a cél marad
+  let _hideMidWaypoints = (() => { try { return localStorage.getItem("bringaterv.hideMidWaypoints") === "1"; } catch { return false; } })();
+  let _lastWp = null;
+  function setMidWaypointsHidden(on) {
+    _hideMidWaypoints = !!on;
+    try { localStorage.setItem("bringaterv.hideMidWaypoints", on ? "1" : "0"); } catch { /* privát mód */ }
+    if (_lastWp) renderWaypoints(..._lastWp);
+  }
+
   function renderWaypoints(waypoints, globalMode = "asphalt") {
+    _lastWp = [waypoints, globalMode];
     markers.clearLayers();
     _reopen = null;
     const isLast = (i) => waypoints.length > 1 && i === waypoints.length - 1;
@@ -270,6 +280,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
       const isDestination = isLast(index);
       // zárt körnél a célzászló ne takarja el a rajtot (a rajt ablakából kezelhető)
       if (isClosed && isDestination) return;
+      if (_hideMidWaypoints && index > 0 && !isDestination) return;
       // Az effektív szín: ha a pont saját segmentMode-ja van → azt; ha nincs → a globális mód
       const effectiveMode = point.segmentMode ?? globalMode ?? "asphalt";
       const markerColor   = SEGMENT_COLORS[effectiveMode] ?? SEGMENT_COLORS.asphalt;
@@ -1455,6 +1466,8 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     renderDirectionArrows,
     clearDirectionArrows,
     renderWaypoints,
+    setMidWaypointsHidden,
+    getMidWaypointsHidden: () => _hideMidWaypoints,
     setRouteInteractive: (enabled) => {
       // Ha false: a crosshair kurzor és a route click le van tiltva
       routeClickEnabled = enabled;

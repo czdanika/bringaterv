@@ -25,12 +25,13 @@ import { initWind, clearWindResult, scheduleWindRunIfActive, initWindPlanInputsI
 import { initStrava, refreshStravaStatus, openStravaImportModal, getStravaStatus } from "./ui/strava.js";
 import { initGarmin, getGarminStatus } from "./ui/garmin.js";
 import { initOnelap, getOnelapStatus } from "./ui/onelap.js";
+import { initIgpsport, getIgpsportStatus } from "./ui/igpsport.js";
 import { initDeviceImports } from "./ui/deviceImport.js";
 import { deviceName, loadGear } from "./equipment.js";
 import { setCalorieWorkouts } from "./calories.js";
 
 // Kalória-összevetés: kinek a számítása a könyvtári érték (a Keytel-kalibrációhoz az edzéslista kell)
-const CAL_SRC = { strava: "Strava", garmin: "Garmin Connect", onelap: "OnelapFit", wahoo: "Wahoo", polar: "Polar" };
+const CAL_SRC = { strava: "Strava", garmin: "Garmin Connect", onelap: "OnelapFit", igpsport: "iGPSport", wahoo: "Wahoo", polar: "Polar" };
 function calorieSourceOf(e) {
   if (!e?.calories) return {};
   const dev = e.device ? deviceName(e.device) : "";
@@ -2016,6 +2017,39 @@ initTrailInfo({ mapAdapter, store, showToast, setRouteMode, isSuggestActive, isC
 // „Teljes útvonal": vissza a teljes nézetre
 document.querySelector("#mapFitFabBtn")?.addEventListener("click", () => mapAdapter.fitRoute?.());
 
+// ── Köztes útpontok elrejtése (sok pontnál eltakarják a térképet / a színezést) ──
+// Gomb a térkép jobb felső sarkában (Tervezés fülön, legalább 3 pontnál) és a Tervező ⋯ menüjében.
+function syncMidWaypointsUi() {
+  const on = mapAdapter.getMidWaypointsHidden?.();
+  const n = store.getState().waypoints.length;
+  const label = on ? "Köztes pontok megjelenítése" : "Köztes pontok elrejtése";
+  const fab = document.querySelector("#mapWpFabBtn");
+  if (fab) {
+    fab.hidden = currentTab !== "plan" || n < 3;
+    fab.classList.toggle("is-active", !!on);
+    fab.setAttribute("aria-pressed", String(!!on));
+    fab.title = `${label} (rajt és cél marad)`;
+    const ico = on ? "map-pin" : "map-pin-off";
+    if (fab.dataset.ico !== ico) { fab.dataset.ico = ico; fab.innerHTML = `<i data-lucide="${ico}" aria-hidden="true"></i>`; window.lucide?.createIcons({ root: fab }); }
+  }
+  const mi = document.querySelector("#planWpMenuItem");
+  if (mi) {
+    mi.disabled = n < 3;
+    mi.querySelector("span").textContent = label;
+  }
+}
+function toggleMidWaypoints() {
+  const on = !mapAdapter.getMidWaypointsHidden?.();
+  mapAdapter.setMidWaypointsHidden?.(on);
+  syncMidWaypointsUi();
+  const n = Math.max(0, store.getState().waypoints.length - 2);
+  showToast(on ? `${n} köztes pont elrejtve – a rajt és a cél látszik` : "Köztes pontok megjelenítve");
+}
+document.querySelector("#mapWpFabBtn")?.addEventListener("click", toggleMidWaypoints);
+store.subscribe?.(() => syncMidWaypointsUi());
+document.querySelectorAll(".sidebar-tab, .rail-tab, [data-tab]").forEach((b) => b.addEventListener("click", () => setTimeout(syncMidWaypointsUi, 0)));
+setTimeout(syncMidWaypointsUi, 0);
+
 // ── Toolbar kereső popup ──────────────────────────────────────────────────────
 (function initToolbarSearch() {
   const btn     = document.querySelector("#toolbarSearchBtn");
@@ -2384,6 +2418,9 @@ initGarmin({ showToast });
 // ── OnelapFit (Magene) ───────────────────────────────────────────────────────
 initOnelap({ showToast });
 
+// ── iGPSport (nem hivatalos API: import + útvonal-küldés) ─────────────────────
+initIgpsport({ showToast });
+
 // ── Wahoo / Polar (hivatalos API-k, csak import) ──────────────────────────────
 initDeviceImports({ showToast });
 
@@ -2673,6 +2710,7 @@ function setLoopStart(id) {
     const item = e.target.closest("button"); if (!item || item.disabled) return;
     closeAll();
     if (item.dataset.act === "import") $id("planGpxInput")?.click();
+    else if (item.dataset.act === "toggle-wp") toggleMidWaypoints();
     else $id(item.dataset.proxy)?.click();
   });
 
@@ -3415,6 +3453,8 @@ function openExportModal() {
   if (modeRadio) modeRadio.checked = true;
   const onelapBtn = document.querySelector("#exportOnelap");
   if (onelapBtn) onelapBtn.hidden = !getOnelapStatus()?.connected;
+  const igpBtn = document.querySelector("#exportIgpsport");
+  if (igpBtn) igpBtn.hidden = !getIgpsportStatus()?.connected;
   const garminBtn = document.querySelector("#exportGarmin");
   if (garminBtn) garminBtn.hidden = !getGarminStatus()?.connected;
   elements.exportOverlay.hidden = false;
@@ -3990,6 +4030,14 @@ const DEVICE_TARGETS = {
     name:  (res, p) => res.name || p.name,
     where: "Az OnelapFit appban az útvonalaid között találod – onnan szinkronizáld a komputerre.",
   },
+  igpsport: {
+    label: "iGPSportra", app: "iGPSport", icon: "./assets/brands/igpsport.png",
+    settings: "Beállítások → iGPSport",
+    byId:  (id) => routesApi.igpsport.uploadRoute(id),
+    byGpx: (p) => routesApi.igpsport.uploadGpx(p.name, p.content, p.selectedMode, p.desc),
+    name:  (res, p) => res.name || p.name,
+    where: "Az iGPSport appban az útvonalaid között találod (privátként) – onnan szinkronizáld a komputerre.",
+  },
   garmin: {
     label: "Garminra", app: "Garmin", icon: "./assets/brands/garmin.svg",
     settings: "Beállítások → Garmin Connect",
@@ -4040,6 +4088,7 @@ async function sendPlanToDevice(kind, btn) {
   showResultDialog(dialog);
 }
 document.querySelector("#exportOnelap")?.addEventListener("click", (e) => sendPlanToDevice("onelap", e.currentTarget));
+document.querySelector("#exportIgpsport")?.addEventListener("click", (e) => sendPlanToDevice("igpsport", e.currentTarget));
 document.querySelector("#exportGarmin")?.addEventListener("click", (e) => sendPlanToDevice("garmin", e.currentTarget));
 
 document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async () => {

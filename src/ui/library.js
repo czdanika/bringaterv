@@ -17,6 +17,7 @@ import { openSubmitRouteModal } from "./submitRoute.js";
 import { shareCardPoints } from "./shareCard.js";
 import { num, int, dur, durMs } from "../format.js";
 import { getOnelapStatus } from "./onelap.js";
+import { getIgpsportStatus } from "./igpsport.js";
 import { showResultDialog } from "./dom.js";
 import { deviceName, getBikes, resolveBike, sensorLabels } from "../equipment.js";
 import { initGear } from "./gear.js";
@@ -136,7 +137,7 @@ export function escapeHtml(s) {
 }
 
 function sourceLabel(src) {
-  return { strava: "Strava", garmin: "Garmin", onelap: "OnelapFit", wahoo: "Wahoo", polar: "Polar", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
+  return { strava: "Strava", garmin: "Garmin", onelap: "OnelapFit", igpsport: "iGPSport", wahoo: "Wahoo", polar: "Polar", fit: "FIT", manual: "Saját", sample: "Közösségi" }[src] ?? src ?? "—";
 }
 
 export function libraryRouteSportKey(route) {
@@ -160,6 +161,7 @@ export function libraryRouteSource(route, category) {
   if (route.strava_id) return "strava";
   if (route.garmin_id) return "garmin";
   if (route.onelap_id) return "onelap";
+  if (route.igpsport_id) return "igpsport";
   if (route.wahoo_id)  return "wahoo";
   if (route.polar_id)  return "polar";
   if (route.has_fit)   return "fit";
@@ -748,6 +750,23 @@ async function runAction(act, btn) {
           showResultDialog({ ok: false, icon: "./assets/brands/onelapfit.png", title: "Nem sikerült a küldés: OnelapFit",
             lines: [conn ? "A kapcsolat nem él – csatlakozz újra: Beállítások → OnelapFit." : err.message] });
         }
+      } else if (act === "igpsport-route") {
+        if (route.igpsport_uploaded_at && !confirm("Ezt az útvonalat korábban már elküldted az iGPSportra.\n\nKüldöd újra? Az iGPSportban új útvonal jön létre (a régit ott törölheted).")) return;
+        _toast("Küldés az iGPSportra…", 60000);
+        try {
+          const res = await _api.igpsport.uploadRoute(route.id);
+          for (const r of [route, ..._data.routes.filter(x => x.id === route.id)]) r.igpsport_uploaded_at = res.igpsport_uploaded_at;
+          _toast("", 1);
+          const km = route.distance != null ? ` (${num(route.distance, 1)} km)` : "";
+          showResultDialog({ ok: true, icon: "./assets/brands/igpsport.png", title: "Elküldve: iGPSport",
+            lines: [`„${res.name}”${km} sikeresen felment (privát útvonalként).`,
+                    "Az iGPSport appban az útvonalaid között találod – onnan szinkronizáld a komputerre."] });
+        } catch (err) {
+          _toast("", 1);
+          const conn = /igpsport kapcsolat|lejárt|belépés/i.test(err.message || "");
+          showResultDialog({ ok: false, icon: "./assets/brands/igpsport.png", title: "Nem sikerült a küldés: iGPSport",
+            lines: [conn ? "A belépés lejárt vagy nincs kapcsolat – csatlakozz újra: Beállítások → iGPSport." : err.message] });
+        }
       } else if (act === "share") {
         btn.disabled = true; setLabel("Betöltés…");
         try {
@@ -1024,6 +1043,9 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
   }
   if (route.garmin_course_id) {
     items.push({ href: `https://connect.garmin.com/modern/course/${route.garmin_course_id}`, icon: "external-link", label: "Garmin course megnyitása" });
+  }
+  if (!isWorkout && !isSample && getIgpsportStatus()?.connected) {
+    items.push({ act: "igpsport-route", img: "igpsport.png", label: route.igpsport_uploaded_at ? "Újraküldés iGPSportra" : "Küldés iGPSportra" });
   }
   if (!isWorkout && !isSample && getOnelapStatus()?.connected) {
     items.push({ act: "onelap-route", img: "onelapfit.png", label: route.onelap_uploaded_at ? "Újraküldés OnelapFitre" : "Küldés OnelapFitre" });

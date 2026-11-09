@@ -323,6 +323,11 @@ def delete_route(route_id: str):
                 from device_import import add_deny
                 add_deny(g.user["id"], prov, deleted_entry[f"{prov}_id"])
             except Exception as exc: log.warning("%s deny-list update hiba: %s", prov, exc)
+    if deleted_entry and deleted_entry.get("igpsport_id"):
+        try:
+            from igpsport_service import add_deny as _igp_deny
+            _igp_deny(g.user["id"], deleted_entry["igpsport_id"])
+        except Exception as exc: log.warning("iGPSport deny-list update hiba: %s", exc)
     if deleted_entry and deleted_entry.get("onelap_id"):
         try:
             from onelap_service import _add_onelap_deny

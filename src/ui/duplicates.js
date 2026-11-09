@@ -21,11 +21,12 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const ts = (e) => { const t = Date.parse(e?.start_time || ""); return Number.isFinite(t) ? t / 1000 : null; };
 const inStats = (e) => e.include_in_stats !== false;
 
-const SRC = { strava: "Strava", garmin: "Garmin", onelap: "OnelapFit", wahoo: "Wahoo", polar: "Polar", fit: "FIT-fájl", manual: "Saját" };
+const SRC = { strava: "Strava", garmin: "Garmin", onelap: "OnelapFit", igpsport: "iGPSport", wahoo: "Wahoo", polar: "Polar", fit: "FIT-fájl", manual: "Saját" };
 function sourceOf(e) {
   if (e.strava_id) return "strava";
   if (e.garmin_id || e.garmin_activity_id) return "garmin";
   if (e.onelap_id) return "onelap";
+  if (e.igpsport_id) return "igpsport";
   if (e.wahoo_id) return "wahoo";
   if (e.polar_id) return "polar";
   if (e.has_fit) return "fit";

@@ -233,7 +233,8 @@
 
         <h3 id="oldalsav">A tervezés oldalsávja</h3>
         <ul>
-          <li><b>Útvonal ⋯ menü</b> (a cím mellett): <a href="#utvonal-javaslat">Útvonal-javaslat</a>, GPX importálása, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
+          <li><b>Útvonal ⋯ menü</b> (a cím mellett): <a href="#utvonal-javaslat">Útvonal-javaslat</a>, GPX importálása, Köztes pontok elrejtése / megjelenítése, Irány megfordítása, Oda-vissza út, Mentés / megosztás, Útvonal törlése.</li>
+          <li><b>Köztes pontok elrejtése:</b> sok útpontnál (pl. betöltött GPX-nél) a számozott jelölők eltakarják a térképet és a színezést – a térkép jobb felső sarkában lévő <b>áthúzott tű</b> gombbal (vagy a ⋯ menüben) eltüntetheted őket; a rajt, a cél és az útvonal látszik, a pontok a listában továbbra is szerkeszthetők. A beállítást a böngésző megjegyzi.</li>
           <li><b>Pontok</b> – mellette a tervezési mód választója (Kerékpár: Aszfalt / Gravel / MTB, Gyalog: Séta / Túra), alatta a pontlista.</li>
           <li>A lista alatt a <b>kereső</b>, a <b>Körtúra</b> kapcsoló és a <b>⚙</b> gomb a ritkábban állított beállításokkal (lásd lent).</li>
           <li><b>Útvonal színezése</b> – egy választóval: <b>Nincs</b>, <b>Szintprofil</b> (meredekség), <b>Szélelemzés</b>, <b>Burkolat</b>. Egyszerre egy lehet aktív.</li>
@@ -579,6 +580,17 @@
           <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → Garminból</span>. Az eredeti FIT-et tölti le (pulzus, kadencia, teljesítmény), és az a könyvtárban is megmarad; ha nincs, a Garmin GPX-exportját.</li>
           <li><b>Automatikus import</b>: ugyanebben az ablakban – vagy a <span class="path">Beállítások → Garmin Connect</span> alatt pipával, a kettő mindig egyformán áll – kapcsolható be: 5, 15, 30 percenként vagy óránként ellenőrzi az új Garmin-edzéseket, és magától behozza őket (értesítéssel). A bekapcsolás előtti edzéseket nem hozza (azokhoz a kézi import kell), a könyvtárból törölteket nem hozza vissza, és ha az <a href="#ismetlodes">Ismétlődés-védelem</a> be van kapcsolva, a más forrásból (Strava, OnelapFit) meglévőket sem.</li>
           <li><b>Útvonal küldése Garminra</b>: tervezés után a <b>Mentés</b> ablakban, vagy a könyvtárban egy tervezett útvonalnál <b>Küldés Garminra</b> – Garmin Connect course lesz belőle, ami az órára / kerékpáros komputerre szinkronizálható navigációhoz.</li>
+        </ul>
+      </section>
+
+      <section id="igpsport">
+        <h2>iGPSport</h2>
+        <p>Az iGPSport kerékpáros komputerek az iGPSport appal szinkronizálnak. A <b>Beállítások → iGPSport</b> alatt az iGPSport-fiókod e-mail címével és jelszavával csatlakozol (nemzetközi fiók: app.igpsport.com). A jelszót nem tároljuk, csak a belépési tokent – ez <b>7 napig</b> érvényes, utána újra be kell lépni (lejárat előtt egy nappal push-értesítést kapsz, a Beállításokban látod, meddig érvényes).</p>
+        <ul>
+          <li><b>Import:</b> Könyvtár → Import → <b>iGPSportból</b> – az edzéseid listája („Új”, „Már megvan”, „Hasonló van (más forrás)”), a kiválasztottak az <b>eredeti FIT-tel</b> kerülnek a könyvtárba. Az iGPSport sokszor fájlnevet ad címnek – ilyenkor napszakos nevet kap (pl. „Reggeli kerékpározás”).</li>
+          <li><b>Automatikus import:</b> a Beállításokban vagy az import ablak tetején (5 / 15 / 30 / 60 percenként).</li>
+          <li><b>Útvonal küldése:</b> a Tervező <b>Mentés</b> ablakában a <b>Küldés iGPSportra</b>, vagy a Könyvtárban a terv ⋯ menüjében. Az útvonal <b>privátként</b> kerül az iGPSport útvonalaid közé (a típussal és a kör / A → B formával), onnan szinkronizáld a komputerre.</li>
+          <li>Ez nem hivatalos kapcsolat (az iGPSport webes felületének hívásai) – ha az iGPSport változtat, átmenetileg leállhat; a Stravás szinkron közben is működik.</li>
         </ul>
       </section>
 

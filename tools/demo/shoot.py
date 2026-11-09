@@ -188,7 +188,11 @@ def main():
 
         # ── mobil (iPhone 13, 2×) ──
         if want("mobil-tervezes", "mobil-utvonal-javaslat", "mobil-ai-elemzes"):
-            ctx = br.new_context(**p.devices["iPhone 13"], locale="hu-HU", timezone_id="Europe/Budapest")
+            # a teljes kijelző (390×844) 2×-esen → 780×1688, mint a Mi ez? oldal képkerete (a gyári iPhone 13
+            # profil 390×664-es nézetet és 3×-ost ad – a telefon zömök lenne)
+            ctx = br.new_context(**{**p.devices["iPhone 13"], "viewport": {"width": 390, "height": 844},
+                                    "screen": {"width": 390, "height": 844}, "device_scale_factor": 2},
+                                 locale="hu-HU", timezone_id="Europe/Budapest")
             ctx.add_init_script(INIT)
             pg = ctx.new_page()
             login(pg)
