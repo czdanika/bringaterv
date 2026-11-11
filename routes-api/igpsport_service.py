@@ -208,7 +208,7 @@ def remove_deny(user_id: str, ride_id: str) -> bool:
 def list_rides(token: str, max_items: int = 30) -> list:
     """Nyers edzéslista (legújabb elöl), oldalanként 20."""
     out, page = [], 1
-    while len(out) < max_items and page <= 50:
+    while len(out) < max_items and page <= 100:   # legfeljebb 2000 edzés (20 / oldal)
         d = _call("GET", "/service/web-gateway/web-analyze/activity/queryMyActivity", token,
                   params={"pageNo": str(page), "pageSize": "20", "sort": "1", "reqType": "0"}) or {}
         rows = d.get("rows") or []

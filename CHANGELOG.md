@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.46.0 – 2026-11-11 – Többéves import, „Csak az újak”
+
+- **Import – többéves fiókok:** minden import-ablakban (Strava, Garmin, OnelapFit, iGPSport, Bryton, Wahoo, Polar) választható 2 év, 5 év és az összes edzés, és legfeljebb 500 / 1000 / mind (eddig 1 év és 100–200). A Strava 100-as oldalakban lapoz, időszak-szűrővel a legújabbakat tartja meg (eddig a legrégebbieket hozta, és 100-nál többet nem). Javítás: a v1.45-ben a nagyobb opciók tévedésből a Strava ablakába kerültek a Garminé helyett.
+- **„Csak az újak” kapcsoló** minden import-ablakban (alapból be): a már importált, törölt vagy más forrásból meglévő edzések rejtve, mellette a számuk (pl. 9 / 90) – nem kell görgetni.
+
 ## v1.45.0 – 2026-11-11 – Üdvözlő ablak, helyes edzésidő a Garmin-importnál
 
 - **Javítás – Garmin-import ideje:** a Garmin egyes dátumformáit (`…T…:00.0`) az import nem értette, és ilyenkor az importálás idejét tette az edzés kezdetének (a Könyvtár pl. „Ma 18:36”-ot mutatott). Most minden formát ért, és ha mégsem kap időt, az eredeti FIT-ből, majd a nyomvonal első időbélyegéből veszi – soha nem az import idejéből. Ugyanez a hiba a Garmin ismétlődés-védelmét is érintette. Adatbázis v22: a már így tárolt edzések valódi indulási ideje visszaáll (FIT / GPX alapján).

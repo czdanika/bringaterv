@@ -463,12 +463,25 @@ async function fetchAndRenderStravaActivities() {
   runBtn.disabled = true;
   statusEl.textContent = "Lekérdezés folyamatban…";
 
-  const params = { per_page: limit };
-  if (range > 0) params.after = Math.floor((Date.now() - range * 86400000) / 1000);
+  const after = range > 0 ? Math.floor((Date.now() - range * 86400000) / 1000) : null;
 
+  // A Strava oldalanként legfeljebb 100 edzést ad – lapozunk. Időszak-szűrővel a Strava a legrégebbitől
+  // küldi a listát, ezért ilyenkor az időszak összes edzését lekérjük, és a legújabbakat tartjuk meg.
   let res;
   try {
-    res = await routesApi.strava.activities(params);
+    const all = [];
+    const maxPages = after ? 40 : Math.ceil(limit / 100);
+    for (let page = 1; page <= maxPages; page++) {
+      const per = after ? 100 : Math.min(100, limit - all.length);
+      if (per <= 0) break;
+      statusEl.textContent = `Lekérdezés folyamatban… (${all.length} edzés)`;
+      const r = await routesApi.strava.activities({ per_page: per, page, ...(after ? { after } : {}) });
+      const acts = r.activities || [];
+      all.push(...acts);
+      if (acts.length < per) break;
+    }
+    all.sort((a, b) => (Date.parse(b.start_date || 0) || 0) - (Date.parse(a.start_date || 0) || 0));
+    res = { activities: all.slice(0, limit) };
   } catch (err) {
     if (err.message?.includes("401") || err.message?.toLowerCase().includes("érvénytelen")) {
       statusEl.innerHTML = `<span style="color:#dc2626">A Strava kapcsolat érvénytelenné vált. <strong>Csatlakozz újra a Beállítások → Strava kapcsolat panelben.</strong></span>`;

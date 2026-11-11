@@ -137,7 +137,7 @@ def list_activities(user_id: str, days: int = 30, limit: int = 30) -> list:
     """Edzések normalizált listája dedup-státusszal (legújabb elöl)."""
     since = time.time() - days * 86400
     out, page = [], 1
-    while len(out) < limit and page <= 20:
+    while len(out) < limit and page <= 40:   # legfeljebb ~2000 edzés (50 / oldal)
         d = _get(user_id, "/v1/workouts", {"page": page, "per_page": 50}) or {}
         ws = d.get("workouts") or []
         for w in ws:

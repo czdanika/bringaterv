@@ -255,11 +255,13 @@ function buildModal(key, p) {
           <label class="strava-import-control"><span>Időszak</span>
             <select data-dev-range>
               <option value="30">Utolsó 30 nap</option><option value="90">Utolsó 90 nap</option>
-              <option value="365">Utolsó 1 év</option><option value="1095">Utolsó 3 év</option>
+              <option value="365" selected>Utolsó 1 év</option><option value="730">Utolsó 2 év</option>
+              <option value="1825">Utolsó 5 év</option><option value="3650">Minden edzés (10 év)</option>
             </select></label>
           <label class="strava-import-control"><span>Max edzés</span>
             <select data-dev-limit>
-              <option value="30" selected>30</option><option value="60">60</option><option value="100">100</option><option value="200">200 (lassú)</option>
+              <option value="30" selected>30</option><option value="100">100</option><option value="200">200</option>
+              <option value="500">500</option><option value="1000">1000 (lassú)</option>
             </select></label>
           <button class="strava-list-btn" data-dev-list type="button">Listázás</button>
         </div>

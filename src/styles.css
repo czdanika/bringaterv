@@ -9033,3 +9033,8 @@ body.is-navigating #toast { z-index: 3100; }
 .library-card-media { display: flex; align-items: center; gap: 6px; flex: none; }
 .library-card-body .library-card-stats { display: flex; flex-wrap: wrap; align-content: center; gap: 4px; margin: 0; min-width: 0; flex: 1; }
 .library-card-body .library-card-preview:empty { background: var(--panel-strong); border: 1px solid var(--line); }
+
+/* „Csak az újak” kapcsoló az import-ablakokban (importFilter.js) */
+.imp-only-new { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.imp-only-empty { padding: 18px 12px; text-align: center; font-size: 13px; color: var(--text-muted); }
+.strava-import-row[hidden] { display: none !important; }

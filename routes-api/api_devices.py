@@ -89,7 +89,7 @@ def device_disconnect(provider: str):
 def device_activities(provider: str):
     _require_connected(provider)
     days = max(1, min(3650, int(request.args.get("days", 30))))
-    limit = max(1, min(200, int(request.args.get("limit", 30))))
+    limit = max(1, min(1000, int(request.args.get("limit", 30))))
     try:
         items = _service(provider).list_activities(g.user["id"], days=days, limit=limit)
     except (DeviceAuthError, DeviceApiError) as exc:

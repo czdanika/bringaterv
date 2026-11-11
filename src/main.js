@@ -56,6 +56,7 @@ import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routeP
 import { initSharedLinks } from "./ui/sharedLinks.js";
 import { initIntegrationState } from "./ui/integrationState.js";
 import { initWelcome } from "./ui/welcome.js";
+import { initImportFilter } from "./ui/importFilter.js";
 import { indoorImport, isIndoor } from "./indoor.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
@@ -2771,6 +2772,7 @@ initAbout({ isNewerVersion });
 // Újdonságok: belépés után egyszer (új verziónál), és a ☰ menüből bármikor
 initSharedLinks({ api: routesApi, shareUrl: (id) => shareRouteUrl(id) });
 initIntegrationState({ api: routesApi });
+initImportFilter();
 initWhatsNew({
   auto: false,   // az üdvözlő ablak után indul (új felhasználónál az üdvözlő mutatja be az appot)
   onGo: (to) => {

@@ -97,7 +97,7 @@ def bryton_ep_disconnect_ep():
 @_with_bryton
 def bryton_ep_activities():
     try:
-        limit = max(1, min(200, int(request.args.get("limit", 30))))
+        limit = max(1, min(2000, int(request.args.get("limit", 30))))
     except ValueError:
         limit = 30
     return jsonify({"activities": bryton_list_activities(g.bryton, g.user["id"], limit=limit), "limit": limit})

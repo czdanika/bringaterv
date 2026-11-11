@@ -16,6 +16,14 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.46.0", date: "2026. november",
+    title: "Régi edzések behozása",
+    items: [
+      { icon: "history", title: "Akár évekre visszamenőleg", text: "Minden importnál választható 2 év, 5 év vagy az összes edzés – a Stravánál, a Garminnál és a komputereknél is." },
+      { icon: "filter", title: "Csak az újak", text: "Egy kapcsoló az import-ablakban elrejti, ami már megvan – nem kell görgetni." },
+    ],
+  },
+  {
     version: "1.45.0", date: "2026. november",
     title: "Pontos idők, tisztább kártyák",
     items: [

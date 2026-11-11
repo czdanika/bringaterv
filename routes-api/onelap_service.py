@@ -279,7 +279,7 @@ def _remove_onelap_deny(user_id: str, ride_id: str) -> bool:
 def _list_rides(sess: dict, start_ts: int, end_ts: int) -> list:
     """Nyers edzéslista [start_ts, end_ts] között (az összes oldal)."""
     rides, page, pages = [], 1, 1
-    while page <= pages and page <= 50:
+    while page <= pages and page <= 200:
         q = {"data_type": "all", "source": "all", "start_time": str(start_ts),
              "end_time": str(end_ts), "p": str(page)}
         d = _call("GET", "/api/v1/app/record/riding/list", sess, query=q) or {}

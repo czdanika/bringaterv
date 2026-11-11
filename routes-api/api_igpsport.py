@@ -97,7 +97,7 @@ def igp_disconnect_ep():
 @_with_igp
 def igp_activities():
     try:
-        limit = max(1, min(100, int(request.args.get("limit", 30))))
+        limit = max(1, min(2000, int(request.args.get("limit", 30))))
     except ValueError:
         limit = 30
     return jsonify({"activities": igp_list_activities(g.igp_token, g.user["id"], limit=limit), "limit": limit})

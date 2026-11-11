@@ -104,7 +104,7 @@ def onelap_disconnect():
 def onelap_activities():
     """Onelap-edzések listája dedup-státusszal (importáláshoz)."""
     days  = max(1, min(3650, int(request.args.get("days", 30))))
-    limit = max(1, min(200, int(request.args.get("limit", 30))))
+    limit = max(1, min(2000, int(request.args.get("limit", 30))))
     items = onelap_list_activities(g.onelap, g.user["id"], days=days, limit=limit)
     return jsonify({"activities": items, "limit": limit})
 

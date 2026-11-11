@@ -2183,20 +2183,21 @@
             <select id="stravaImportRange">
               <option value="30">Utolsó 30 nap</option>
               <option value="90">Utolsó 90 nap</option>
-              <option value="365">Utolsó 1 év</option>
-              <option value="0">Minden activity</option>
+              <option value="365" selected>Utolsó 1 év</option>
+              <option value="730">Utolsó 2 év</option>
+              <option value="1825">Utolsó 5 év</option>
+              <option value="0">Minden edzés</option>
             </select>
           </label>
           <label class="strava-import-control">
             <span>Max activity</span>
             <select id="stravaImportLimit">
               <option value="30" selected>30</option>
-              <option value="60">60</option>
               <option value="100">100</option>
               <option value="200">200</option>
-              <option value="500">500 (lassú)</option>
+              <option value="500">500</option>
               <option value="1000">1000 (lassú)</option>
-              <option value="2000">Mind (nagyon lassú)</option>
+              <option value="2000">Mind (lassú)</option>
             </select>
           </label>
           <button id="stravaImportListBtn" class="strava-list-btn" type="button">
@@ -2278,17 +2279,21 @@
             <select id="garminImportRange">
               <option value="30">Utolsó 30 nap</option>
               <option value="90">Utolsó 90 nap</option>
-              <option value="365">Utolsó 1 év</option>
-              <option value="0">Legutóbbiak</option>
+              <option value="365" selected>Utolsó 1 év</option>
+              <option value="730">Utolsó 2 év</option>
+              <option value="1825">Utolsó 5 év</option>
+              <option value="0">Minden edzés</option>
             </select>
           </label>
           <label class="strava-import-control">
             <span>Max aktivitás</span>
             <select id="garminImportLimit">
               <option value="30" selected>30</option>
-              <option value="60">60</option>
               <option value="100">100</option>
-              <option value="200">200 (lassú)</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+              <option value="1000">1000 (lassú)</option>
+              <option value="2000">Mind (lassú)</option>
             </select>
           </label>
           <button id="garminImportListBtn" class="strava-list-btn" type="button">
@@ -2369,17 +2374,21 @@
             <select id="onelapImportRange">
               <option value="30">Utolsó 30 nap</option>
               <option value="90">Utolsó 90 nap</option>
-              <option value="365">Utolsó 1 év</option>
-              <option value="1095">Utolsó 3 év</option>
+              <option value="365" selected>Utolsó 1 év</option>
+              <option value="730">Utolsó 2 év</option>
+              <option value="1825">Utolsó 5 év</option>
+              <option value="3650">Minden edzés (10 év)</option>
             </select>
           </label>
           <label class="strava-import-control">
             <span>Max edzés</span>
             <select id="onelapImportLimit">
               <option value="30" selected>30</option>
-              <option value="60">60</option>
               <option value="100">100</option>
-              <option value="200">200 (lassú)</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+              <option value="1000">1000 (lassú)</option>
+              <option value="2000">Mind (lassú)</option>
             </select>
           </label>
           <button id="onelapImportListBtn" class="strava-list-btn" type="button">
@@ -2459,9 +2468,11 @@
             <span>Max edzés</span>
             <select id="igpsportImportLimit">
               <option value="30" selected>30</option>
-              <option value="60">60</option>
-              <option value="100">100 (lassú)</option>
-              
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+              <option value="1000">1000 (lassú)</option>
+              <option value="2000">Mind (lassú)</option>
             </select>
           </label>
           <button id="igpsportImportListBtn" class="strava-list-btn" type="button">
@@ -2541,9 +2552,11 @@
             <span>Max edzés</span>
             <select id="brytonImportLimit">
               <option value="30" selected>30</option>
-              <option value="60">60</option>
               <option value="100">100</option>
-              
+              <option value="200">200</option>
+              <option value="500">500</option>
+              <option value="1000">1000 (lassú)</option>
+              <option value="2000">Mind (lassú)</option>
             </select>
           </label>
           <button id="brytonImportListBtn" class="strava-list-btn" type="button">
