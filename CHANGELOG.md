@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.42.0 – 2026-11-11 – Mélyebb edzéselemzés, szebb megosztott oldal, Újdonságok ablak
+
+- **Megosztott oldal – mint az Elemzés:** a nyilvános nézőoldal összefoglalója ugyanaz, mint az app Elemzés füléé (4 fő szám, Átlag | Max táblázat), és ugyanazzal a módszerrel számol (eddig az emelkedés, az átlag- és a maximális sebesség eltérhetett). Új: Szél az edzés alatt (tárolt adatból), szél szerinti térképszínezés és Szél grafikon, Csúcsértékek, Emelkedők, Részidők; szakasz kijelölése húzással vagy kártyasorra kattintva.
+- **Mi látszik a linken?:** a Megosztás ablakban elemenként kikapcsolható a pulzus, teljesítmény, kadencia, hőmérséklet, szél, leírás és az Elemzés-kártyák; a kikapcsolt mért adatok a nézőoldal nyomvonalából is kimaradnak (szerveroldalon szűrve).
+- **Megnyitás-számláló:** hányszor nyitották meg a linket, mikor utoljára (ugyanaz a néző 30 percen belül egyszer; a tulajdonos és a linkelőnézet-robotok nem számítanak), nullázható. Adatbázis v19–v20.
+- **Megosztott linkjeim:** Beállítások → Megosztás alatt minden nyilvános link egy listában – megnyitások, mi látszik rajta, link másolása, megnyitás, megosztás kikapcsolása.
+- **Kezdőlap → Könyvtár szűrve:** a Legutóbbi edzés „Összes edzés →” gombja az Edzés fülre, a Mentett terveid „Mind a Könyvtárban →” gombja a Terv fülre nyitja a Könyvtárat.
+- **Újdonságok ablak:** új verzió után belépéskor egyszer felugrik egy áttekinthető, ikonos összefoglaló (telefonon alulról nyíló lap); a ☰ menü → Újdonságok bármikor újra megnyitja, a korábbi verziók lenyithatók. Tartalom: `src/ui/whatsNew.js` NEWS tömb – kiadáskor új bejegyzés az elejére.
+- **Elemzés – szakasz kijelölése:** a grafikonokon egérrel húzva (telefonon hosszan nyomva, majd húzva) kijelölhető egy szakasz; fölötte a számai (táv, idő, átlagsebesség, emelkedés / ereszkedés, átlagos és legnagyobb meredekség, VAM, pulzus, watt és W/kg, kadencia, hőmérséklet), és minden grafikonon, valamint a térképen is kiemelődik („Térképen” gomb: ráközelít).
+- **Elemzés – emelkedők:** új kártya a nyomvonalból felismert mászásokkal: hossz, átlagos és legnagyobb meredekség, szint, idő, VAM, pulzus, watt / W/kg, Strava-szerű kategória (4. kat. → HC). Egy sorra kattintva a mászás kijelölődik a szintprofilon és a térképen.
+- **Elemzés – csúcsértékek:** az edzés leggyorsabb ideje távokra (5 km … 200 km, futásnál 400 m – maraton), csúcsteljesítménye és legmagasabb átlagpulzusa 5 mp – 60 perc között; az idők és a watt érmet kapnak (arany / ezüst / bronz), ha a korábbi edzéseid között a legjobb 3-ba kerülnek, a pulzus nem (csak az eddigi legmagasabb a viszonyítás); egy értékre kattintva kijelölődik, hol volt. A számítás a teljes, ritkítás előtti adatból megy (a Rekordokkal egyezően).
+- **Elemzés – teljesítmény-görbe:** wattmérős edzésnél a Csúcsértékek kártyán: a legnagyobb átlagteljesítmény 1 mp – 2 óra között, mellette az eddigi legjobbad; fölé állva watt, W/kg és a csúcs %-a. A szerver rekordszámítása ehhez sűrűbb időablakokat számol (egyszeri újraszámolás).
+- **Elemzés – TSS, IF, VI:** wattos terhelési mutatók a szürke sávban. Új beállítás: **FTP** (Beállítások → Kerékpáros profil); üresen a 20 perces csúcs 95%-ából becsül („≈”).
+- **Elemzés – aerob szétcsúszás (Pw:HR / Pa:HR):** a bemelegítés utáni két fél teljesítmény (sebesség) / pulzus arányának romlása, EF-fel – 5% alatt stabil aerob alap.
+- **Elemzés – ugyanezen az útvonalon:** a korábbi edzések ugyanazon a nyomvonalon (új végpont: `POST /api/routes/similar`), különbséggel; egyre kattintva km szerinti időkülönbség-görbe (hol nyertél / vesztettél időt).
+- **Elemzés – szél az edzés alatt:** az edzés idejére az Open-Meteo szele (60 napon túl archívum): hát / oldal / szembeszél aránya, átlagos hatás km/h-ban, kattintható sáv a táv mentén. Mentett edzésnél egyszer számolódik, és az edzés mellé mentődik (PATCH `wind`), utána nincs újabb Open-Meteo-kérés. A lenti adatpanelek között **Szél** panel: térképszínezés hát / oldal / szembeszél szerint, „Szél hatása” grafikon (km/h, + segít, − fékez).
+- **Elemzés – részidők:** a FIT-fájl körei (köregomb / automatikus kör) vagy automatikus 5 km / 1 km-es szakaszok táblázatban (idő, sebesség / tempó, pulzus, watt, emelkedés).
+- **Elemzés – megállások:** hol és mennyit álltál (≥ 1 perc), jelölők a térképen.
+- **Elemzés – érzés és jegyzet:** RPE 1–10 és jegyzet mentett edzéshez (azonnal mentődik), sRPE-terhelés; az AI-elemzés is figyelembe veszi.
+- **Elemzés – pedálozás:** kadencia–watt pontdiagram négy negyeddel; kétoldali wattmérőnél bal / jobb láb aránya a FIT-ből (első és második fél).
+- **Grafikonok – Táv / Idő tengely:** időadatos edzésnél a vízszintes tengely eltelt időre váltható (minden grafikonra, megjegyzi).
+- **Telefon – teljes Elemzés-összefoglaló:** 4 fő szám 2×2-ben, terhelési sáv és Átlag | Max táblázat, mint gépen; a magyarázatok koppintásra.
+- **Javítás:** a teljesítmény-grafikon fejlécében az NP és a munka (kJ) most a teljes, ritkítás előtti adatból számol (hosszú edzésnél eddig kissé eltérhetett).
+- **Javítás – szélelemzés:** a „Szakaszok részletesen” lenyitható rész üres volt (a lista kitöltése kimaradt). Most táblázat: a szakaszok típus szerint összevonva (hát-, oldal-, szembeszél), km-tartomány és hossz, várható időpont és hőmérséklet, szélerő és -irány („DDK felől”), és a haladást segítő / fékező összetevő (pl. „+6 km/h hátszél”).
+- **Leírás:** a GEOID kerékpáros komputerek is az OnelapFit appal szinkronizálnak (a Magene rendszerére épülnek) – a Mi ez?, a Súgó és a beállítások szövege ezt már jelzi.
+
 ## v1.41.0 – 2026-11-09 – Bryton, pontnevek a szerveren, sok pontos tervek
 
 ### Verzió

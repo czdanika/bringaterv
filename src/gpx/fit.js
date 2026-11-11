@@ -80,6 +80,7 @@ export function parseFit(buffer) {
   const defs = new Map();
   const records  = [];
   const sessions = [];
+  const laps     = [];
   let fileId = null;
   const equipment = {};
 
@@ -169,11 +170,22 @@ export function parseFit(buffer) {
           }
           break;
         }
-        // Lap / egyéb üzeneteket figyelmen kívül hagyjuk
+        case MSG_LAP: {
+          // körök (köregomb / automatikus kör): kezdés, vég, idő, táv, kiváltó ok
+          const st = out[2] != null ? (out[2] + FIT_EPOCH_OFFSET_SEC) * 1000 : null;
+          const en = out[253] != null ? (out[253] + FIT_EPOCH_OFFSET_SEC) * 1000 : null;
+          if (st != null && en != null && en > st) {
+            laps.push({ start: st, end: en, elapsed: out[7] != null ? out[7] / 1000 : null,
+                        timer: out[8] != null ? out[8] / 1000 : null, dist: out[9] != null ? out[9] / 100 : null,
+                        trigger: out[24] ?? null });
+          }
+          break;
+        }
+        // egyéb üzeneteket figyelmen kívül hagyjuk
       }
     }
   }
-  return { records, sessions, fileId, equipment };
+  return { records, sessions, laps, fileId, equipment };
 }
 
 /**
@@ -250,6 +262,8 @@ function decodeRecord(raw) {
     spd,                             // m/s
     power: raw[7]  ?? null,         // power (W)
     temp:  raw[13] ?? null,         // °C
+    // left_right_balance (30): az alsó 7 bit %, a 7. bit = a jobb láb értéke; anélkül az oldal ismeretlen
+    rightPct: raw[30] != null && raw[30] !== 0xFF && (raw[30] & 0x80) && (raw[30] & 0x7F) <= 100 ? (raw[30] & 0x7F) : null,
   };
 }
 

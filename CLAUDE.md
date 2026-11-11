@@ -65,7 +65,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_bryton.py       # /api/bryton/* (status, connect, activities, import, auto-sync, route)
 │   ├── bryton_sync.py      # automatikus Bryton import + lejárat előtti push
 │   ├── api_geo.py          # /api/geo/place-name(s) – útpont-nevek a szerveren (Nominatim 1 kérés/mp, gyorsítótár: geocode_names.json)
-│   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás (index.json → DB tartalék)
+│   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás; share.hide szerint szűrve, megnyitás számolva
+│   ├── share.py            # nyilvános linkek: elrejthető adatok (GPX-szűrés), megnyitás-számláló (share_views / share_seen)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
 ├── tools/demo/             # bemutató fiók (seed_demo.py) + a Mi ez? képernyőképei (shoot.py) – tests/.env: DEMO_USER/PASS
@@ -132,6 +133,17 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── sampleEdit.js   # admin: közösségi útvonal nyomvonalának szerkesztése a Tervezőben (?editSample=<id>)
         ├── aiDescribe.js   # „AI-leírás” gomb a leírás-mezőkhöz (tervező mentés, könyvtár szerkesztés) → POST /api/ai/route-description
         ├── zoneDist.js     # Elemzés: zónaeloszlás a lenyíló adatpanelekben (+ térképi jelmagyarázat forrása)
+        ├── rangeStats.js   # Elemzés: szakasz-statisztika (computeRangeStats) + grafikon-kijelölés számsávja
+        ├── climbs.js       # Elemzés: emelkedők felismerése (VAM, kategória)
+        ├── bestEfforts.js  # Elemzés: legjobb távidők, csúcsteljesítmény / -pulzus érmekkel, teljesítmény-görbe, bestPowerEver (FTP-becslés)
+        ├── compare.js      # Elemzés: ugyanazon az útvonalon (POST /api/routes/similar) + időkülönbség-görbe
+        ├── workoutWind.js  # Elemzés: szél az edzés alatt (windService.analyzeWorkoutWind)
+        ├── splits.js       # Elemzés: részidők – FIT-körök vagy 5 km / 1 km
+        ├── stops.js        # Elemzés: megállások + térképjelölők
+        ├── feel.js         # Elemzés: RPE + jegyzet (PATCH rpe / notes)
+        ├── pedaling.js     # Elemzés: kadencia–watt negyedek, bal / jobb láb (FIT)
+        ├── sharedLinks.js  # Beállítások → Megosztás → Megosztott linkjeim (megnyitások, mi látszik, kikapcsolás)
+        ├── whatsNew.js     # „Újdonságok” ablak (belépéskor új verziónál, ☰ menü) – NEWS tömb
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
         │                   #   zóna csúszkák, diagram színek, kerékpáros profil,
         │                   #   backup/restore (initSettings, getCyclistProfile,
@@ -276,9 +288,12 @@ GET    /api/routes/geometry-bulk        Csak edzések geometriája (hőtérképh
 GET    /api/routes/<id>                 GPX szöveg letöltése
 PATCH  /api/routes/<id>                 Metaadat frissítés (name, type, include_in_stats stb.)
 DELETE /api/routes/<id>                 Törlés
+POST   /api/routes/similar              Ugyanazon az útvonalon megtett edzések (összevetéshez)
 GET    /api/routes/<id>/fit             Eredeti FIT bináris
 GET    /api/samples                     Minta útvonalak lista
 GET    /api/samples/<id>                Minta GPX
+GET    /api/routes/shared               Nyilvánosan megosztott elemek + megnyitás-számláló
+DELETE /api/routes/<id>/share-views     Számláló nullázása (PATCH share: {hide:[…]} – mi látszik a linken)
 GET    /api/public/route/<id>           Publikus (auth nélküli) útvonal/edzés: meta + GPX
                                         (PUBLIC_SHARE_ENABLED=false → kikapcsolva)
 GET    /api/user/settings               Felhasználó beállítások
@@ -326,12 +341,13 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.41.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.42.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)
 - **Githubra terveket nem tolunk** – csak kész kód
 - Az `index.html` szlogenje: „Tervezz, tekerj, fedezd fel!"
 - A `src/version.js` az egyetlen forrás a verzióhoz
+- **Kiadáskor az Újdonságok ablakot is bővíteni kell:** `src/ui/whatsNew.js` NEWS tömb elejére új bejegyzés (felhasználói nyelven, röviden, ikonnal – nem a CHANGELOG másolata)
 - **Sorrend: előbb Pi-teszt, csak utána GitHub** – ami nem ment a Pi-n, az nem kerül fel
 - **Munka végén mindig frissíteni:** `CHANGELOG.md` (kiadásnál), `docs/CURRENT_STATE.md` (hol tartunk, mi félkész, mi a következő lépés), és a `ROADMAP.md`-ben kipipálni, ami elkészült. A munka VS Code-ból és a Claude asztali appból is folyhat – a beszélgetés nem kerül át, csak ami fájlban van.

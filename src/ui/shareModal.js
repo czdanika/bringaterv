@@ -26,6 +26,26 @@ const BRAND = {
   x: "M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z",
 };
 
+// Mi látszódjon a nyilvános linken (a szerver a share.hide listát érvényesíti)
+const SHARE_ITEMS = [
+  { key: "hr", label: "Pulzus" }, { key: "power", label: "Teljesítmény" }, { key: "cad", label: "Kadencia" },
+  { key: "temp", label: "Hőmérséklet" }, { key: "wind", label: "Szél" }, { key: "desc", label: "Leírás" },
+  { key: "cards", label: "Elemzés-kártyák", title: "Csúcsértékek, emelkedők, részidők" },
+];
+function fmtWhen(iso) {
+  if (!iso) return "";
+  const d = new Date(String(iso).replace(" ", "T")), now = new Date();
+  if (Number.isNaN(d.getTime())) return "";
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  const hm = d.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+  return diff === 0 ? `ma ${hm}` : diff === 1 ? `tegnap ${hm}` : d.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }) + ` ${hm}`;
+}
+export function viewsText(views, last) {
+  if (!views) return "Még senki nem nyitotta meg.";
+  return `Megnyitva: <b>${views}×</b>${last ? ` · utoljára ${fmtWhen(last)}` : ""}`;
+}
+
 const svg = (path) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${path}"/></svg>`;
 const isTouch = () => matchMedia("(pointer: coarse)").matches;
 
@@ -87,8 +107,16 @@ function build() {
                 <span>A link helyi hálózati címre mutat, mobilnetről nem nyílik meg. Állítsd be a publikus címet: <strong>Beállítások → Megosztás</strong>.</span>
               </div>
               <div class="share-hint">Bárki megnézheti bejelentkezés nélkül, de szerkeszteni nem tudja.</div>
+              <div class="share-views" data-share="views" hidden></div>
             </div>
           </div>
+          <details class="share-what" data-share="what">
+            <summary><i data-lucide="eye" aria-hidden="true"></i><span>Mi látszik a linken?</span><em data-share="what-sum"></em></summary>
+            <div class="share-what-body">
+              <div class="share-what-grid" data-share="what-grid"></div>
+              <div class="share-what-note">A kikapcsolt mért adatok (pulzus, watt, kadencia, hőmérséklet) a letölthető nyomvonalból is kimaradnak. A térkép, a táv, az idő és a szint mindig látszik.</div>
+            </div>
+          </details>
           <div class="share-targets" data-share="targets"></div>
           </div>
         </div>
@@ -183,6 +211,34 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
     q("public").checked = on;
     q("pub-on").hidden = !on;
     q("pub-off").hidden = on;
+    q("what").hidden = !on;
+  }
+  function renderViews(views, last) {
+    const el = q("views");
+    el.innerHTML = `<i data-lucide="eye" aria-hidden="true"></i><span>${viewsText(views, last)}</span>`;
+    el.hidden = false;
+    window.lucide?.createIcons({ root: el });
+  }
+  // „Mi látszik a linken?” – kapcsolónként azonnal mentve
+  function renderWhat(id, hide) {
+    const hidden = new Set(hide);
+    const sum = () => {
+      const off = SHARE_ITEMS.filter((it) => hidden.has(it.key)).map((it) => it.label.toLowerCase());
+      q("what-sum").textContent = off.length ? `rejtve: ${off.join(", ")}` : "minden adat";
+    };
+    q("what-grid").innerHTML = SHARE_ITEMS.map((it) => `<label class="share-what-item"${it.title ? ` title="${it.title}"` : ""}>
+        <span>${it.label}</span><span class="toggle-switch"><input type="checkbox" data-what="${it.key}"${hidden.has(it.key) ? "" : " checked"}><span class="toggle-track"></span></span></label>`).join("");
+    sum();
+    q("what-grid").onchange = async (e) => {
+      const cb = e.target.closest("[data-what]");
+      if (!cb) return;
+      if (cb.checked) hidden.delete(cb.dataset.what); else hidden.add(cb.dataset.what);
+      sum();
+      cb.disabled = true;
+      try { await routesApi.setRouteShare(id, { hide: [...hidden] }); }
+      catch { cb.checked = !cb.checked; if (cb.checked) hidden.delete(cb.dataset.what); else hidden.add(cb.dataset.what); sum(); }
+      finally { cb.disabled = false; }
+    };
   }
   async function loadPublicState(id) {
     const sw = q("public");
@@ -193,6 +249,8 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
       const st = await routesApi.getRoutePublic(id);
       q("pub-off-text").textContent = "Kikapcsolva: a link és a QR-kód nem működik. Bekapcsolva aki megkapja a linket, bejelentkezés nélkül megnézheti az útvonalat és a fő adatait.";
       setPublicUi(!!st.public);
+      renderViews(st.views, st.last_view_at);
+      renderWhat(id, st.share?.hide || []);
     } catch {
       q("pub-off-text").textContent = "Az állapotot most nem sikerült lekérdezni.";
     } finally { sw.disabled = false; }
@@ -206,6 +264,7 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
       await routesApi.setRoutePublic(id, on);
       if (!on) forgetLinkPublic(id);
       setPublicUi(on);
+      if (on) routesApi.getRoutePublic(id).then((st) => { renderViews(st.views, st.last_view_at); renderWhat(id, st.share?.hide || []); }).catch(() => {});
     } catch {
       setPublicUi(!on);
     } finally { e.target.disabled = false; }
@@ -216,7 +275,9 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
     q("no-link").hidden = !!url;
     if (!url) return;
     const id = routeIdFromShareUrl(url);
-    if (publicOn) setPublicUi(true); else if (id) loadPublicState(id);
+    q("views").hidden = true;
+    q("what").hidden = true;
+    if (publicOn) { setPublicUi(true); renderViews(0, null); renderWhat(id, []); } else if (id) loadPublicState(id);
     q("url").value = url;
     q("warn").hidden = !isPrivateHost(url);
     q("targets").innerHTML = targetsHtml(url, title);

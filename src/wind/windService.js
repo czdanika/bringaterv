@@ -442,3 +442,131 @@ export function referencePower(plannedKmh, profile = {}) {
   const Crr = CRR_BY_MODE[profile.routeMode] ?? CRR_BY_MODE.asphalt;
   return inferPower(plannedKmh / 3.6, m, CdA, Crr);
 }
+
+
+// ── Szél egy MÚLTBELI (rögzített) edzés alatt ──────────────────────────────────
+//
+// A tervezéssel szemben itt a valós időbélyegek számítanak: minden ~500 m-es részre
+// a saját iránya és a tényleges áthaladási idő; a szél a legközelebbi (~10 km-enkénti)
+// mintapont óránkénti adatából, két óra között lineárisan. Forrás: 60 napon belül az
+// Open-Meteo forecast API (start_date / end_date a múltra is), régebben az archívum (ERA5).
+const ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive";
+const _histCache = new Map();        // "lat,lng|from|to" → data
+
+const ymdLocal = (d) => {
+  const p = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const g = (t) => p.find((x) => x.type === t)?.value;
+  return `${g("year")}-${g("month")}-${g("day")}`;
+};
+
+async function fetchHistory(points, from, to) {
+  const d0 = ymdLocal(from), d1 = ymdLocal(to);
+  const ageDays = (Date.now() - to.getTime()) / 86400000;
+  const url = ageDays > 60 ? ARCHIVE_URL : OPEN_METEO_URL;
+  const keys = points.map((p) => `${gridKey(p.lat, p.lng)}|${d0}|${d1}`);
+  const missing = [...new Set(keys)].filter((k) => !_histCache.has(k));
+  for (let i = 0; i < missing.length; i += 50) {
+    const part = missing.slice(i, i + 50);
+    const params = new URLSearchParams({
+      latitude:  part.map((k) => k.split("|")[0].split(",")[0]).join(","),
+      longitude: part.map((k) => k.split("|")[0].split(",")[1]).join(","),
+      hourly:    "wind_speed_10m,wind_direction_10m,temperature_2m",
+      timezone:  TZ, start_date: d0, end_date: d1, wind_speed_unit: "kmh",
+    });
+    let res = await fetch(`${url}?${params}`);
+    if (res.status === 429) { await new Promise((r) => setTimeout(r, 2500)); res = await fetch(`${url}?${params}`); }
+    if (!res.ok) throw new Error(`az időjárás-archívum (Open-Meteo) hibát jelzett (${res.status}).`);
+    const json = await res.json();
+    const list = Array.isArray(json) ? json : [json];
+    part.forEach((k, j) => { if (list[j]?.hourly) _histCache.set(k, list[j]); });
+  }
+  return keys.map((k) => _histCache.get(k) || null);
+}
+
+/** Óránkénti sorból egy időpontra: sebesség lineárisan, irány vektorosan interpolálva. */
+function windAt(fc, t) {
+  const times = fc?.hourly?.time;
+  if (!times?.length) return null;
+  // az órák helyi idejűek ("2026-05-22T13:00"); a Date helyi zónát feltételez – a böngésző
+  // zónája az esetek többségében Europe/Budapest, eltérésnél ±1 óra hiba (szélnél elfogadható)
+  const ms = t.getTime();
+  let i = times.findIndex((s) => new Date(s).getTime() > ms);
+  if (i <= 0) i = i === 0 ? 1 : times.length - 1;
+  const a = new Date(times[i - 1]).getTime(), b = new Date(times[i]).getTime();
+  const f = b > a ? Math.max(0, Math.min(1, (ms - a) / (b - a))) : 0;
+  const h = fc.hourly;
+  const s0 = h.wind_speed_10m[i - 1], s1 = h.wind_speed_10m[i];
+  if (s0 == null || s1 == null) return null;
+  const rad = (d) => d * Math.PI / 180;
+  const x = (1 - f) * s0 * Math.sin(rad(h.wind_direction_10m[i - 1])) + f * s1 * Math.sin(rad(h.wind_direction_10m[i]));
+  const y = (1 - f) * s0 * Math.cos(rad(h.wind_direction_10m[i - 1])) + f * s1 * Math.cos(rad(h.wind_direction_10m[i]));
+  const t0 = h.temperature_2m?.[i - 1], t1 = h.temperature_2m?.[i];
+  return {
+    speed: (1 - f) * s0 + f * s1,
+    direction: ((Math.atan2(x, y) * 180 / Math.PI) + 360) % 360,
+    temperature: t0 != null && t1 != null ? (1 - f) * t0 + f * t1 : null,
+  };
+}
+
+/**
+ * Szél egy rögzített edzés alatt.
+ * @param {Array} geometry – időbélyeges pontok [{lat, lng, time(ms)}]
+ * @returns {Promise<{ parts: [{d0, d1, dt, mode, along, speed, direction}], stats } | null>}
+ *   stats: { tailPct, crossPct, headPct (táv szerint), alongAvg (km/h, idő szerint súlyozva;
+ *            + hátszél / − szembeszél), speedAvg, dirAvg, tempAvg, source: "forecast"|"archive" }
+ */
+export async function analyzeWorkoutWind(geometry) {
+  const g = (geometry || []).filter((p) => p.time != null);
+  if (g.length < 10) return null;
+  const cum = [0];
+  for (let i = 1; i < g.length; i++) cum.push(cum[i - 1] + haversineMeters(g[i - 1], g[i]));
+  const total = cum[cum.length - 1];
+  if (total < 1000) return null;
+  const samples = sampleGeometry(g);
+  const from = new Date(g[0].time), to = new Date(g[g.length - 1].time);
+  if (Date.now() - from.getTime() < 0) return null;
+  const fcs = await fetchHistory(samples.map((s) => s.point), from, to);
+  if (!fcs.some(Boolean)) return null;
+
+  const PART = 500;
+  const parts = [];
+  let a = 0, si = 0;
+  for (let b = 1; b < g.length; b++) {
+    if (cum[b] - cum[a] < PART && b < g.length - 1) continue;
+    const dt = (g[b].time - g[a].time) / 1000;
+    const mid = new Date((g[a].time + g[b].time) / 2);
+    const md = (cum[a] + cum[b]) / 2;
+    while (si < samples.length - 1 && samples[si + 1].cumDistM <= md) si++;
+    const fc = fcs[si] || fcs.find(Boolean);
+    const w = windAt(fc, mid);
+    if (w && cum[b] - cum[a] > 50) {
+      const dec = decomposeWind(calcBearing(g[a], g[b]), w.speed, w.direction);
+      parts.push({ d0: cum[a], d1: cum[b], t0: g[a].time, t1: g[b].time, dt: Math.max(0, Math.min(dt, 600)), mode: dec.mode, along: dec.along,
+                   speed: w.speed, direction: w.direction, temperature: w.temperature });
+    }
+    a = b;
+  }
+  if (!parts.length) return null;
+
+  let dist = 0, tail = 0, cross = 0, head = 0, tw = 0, alongT = 0, spdT = 0, vx = 0, vy = 0, tempT = 0, tempW = 0;
+  for (const p of parts) {
+    const len = p.d1 - p.d0;
+    dist += len;
+    if (p.mode === WIND_MODES.TAIL) tail += len; else if (p.mode === WIND_MODES.HEAD) head += len; else cross += len;
+    const wt = p.dt || len / 6;               // idő szerint (ahol nincs idő: ~22 km/h-val)
+    tw += wt; alongT += p.along * wt; spdT += p.speed * wt;
+    vx += p.speed * Math.sin(p.direction * Math.PI / 180) * wt;
+    vy += p.speed * Math.cos(p.direction * Math.PI / 180) * wt;
+    if (p.temperature != null) { tempT += p.temperature * wt; tempW += wt; }
+  }
+  return {
+    parts,
+    stats: {
+      tailPct: tail / dist * 100, crossPct: cross / dist * 100, headPct: head / dist * 100,
+      alongAvg: alongT / tw, speedAvg: spdT / tw,
+      dirAvg: ((Math.atan2(vx, vy) * 180 / Math.PI) + 360) % 360,
+      tempAvg: tempW ? tempT / tempW : null,
+      source: (Date.now() - to.getTime()) / 86400000 > 60 ? "archive" : "forecast",
+    },
+  };
+}

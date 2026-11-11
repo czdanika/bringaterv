@@ -82,6 +82,9 @@ export async function importGpx(file, { sampleWaypoints = false } = {}) {
 
   const geometryWithSpeed = calcSpeedForGeometry(geometry);
   const simplifiedGeometry = simplifyGeometry(geometryWithSpeed);
+  // A teljes (ritkítás előtti) pontsor rejtett mezőben – a „Legjobb részek” csúcsértékeihez
+  // (a ritkított sorban 10 mp-nél nagyobb hézagok vannak). Nem felsorolható, így nem kerül JSON-ba.
+  if (simplifiedGeometry !== geometryWithSpeed) Object.defineProperty(simplifiedGeometry, "full", { value: geometryWithSpeed });
 
   // Metadata
   const metaName = documentXml.querySelector("metadata > name")?.textContent?.trim() || null;

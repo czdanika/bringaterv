@@ -220,7 +220,7 @@ function lastWorkoutCard() {
     r.calories ? `<span>Kalória <b>${Math.round(r.calories)}</b> kcal</span>` : "",
   ].join("");
   return `<section class="home-c home-last">
-      <div class="home-c-head"><h2>Legutóbbi edzés</h2><button type="button" data-home="library">Könyvtár →</button></div>
+      <div class="home-c-head"><h2>Legutóbbi edzés</h2><button type="button" data-home="libraryWorkouts">Összes edzés →</button></div>
       <div class="home-last-in">
         <div class="home-pv" id="homeLastPv"></div>
         <div class="home-last-body">
@@ -247,7 +247,7 @@ function plansCard() {
   const plans = (_items || []).filter((r) => !isWorkout(r)).sort((a, b) => (when(a) < when(b) ? 1 : -1)).slice(0, 3);
   if (!plans.length) return "";
   return `<section class="home-c home-plans">
-      <div class="home-c-head"><h2>Mentett terveid</h2><button type="button" data-home="library">Mind a Könyvtárban →</button></div>
+      <div class="home-c-head"><h2>Mentett terveid</h2><button type="button" data-home="libraryRoutes">Mind a Könyvtárban →</button></div>
       <div class="home-plan-grid">${plans.map((r) => `
         <button type="button" class="home-plan" data-home="open" data-id="${esc(r.id)}" data-name="${esc(r.name || "")}" data-target="plan">
           <span class="home-pv home-pv--sm" data-pv="${esc(r.id)}"></span>

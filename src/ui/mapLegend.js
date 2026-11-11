@@ -14,6 +14,7 @@ const SOURCES = [
   { toggle: "cadMapToggle",       legend: "cadLegend",       title: "Kadencia" },
   { toggle: "powerMapToggle",     legend: "powerLegend",     title: "Teljesítmény" },
   { toggle: "tempMapToggle",      legend: "tempLegend",      title: "Hőmérséklet" },
+  { toggle: "wwMapToggle",        legend: "wwLegend",        title: "Szél" },
   { toggle: "gradeMapToggle",     legend: "gradeLegend",     title: "Lejtés" },
   { toggle: "gradeMapTogglePlan", legend: "gradeLegendPlan", title: "Lejtés" },
   { toggle: "windMapTogglePlan",  legend: "windLegendPlan",  title: "Szél" },

@@ -960,6 +960,7 @@ function _initCyclistProfileSettings() {
   const riderEl = document.getElementById("profileRiderKg");
   const bikeEl  = document.getElementById("profileBikeKg");
   const posEl   = document.getElementById("profilePosition");
+  const ftpEl   = document.getElementById("profileFtp");
   if (!riderEl || !bikeEl || !posEl) return;
 
   function applyToUI() {
@@ -967,6 +968,7 @@ function _initCyclistProfileSettings() {
     riderEl.value = p.riderKg;
     bikeEl.value  = p.bikeKg;
     posEl.value   = p.position;
+    if (ftpEl) ftpEl.value = p.ftp > 0 ? p.ftp : "";
   }
   function save() {
     const payload = {
@@ -974,6 +976,7 @@ function _initCyclistProfileSettings() {
       riderKg:  parseFloat(riderEl.value) || CYCLIST_PROFILE_DEFAULTS.riderKg,
       bikeKg:   parseFloat(bikeEl.value)  || CYCLIST_PROFILE_DEFAULTS.bikeKg,
       position: posEl.value || CYCLIST_PROFILE_DEFAULTS.position,
+      ftp:      Math.round(parseFloat(ftpEl?.value)) || null,      // üres → becsült (20 perces csúcs × 0,95)
     };
     localStorage.setItem("bringaterv.cyclistProfile", JSON.stringify(payload));
     window.dispatchEvent(new CustomEvent("bringaterv:settingChanged", { detail: { kind: "cyclistProfile" } }));
@@ -981,7 +984,7 @@ function _initCyclistProfileSettings() {
   }
 
   applyToUI();
-  [riderEl, bikeEl, posEl].forEach(el => el.addEventListener("change", save));
+  [riderEl, bikeEl, posEl, ftpEl].filter(Boolean).forEach(el => el.addEventListener("change", save));
   window.addEventListener("bringaterv:settingsHydrated", applyToUI);
 }
 

@@ -91,6 +91,8 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   let userLocationMarker;
   let userAccuracyCircle;
   let elevationMarker = null;
+  let rangeLayer = null;
+  let stopLayer = null;
 
   // Hover tooltip state
   let hoverGeometry = [];
@@ -1565,6 +1567,37 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
     clearOverlapHighlight,
     renderSegmentedRoute,
     clearSegmentedRoute,
+
+    // Megállások jelölői (Elemzés): kis kör a perccel; kattintásra a hívó kapja meg az indexet
+    setStopMarkers(stops, { onClick } = {}) {
+      if (stopLayer) { map.removeLayer(stopLayer); stopLayer = null; }
+      if (!stops?.length) return;
+      stopLayer = L.layerGroup(stops.map((st, i) => {
+        const m = L.marker([st.lat, st.lng], {
+          icon: L.divIcon({ className: "stop-marker", html: `<span>${st.label}</span>`, iconSize: null }),
+          title: st.title || "", keyboard: false, riseOnHover: true,
+        });
+        if (onClick) m.on("click", () => onClick(i));
+        return m;
+      })).addTo(map);
+    },
+    focusStop(lat, lng) {
+      map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate: true });
+    },
+
+    // Grafikonon kijelölt szakasz kiemelése (fehér alá + kék vonal)
+    setRangeHighlight(latlngs, { fit = false, padBottom = 0 } = {}) {
+      if (rangeLayer) { map.removeLayer(rangeLayer); rangeLayer = null; }
+      if (!latlngs || latlngs.length < 2) return;
+      rangeLayer = L.layerGroup([
+        L.polyline(latlngs, { color: "#fff", weight: 11, opacity: 0.95, interactive: false }),
+        L.polyline(latlngs, { color: "#2563EB", weight: 6, opacity: 1, interactive: false }),
+      ]).addTo(map);
+      if (fit) map.fitBounds(L.latLngBounds(latlngs), { paddingTopLeft: [40, 40], paddingBottomRight: [40, 40 + padBottom], maxZoom: 16 });
+    },
+    clearRangeHighlight() {
+      if (rangeLayer) { map.removeLayer(rangeLayer); rangeLayer = null; }
+    },
 
     // Szintprofil hover marker
     setElevationMarker(lat, lng) {

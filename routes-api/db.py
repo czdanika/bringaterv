@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 20
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -388,6 +388,24 @@ def _db_init_locked() -> None:
                     log.warning("v18 migráció hiba (%s): %s", ix, exc)
             conn.execute("PRAGMA user_version = 18")
             log.info("DB migrálva v18-ra (%d terv kikerült a statisztikából)", changed)
+        if ver < 19:
+            # v19: a nyilvános linkek megnyitás-számlálója (útvonal-azonosítónként)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS share_views (
+                    rid      TEXT PRIMARY KEY,
+                    views    INTEGER NOT NULL DEFAULT 0,
+                    first_at TEXT,
+                    last_at  TEXT
+                )""")
+            conn.execute("PRAGMA user_version = 19")
+            log.info("DB migrálva v19-re (megosztott linkek számlálója)")
+        if ver < 20:
+            # v20: a megnyitás-számláló „ugyanaz a néző 30 percen belül egyszer” szűrője – adatbázisban,
+            # hogy a több szerverfolyamat is ugyanazt lássa
+            conn.execute("CREATE TABLE IF NOT EXISTS share_seen (key TEXT PRIMARY KEY, at REAL NOT NULL)")
+            conn.execute("CREATE INDEX IF NOT EXISTS share_seen_at ON share_seen(at)")
+            conn.execute("PRAGMA user_version = 20")
+            log.info("DB migrálva v20-ra (megnyitás-szűrő)")
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

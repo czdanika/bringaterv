@@ -20,7 +20,7 @@ from datetime import datetime
 
 from config import log
 
-ALGO_VERSION = 1
+ALGO_VERSION = 2          # 2: sűrűbb csúcsérték-ablakok (teljesítmény-görbéhez)
 
 # Szabványos távok méterben – minden sportra ugyanazt számoljuk, a frontend
 # sportonként választja ki a relevánsakat.
@@ -28,8 +28,9 @@ EFFORT_DISTANCES_M = [
     400, 1000, 5000, 10000, 20000, 21097, 30000, 40000, 42195,
     50000, 80000, 100000, 150000, 200000,
 ]
-# Csúcsérték-ablakok másodpercben
-PEAK_WINDOWS_S = [5, 30, 60, 300, 1200, 3600]
+# Csúcsérték-ablakok másodpercben – a Rekordok a 5 / 30 / 60 / 300 / 1200 / 3600-at mutatja,
+# az Elemzés teljesítmény-görbéje mindet
+PEAK_WINDOWS_S = [1, 2, 5, 10, 15, 30, 60, 120, 180, 300, 600, 1200, 1800, 3600, 5400, 7200]
 
 _MAX_GAP_S = 10          # ennél hosszabb adatszünet = megszakítás (csúcsértékeknél)
 _MAX_SPEED_MS = 35.0     # ~126 km/h – e fölötti ugrás GPS-hiba, kihagyjuk

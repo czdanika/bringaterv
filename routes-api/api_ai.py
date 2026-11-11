@@ -203,6 +203,11 @@ def ai_workout(route_id: str):
     index, idx, entry = _route_entry(route_id)
     if not _is_workout(entry):
         abort(400, description="AI-elemzés csak elvégzett edzéshez kérhető.")
+    # a felhasználó érzése (RPE) és jegyzete is számít – pl. „7/10, fáradt voltam”
+    if isinstance(entry.get("rpe"), int):
+        summary = {**summary, "erzes_rpe_1_10": entry["rpe"]}
+    if entry.get("notes") and not context:
+        context = str(entry["notes"]).strip()[:300]
     try:
         if extended:
             analysis, model, usage = ai_service.analyze_workout_extended(summary, context, history)

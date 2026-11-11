@@ -27,7 +27,7 @@ INIT = """
   let _L;
   Object.defineProperty(window, "L", { configurable: true, get() { return _L; },
     set(v) { _L = v; try { v.Map.addInitHook(function () { window.__map = this; }); } catch (e) {} } });
-  try { localStorage.setItem("bringaterv_install_dismissed", String(Date.now())); } catch (e) {}
+  try { localStorage.setItem("bringaterv_install_dismissed", String(Date.now())); localStorage.setItem("bringaterv.whatsNewSeen", "99.0.0"); } catch (e) {}
 })();
 """
 

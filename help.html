@@ -139,6 +139,7 @@
           <tr><td class="path">Kezdő</td><td>Indításkor ez nyílik: gyors műveletek (új útvonal, GPX / FIT betöltése, Könyvtár, Közösségi utak, Statisztikák), a legutóbbi edzésed térképpel és egy kattintásos Elemzéssel, a mai / holnapi tekerési időjárás szél-ajánlással, a mentett terveid, összesítő a céljaiddal, forma (Eddington-számmal, sorozattal), „egy éve ezen a napon” emlék és aktivitás-naptár.</td></tr>
           <tr><td class="path">Tervezés</td><td>Új útvonal tervezése a térképen: pontok, tervezési módok, becsült idő, szint- és szélelemzés, mentés.</td></tr>
           <tr><td class="path">Elemzés</td><td>Egy rögzített edzés (GPX / FIT) részletes elemzése: adatok, színezett térkép, diagramok, pulzuszónák.</td></tr>
+          <tr><td class="path">☰ → Újdonságok</td><td>Mi változott az utóbbi verziókban – rövid, képes összefoglaló. Új verzió után belépéskor magától is felugrik (egyszer).</td></tr>
           <tr><td class="path">Könyvtár</td><td>Mentett útvonalak és edzések, szűrés, importálás (fájl, Strava, Garmin, OnelapFit, Wahoo, Polar), megosztás.</td></tr>
           <tr><td class="path">Felszerelés</td><td>Bringák (fotóval), alkatrészek, karbantartási emlékeztetők km / üzemóra / nap alapján, szervizfigyelmeztetés és napló – lásd <a href="#felszereles">Felszerelés</a>.</td></tr>
           <tr><td class="path">Statok</td><td>Összesítők, havi statisztika, személyes rekordok, Eddington-szám, edzésterhelés, hőtérkép.</td></tr>
@@ -352,6 +353,37 @@
         <p>Felül az edzés neve, sportja és ideje, mellette a <b>⋯</b> menü (GPX letöltése, Megosztás / PDF, a trackpontok száma, Bezárás). Alatta a négy fő szám: <b>táv, idő</b> (mozgási idő, ha van), <b>átlagsebesség, emelkedés</b> (mellette halványan az ereszkedés, pl. „· 810 m ↓”). Alattuk egy szürke sávban a <b>kalória</b> (forrással – kattintásra az összevetés) és pulzusnál a <b>TRIMP</b> / <b>Edwards</b>-pont, majd egy <b>Átlag | Max</b> táblázat: sebesség, pulzus, kadencia, teljesítmény, hőmérséklet, teljes idő. A pontozottan aláhúzott feliratok fölé állva rövid magyarázat jelenik meg (mi a TRIMP, honnan a kalória, mit jelent a mozgásidő…).</p>
         <p><b>Kalória-összevetés</b>: a „Kalória (forrás) … ›” sorra (telefonon a Kalória kártyára) kattintva egymás mellett látod a számításokat: a <b>rögzítő eszköz / szolgáltatás</b> saját értékét (Strava, Garmin, OnelapFit, Wahoo, Polar, vagy a FIT-fájlban lévő érték), a <b>teljesítményből</b> számoltat (wattmérővel a legpontosabb: a pedálmunka kJ-ban ≈ kcal), a <b>pulzusból</b> számoltat (Keytel-képlet az életkorod, nemed és testsúlyod alapján) és a <b>becslést</b> sebességből, szintből és testsúlyból. A kártya a legmegbízhatóbbat mutatja (eszköz → teljesítmény → pulzus → becslés), mellette az eltérés százalékban. A pulzus alapú érték <b>kalibrálódik</b>: ha legalább 3 olyan edzésed van, ahol wattmérő és pulzusmérő is volt, ezekből személyes szorzót számol. A Strava wattmérő nélkül becsült teljesítménye ebbe nem számít bele.</p>
         <p>A térképen az útvonal fölé húzva az egeret egy buborék mutatja az adott pont sebességét, pulzusát, kadenciáját, teljesítményét és magasságát.</p>
+        <h3 id="legjobb-reszek">Csúcsértékek</h3>
+        <p>Időadatos edzésnél a <b>Csúcsértékek</b> kártya mutatja: a leggyorsabb időt az egyes távokra (kerékpárnál 5, 10, 20 … km, futásnál 400 m – maraton – akkor is, ha a táv egy hosszabb kör közepén volt), a legnagyobb átlagteljesítményt (W és W/kg) és a legmagasabb átlagpulzust, amit 5 mp, 30 mp, 1, 5, 20 és 60 percig tartottál. Ha egy idő vagy watt a korábbi, statisztikába számító, azonos sportú edzéseid között a legjobb 3 közé kerül, <b>érmet</b> kap (arany: egyéni csúcs, ezüst: 2., bronz: 3. legjobb); fölé állva látod az eddigi csúcsot. A pulzus nem kap érmet, hiszen a magasabb pulzus nem jobb eredmény – csak tájékoztat, fölé állva az eddigi legmagasabbal. Egy értékre kattintva a grafikonon és a térképen kijelölődik, hol volt – fölötte a szakasz számaival. Ugyanazzal a módszerrel számol, mint a <a href="#rekordok">Személyes rekordok</a>, a teljes (nem ritkított) adatból.</p>
+        <p><b>Teljesítmény-görbe</b> (wattmérős edzésnél, a kártyán belül): minden időtartamra (1 mp – 2 óra) a legnagyobb átlagteljesítmény, amit ebben az edzésben tartottál – mellette szaggatott vonallal az eddigi legjobbad. Fölé állva (telefonon koppintva) az adott pont: watt, W/kg és hány százaléka az eddigi csúcsnak. Ahol a két vonal összeér, ott ebben az edzésben egyéni csúcsot mentél.</p>
+        <div class="tip"><b>Hogyan számol?</b>Minden szám saját számítás az edzés rögzített adataiból – a pontos módszer (küszöbök, képletek, adatforrás) a <a href="#szamitasok">Hogyan számol az Elemzés?</a> fejezetben.</div>
+        <h3 id="emelkedok">Emelkedők</h3>
+        <p>A fő számok alatti <b>Emelkedők</b> kártya a nyomvonalból magától felismert mászásokat listázza (legalább 25 m szint, 250 m hossz és 2,5% átlag; a lapos ráfutás és tető nélkül). Soronként: hossz, átlagos meredekség, szint, a legmeredekebb ~100 m, hol kezdődik, mennyi idő alatt mentél fel, <b>VAM</b> (függőleges méter / óra – a mászóteljesítmény mércéje), átlagpulzus, watt és W/kg. A nagyobbak kategóriát kapnak, mint a Stravában (hossz × meredekség alapján: 4. kat. → HC). Egy sorra kattintva megnyílik a szintprofil, a mászás kijelölődik a grafikonokon és a térképen, fölötte a részletes számaival. Négynél több emelkedőnél a <b>Mind</b> gomb mutatja a többit.</p>
+        <h3 id="erzes">Érzés és jegyzet</h3>
+        <p>Mentett edzésnél az <b>Érzés és jegyzet</b> kártyán egy koppintással megadhatod, mennyire volt megerőltető (<b>RPE</b>, 1 nagyon könnyű … 10 maximális – Borg-skála), és írhatsz jegyzetet (hogy érezted magad, időjárás, mi történt). Azonnal mentődik. Az RPE-ből szubjektív terhelés számolódik (<b>sRPE</b> = RPE × mozgásperc, Foster-módszer) – pulzus- és wattmérő nélkül is jól követhető. Az AI-elemzés mindkettőt figyelembe veszi.</p>
+        <h3 id="pedalozas">Pedálozás</h3>
+        <p>Wattmérős és kadenciás edzésnél a <b>Pedálozás</b> kártya pontdiagramon mutatja minden mért pontodat (vízszintesen kadencia, függőlegesen watt), négy negyedre osztva az átlagkadenciánál és az FTP-nél: <i>erős, gyors</i> (sprint, tempós emelkedő), <i>erős, lassú</i> (nagy áttétel – izomerő), <i>könnyű, gyors</i> (pörgetés), <i>könnyű, lassú</i>. Kétoldali wattmérőnél (ha az eredeti FIT-ben benne van) a <b>bal / jobb láb</b> aránya is látszik, az első és a második félre külön – fáradással nőhet az eltérés.</p>
+        <h3 id="reszidok">Részidők</h3>
+        <p>A <b>Részidők</b> kártya táblázatban mutatja a szakaszokat: táv, mozgásidő (a sor fölé állva a teljes idő), sebesség (futásnál tempó), átlagpulzus, watt és emelkedés; a sebesség halvány sávként is látszik, a leggyorsabb zölddel. Ha az eredeti FIT-fájlban <b>körök</b> vannak (köregomb vagy automatikus kör a komputeren), alapból azokat látod – a <b>Körök / 5 km</b> kapcsolóval válthatsz. Egyébként automatikus szakaszok: kerékpárnál 5 km (120 km fölött 10 km), futásnál és gyaloglásnál 1 km. Egy sorra kattintva a szakasz kijelölődik a grafikonon és a térképen.</p>
+        <h3 id="megallasok">Megállások</h3>
+        <p>A <b>Megállások</b> kártya: hol és mennyi ideig álltál (legalább 1 perc – 2 km/h alatt, vagy ha a komputer megállt), összesítve. Alapból a 4 leghosszabb, a <b>Mind</b> gombbal az összes időrendben. A <b>térképen</b> pipával jelölők jelennek meg a perccel; egy sorra (vagy jelölőre) kattintva a térkép odaugrik.</p>
+        <h3 id="szel-edzes">Szél az edzés alatt</h3>
+        <p>Rögzített edzésnél a <b>Szél az edzés alatt</b> kártya az edzés idejére és helyére mutatja az Open-Meteo óránkénti szelét (időjárási modell, nem a te mérésed; 60 napnál régebbi edzésnél az archívumból): átlagos erősség és irány, hőmérséklet, hogy a táv hány százaléka volt hát-, oldal- és szembeszél (~500 m-enként a haladási irányodhoz viszonyítva), és az <b>átlagos hatás</b> km/h-ban (+ segített, − fékezett). A színes sáv a táv mentén mutatja a szakaszokat – kattintva kijelölődik. Így megérted, miért ment egy nap lassabban. Mentett edzésnél az első megnyitáskor számolt szél az edzés mellé mentődik, utána nem kell újra lekérdezni. Ilyenkor a lenti adatpanelek között is megjelenik a <b>Szél</b>: a kapcsoló hát- / oldal- / szembeszél szerint színezi a térképen az útvonalat, a grafikon-ikon a szél hatását mutatja km/h-ban a táv mentén.</p>
+        <h3 id="osszevetes">Ugyanezen az útvonalon</h3>
+        <p>Ha korábban már megtetted ugyanezt az útvonalat (ugyanabba az irányba – táv ±12%, a rajt és a cél 400 m-en belül, a vonal legalább 85%-ban fedi), az <b>Ugyanezen az útvonalon</b> kártya kilistázza: dátum, mozgásidő, átlagsebesség és a különbség a mostanihoz (zöld: most gyorsabb). Egyre kattintva <b>időkülönbség-görbe</b> jelenik meg a táv mentén: lent előnyben vagy, fent lemaradásban – így látod, melyik szakaszon nyertél vagy vesztettél időt (a megállások nem számítanak). A görbén mozogva a térképen is látszik a pont. Az ugyanazon edzés más forrásból (pl. Strava és Garmin) nem kerül a listába.</p>
+
+        <h3 id="terhelesi-mutatok">Wattos terhelés és aerob szétcsúszás</h3>
+        <p>A szürke sávban (a kalória, TRIMP és Edwards mellett) wattmérős edzésnél:</p>
+        <ul>
+          <li><b>TSS</b> (Training Stress Score) – az edzés terhelése: idő × intenzitás². 1 óra FTP-n = 100. Kb. 150 alatt másnapra kipiheni az ember, 150–300 1–2 nap, afölött több.</li>
+          <li><b>IF</b> (intenzitási tényező) = NP / FTP. 0,75 alatt könnyű, 0,75–0,85 tempó, 0,85–0,95 küszöb alatti, 0,95–1,05 küszöb.</li>
+          <li><b>VI</b> (változékonysági index) = NP / átlagwatt. 1,05 alatt nagyon egyenletes, 1,15 fölött szaggatott (dombok, csoport, város).</li>
+        </ul>
+        <p>Az <b>FTP</b> (funkcionális küszöbteljesítmény – amit nagyjából egy óráig tartani tudsz) a <span class="path">Beállítások → Kerékpáros profil</span> alatt adható meg. Ha üres, a program az eddigi legjobb 20 perces átlagteljesítményed 95%-ából becsüli – ilyenkor a TSS előtt „≈” jel áll, alatta „(becsült)”.</p>
+        <p><b>Pw:HR / Pa:HR – aerob szétcsúszás</b> (Joe Friel): a bemelegítés (első 10 perc) után az edzés második felében mennyivel romlott a teljesítmény (wattmérő nélkül a sebesség) és a pulzus aránya. 5% alatt stabil – jó az aerob alapod ehhez a hosszhoz és tempóhoz; 5–10% fáradás; 10% fölött túl hosszú vagy kemény volt (vagy meleg, kiszáradás). Legalább 40 perc értékelhető rész kell; sebességgel csak nagyjából sík edzésnél számol. Wattmérővel mellette az <b>EF</b> (hatékonysági tényező = átlagwatt / átlagpulzus): hasonló edzéseken a növekedése a javuló formát jelzi.</p>
+
+        <div class="tip"><b>Telefonon</b>A fő számok 2×2-ben, alattuk ugyanaz a szürke sáv (kalória, TRIMP, Edwards, TSS, IF, VI, Pw:HR) és Átlag | Max táblázat, mint gépen. A pontozottan aláhúzott feliratokra és a kártyák <b>?</b> jelére koppintva feljön a magyarázat (még egy koppintás: eltűnik).</div>
+
         <h3 id="terkep-szinezes">Térkép színezése</h3>
         <ul>
           <li><b>Adatpanelek</b> (gépen a bal oldalon, adatonként egy lenyíló sor – csak amihez az edzésben van adat): <b>Sebesség, Kadencia, Pulzus – zónák, Teljesítmény, Hőmérséklet, Szintprofil</b>. A fejlécben a grafikon-ikon nyitja a grafikont, a kapcsoló színezi a térképet (egyszerre egy színezés lehet bekapcsolva). A címre vagy a nyílra kattintva lenyílik: a zónák színnel, tartománnyal, idővel (lejtésnél távval) és százalékkal – a térkép sarkában ugyanez a jelmagyarázat. Telefonon a Térkép színezése és a Grafikonok gombsor.</li>
@@ -362,6 +394,8 @@
         <p>A sebesség-, kadencia- és teljesítménysávok a <span class="path">Beállítások → Adatzónák</span> alatt, a pulzuszónák az <span class="path">Elemzési beállítások</span> alatt állíthatók.</p>
         <h3>Diagramok</h3>
         <p>Szintprofil, sebesség, pulzus, kadencia, teljesítmény és szél – mind egységes kinézetű. Fejlécük a legfontosabb számokat mutatja (szintprofilnál táv, becsült idő, emelkedés, ereszkedés, legmagasabb pont, nehézség és tempó; a többinél átlag és maximum; a teljesítménynél <b>Átlag, NP</b> (normalizált teljesítmény), <b>Max, Munka</b> (kJ) és <b>W/kg</b> – a testsúly a kerékpáros profilból). A teljesítmény-grafikonon a <b>Nyers / 10 mp / 30 mp</b> gombbal simíthatod a vonalat (a wattmérő másodpercenként erősen ugrál); a maximum mindig a pontos, simítás nélküli csúcs. A <b>hőmérséklet-grafikon</b> (ha az eszköz mért hőmérsékletet: Garmin, Magene, Wahoo…) átlagot, legalacsonyabb és legmagasabb értéket mutat; a vonal 60 mp-es simítással látszik, zónaszín módban hidegtől (kék) melegig (piros) színezve. A <b>Zónaszín</b> gombbal a vonal a zónák / lejtés szerint színeződik, ilyenkor jelmagyarázat is megjelenik. Az egérrel (telefonon az ujjaddal vízszintesen húzva) mozogva minden nyitott diagramon és a térképen is ugyanaz a pont látszik; a címke csak azon a diagramon jelenik meg, amelyiken mozogsz. Tervezésnél a rajt (A), a cél (B) és a közbenső útvonalpontok is jelölve vannak. Függőlegesen húzva továbbra is görgethető az oldal.</p>
+        <p><b>Táv / Idő tengely:</b> időadatos edzésnél a grafikonok fejlécében a <b>Táv</b> gomb átváltja a vízszintes tengelyt eltelt időre (óra:perc) – ilyenkor a megállások is látszanak, a buborékban az eltelt idő is. A választás minden grafikonra érvényes, és megmarad.</p>
+        <p><b>Szakasz kijelölése:</b> bármelyik grafikonon egérrel végighúzva (telefonon hosszan nyomva, majd húzva) kijelölsz egy szakaszt – pl. egy mászást vagy egy tempós részt. A grafikonok fölött megjelennek a számai: táv, idő (megállásnál a mozgásidő), átlagsebesség, emelkedés és ereszkedés, átlagos meredekség (fölé állva a legmeredekebb ~100 m), mászásnál a <b>VAM</b> (függőleges méter / óra), pulzus, teljesítmény (W/kg), kadencia és hőmérséklet. A szakasz minden nyitott grafikonon és a térképen is kiemelődik; a <b>Térképen</b> gomb ráközelít. Törlés: a <b>×</b>, vagy egy kattintás a grafikonra.</p>
         <h3 id="pulzuselemzes">Pulzuselemzés</h3>
         <p>A <b>Pulzus</b> színezésnél a zónasáv megmutatja, mennyi időt töltöttél az egyes pulzuszónákban; a fő számok alatt két terhelésmutató is látszik:</p>
         <ul>
@@ -413,7 +447,7 @@
           <tr><td>Letöltés</td><td>GPX, és ha van, az eredeti FIT.</td></tr>
           <tr><td>Megosztás</td><td>Kép, PDF, nyilvános link (lásd <a href="#megosztas">Megosztás</a>).</td></tr>
           <tr><td>Küldés Garminra</td><td>Tervezett útvonal feltöltése Garmin Connect course-ként navigációhoz (csak Garmin-kapcsolattal látszik).</td></tr>
-          <tr><td>Küldés OnelapFitre</td><td>Tervezett útvonal az OnelapFit útvonalai közé – onnan a Magene komputerre (csak OnelapFit-kapcsolattal látszik).</td></tr>
+          <tr><td>Küldés OnelapFitre</td><td>Tervezett útvonal az OnelapFit útvonalai közé – onnan a Magene / GEOID komputerre (csak OnelapFit-kapcsolattal látszik).</td></tr>
           <tr><td>Frissítés Stravából</td><td>Stravás edzés adatainak (kalória, Relative Effort, teljesítmény, helyszín…) újraletöltése.</td></tr>
           <tr><td>Statisztikába számít</td><td>Ki-be kapcsolható, hogy az edzés beleszámítson-e a Statokba és a rekordokba.</td></tr>
           <tr><td>Törlés</td><td>Végleges törlés (megerősítést kér). Stravás / Garmines edzés törlés után nem jön vissza automatikusan – kivéve, ha a Strava automatikus importnál bekapcsoltad a <a href="#auto-import">Törölt edzések visszatöltése</a> kapcsolót.</td></tr>
@@ -453,7 +487,10 @@
           <li>Könyvtárban mentett elemhez <b>nyilvános link</b> készülhet; bekapcsolva bárki megnyithatja bejelentkezés nélkül (csak megtekintés, szerkesztés nem).</li>
           <li><b>Be / ki kapcsolás:</b> a Megosztás ablakban a <b>Nyilvános link</b> kapcsolóval, útvonalanként. Kikapcsolva a link és a QR-kód nem működik – a nézőoldal azt írja, hogy az útvonal nem elérhető. Újra bekapcsolva ugyanaz a link működik ismét.</li>
           <li>Az újonnan mentett útvonalak alapból <b>nem nyilvánosak</b>. Magától bekapcsol, ha <b>QR-kódos PDF-et</b> vagy <b>QR-kódos megosztó képet</b> készítesz, illetve ha a <b>Mentés és link</b> gombot használod – így a kinyomtatott QR mindig működik.</li>
-          <li>A nézőoldalon a térkép, az adatok és a grafikonok látszanak; a kapcsolókkal a térképen színezhető az útvonal, a diagram gombokkal a grafikonok mutathatók / rejthetők.</li>
+          <li>A nézőoldal ugyanúgy néz ki, mint az Elemzés: fő számok, Átlag | Max táblázat, és edzésnél a <b>Szél az edzés alatt</b>, a <b>Csúcsértékek</b>, az <b>Emelkedők</b> és a <b>Részidők</b> kártya (érmek és „eddigi legjobb” nélkül – a néző nem látja a többi edzésedet). A számok ugyanazzal a módszerrel készülnek, mint az Elemzésben, ezért a kettő egyezik. A kapcsolókkal a térképen színezhető az útvonal (szél szerint is), a diagram gombokkal a grafikonok mutathatók / rejthetők; a grafikonon húzva vagy egy kártyasorra kattintva egy szakasz kijelölhető.</li>
+          <li><b>Mi látszik a linken?</b> A Megosztás ablakban (és a Beállítások → Megosztás alatt) elemenként kikapcsolhatod: pulzus, teljesítmény, kadencia, hőmérséklet, szél, leírás, Elemzés-kártyák. A kikapcsolt mért adatok nem csak a felületről, hanem a nézőoldal által letöltött nyomvonalból is kimaradnak. A térkép, a táv, az idő és a szint mindig látszik. A jegyzeted és az érzés (RPE) soha nem kerül a nyilvános oldalra.</li>
+          <li><b>Megnyitás-számláló:</b> a Megosztás ablakban és a listában látod, hányszor nyitották meg a linket és mikor utoljára. Ugyanaz a néző (böngésző) 30 percen belül csak egyszer számít, a saját megnyitásaid (ha be vagy lépve) és a linkelőnézetet készítő robotok (pl. Facebook, WhatsApp) egyáltalán nem. A számláló nullázható.</li>
+          <li><b>Megosztott linkjeim:</b> <span class="path">Beállítások → Megosztás</span> alatt az összes nyilvános linked egy listában: megnyitások, mi látszik rajta, link másolása, megnyitás, és a <b>Megosztás kikapcsolása</b> (a link „törlése” – később ugyanazzal a címmel újra bekapcsolható).</li>
           <li>Megosztás üzenetben, e-mailben, Facebookon stb., vagy a link másolásával. Mentetlen elemnél a <b>Mentés és link</b> gomb egyszerre ment és linket ad.</li>
           <li>A link címe a <span class="path">Beállítások → Megosztás</span> alatt (vagy a szerveren a <code>SHARE_BASE_URL</code> változóval) állítható – saját domainnél ide írd a nyilvános címet.</li>
         </ul>
@@ -568,7 +605,7 @@
         <p>Strava-kapcsolat nélkül is behozhatod az edzéseidet:</p>
         <ul>
           <li><b>Egy edzés:</b> a Strava weboldalán nyisd meg az edzést → <b>⋯</b> menü → <b>Export Original</b> (eredeti FIT) vagy <b>Export GPX</b>, majd a Bringaterv <span class="path">Könyvtár → Import → GPX / FIT fájlból</span>.</li>
-          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, a Magene az OnelapFit-kapcsolattal, a Wahoo és a Polar a saját kapcsolatával (lásd <a href="#wahoo-polar">Wahoo és Polar</a>), más eszközök (Bryton, Hammerhead…) a saját appjukból exportált FIT / GPX fájllal.</li>
+          <li><b>Közvetlenül az eszközről:</b> a Garmin a Bringaterv Garmin-kapcsolatával, a Magene és a GEOID az OnelapFit-kapcsolattal, a Wahoo és a Polar a saját kapcsolatával (lásd <a href="#wahoo-polar">Wahoo és Polar</a>), más eszközök (Bryton, Hammerhead…) a saját appjukból exportált FIT / GPX fájllal.</li>
         </ul>
       </section>
 
@@ -606,7 +643,7 @@
 
       <section id="onelap">
         <h2>OnelapFit</h2>
-        <p>A Magene kerékpáros komputerek az <b>OnelapFit</b> appal szinkronizálnak – a Bringaterv ezen keresztül éri el őket.</p>
+        <p>A Magene és a GEOID kerékpáros komputerek az <b>OnelapFit</b> appal szinkronizálnak – a Bringaterv ezen keresztül éri el őket.</p>
         <ul>
           <li><b>Csatlakozás</b>: <span class="path">Beállítások → OnelapFit</span>, az OnelapFit e-mail és jelszó. Ha az appba e-mailes kóddal lépsz be, előbb állíts be jelszót az appban (<i>Elfelejtett jelszó</i>). A jelszót nem tároljuk, csak a belépési tokent; ez magától frissül, amíg 60 napon belül megnyitod a Bringatervet.</li>
           <li><b>Edzés-import</b>: <span class="path">Könyvtár → Import → OnelapFitből</span>. Az eredeti FIT is megmarad (pulzus, kadencia, teljesítmény). A GPS nélküli (görgős) edzések kimaradnak.</li>
@@ -753,6 +790,144 @@
           <li><b>Egyenlő sávok</b> – egyszerű 10%-os felosztás (50–100%).</li>
         </ul>
         <p>A zónák a pulzuselemzésben, a pulzus szerinti térképszínezésben és a TRIMP / Edwards terhelésmutatókban jelennek meg.</p>
+      </section>
+
+      <section id="szamitasok">
+        <h2>Hogyan számol az Elemzés?</h2>
+        <p>Ez a fejezet azoknak szól, akik pontosan tudni szeretnék, honnan jön egy-egy szám. Minden érték a <b>saját számításunk</b> az edzés rögzített adataiból (GPS-pontok, idő, magasság, pulzus, kadencia, watt) – a Strava, a Garmin vagy más szolgáltatás kész eredményeit (pl. a Strava „best efforts”) nem vesszük át. Stravából importált edzésnél is a Strava által átadott nyers mért adatsorból számolunk.</p>
+
+        <h3 id="sz-adatok">Milyen adatból?</h3>
+        <ul>
+          <li><b>Teljes és ritkított pontsor.</b> Egy hosszú edzésben akár 15–20 ezer pont is lehet. A térképhez és a grafikonokhoz ebből legfeljebb 3000 pontot használunk (egyenletesen kiválasztva), így gyors marad a rajzolás. A csúcsértékek (Csúcsértékek kártya, teljesítmény-görbe, NP, munka, TSS, aerob szétcsúszás, megállások, ugyanezen az útvonalon) a <b>teljes, ritkítás előtti</b> adatból számolnak, mert ritkítva egy rövid csúcs vagy egy 20 perces szakasz pontos átlaga elveszhetne. A kijelölt szakasz, az emelkedők és a részidők a grafikonnal azonos (ritkított) pontsorból számolnak, hogy pontosan azt mutassák, amit a grafikonon látsz.</li>
+          <li><b>Táv.</b> Két egymást követő GPS-pont távolsága a gömbi (haversine) képlettel, a Föld 6371 km-es sugarával; ezek összege a rajttól mért táv. Az eszköz saját távszámlálóját (kerékérzékelő) itt nem használjuk, ezért pár tized százalék eltérés lehet.</li>
+          <li><b>Mozgásidő.</b> Két pont közötti idő akkor számít mozgásnak, ha a köztük lévő sebesség legalább <b>2 km/h</b>, és a két pont között legfeljebb <b>30 másodperc</b> telt el (a hosszabb kihagyás – automatikus szünet, jelvesztés – nem mozgás). Az átlagsebesség: táv / mozgásidő.</li>
+          <li><b>Emelkedés, ereszkedés.</b> A magassági adat zajos (pár méteres fel-le ingadozás sík terepen is), ezért <b>3 méteres küszöbbel</b> összegzünk: csak akkor számít emelkedésnek, ha a magasság legalább 3 m-rel nőtt az utolsó elfogadott értékhez képest (ereszkedésnél ugyanígy). E nélkül a nyers összeg sík terepen a valós többszöröse lehetne.</li>
+        </ul>
+
+        <h3 id="sz-szakasz">Kijelölt szakasz</h3>
+        <p>A grafikonon kijelölt rész (vagy egy emelkedő, részidő, legjobb rész) a rajttól mért kezdő és záró távval van megadva; a hozzá legközelebbi pontoktól számolunk.</p>
+        <table>
+          <tr><th>Érték</th><th>Számítás</th></tr>
+          <tr><td>Táv</td><td>a záró és a kezdő pont rajttól mért távjának különbsége</td></tr>
+          <tr><td>Idő</td><td>mozgásidő a fenti szabállyal; ha a teljes idő legalább 30 mp-cel több, a felirat „Mozgásidő”, és fölé állva a teljes (megállásokkal együtt eltelt) idő látszik</td></tr>
+          <tr><td>Átl. sebesség</td><td>táv / mozgásidő</td></tr>
+          <tr><td>Emelkedés · ereszkedés</td><td>3 m-es küszöbbel, csak a szakaszon belül</td></tr>
+          <tr><td>Átl. meredekség</td><td>(utolsó magasság − első magasság) / táv × 100 – azaz a nettó szintkülönbség, nem az emelkedések összege</td></tr>
+          <tr><td>Legmeredekebb rész</td><td>~100 m-es csúszó ablakban a legnagyobb (abszolút értékben) meredekség; csak 150 m-nél hosszabb szakaszon, és legalább 80 m-es ablakkal</td></tr>
+          <tr><td>VAM</td><td>emelkedés (m) / mozgásidő (óra) – „függőleges méter óránként”. Csak valódi mászásnál jelenik meg: legalább 30 m emelkedés és legalább 2% átlagos meredekség kell hozzá</td></tr>
+          <tr><td>Pulzus, kadencia</td><td>a pontok egyszerű átlaga és maximuma; a 0 értékek (pl. gurulás közbeni 0 rpm, kieső pulzus) nem számítanak bele</td></tr>
+          <tr><td>Teljesítmény, W/kg</td><td>a pontok átlaga (itt a 0 W is beleszámít, mert a gurulás is a valós munka része), W/kg: átlag / a kerékpáros profilban megadott testsúly</td></tr>
+          <tr><td>Hőmérséklet</td><td>a mért pontok átlaga</td></tr>
+        </table>
+
+        <h3 id="sz-emelkedok">Emelkedők felismerése</h3>
+        <ol>
+          <li><b>Egyenletesítés.</b> A magasságot 25 méterenként újramintázzuk (két pont között lineárisan), majd ±75 m-es mozgóátlaggal simítjuk – így a GPS / barométer kis ugrásai nem bontanak szét egy mászást.</li>
+          <li><b>Mászás keresése.</b> A legmélyebb ponttól indulunk; mászás akkor kezdődik, ha a magasság legalább 10 m-rel nő. Amíg emelkedik, a csúcs követi. A mászás akkor ér véget, ha a csúcs után a magasság többet esik vissza, mint 15 m <i>vagy</i> az addig megmászott szint 25%-a (a nagyobbik), vagy ha a csúcs után 600 m-nél (illetve a mászás hosszának 40%-ánál) tovább nem emelkedik új csúcsra. Így egy rövid lankás vagy kis visszaesés nem vágja ketté a hosszú emelkedőt.</li>
+          <li><b>Levágás.</b> Az elején a lapos ráfutást, a végén a lapos tetőt levágjuk: elöl és hátul addig vágunk, amíg a következő ~200 m-en belül nincs legalább 1,5% emelkedés, illetve a völgytől / csúcstól 3 m-en belüli rész sem számít bele.</li>
+          <li><b>Szűrés.</b> Csak az marad, ami legalább <b>25 m</b> szintet, <b>250 m</b> hosszt és <b>2,5%</b> átlagos meredekséget ad.</li>
+          <li><b>Számok.</b> A listában látható értékek (hossz, meredekség, szint, idő, VAM, pulzus, watt) már a nem simított adatból jönnek, ugyanúgy, mint a kijelölt szakasznál – így kattintás után a sáv pontosan ugyanazt mutatja.</li>
+        </ol>
+        <p><b>Kategória</b> (a Strava-hoz hasonló, de saját képlet): pontszám = hossz (m) × átlagos meredekség (%).</p>
+        <table>
+          <tr><th>Kategória</th><th>Pontszám</th><th>Példa</th></tr>
+          <tr><td>4. kat.</td><td>8 000 – 16 000</td><td>2 km 5%-on</td></tr>
+          <tr><td>3. kat.</td><td>16 000 – 32 000</td><td>4 km 5%-on</td></tr>
+          <tr><td>2. kat.</td><td>32 000 – 64 000</td><td>5 km 7%-on</td></tr>
+          <tr><td>1. kat.</td><td>64 000 – 80 000</td><td>10 km 7%-on</td></tr>
+          <tr><td>HC</td><td>80 000 felett</td><td>12 km 7%-on</td></tr>
+        </table>
+        <p>8 000 alatt nincs kategória – ilyenkor csak sorszámot látsz.</p>
+
+        <h3 id="sz-legjobb">Csúcsértékek: legjobb idők</h3>
+        <ul>
+          <li><b>Módszer:</b> csúszó ablak a kumulált távon. Az ablak eleje és vége végigmegy az edzésen; minden helyzetben megnézzük, mennyi idő alatt tetted meg legalább az adott távot, és a legkisebbet tartjuk meg. Mivel a pontok nem pont 5 000 m-re esnek, az időt arányosan számoljuk a pontos távra (lineáris interpoláció). Így egy hosszabb kör közepén lévő leggyorsabb 10 km is megtalálható.</li>
+          <li><b>Az idő a teljes eltelt idő</b> az adott szakaszon – a megállások is beleszámítanak (ugyanígy, mint a Rekordok oldalon). Ezért ha egy lámpánál álltál a szakaszon belül, az rontja az időt.</li>
+          <li><b>Távok:</b> kerékpár 5, 10, 20, 30, 40, 50, 80, 100, 150, 200 km; futás 400 m, 1 km, 5 km, 10 km, félmaraton, maraton; gyalogtúra 1, 5, 10, 20 km, félmaraton, 30 km, maraton – csak amennyit az edzés hossza elér.</li>
+        </ul>
+
+        <h3 id="sz-csucsok">Csúcsteljesítmény és legmagasabb átlagpulzus</h3>
+        <ul>
+          <li>Az adatot <b>másodpercenkéntire</b> egyenletesítjük: minden egész másodpercre a legutóbbi mért érték kerül. Ha két mérés között <b>10 másodpercnél</b> több telt el, az adatszünet – az ilyen helyet tartalmazó ablak nem számít (különben egy jelvesztés „kitöltött” értéke torzítana).</li>
+          <li>Minden időablakra (5 mp, 30 mp, 1, 5, 20, 60 perc – a görbénél 1 mp-től 2 óráig) a legnagyobb átlagot keressük, amit megszakítás nélkül tartottál. Ugyanígy számol a szerver a Rekordok oldalhoz, ezért a két hely ugyanazt mutatja.</li>
+          <li><b>Hol volt?</b> Egy értékre kattintva az ablak kezdő és záró időpontját a grafikon távjára vetítjük (időpont szerint keresve a pontot), és kijelöljük. A nagyon rövid ablakok (5 mp) legalább 40 m-es kijelölést kapnak, hogy látsszanak.</li>
+        </ul>
+
+        <h3 id="sz-ermek">Érmek és helyezés</h3>
+        <ul>
+          <li>Az értéket az összes többi olyan edzéseddel vetjük össze, amely <b>ugyanabban a sportban</b> van (kerékpár / futás / gyalog), és <b>beleszámít a statisztikába</b>. A többi edzés értékei a Rekordok oldal tárolt számításából jönnek.</li>
+          <li>Helyezés = 1 + azoknak a korábbi edzéseknek a száma, amelyek egyértelműen jobbak (idő: kisebb, watt: nagyobb; a 0,05-nél kisebb eltérés döntetlen, nem rontja a helyezést).</li>
+          <li>Arany: egyéni csúcs (1.), ezüst: 2., bronz: 3. Érem csak akkor jár, ha van mivel összevetni (legalább egy másik edzés). Fölé állva látod az eddigi legjobbat.</li>
+          <li><b>Pulzus:</b> nem kap érmet és helyezést – a magasabb átlagpulzus nem jobb teljesítmény (lehet fáradtság, meleg, betegség is). Fölé állva csak az eddigi legmagasabb értéket látod viszonyításnak.</li>
+        </ul>
+
+        <h3 id="sz-gorbe">Teljesítmény-görbe</h3>
+        <p>Vízszintesen az időtartam logaritmikus skálán (1 mp – 2 óra: 1, 2, 5, 10, 15, 30 mp, 1, 2, 3, 5, 10, 20, 30, 60, 90, 120 perc), függőlegesen a hozzá tartozó legnagyobb átlagteljesítmény ebben az edzésben (sárga). A szaggatott vonal minden pontban az eddigi legjobb ugyanarra az időtartamra – a többi edzésed és ez az edzés közül a nagyobbik. Ahol a két vonal összeér, ott ez az edzés egyéni csúcs. Fölé állva: watt, W/kg és az eddigi csúcs hány százaléka.</p>
+
+        <h3 id="sz-terheles">TSS, IF, VI, NP és munka</h3>
+        <table>
+          <tr><th>Érték</th><th>Képlet</th></tr>
+          <tr><td>NP (normalizált teljesítmény)</td><td>30 másodperces mozgóátlag (idő szerint), ennek minden értékét a 4. hatványra emeljük, átlagoljuk, majd 4. gyököt vonunk. Jobban tükrözi a szaggatott erőkifejtés terhelését, mint a sima átlag.</td></tr>
+          <tr><td>Munka (kJ)</td><td>Σ watt × eltelt idő a mérések között; a 10 mp-nél hosszabb szüneteket 10 mp-re vágjuk (megállás, jelvesztés ne számítson munkának).</td></tr>
+          <tr><td>IF (intenzitás)</td><td>NP / FTP</td></tr>
+          <tr><td>TSS</td><td>wattadatos idő (óra) × IF² × 100 – azaz 1 óra pontosan FTP-n = 100. Az idő a wattmérős mérések közötti idő összege, a 10 mp-nél hosszabb szünetek 10 mp-re vágva.</td></tr>
+          <tr><td>VI (változékonyság)</td><td>NP / átlagteljesítmény</td></tr>
+        </table>
+        <p><b>FTP:</b> ha a <span class="path">Beállítások → Kerékpáros profil</span> alatt megadtad, azt használjuk. Ha nem, becsüljük: az összes, statisztikába számító kerékpáros edzésed legjobb <b>20 perces</b> átlagteljesítménye × <b>0,95</b>. Ilyenkor a TSS előtt „≈” jel áll, alatta „(becsült)”. A becslés csak annyira jó, amennyire egy kemény, egyenletes 20 percet már tekertél: ha csak könnyű túráid vannak, alacsony lesz az FTP, ezért magas az IF és a TSS – érdemes megadni a valódit.</p>
+
+        <h3 id="sz-szetcsuszas">Aerob szétcsúszás (Pw:HR / Pa:HR) és EF</h3>
+        <ol>
+          <li>Csak azokat a pontokat nézzük, ahol van idő, pulzus (40 felett), teljesítmény (wattmérő nélkül: sebesség), és nem álltál (2 km/h felett).</li>
+          <li>Az első <b>10 percet</b> (bemelegítés) kihagyjuk.</li>
+          <li>A maradékot a mozgásban töltött idő szerint két egyenlő félre osztjuk (a 10 mp-nél hosszabb szüneteket 10 mp-re vágva). Legalább <b>40 perc</b> értékelhető idő kell.</li>
+          <li>Mindkét félre: EF = időre súlyozott átlagos teljesítmény (sebesség) / időre súlyozott átlagpulzus.</li>
+          <li>Szétcsúszás = (EF<sub>1</sub> − EF<sub>2</sub>) / EF<sub>1</sub> × 100%. Pozitív: a második félben azonos pulzushoz kevesebb teljesítmény jutott (vagy azonos teljesítményhez magasabb pulzus).</li>
+        </ol>
+        <p>Sebesség alapján (Pa:HR) csak <b>nagyjából sík</b> edzésnél számolunk (legfeljebb 5 m emelkedés / km), mert dombon a sebesség a lejtőtől függ, nem az erőfeszítéstől. A szél ezt is befolyásolhatja. Az EF (wattmérővel) = átlagwatt / átlagpulzus az egész értékelt részre.</p>
+
+        <h3 id="sz-osszevetes">Ugyanezen az útvonalon</h3>
+        <p><b>Melyik edzés számít ugyanannak az útvonalnak?</b> A szerver a következőket nézi:</p>
+        <ul>
+          <li>ugyanaz a sport, és a táv legfeljebb ±12%-kal tér el;</li>
+          <li>a rajt és a cél is 400 m-en belül van (tehát ugyanabba az irányba mentél);</li>
+          <li>a mostani nyomvonal ~60 egyenletesen kiválasztott pontjának legalább <b>85%-a</b> 120 m-en belül van a másik edzés vonalától (pont–szakasz távolsággal mérve).</li>
+        </ul>
+        <p>Az ugyanazon edzés más forrásból (indulás ±15 percen belül, pl. Strava és Garmin) nem kerül a listába. A listában a különbség a tárolt mozgásidőkből jön.</p>
+        <p><b>Időkülönbség-görbe:</b> a mostani edzés minden ~200 m-es pontjához megkeressük a másik edzés legközelebbi pontját (az előző találattól előre, kb. 2 km-es ablakban, hogy egy kör vagy oda-vissza szakasz ne ugorjon rossz ágra), és összevetjük, mennyi mozgásidő telt el addig a két edzésben. Ahol a két nyomvonal 150 m-nél jobban eltér, ott nincs pont. A megállások nem számítanak, így a görbe a tempót hasonlítja, nem a pihenőket. Lent: előnyben vagy, fent: lemaradásban.</p>
+
+        <h3 id="sz-szel">Szél az edzés alatt</h3>
+        <ol>
+          <li><b>Időjárási adat:</b> az útvonal mentén ~10 km-enként (legfeljebb 30) mintapontra kérjük le az Open-Meteo óránkénti szelét (10 m-es magasságban), ~5 km-es rácsra kerekítve. 60 napnál frissebb edzésnél az előrejelző szolgáltatás múltbeli óráiból, régebbinél az ERA5-archívumból (1940-ig visszamenőleg). Ez <b>modelladat</b>, nem mérés: a szél iránya és nagyságrendje jól egyezik, de egy völgyben, erdő mellett vagy város között a valóság eltérhet.</li>
+          <li><b>Irány:</b> a nyomvonalat ~500 m-es részekre bontjuk; mindegyiknek a saját haladási iránya (a rész első és utolsó pontja között) és a tényleges áthaladási ideje (a részen belüli középidő) számít.</li>
+          <li><b>Szél abban a percben:</b> a legközelebbi mintapont adatából, a két szomszédos óra között időarányosan: a sebesség lineárisan, az irány vektorosan (így pl. a 350° és 10° közé nem 180° jön ki).</li>
+          <li><b>Felbontás:</b> a szög a szél „felé fúj” iránya és a haladási irányod között: 0–60° hátszél, 60–120° oldalszél, 120–180° szembeszél. A haladás irányú összetevő = szélsebesség × cos(szög): + segít, − fékez.</li>
+          <li><b>Összesítés:</b> a hát- / oldal- / szembeszél aránya <b>táv</b> szerint; az átlagos hatás, a szélerősség és a hőmérséklet <b>idő</b> szerint súlyozva (ahol lassabban mentél, ott tovább hatott a szél). Az átlagos irány vektorátlag.</li>
+          <li><b>Sáv és térképszínezés:</b> az egymás utáni azonos típusú részeket összevonjuk, a nagyon rövideket (a táv 3%-a alatt, legfeljebb 1,5 km) a hosszabb szomszédjukba olvasztjuk, hogy áttekinthető legyen.</li>
+          <li><b>Tárolás:</b> mentett edzésnél az első megnyitáskor számolt eredmény az edzés mellé mentődik (kb. fél kilobájt), utána onnan jön – a múltbeli szél nem változik, nincs újabb lekérdezés.</li>
+        </ol>
+
+        <h3 id="sz-reszidok">Részidők</h3>
+        <ul>
+          <li><b>Körök:</b> az eredeti FIT-fájl kör-üzeneteiből (köregomb vagy a komputer automatikus köre) a kezdő és záró időpont; legalább 2, egyenként legalább 10 másodperces kör kell. Az időpontokat a grafikon távjára vetítjük, és a szakasz számait ugyanúgy számoljuk, mint egy kijelölésnél – ezért a kör ideje itt <b>mozgásidő</b>, és eltérhet a komputer által mutatott kör-időtől, ha álltál.</li>
+          <li><b>Automatikus szakaszok:</b> kerékpárnál 5 km (120 km fölött 10 km), futásnál és gyaloglásnál 1 km; az utolsó a maradék.</li>
+          <li>A sebesség-sáv a leglassabbtól (rövid) a leggyorsabbig (teljes szélesség) arányos; a leggyorsabb zöld. Futásnál tempó (perc/km) látszik.</li>
+        </ul>
+
+        <h3 id="sz-megallasok">Megállások</h3>
+        <p>Állásnak számít, ahol a két pont közötti sebesség 2 km/h alatt van, vagy a két pont között 30 mp-nél több telt el, miközben 50 m-nél kevesebbet haladtál (a komputer automatikus szünete). Az egymás utáni álló részeket összevonjuk; ami legalább <b>1 perc</b>, az megjelenik. Az edzés legvégén álló rész nem számít (a rögzítés leállítása előtti percek).</p>
+
+        <h3 id="sz-rpe">Érzés (RPE) és sRPE</h3>
+        <p>Az RPE a Borg-féle 1–10-es skála (1 nagyon könnyű … 10 maximális). A szubjektív terhelés (Foster-módszer): <b>sRPE = RPE × mozgásperc</b> – pl. 6-os érzés 120 perc alatt = 720. Pulzus- és wattmérő nélkül is jól összevethető edzésről edzésre. Az AI-elemzés megkapja az RPE-t, a jegyzetet pedig akkor, ha az elemzés kérésekor nem írtál külön megjegyzést.</p>
+
+        <h3 id="sz-pedalozas">Pedálozás</h3>
+        <ul>
+          <li>Csak azok a pontok, ahol a kadencia és a teljesítmény is 0-nál nagyobb (a gurulás kimarad).</li>
+          <li>A négy negyedet két vonal választja el: az edzés <b>átlagkadenciája</b> és az <b>FTP</b> (ha nincs megadva és nem is becsülhető: az átlagteljesítmény). A százalék a pontok aránya – másodpercenkénti rögzítésnél gyakorlatilag az idő aránya.</li>
+          <li><b>Bal / jobb láb:</b> az eredeti FIT-fájl „left_right_balance” mezőjéből, csak ha a wattmérő megjelöli, melyik láb értéke (a jobb láb százaléka; a bal = 100 − jobb). Az első és a második fél külön is látszik. Egyoldali wattmérő (pl. csak bal hajtókar) ezt nem méri – ott nem jelenik meg.</li>
+        </ul>
+
+        <h3 id="sz-tengely">Idő tengely</h3>
+        <p>Idő módban minden grafikonpont a saját rögzítési idejénél (a rajttól eltelt idő) áll, így a megállások vízszintes szakaszként látszanak. A kijelölés, a jelölők és a többi grafikonnal / a térképpel való együttmozgás távolság szerint marad, ezért idő módban is ugyanazt a szakaszt jelöli ki, mint táv módban.</p>
       </section>
 
       <section id="billentyuk">

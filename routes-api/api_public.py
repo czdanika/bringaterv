@@ -16,9 +16,12 @@ import glob
 import json
 import os
 
-from flask import Blueprint, abort, jsonify
+import jwt as pyjwt
+from flask import Blueprint, abort, jsonify, request
 
 from config import MULTI_DATA_DIR, log
+from security import _decode_token
+from share import count_view, hidden, strip_gpx
 from storage import _user_routes_dir
 from utils import _safe_id
 
@@ -82,7 +85,29 @@ def _meta_from_index(e: dict) -> dict:
         "maxPower":    _num(e.get("max_watts")),
         "calories":    _num(e.get("calories")),
         "kilojoules":  _num(e.get("kilojoules")),
+        "avgTemp":     _num(e.get("avg_temp")),
+        "tempSource":  e.get("temp_source") or None,
+        "wind":        e.get("wind") if isinstance(e.get("wind"), dict) else None,
     }
+
+
+# a tulajdonos által elrejtett adatok a metából is kikerülnek
+_HIDE_META = {
+    "hr": ("avgHr", "maxHr"), "power": ("avgPower", "maxPower", "kilojoules"), "cad": ("avgCadence",),
+    "temp": ("avgTemp", "tempSource"), "desc": ("description",), "wind": ("wind",),
+}
+
+
+def _is_owner(routes_dir: str) -> bool:
+    """A megnyitó maga a tulajdonos? (a nézőoldal elküldi a belépési tokent, ha van) – őt nem számoljuk."""
+    h = request.headers.get("Authorization", "")
+    if not h.startswith("Bearer "):
+        return False
+    try:
+        sub = _decode_token(h[7:]).get("sub")
+    except pyjwt.InvalidTokenError:
+        return False
+    return bool(sub) and os.path.basename(os.path.dirname(routes_dir)) == sub
 
 
 @bp.route("/api/public/route/<rid>", methods=["GET"])
@@ -105,4 +130,19 @@ def public_route(rid: str):
     if gpx is None:
         return jsonify({"found": False}), 404
 
+    hide = hidden(entry)
+    for k in hide:
+        for f in _HIDE_META.get(k, ()):
+            meta[f] = None
+    meta["hide"] = sorted(hide)
+    gpx = strip_gpx(gpx, hide)
+
+    owner = _is_owner(routes_dir)
+    if not owner:
+        try:
+            ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+            count_view(rid, ip, request.headers.get("User-Agent", ""))
+        except Exception as exc:   # a számláló hibája ne akassza meg a megjelenítést
+            log.warning("Megnyitás számlálása (%s): %s", rid, exc)
+    meta["owner"] = owner
     return jsonify({"found": True, "type": meta["kind"], "meta": meta, "gpx": gpx})

@@ -12,6 +12,7 @@ from auth import require_auth
 from config import log
 from db import _db
 from storage import _resolve_dirs
+from share import clean_share, reset_views, views_of
 from strava_service import _add_strava_deny
 from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index, append_index
 
@@ -102,6 +103,85 @@ def routes_geometry_bulk():
             "points":   pts,
         })
     return jsonify({"tracks": out})
+
+
+def _xy(lat0):
+    """Egyenközű vetítés méterbe egy referencia-szélesség körül (rövid távokra elég pontos)."""
+    import math
+    kx = 111320.0 * math.cos(math.radians(lat0))
+    return lambda p: (p[1] * kx, p[0] * 110540.0)
+
+
+def _seg_dist(p, a, b) -> float:
+    ax, ay = a
+    bx, by = b
+    px, py = p
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    t = 0.0 if L == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+    qx, qy = ax + t * dx - px, ay + t * dy - py
+    return (qx * qx + qy * qy) ** 0.5
+
+
+@bp.route("/api/routes/similar", methods=["POST"])
+@require_auth
+def similar_routes():
+    """Ugyanazon az útvonalon (ugyanabba az irányba) megtett korábbi edzések.
+    Bemenet: {points: [[lat, lng], …] (≤ 400), distance_km, exclude_id?, sport?}
+    Egyezés: táv ±12%, rajt és cél 400 m-en belül, és a nyomvonal mintapontjainak ≥ 85%-a
+    120 m-en belül van a másik edzés vonalától."""
+    data = request.get_json(silent=True) or {}
+    pts = data.get("points") or []
+    try:
+        pts = [(float(p[0]), float(p[1])) for p in pts[:400]]
+        dist_km = float(data.get("distance_km") or 0)
+    except (TypeError, ValueError, IndexError):
+        abort(400, description="Hibás bemenet.")
+    if len(pts) < 5 or dist_km <= 0:
+        return jsonify({"items": []})
+    exclude = str(data.get("exclude_id") or "")
+    sport = (data.get("sport") or "cycling").lower()
+    proj = _xy(pts[0][0])
+    q = [proj(p) for p in pts]
+    step = max(1, len(q) // 60)
+    samples = q[::step]
+
+    user_dir, idx = _resolve_dirs()
+    out = []
+    checked = 0
+    for e in _load_index(idx):
+        rid = e.get("id")
+        if not rid or rid == exclude or e.get("type") != "workout":
+            continue
+        d = e.get("distance")
+        if not isinstance(d, (int, float)) or abs(d - dist_km) > dist_km * 0.12:
+            continue
+        if (e.get("sport_type") or "cycling").lower() != sport:
+            continue
+        checked += 1
+        if checked > 400:
+            break
+        cand = _extract_track_points(os.path.join(user_dir, f"{rid}.gpx"), every=2, max_points=1500)
+        if len(cand) < 5:
+            continue
+        c = [proj(p) for p in cand]
+        dd = lambda a, b: ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+        if dd(c[0], q[0]) > 400 or dd(c[-1], q[-1]) > 400:
+            continue
+        hits = 0
+        for sp in samples:
+            if any(_seg_dist(sp, c[i], c[i + 1]) <= 120 for i in range(len(c) - 1)):
+                hits += 1
+        if hits / len(samples) < 0.85:
+            continue
+        out.append({
+            "id": rid, "name": e.get("name") or "", "date": e.get("date"),
+            "start_time": e.get("start_time"), "distance": d, "duration": e.get("duration"),
+            "include_in_stats": e.get("include_in_stats", True),
+            "match": round(hits / len(samples), 2),
+        })
+    out.sort(key=lambda r: r.get("start_time") or r.get("date") or "", reverse=True)
+    return jsonify({"items": out[:12]})
 
 
 @bp.route("/api/routes", methods=["POST"])
@@ -269,10 +349,34 @@ def update_route(route_id: str):
         entry["public"] = bool(data["public"])
         if entry["public"]:
             entry.setdefault("shared_at", _now_dt())
+    if "share" in data:
+        # mi látszódjon a nyilvános linken (elrejtett adatok)
+        entry["share"] = clean_share(data["share"])
     if "surface" in data:
         surface = _clean_surface(data["surface"])
         if surface: entry["surface"] = surface
         else: entry.pop("surface", None)
+    if "rpe" in data:
+        # érzés (RPE, Borg CR10: 1 nagyon könnyű … 10 maximális); üres = törlés
+        try:
+            rpe = int(data["rpe"]) if data["rpe"] not in (None, "") else None
+        except (TypeError, ValueError):
+            rpe = None
+        if rpe is not None and 1 <= rpe <= 10: entry["rpe"] = rpe
+        else: entry.pop("rpe", None)
+    if "wind" in data:
+        # „Szél az edzés alatt” összesítő (a kliens számolja az Open-Meteóból, egyszer) – tömör, ≤ 8 KB
+        import json as _json
+        w = data["wind"]
+        if w is None:
+            entry.pop("wind", None)
+        elif isinstance(w, dict) and isinstance(w.get("runs"), list) and isinstance(w.get("stats"), dict) \
+                and len(w["runs"]) <= 300 and len(_json.dumps(w)) <= 8192:
+            entry["wind"] = {k: w[k] for k in ("v", "at", "stats", "runs") if k in w}
+    if "notes" in data:
+        notes = str(data["notes"] or "").strip()[:2000]
+        if notes: entry["notes"] = notes
+        else: entry.pop("notes", None)
     if "bike_id" in data:
         # „Bringáim”: a felhasználó kézzel rendelte hozzá (üres = automatikus, a bike_name alapján)
         bid = str(data["bike_id"] or "").strip()[:40]
@@ -294,7 +398,38 @@ def route_public_state(route_id: str):
     entry = next((r for r in _load_index(idx) if r.get("id") == route_id), None)
     if not entry:
         abort(404, description="Útvonal nem található.")
-    return jsonify({"public": entry.get("public") is True, "shared_at": entry.get("shared_at")})
+    v = views_of([route_id]).get(route_id) or {}
+    return jsonify({"public": entry.get("public") is True, "shared_at": entry.get("shared_at"),
+                    "share": entry.get("share") or {"hide": []},
+                    "views": v.get("views", 0), "last_view_at": v.get("last_at")})
+
+
+@bp.route("/api/routes/shared", methods=["GET"])
+@require_auth
+def shared_routes():
+    """A nyilvánosan megosztott útvonalak / edzések: megnyitások, mi van elrejtve."""
+    _, idx = _resolve_dirs()
+    items = [e for e in _load_index(idx) if e.get("public") is True]
+    views = views_of([e.get("id") for e in items])
+    out = [{"id": e.get("id"), "name": e.get("name"), "type": e.get("type"), "sport_type": e.get("sport_type"),
+            "date": e.get("start_time") or e.get("date"), "distance": e.get("distance"),
+            "shared_at": e.get("shared_at"), "share": e.get("share") or {"hide": []},
+            "views": (views.get(e.get("id")) or {}).get("views", 0),
+            "last_view_at": (views.get(e.get("id")) or {}).get("last_at")} for e in items]
+    out.sort(key=lambda x: x.get("shared_at") or "", reverse=True)
+    return jsonify({"items": out})
+
+
+@bp.route("/api/routes/<route_id>/share-views", methods=["DELETE"])
+@require_auth
+def reset_share_views(route_id: str):
+    """A megnyitás-számláló nullázása."""
+    route_id = _safe_id(route_id)
+    _, idx = _resolve_dirs()
+    if not any(r.get("id") == route_id for r in _load_index(idx)):
+        abort(404, description="Útvonal nem található.")
+    reset_views(route_id)
+    return jsonify({"ok": True})
 
 
 @bp.route("/api/routes/<route_id>", methods=["DELETE"])

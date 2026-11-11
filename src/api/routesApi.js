@@ -116,6 +116,15 @@ export const routesApi = {
   },
 
   /**
+   * Ugyanazon az útvonalon megtett korábbi edzések (összevetéshez).
+   * @param {{ points: [number,number][], distance_km: number, exclude_id?: string, sport?: string }} body
+   * @returns {Promise<{ items: Array<{id, name, date, start_time, distance, duration, match}> }>}
+   */
+  similarRoutes(body) {
+    return fetchJson(`${BASE}/routes/similar`, { method: "POST", body: JSON.stringify(body) });
+  },
+
+  /**
    * Új útvonal mentése a szerverre.
    *
    * @param {{
@@ -172,6 +181,11 @@ export const routesApi = {
   /** Nyilvános megosztási link állapota / be-ki kapcsolása. */
   getRoutePublic(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/public`); },
   setRoutePublic(id, on) { return this.updateRoute(id, { public: !!on }); },
+  /** Mi látszódjon a nyilvános linken: { hide: ["hr", "power", "cad", "temp", "desc", "wind", "cards"] } */
+  setRouteShare(id, share) { return this.updateRoute(id, { share }); },
+  /** A nyilvánosan megosztott elemek listája megnyitás-számlálóval. */
+  getSharedRoutes() { return fetchJson(`${BASE}/routes/shared`); },
+  resetShareViews(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/share-views`, { method: "DELETE" }); },
 
   updateRoute(id, fields) {
     return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}`, {

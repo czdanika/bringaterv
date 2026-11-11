@@ -10,12 +10,23 @@ import { createI18n } from "./i18n/i18n.js";
 import { createRouteStore } from "./state/routeStore.js";
 import { createMapAdapter, SEGMENT_COLORS } from "./map/mapAdapter.js";
 import { downloadGpx, exportGpx, importGpx, calcElevationFromGeometry, calcTiming } from "./gpx/gpx.js";
-import { fitToGpx } from "./gpx/fit.js";
+import { fitToGpx, parseFit } from "./gpx/fit.js";
 import { createToast, formatDistance, showResultDialog } from "./ui/dom.js";
 import { searchPlaces, reverseGeocode, reverseTown, cachedPlaceNames } from "./ui/search.js";
 import { initRouteSuggest, isSuggestActive, handleMapClick as suggestMapClick, close as closeSuggest } from "./ui/routeSuggest.js";
 import { initTrailInfo } from "./ui/trailInfo.js";
 import { initNavigation } from "./ui/navigation.js";
+import { computeRangeStats, renderRangeBar, trackDists } from "./ui/rangeStats.js";
+import { initClimbs, clearClimbHighlight } from "./ui/climbs.js";
+import { initCompare } from "./ui/compare.js";
+import { initWorkoutWind, clearWindHighlight, getWorkoutWind } from "./ui/workoutWind.js";
+import { WIND_COLORS, WIND_LABELS } from "./wind/windService.js";
+import { initSplits, clearSplitsHighlight } from "./ui/splits.js";
+import { initStops } from "./ui/stops.js";
+import { initFeel } from "./ui/feel.js";
+import { initPedaling } from "./ui/pedaling.js";
+import { initBestEfforts, clearBestHighlight, bestPowerEver } from "./ui/bestEfforts.js";
+import { attachTimes, getChartXMode, setChartXMode } from "./ui/elevationProfile.js";
 import { buildElevationData, buildSpeedData, buildHrData, buildCadData, buildPowerData, buildTempData, tempColor, TEMP_BANDS, powerSummary, initElevationChart, buildTrackDistances, CHART_SOLID_GRAY } from "./ui/elevationProfile.js";
 import { routesApi } from "./api/routesApi.js";
 import { analyzeSurface, MODE_LABELS } from "./map/surfaceAnalysis.js";
@@ -42,6 +53,7 @@ function calorieSourceOf(e) {
 }
 import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
+import { initSharedLinks } from "./ui/sharedLinks.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
 import { initHome, updateHome } from "./ui/home.js";
@@ -49,6 +61,7 @@ import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js"
 import { initNotifications } from "./ui/notifications.js";
 import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
 import { initAbout } from "./ui/about.js";
+import { initWhatsNew } from "./ui/whatsNew.js";
 import { initFeedback } from "./ui/feedback.js";
 import { initAccount } from "./ui/account.js";
 import {
@@ -928,6 +941,9 @@ initHome({
       document.querySelector(`.stats-nav-item[data-stats-view="${view}"]`)?.click();
     },
     library: () => switchTab("library"),
+    // a Könyvtár a megfelelő fülre szűrve (Edzés / Terv)
+    libraryWorkouts: () => { switchTab("library"); document.querySelector('[data-lib-type="workout"]')?.click(); },
+    libraryRoutes: () => { switchTab("library"); document.querySelector('[data-lib-type="route"]')?.click(); },
     openItem: (id, name, target) => loadRouteFromLibrary(id, false, name, target),
   },
 });
@@ -1058,6 +1074,8 @@ function waypointInfo(wp) {
 // Megosztott szinkron objektum: az összes chart instance ide kerül feltöltés után,
 // hogy hover eseménykor egymást szinkronizálhassák.
 const chartSync = { all: [] };
+// Az adat-grafikonok típusai (a tervezés szélgrafikonja – "wind" – külön él)
+const CHART_TYPES = ["elevation", "speed", "hr", "cad", "power", "temp", "ww"];
 
 function makeHoverHandler() {
   return {
@@ -1071,7 +1089,56 @@ function makeHoverHandler() {
       mapAdapter.clearElevationMarker();
       chartSync.all.forEach(c => c?.clearHover());
     },
+    // Szakasz kijelölése valamelyik grafikonon → minden grafikon, a térkép és a számsáv
+    onSelect(range, src, done) {
+      chartSync.all.forEach(c => { if (c && c !== src) c.setSelection(range); });
+      setChartRange(range, { fromChart: true, done });
+    },
   };
+}
+
+// ── Kijelölt szakasz (grafikonon húzva, vagy az emelkedő-listából) ──────────
+let _chartRange = null;
+let _chartRangeGeom = null;     // melyik geometriára vonatkozik (új edzésnél törlődik)
+let _chartRangeDists = null;
+function setChartRange(range, { fromChart = false, done = true, fit = false } = {}) {
+  _chartRange = range && range.d1 > range.d0 ? range : null;
+  if (!fromChart) chartSync.all.forEach(c => c?.setSelection(_chartRange));
+  const bar = document.querySelector("#chartRangeBar");
+  if (!_chartRange) { clearClimbHighlight(); clearBestHighlight(); clearWindHighlight(); clearSplitsHighlight(); }
+  if (!_chartRange || !activeGeometry?.length) {
+    mapAdapter.clearRangeHighlight();
+    renderRangeBar(bar, null);
+    return;
+  }
+  if (_chartRangeGeom !== activeGeometry) { _chartRangeGeom = activeGeometry; _chartRangeDists = trackDists(activeGeometry); }
+  const st = computeRangeStats(activeGeometry, _chartRange.d0, _chartRange.d1,
+    { dists: _chartRangeDists, riderKg: getCyclistProfile()?.riderKg });
+  if (!st) { renderRangeBar(bar, null); mapAdapter.clearRangeHighlight(); return; }
+  const latlngs = activeGeometry.slice(st.i0, st.i1 + 1).map(p => [p.lat, p.lng]);
+  // húzás közben csak a sáv frissül; a térkép a végén (és a „Térképen” gombra)
+  // a térkép alját takaró grafikon-panel (telefonon az alsó lap is) magasságával kevesebb hely jut a szakasznak
+  const highlight = (fitIt) => {
+    let padBottom = 0;
+    const mapEl = document.querySelector("#map");
+    if (fitIt && mapEl) {
+      const mr = mapEl.getBoundingClientRect();
+      let top = mr.bottom;
+      // (telefonon a grafikon-panel az alsó lap fölött ül, így a teteje mindkettőt lefedi)
+      const el = elements.elevationPanel;
+      if (el && !el.hidden) {
+        const r = el.getBoundingClientRect();
+        if (r.height && r.top < mr.bottom && r.bottom > mr.top) top = Math.min(top, r.top);
+      }
+      padBottom = Math.max(0, mr.bottom - top);
+    }
+    mapAdapter.setRangeHighlight(latlngs, { fit: fitIt, padBottom });
+  };
+  if (done) highlight(fit);
+  renderRangeBar(bar, st, {
+    onClose: () => setChartRange(null),
+    onZoom: () => highlight(true),
+  });
 }
 
 const elevationChart = initElevationChart(elements.elevationCanvas, makeHoverHandler());
@@ -1082,16 +1149,20 @@ const powerChart     = elements.powerCanvas ? initElevationChart(elements.powerC
 const tempChart      = elements.tempCanvas  ? initElevationChart(elements.tempCanvas, makeHoverHandler())  : null;
 const windCanvasEl   = document.querySelector("#windCanvas");
 const windChart      = windCanvasEl ? initElevationChart(windCanvasEl, makeHoverHandler()) : null;
+const wwCanvasEl     = document.querySelector("#wwCanvas");
+const wwChart        = wwCanvasEl ? initElevationChart(wwCanvasEl, makeHoverHandler()) : null;
 
 // Az összes chart feltöltve — szinkronizálás mostantól működik
-chartSync.all = [elevationChart, speedChart, hrChart, cadChart, powerChart, tempChart, windChart].filter(Boolean);
+chartSync.all = [elevationChart, speedChart, hrChart, cadChart, powerChart, tempChart, windChart, wwChart].filter(Boolean);
 
 // Melyik chart szekciók látszanak (elevation / speed / hr) — itt deklarálva, hogy
 // updateElevationButton() és a chart control függvények egyaránt hozzáférjenek
 const visibleSections = new Set();
 
 function updateElevationButton(geometry) {
+  const prevGeom = activeGeometry;
   activeGeometry = geometry ?? [];
+  if (_chartRange && activeGeometry !== prevGeom) setChartRange(null);
   document.dispatchEvent(new CustomEvent("bringaterv:geometry"));
   if (currentTab !== "file") renderMobileElevStrip(activeGeometry);
   const hasEle = activeGeometry.length > 1 && activeGeometry.some((p) => p.ele != null);
@@ -1151,10 +1222,52 @@ function updateElevationButton(geometry) {
     if (gradeActive) mapAdapter.renderGradeRoute(activeGeometry);
   }
   // A nyitott grafikonok frissítése (adat, fejléc, jelölők) – egy helyen, típusonként
-  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
+  CHART_TYPES.forEach((type) => {
     if (visibleSections.has(type)) renderChartSection(type);
   });
 }
+
+// ── Szél az edzés alatt: Elemzés-panel, térképszínezés, grafikon (workoutWind.js adatából) ──
+let _wwLayerOn = false;
+/** A szél-futamok (idő szerint) → az aktuális geometria indexei a térképszínezéshez. */
+function workoutWindSegments() {
+  const w = getWorkoutWind(), g = activeGeometry;
+  if (!w?.runs?.length || !g?.length || !g.some((p) => p.time != null)) return [];
+  const idxAt = (t) => { let lo = 0, hi = g.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if ((g[m].time ?? -Infinity) < t) lo = m + 1; else hi = m; } return lo; };
+  return w.runs.map((r) => ({ fromIdx: idxAt(r.t0), toIdx: idxAt(r.t1), wind: { mode: r.mode } })).filter((s) => s.toIdx > s.fromIdx);
+}
+/** Grafikon: a haladás irányú szélösszetevő (km/h) pontonként, a futam típusával. */
+function buildWorkoutWindData() {
+  const w = getWorkoutWind(), g = activeGeometry;
+  if (!w?.runs?.length || !g?.length) return [];
+  const d = trackDists(g);
+  let k = 0;
+  return g.map((p, i) => {
+    if (p.time == null) return { dist: d[i], value: null, lat: p.lat, lng: p.lng };
+    while (k < w.runs.length - 1 && p.time > w.runs[k].t1) k++;
+    const r = w.runs[k];
+    return { dist: d[i], value: Math.round(r.along * 10) / 10, mode: r.mode, lat: p.lat, lng: p.lng };
+  });
+}
+function syncWorkoutWindPanel() {
+  const panel = document.querySelector("#wwLegend");
+  if (!panel) return;
+  const w = getWorkoutWind();
+  panel.hidden = !w;
+  if (!w) {
+    if (_wwLayerOn) applyRouteLayer(null);
+    if (visibleSections.has("ww")) hideChartSection("ww");
+    return;
+  }
+  const s = w.stats;
+  const row = (m, pct) => `<div class="speed-legend-item" data-legend-color="${WIND_COLORS[m]}" data-legend-label="${WIND_LABELS[m]} ${Math.round(pct)}%">
+      <span class="speed-dot" style="background:${WIND_COLORS[m]}"></span>${WIND_LABELS[m]}<span class="ww-pct">${Math.round(pct)}%</span></div>`;
+  document.querySelector("#wwLegendItems").innerHTML = row("tail", s.tailPct) + row("cross", s.crossPct) + row("head", s.headPct)
+    + `<div class="ww-avg">Átlagos hatás: <b>${s.alongAvg >= 0 ? "+" : "−"}${num(Math.abs(s.alongAvg), 1)} km/h</b> · ${num(s.speedAvg, 0)} km/h szél</div>`;
+  if (visibleSections.has("ww")) renderChartSection("ww");
+  if (_wwLayerOn) applyRouteLayer("ww");
+}
+document.addEventListener("bringaterv:workoutWind", () => setTimeout(syncWorkoutWindPanel, 0));
 
 // Egységes réteg-kapcsoló: csak egy lehet aktív egyszerre
 function applyRouteLayer(type) {
@@ -1164,6 +1277,8 @@ function applyRouteLayer(type) {
   if (elements.cadMapToggle)   elements.cadMapToggle.checked   = false;
   if (elements.powerMapToggle) elements.powerMapToggle.checked = false;
   if (elements.tempMapToggle)  elements.tempMapToggle.checked  = false;
+  const wwToggle = document.querySelector("#wwMapToggle");
+  if (wwToggle) wwToggle.checked = false;
   if (elements.gradeMapToggle) elements.gradeMapToggle.checked = false;
   if (elements.gradeMapTogglePlan) elements.gradeMapTogglePlan.checked = false;
 
@@ -1174,6 +1289,8 @@ function applyRouteLayer(type) {
   mapAdapter.clearPowerRoute();
   mapAdapter.clearTempRoute();
   mapAdapter.clearGradeRoute();
+  // a tervezés szélszínezése ugyanezt a réteget használja – csak a sajátunkat töröljük
+  if (_wwLayerOn) { mapAdapter.clearWindRoute?.(); _wwLayerOn = false; }
 
   // 3. Aktív réteg bekapcsolása
   switch (type) {
@@ -1207,6 +1324,15 @@ function applyRouteLayer(type) {
         mapAdapter.renderTempRoute(activeGeometry, tempColor);
       }
       break;
+    case "ww": {
+      const segs = workoutWindSegments();
+      if (segs.length) {
+        if (wwToggle) wwToggle.checked = true;
+        mapAdapter.renderWindRoute(activeGeometry, segs);
+        _wwLayerOn = true;
+      } else if (activeGeometry.length > 1) mapAdapter.renderRoute(activeGeometry, store.getState().mode);
+      break;
+    }
     case "grade":
       if (activeGeometry.length > 1) {
         if (elements.gradeMapToggle) elements.gradeMapToggle.checked = true;
@@ -1228,6 +1354,9 @@ elements.speedMapToggle?.addEventListener("change", (e) => {
 });
 elements.tempMapToggle?.addEventListener("change", (e) => {
   applyRouteLayer(e.target.checked ? "temp" : null);
+});
+document.querySelector("#wwMapToggle")?.addEventListener("change", (e) => {
+  applyRouteLayer(e.target.checked ? "ww" : null);
 });
 elements.hrMapToggle?.addEventListener("change", (e) => {
   applyRouteLayer(e.target.checked ? "hr" : null);
@@ -1315,6 +1444,19 @@ function chartConfig(type) {
       btns: [elements.tempChartBtn],
     };
   }
+  if (type === "ww") {
+    return {
+      sectionEl: document.querySelector("#chartWW"),
+      chartInst: wwChart,
+      build: () => buildWorkoutWindData(),
+      opts: {
+        color: "#22C55E", unit: "km/h", zeroBase: true, minRange: 10,
+        colorFn: (_v, pt) => WIND_COLORS[pt?.mode] || "#9CA3AF",
+        formatTip: (pt) => [`${kmTxt(pt)} · ${pt.value >= 0 ? "+" : "−"}${num(Math.abs(pt.value), 1)} km/h`, WIND_LABELS[pt.mode] || ""],
+      },
+      btns: [document.querySelector("#wwChartBtn")],
+    };
+  }
   // "elevation" (alapértelmezett)
   return {
     sectionEl: elements.chartElevation,
@@ -1334,7 +1476,7 @@ function syncElevationBtnState() {
   const anyOpen = visibleSections.size > 0;
   if (elements.elevationBtn) elements.elevationBtn.classList.toggle("is-active", anyOpen);
 
-  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
+  CHART_TYPES.forEach((type) => {
     const { btns } = chartConfig(type);
     const active = visibleSections.has(type);
     btns.forEach((btn) => { if (btn) btn.classList.toggle("is-active", active); });
@@ -1363,9 +1505,10 @@ function showChartSection(type) {
 function renderChartSection(type) {
   const cfg = chartConfig(type);
   if (!cfg.chartInst) return false;
-  const data = cfg.build();
+  const data = attachTimes(cfg.build(), activeGeometry);
   if (!data.length) return false;
   cfg.chartInst.setData(data, cfg.opts);
+  cfg.chartInst.setSelection(_chartRange);
   cfg.chartInst.setMarkers(chartMarkers(data));
   renderChartHeader(type, data);
   renderChartLegend(type);
@@ -1398,7 +1541,7 @@ syncPowerSmoothBtn();
 
 // ── Grafikon-fejléc: kulcsszámok (nagy szám, kis mértékegység, felirat) ──────
 
-const CHART_STATS_EL = { elevation: "elevationInfo", speed: "statsSpeed", hr: "statsHr", cad: "statsCad", power: "statsPower", temp: "statsTemp", wind: "statsWind" };
+const CHART_STATS_EL = { elevation: "elevationInfo", speed: "statsSpeed", hr: "statsHr", cad: "statsCad", power: "statsPower", temp: "statsTemp", wind: "statsWind", ww: "statsWW" };
 const csStat = (value, unit, label, dot) =>
   `<div class="cs-stat"><b>${value}${unit ? `<small>${unit}</small>` : ""}</b><span>${dot ? `<i style="background:${dot}"></i>` : ""}${label}</span></div>`;
 const csChip = (text, label, cls = "", title = "") =>
@@ -1454,7 +1597,7 @@ function renderChartHeader(type, data) {
     html += csStat(Math.round(avg(pedal)), "rpm", "Átlag (tekerés)") + csStat(Math.round(Math.max(...vals)), "rpm", "Maximum");
   } else if (type === "power") {
     // a számok a nyers (nem simított) adatokból – a grafikon simítása csak a megjelenítés
-    const ps = powerSummary(activeGeometry);
+    const ps = powerSummary(activeGeometry.full || activeGeometry);   // a teljes (ritkítás előtti) adatból
     const peak = getImportedPeakPower();               // a teljes adatból (a ritkítás a tüskét levághatja)
     if (ps && peak > ps.max) ps.max = peak;
     if (ps) {
@@ -1464,6 +1607,16 @@ function renderChartHeader(type, data) {
       if (ps.kj != null) html += csStat(Math.round(ps.kj), "kJ", "Munka");
       const kg = Number(getCyclistProfile()?.riderKg);
       if (kg > 30) html += csStat(num(ps.avg / kg, 1), "W/kg", "Átlag / testsúly");
+    }
+  } else if (type === "ww") {
+    const w = getWorkoutWind();
+    if (w) {
+      const s = w.stats;
+      html += csStat(`${s.alongAvg >= 0 ? "+" : "−"}${num(Math.abs(s.alongAvg), 1)}`, "km/h", "Átlagos hatás")
+            + csStat(num(s.speedAvg, 0), "km/h", "Szélerősség")
+            + csStat(Math.round(s.tailPct), "%", "Hátszél", WIND_COLORS.tail)
+            + csStat(Math.round(s.crossPct), "%", "Oldalszél", WIND_COLORS.cross)
+            + csStat(Math.round(s.headPct), "%", "Szembeszél", WIND_COLORS.head);
     }
   } else if (type === "temp") {
     // a számok a nyers (nem simított) mérésből
@@ -1498,6 +1651,8 @@ function renderChartLegend(type) {
     html = hrZones().map((z) => item(z.color, `${z.id} ${z.low}–${z.high}`)).join("");
   } else if (zones && type === "temp") {
     html = TEMP_BANDS.map(([lo, hi, c]) => item(c, lo == null ? `< ${hi} °C` : hi == null ? `${lo}+ °C` : `${lo}–${hi} °C`)).join("");
+  } else if (type === "ww") {
+    html = ["tail", "cross", "head"].map((m) => item(WIND_COLORS[m], WIND_LABELS[m])).join("");
   } else if (zones && ["speed", "cad", "power"].includes(type)) {
     const b = getZoneBoundaries(type);
     html = ZONE_COLORS.map((c, i) => item(c, i === 0 ? `< ${b[0]}` : i === b.length ? `${b[b.length - 1]}+` : `${b[i - 1]}–${b[i]}`)).join("");
@@ -1549,7 +1704,7 @@ document.addEventListener("click", (e) => {
     cc.mode = cc.mode === "zones" ? "solid" : "zones";
     try { localStorage.setItem("bringaterv.chartColors", JSON.stringify(cc)); } catch {}
     window.dispatchEvent(new CustomEvent("bringaterv:settingChanged", { detail: { kind: "chartColors" } }));
-    ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((t) => { if (visibleSections.has(t)) renderChartSection(t); });
+    CHART_TYPES.forEach((t) => { if (visibleSections.has(t)) renderChartSection(t); });
     return;
   }
   if (e.target.closest("[data-open-speeds]")) {
@@ -1592,6 +1747,8 @@ elements.hrChartBtn?.addEventListener("click",    () => handleChartBtn("hr"));
 elements.cadChartBtn?.addEventListener("click",   () => handleChartBtn("cad"));
 elements.powerChartBtn?.addEventListener("click", () => handleChartBtn("power"));
 elements.tempChartBtn?.addEventListener("click",  () => handleChartBtn("temp"));
+document.querySelector("#wwChartBtn")?.addEventListener("click", () => handleChartBtn("ww"));
+document.querySelector("#closeChartWW")?.addEventListener("click", () => hideChartSection("ww"));
 
 // X gombok az egyes szekciókhoz
 elements.closeChartElevation?.addEventListener("click", () => hideChartSection("elevation"));
@@ -1612,7 +1769,7 @@ function openElevationPanel() {
 
 // Minden szekció bezárása (pl. új fájl betöltésekor)
 function closeElevationPanel() {
-  ["elevation", "speed", "hr", "cad", "power", "temp"].forEach((type) => {
+  CHART_TYPES.forEach((type) => {
     const cfg = chartConfig(type);
     if (cfg.sectionEl) cfg.sectionEl.hidden = true;
   });
@@ -1704,6 +1861,228 @@ initWind({
 });
 
 // ── Elemzés (File Tab) ────────────────────────────────────────────────────────
+/**
+ * FTP: a Kerékpáros profilban megadott, vagy becsült (az eddigi legjobb 20 perces
+ * átlagteljesítmény 95%-a). → { w, estimated } | null
+ */
+function getFtp() {
+  const set = Number(getCyclistProfile()?.ftp);
+  if (set > 0) return { w: set, estimated: false };
+  const p20 = bestPowerEver(1200);
+  return p20 > 0 ? { w: Math.round(p20 * 0.95), estimated: true } : null;
+}
+
+/**
+ * Wattos terhelési mutatók a betöltött edzésre:
+ *   VI  = NP / átlag (egyenletesség)      IF = NP / FTP (intenzitás)
+ *   TSS = idő(óra) × IF² × 100            (az idő: a wattadatos idő, a 10 mp-nél hosszabb szünetek nélkül)
+ */
+function powerLoad(geometry) {
+  const g = geometry?.full || geometry;
+  if (!g?.length || !g.some((p) => p.power != null)) return null;
+  const ps = powerSummary(g);
+  if (!ps?.np) return null;
+  let sec = 0;
+  const pts = g.filter((p) => p.power != null && p.time != null);
+  for (let i = 1; i < pts.length; i++) {
+    const dt = (pts[i].time - pts[i - 1].time) / 1000;
+    if (dt > 0) sec += Math.min(dt, 10);
+  }
+  const ftp = getFtp();
+  const out = { np: ps.np, vi: ps.avg > 0 ? ps.np / ps.avg : null, ftp };
+  if (ftp && sec > 0) {
+    out.if = ps.np / ftp.w;
+    out.tss = sec / 3600 * out.if * out.if * 100;
+  }
+  return out;
+}
+
+/**
+ * Aerob szétcsúszás (Friel – Pw:HR, wattmérő nélkül Pa:HR): az első 10 perc (bemelegítés)
+ * után a mozgásban töltött időt két félre osztjuk; mindkét félben a teljesítmény (sebesség)
+ * és a pulzus aránya (EF). Szétcsúszás = (EF₁ − EF₂) / EF₁. 5% alatt jó az aerob alap.
+ * Legalább 40 perc értékelhető rész kell; sebesség alapján csak nagyjából sík edzésnél
+ * (dombon a sebesség a lejtőtől függ, nem az erőfeszítéstől). → { pct, ef, by } | null
+ */
+function aerobicDecoupling(geometry) {
+  const g = geometry?.full || geometry;
+  if (!g?.length || !g.some((p) => p.hr != null)) return null;
+  const byPower = g.some((p) => p.power != null);
+  if (!byPower) {
+    // sebesség alapján csak sík terepen (≤ 5 m emelkedés / km)
+    const { ascentMeters } = calcElevationFromGeometry(g);
+    const km = (trackDistsTotal(g) || 0) / 1000;
+    if (!km || ascentMeters / km > 5) return null;
+  }
+  const pts = g.filter((p) => p.time != null && p.hr > 40 && (byPower ? p.power != null : p.speed != null) && (p.speed == null || p.speed >= 2));
+  if (pts.length < 50) return null;
+  const t0 = pts[0].time + 10 * 60 * 1000;
+  const rest = pts.filter((p) => p.time >= t0);
+  if (rest.length < 40) return null;
+  // időtartam a 10 mp-nél hosszabb szünetek nélkül
+  const seg = [];
+  let total = 0;
+  for (let i = 1; i < rest.length; i++) {
+    const dt = Math.min(10, (rest[i].time - rest[i - 1].time) / 1000);
+    if (dt > 0) { seg.push({ p: rest[i], dt, at: total }); total += dt; }
+  }
+  if (total < 40 * 60) return null;
+  const half = (from, to) => {
+    let m = 0, h = 0, w = 0;
+    for (const s of seg) if (s.at >= from && s.at < to) { m += (byPower ? s.p.power : s.p.speed) * s.dt; h += s.p.hr * s.dt; w += s.dt; }
+    return w ? { m: m / w, h: h / w } : null;
+  };
+  const a = half(0, total / 2), b = half(total / 2, total + 1);
+  if (!a || !b || !a.h || !b.h || !a.m) return null;
+  const ef1 = a.m / a.h, ef2 = b.m / b.h;
+  const all = half(0, total + 1);
+  return { pct: (ef1 - ef2) / ef1 * 100, ef: all.m / all.h, by: byPower ? "power" : "speed" };
+}
+/** Geometriánként (és kulcsonként) egyszer számol – a mini-összefoglaló gyakran újrarajzol. */
+const _geomMemo = new Map();
+function memoGeom(name, geom, key, fn) {
+  const m = _geomMemo.get(name);
+  if (m && m.geom === geom && m.key === key) return m.val;
+  const val = fn();
+  _geomMemo.set(name, { geom, key, val });
+  return val;
+}
+function trackDistsTotal(g) {
+  const d = trackDists(g);
+  return d[d.length - 1];
+}
+
+// Beállítások → Kerékpáros profil: a becsült FTP az üres mező mellett
+function updateFtpEstimateLabel() {
+  const el = document.querySelector("#profileFtpEst");
+  if (!el) return;
+  const p20 = bestPowerEver(1200);
+  el.textContent = p20 > 0 ? `· becslés: ${Math.round(p20 * 0.95)} W` : "";
+}
+document.addEventListener("bringaterv:recordsLoaded", updateFtpEstimateLabel);
+document.querySelector("#profileFtp")?.addEventListener("focus", updateFtpEstimateLabel);
+document.querySelector("#profileFtp")?.closest("details, section")?.addEventListener("toggle", updateFtpEstimateLabel);
+
+// Csúcsértékek: egy értékre kattintva a szakasz a grafikonon és a térképen
+initBestEfforts({
+  api:            routesApi,
+  getGeometry:    () => activeGeometry,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+  getRiderKg:     () => getCyclistProfile()?.riderKg,
+  onPick: (range) => {
+    const type = ["speed", "power", "hr", "elevation"].find((t) => visibleSections.has(t));
+    if (!type) showChartSection(activeGeometry.some((p) => p.speed != null) ? "speed" : "elevation");
+    setChartRange(range, { fit: true });
+  },
+});
+
+// Pedálozás: kadencia–watt pontdiagram, bal / jobb láb (FIT)
+initPedaling({
+  api:            routesApi,
+  parseFit,
+  getGeometry:    () => activeGeometry,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+  getFtp:         () => getFtp(),
+});
+
+// Érzés (RPE) és jegyzet – mentett edzésnél
+initFeel({
+  api:            routesApi,
+  getGeometry:    () => activeGeometry,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+});
+
+// Grafikonok x-tengelye: km / idő (időbélyeges edzésnél) – egy gomb minden grafikon fejlécében
+(() => {
+  const types = CHART_TYPES;
+  const sections = { elevation: elements.chartElevation, speed: elements.chartSpeed, hr: elements.chartHr,
+                     cad: elements.chartCad, power: elements.chartPower, temp: elements.chartTemp };
+  const btns = [];
+  for (const t of types) {
+    const actions = sections[t]?.querySelector(".chart-head-actions") || sections[t]?.querySelector(".chart-section-header");
+    if (!actions) continue;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chart-mode-btn chart-x-btn";
+    b.title = "Vízszintes tengely: távolság (km) vagy eltelt idő – minden grafikonra";
+    b.addEventListener("click", () => {
+      setChartXMode(getChartXMode() === "time" ? "dist" : "time");
+      sync();
+      types.forEach((tt) => { if (visibleSections.has(tt)) renderChartSection(tt); });
+      if (_chartRange) setChartRange(_chartRange, { done: false });
+    });
+    // a bezárás gomb elé (ha közvetlenül ebben a konténerben van), különben a végére
+    const close = [...actions.children].find((c) => c.classList.contains("elevation-panel-close"));
+    actions.insertBefore(b, close || null);
+    btns.push(b);
+  }
+  function sync() {
+    const hasTime = activeGeometry?.some?.((p) => p.time != null);
+    const time = getChartXMode() === "time";
+    btns.forEach((b) => { b.hidden = !hasTime; b.textContent = time ? "Idő" : "Táv"; b.classList.toggle("is-active", time); });
+  }
+  document.addEventListener("bringaterv:geometry", sync);
+  sync();
+})();
+
+// Megállások: jelölők a térképen (csak az Elemzés fülön – tervezésnél nincs értelme)
+initStops({
+  getGeometry:  () => activeGeometry,
+  isWorkoutTab: () => currentTab === "file",
+  map: { setStopMarkers: (...a) => mapAdapter.setStopMarkers(...a), focusStop: (...a) => mapAdapter.focusStop(...a) },
+});
+
+// Részidők: FIT-körök vagy automatikus 5 km / 1 km
+initSplits({
+  api:            routesApi,
+  parseFit,
+  getGeometry:    () => activeGeometry,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+  getRiderKg:     () => getCyclistProfile()?.riderKg,
+  onPick: (range) => {
+    if (!visibleSections.has("elevation") && !visibleSections.has("speed")) showChartSection("speed");
+    setChartRange(range, { fit: true });
+  },
+});
+
+// Szél az edzés alatt: a sáv egy részére kattintva a szakasz (időpontokból a grafikon távjára)
+initWorkoutWind({
+  api:            routesApi,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+  getGeometry: () => activeGeometry,
+  onPickTimes: (t0, t1) => {
+    const g = activeGeometry, d = trackDists(g);
+    const at = (t) => { let lo = 0, hi = g.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if ((g[m].time ?? -Infinity) < t) lo = m + 1; else hi = m; } return d[lo]; };
+    if (!visibleSections.has("elevation") && !visibleSections.has("speed")) showChartSection("speed");
+    setChartRange({ d0: at(t0), d1: at(t1) }, { fit: true });
+  },
+});
+
+// Ugyanezen az útvonalon: korábbi edzések + időkülönbség-görbe (a görbén mozogva a térképen a pont)
+initCompare({
+  api:            routesApi,
+  importGpx,
+  getGeometry:    () => activeGeometry,
+  getRouteId:     () => getLoadedLibraryRouteId(),
+  getLibraryData: () => _libraryData,
+  onHoverPoint:   (p) => { if (p) mapAdapter.setElevationMarker(p.lat, p.lng); else mapAdapter.clearElevationMarker(); },
+});
+
+initClimbs({
+  getGeometry: () => activeGeometry,
+  getRiderKg:  () => getCyclistProfile()?.riderKg,
+  // egy emelkedőre kattintva: szintprofil nyitva, a szakasz kijelölve és ráközelítve
+  onPick: (range) => {
+    if (!visibleSections.has("elevation")) showChartSection("elevation");
+    setChartRange(range, { fit: true });
+  },
+});
+
 initFileTab({
   store,
   mapAdapter,
@@ -1801,7 +2180,7 @@ store.subscribe(async (state) => {
   const nameSignature = state.waypoints.map((wp) => wp.name || "").join("\u0001");
   if (nameSignature !== lastNameSignature) {
     lastNameSignature = nameSignature;
-    for (const t of ["elevation", "speed", "hr", "cad", "power", "temp"]) {
+    for (const t of CHART_TYPES) {
       if (visibleSections.has(t)) renderChartSection(t);
     }
   }
@@ -2380,6 +2759,16 @@ initStrava({ showToast, loadRouteLibrary });
 initNotifications({ showToast });
 initMapLegend();
 initAbout({ isNewerVersion });
+// Újdonságok: belépés után egyszer (új verziónál), és a ☰ menüből bármikor
+initSharedLinks({ api: routesApi, shareUrl: (id) => shareRouteUrl(id) });
+initWhatsNew({
+  onGo: (to) => {
+    if (to === "settings") {
+      document.querySelector("#settingsButton")?.click();
+      setTimeout(() => document.querySelector("#profileFtp")?.scrollIntoView({ block: "center", behavior: "smooth" }), 400);
+    } else switchTab(to);
+  },
+});
 initFeedback();
 initAccount();
 // Mobilon a diagram / szél panel nyitásakor (mobileShell.js) újraillesztjük az útvonalat
@@ -2943,6 +3332,7 @@ const ANALYSIS_METRICS = [
   { key: "cad",   label: "Kadencia",     legend: "cadLegend",   toggle: "cadMapToggle",   chart: "cadChartBtn",         avg: "fileAvgCad",   avgLabel: "Átl. kadencia", field: "cad",  unit: "rpm" },
   { key: "power", label: "Teljesítmény", legend: "powerLegend", toggle: "powerMapToggle", chart: "powerChartBtn",       avg: "fileAvgPower", avgLabel: "Átl. telj.",   field: "power", unit: "W" },
   { key: "temp",  label: "Hőmérséklet",  legend: "tempLegend",  toggle: "tempMapToggle",             chart: "tempChartBtn",        avg: "fileTemp",     avgLabel: "Hőmérséklet",  field: "temp",  unit: "°C" },
+  { key: "ww",    label: "Szél",         legend: "wwLegend",    toggle: "wwMapToggle",    chart: "wwChartBtn",          avg: null,           avgLabel: "Szél",         field: null },
   { key: "grade", label: "Szint",        legend: "gradeLegend", toggle: "gradeMapToggle", chart: "gradeLegendChartBtn", avg: "fileAscent",   avgLabel: "Emelkedés",    field: "ele",   unit: "m" },
 ];
 
@@ -3012,6 +3402,11 @@ initAiAnalysis({
     "Hőmérséklet": "A komputer / óra hőmérője szerinti átlag. „≈” jellel: nem mért, hanem az időjárás-archívumból (Open-Meteo) az indulás helyén.",
     "Kalória": "Az elégetett energia. Forrás sorrendben: az eszköz / Strava értéke → wattmérős munkából → pulzusból (Keytel-képlet, kalibrálva) → sebességből becsült. Kattints az összevetéshez.",
     "TRIMP": "Edzésterhelés (Banister TRIMP): az idő és a pulzus intenzitásának szorzata, a magasabb pulzus súlyosabban számít. Nagyjából: 50 alatt könnyű, 50–120 közepes, 120–250 kemény, afölött nagyon kemény edzés. Ebből számol a Statok → Edzésterhelés (CTL / ATL / TSB).",
+    "TSS": "Training Stress Score – wattos edzésterhelés: az idő és az intenzitás (IF) négyzetének szorzata. 1 óra FTP-n tekerve = 100. Nagyjából: 150 alatt másnapra kipihented, 150–300 1–2 nap, 300 fölött több nap kell. A „≈” jel: becsült FTP-vel (a 20 perces csúcsod 95%-a) – pontosabb, ha a Beállítások → Kerékpáros profil alatt megadod.",
+    "IF": "Intenzitási tényező: NP / FTP. 0,75 alatt könnyű (alap állóképesség), 0,75–0,85 tempó, 0,85–0,95 küszöb alatti, 0,95–1,05 küszöb (1 órás verseny), afölött rövid, nagyon kemény erőfeszítés.",
+    "Pw:HR": "Aerob szétcsúszás (Friel): a bemelegítés után az edzés második felében mennyivel romlott a teljesítmény és a pulzus aránya (azonos wattnál magasabb pulzus = szétcsúszás). 5% alatt jó az aerob alapod ehhez a hosszhoz és tempóhoz; 5–10% elfáradtál; 10% fölött túl hosszú / kemény volt, vagy meleg, kiszáradás. Hosszú, egyenletes edzésnél a legbeszédesebb. EF (hatékonysági tényező) = átlagwatt / átlagpulzus – ugyanilyen edzéseken a növekedése a javuló formát jelzi.",
+    "Pa:HR": "Aerob szétcsúszás (Friel) sebességgel – wattmérő nélkül, csak nagyjából sík edzésnél: a bemelegítés után az edzés második felében mennyivel romlott a sebesség és a pulzus aránya. 5% alatt stabil (jó aerob alap ehhez a hosszhoz és tempóhoz), afölött szétcsúszott (fáradtság, meleg, kiszáradás). A szél is befolyásolja.",
+    "VI": "Változékonysági index: NP / átlagteljesítmény. 1,00–1,05 nagyon egyenletes (időfutam, sík), 1,05–1,15 átlagos túra, 1,15 fölött szaggatott (dombok, csoport, városi forgalom).",
     "Edwards": "Edzésterhelés pulzuszónák szerint (Edwards): a zónákban töltött percek súlyozva – Z1 ×1, Z2 ×2 … Z5 ×5. Egyszerűbb, mint a TRIMP, a pulzuszóna-beállításaidon alapul.",
     "Átlag": "Átlagérték az edzés egészére.",
     "Max": "A legnagyobb mért érték.",
@@ -3022,7 +3417,7 @@ initAiAnalysis({
     const show = (el) => {
       tip ??= Object.assign(document.createElement("div"), { className: "f-hint-tip", role: "tooltip" });
       if (!tip.isConnected) document.body.appendChild(tip);
-      tip.textContent = el.dataset.hint;
+      tip.textContent = el.dataset.hint || el.title || "";
       tip.hidden = false;
       const r = el.getBoundingClientRect(), w = Math.min(280, window.innerWidth - 16);
       tip.style.width = w + "px";
@@ -3031,6 +3426,16 @@ initAiAnalysis({
       tip.style.top = (below + h > window.innerHeight - 8 ? r.top - h - 8 : below) + "px";
     };
     const hide = () => { if (tip) tip.hidden = true; };
+    // koppintásra (telefonon nincs egérrámutatás): a [data-hint] feliratok és a kártyák „?” jelei
+    let shownBy = null;
+    box.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-hint], .clb-hint[title]");
+      if (!el) { if (shownBy) { hide(); shownBy = null; } return; }
+      if (shownBy === el && !tip?.hidden) { hide(); shownBy = null; return; }
+      show(el);
+      shownBy = el;
+    });
+    document.addEventListener("click", (e) => { if (shownBy && !box.contains(e.target)) { hide(); shownBy = null; } });
     box.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-hint]"); if (el) show(el); });
     box.addEventListener("mouseout", (e) => { if (e.target.closest("[data-hint]") && !e.relatedTarget?.closest?.("[data-hint]")) hide(); });
     box.addEventListener("focusin", (e) => { const el = e.target.closest("[data-hint]"); if (el) show(el); });
@@ -3072,7 +3477,6 @@ initAiAnalysis({
 
   function render() {
     if ($id("fileDetails")?.hidden) return;
-    const desktop = !mobileMQ.matches;
     // fejléc
     const name = $id("fileMetaName")?.textContent?.trim() || $id("importedFileName")?.textContent?.trim() || "Edzés";
     $id("mFileTitle").textContent = name;
@@ -3091,15 +3495,23 @@ initAiAnalysis({
     const act = activeColor();
     const timeEl = visible("fileMovingDurRow") ? ["fileMovingDur", "Mozgásidő"] : visible("fileTotalDurRow") ? ["fileTotalDur", "Időtartam"] : null;
     let stats;
-    if (desktop) {
-      // asztalon: 4 fő szám, a többi halk sorban
+    {
+      // asztalon és telefonon is: 4 fő szám (telefonon 2×2), alatta a sáv és az Átlag | Max táblázat
       stats = [["fileDistance", "Táv"], timeEl, visible("fileAvgSpeedRow") ? ["fileAvgSpeed", "Átlagsebesség"] : null,
                visible("fileAscentRow") ? ["fileAscent", "Emelkedés" + (visible("fileDescentRow") && val("fileDescent")
                  ? ` <em class="f-desc" title="Ereszkedés – összesen ennyit mentél lefelé">· ${escapeHtml(val("fileDescent"))} ↓</em>` : "")] : null].filter(Boolean);
       // Strava-mintára: szürke sáv a terhelési mutatókkal, alatta Átlag | Max táblázat
       const hrScore = !visible("hrLegend") || !visible("hrZoneScores") ? "" : [...document.querySelectorAll("#hrZoneScores .hr-score-item")].map((it) =>
         cell(it.querySelector(".hr-score-label")?.textContent?.trim() || "", it.querySelector(".hr-score-value")?.textContent?.trim() || "")).join("");
-      const band = kcalMini() + hrScore;
+      // wattos terhelés: TSS / IF (FTP-vel, megadott vagy becsült) és VI
+      const pl = memoGeom("powerLoad", activeGeometry, JSON.stringify(getFtp()), () => powerLoad(activeGeometry));
+      const est = pl?.ftp?.estimated ? "≈" : "";
+      const powerBand = !pl ? "" : (pl.tss != null ? cell("TSS", `${est}${Math.round(pl.tss)}`, { sub: `FTP ${pl.ftp.w} W${pl.ftp.estimated ? " (becsült)" : ""}` })
+          + cell("IF", num(pl.if, 2)) : "") + (pl.vi != null ? cell("VI", num(pl.vi, 2)) : "");
+      const dc = memoGeom("decoupling", activeGeometry, "", () => aerobicDecoupling(activeGeometry));
+      const dcBand = dc ? cell(dc.by === "power" ? "Pw:HR" : "Pa:HR", `${num(dc.pct, 1)} %`,
+        { sub: dc.by === "power" ? `EF ${num(dc.ef, 2)}` : (Math.abs(dc.pct) < 5 ? "stabil" : "szétcsúszott") }) : "";
+      const band = kcalMini() + hrScore + powerBand + dcBand;
       const fmtV = (t) => { const [n, u] = splitUnit(t); return n ? `${escapeHtml(n)}${u ? `<small>${escapeHtml(u)}</small>` : ""}` : ""; };
       const row = (label, id, maxId) => {
         if (!visible(id + "Row")) return "";
@@ -3119,14 +3531,10 @@ initAiAnalysis({
         miniEl.dataset.html = miniHtml;
         window.lucide?.createIcons({ root: miniEl });
       }
-    } else {
-      // mobilon: táv, idő, és a színezett adat átlaga (alapból átlagsebesség)
-      const third = act && visible(act.avg + "Row") ? act : ANALYSIS_METRICS[0];
-      stats = [["fileDistance", "Táv"], timeEl, visible(third.avg + "Row") ? [third.avg, third.avgLabel] : null].filter(Boolean);
     }
     $id("mFileStats").innerHTML = stats.map(([id, l]) => {
       const key = l.replace(/<[^]*$/, "").trim();
-      return `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${desktop && HINTS[key] ? `<span class="f-hint"${hint(key)}>${key}</span>${l.slice(key.length)}` : l}</span></div>`;
+      return `<div class="cs-stat"><b>${unitify($id(id)?.textContent)}</b><span>${HINTS[key] ? `<span class="f-hint"${hint(key)}>${key}</span>${l.slice(key.length)}` : l}</span></div>`;
     }).join("");
     renderZones(act);
     refreshAiCard();
@@ -3247,6 +3655,9 @@ initAiAnalysis({
     const c = $id(m.chart); if (c) new MutationObserver(later).observe(c, { attributes: true, attributeFilter: ["class"] });
   });
   mobileMQ.addEventListener?.("change", later);
+  // a becsült FTP a rekordokból jön (aszinkron), a megadott a profilból
+  document.addEventListener("bringaterv:recordsLoaded", later);
+  window.addEventListener("bringaterv:settingChanged", (e) => { if (e.detail?.kind === "cyclistProfile") later(); });
   window.lucide?.createIcons({ root: box });
   later();
 })();

@@ -142,7 +142,8 @@ export function renderWindResult(result) {
   _el.windBar.hidden = true;
 
   const segDetails = document.querySelector("#windSegDetails");
-  if (segDetails) segDetails.hidden = false;
+  renderWindSegments(segments);
+  if (segDetails) segDetails.hidden = !segments?.length;
   _el.windHeaderInfo.textContent = "";
 
   applyWindMapColoring(segments);
@@ -159,6 +160,50 @@ export function renderWindResult(result) {
   const windTimeRow = document.querySelector('#planWindTimeRow');
   if (windTimeRow) windTimeRow.hidden = false;
   _onRenderSidebar?.();
+}
+
+/** „Szakaszok részletesen”: az egymás utáni azonos típusú (hát- / oldal- / szembeszeles) szakaszok
+ *  összevonva – km, hossz, érkezés, szélerő és -irány, a haladást segítő / fékező összetevő, hőmérséklet. */
+const COMPASS = ["É", "ÉÉK", "ÉK", "KÉK", "K", "KDK", "DK", "DDK", "D", "DDNy", "DNy", "NyDNy", "Ny", "NyÉNy", "ÉNy", "ÉÉNy"];
+const compass = (deg) => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+function renderWindSegments(segments) {
+  const box = _el.windSegments;
+  if (!box) return;
+  if (!segments?.length) { box.hidden = true; box.innerHTML = ""; return; }
+  const runs = [];
+  for (const sg of segments) {
+    const last = runs.at(-1);
+    if (last && last.mode === sg.wind.mode) {
+      last.toKm = sg.toKm; last.dist += sg.distanceKm; last.to = sg.arrivalTime;
+      last.speed += sg.wind.speed * sg.distanceKm; last.along += sg.wind.along * sg.distanceKm;
+      last.dirs.push([sg.wind.direction, sg.distanceKm]);
+      if (sg.weather?.temperature != null) last.temps.push(sg.weather.temperature);
+    } else {
+      runs.push({ mode: sg.wind.mode, fromKm: sg.fromKm, toKm: sg.toKm, dist: sg.distanceKm, from: sg.arrivalTime, to: sg.arrivalTime,
+                  speed: sg.wind.speed * sg.distanceKm, along: sg.wind.along * sg.distanceKm,
+                  dirs: [[sg.wind.direction, sg.distanceKm]], temps: sg.weather?.temperature != null ? [sg.weather.temperature] : [] });
+    }
+  }
+  const avgDir = (dirs) => {        // táv szerint súlyozott irány-átlag (vektorosan)
+    let x = 0, y = 0;
+    for (const [d, w] of dirs) { x += Math.cos(d * Math.PI / 180) * w; y += Math.sin(d * Math.PI / 180) * w; }
+    return Math.atan2(y, x) * 180 / Math.PI;
+  };
+  const hhmm = (t) => (t instanceof Date ? t : new Date(t)).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+  box.innerHTML = `<div class="wseg-row wseg-head"><span>Szakasz</span><span>Táv</span><span>Időpont</span><span>Szél</span><span>Hatás</span></div>` +
+    runs.map((r) => {
+      const sp = r.dist ? r.speed / r.dist : 0, al = r.dist ? r.along / r.dist : 0;
+      const eff = Math.abs(al) < 1 ? "–" : `${al > 0 ? "+" : "−"}${num(Math.abs(al), 0)} km/h ${al > 0 ? "hátszél" : "szembeszél"}`;
+      const t = r.temps.length ? ` · ${num(r.temps.reduce((a, b) => a + b, 0) / r.temps.length, 0)} °C` : "";
+      return `<div class="wseg-row">
+        <span class="wseg-type"><i style="background:${WIND_COLORS[r.mode] || "#888"}"></i>${WIND_LABELS[r.mode] || r.mode}</span>
+        <span>${num(r.fromKm, 1)}–${num(r.toKm, 1)} km<small>${num(r.dist, 1)} km</small></span>
+        <span>${hhmm(r.from)}${hhmm(r.to) !== hhmm(r.from) ? `–${hhmm(r.to)}` : ""}<small>${t.slice(3)}</small></span>
+        <span>${num(sp, 0)} km/h<small>${compass(avgDir(r.dirs))} felől</small></span>
+        <span class="wseg-eff ${al > 1 ? "is-tail" : al < -1 ? "is-head" : ""}">${eff}</span>
+      </div>`;
+    }).join("");
+  box.hidden = false;
 }
 
 /** A szélgrafikon adatai: a nyomvonal minden pontjához az őt tartalmazó szakasz szele. */

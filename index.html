@@ -496,6 +496,22 @@
                 <div class="f-mini" id="fFileMini"></div>
                 <!-- AI-elemzés (aiAnalysis.js) – csak ha az AI be van állítva és engedélyezve -->
                 <div class="f-ai" id="fFileAi" hidden></div>
+                <!-- Érzés és jegyzet (feel.js) – RPE 1–10, jegyzet; mentett edzésnél -->
+                <div class="f-best f-feel" id="fFileFeel" hidden></div>
+                <!-- Legjobb részek (bestEfforts.js) – leggyorsabb távok, csúcsteljesítmény / -pulzus, érmekkel -->
+                <div class="f-best" id="fFileBest" hidden></div>
+                <!-- Emelkedők (climbs.js) – a nyomvonalból felismert mászások -->
+                <div class="f-climbs" id="fFileClimbs" hidden></div>
+                <!-- Részidők (splits.js) – FIT-körök / automatikus szakaszok -->
+                <div class="f-best f-splits" id="fFileSplits" hidden></div>
+                <!-- Pedálozás (pedaling.js) – kadencia–watt, bal / jobb láb -->
+                <div class="f-best f-pedal" id="fFilePedal" hidden></div>
+                <!-- Megállások (stops.js) – hol és mennyit álltál, jelölők a térképen -->
+                <div class="f-best f-stops" id="fFileStops" hidden></div>
+                <!-- Szél az edzés alatt (workoutWind.js) – Open-Meteo archív szél -->
+                <div class="f-best f-wind" id="fFileWind" hidden></div>
+                <!-- Ugyanezen az útvonalon (compare.js) – korábbi edzések, időkülönbség km szerint -->
+                <div class="f-best f-compare" id="fFileCompare" hidden></div>
                 <div class="f-acts" id="fFileActs">
                   <button type="button" class="lib-x-btn is-primary" data-proxy="fileSaveToLibraryButton"><i data-lucide="bookmark-plus" aria-hidden="true"></i><span>Mentés</span></button>
                   <button type="button" class="lib-x-btn" data-proxy="planFromFileBtn"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>
@@ -756,6 +772,27 @@
                   </label>
                 </div>
                 <div class="speed-legend-items" id="tempLegendItems"></div>
+              </div>
+
+              <!-- Szél az edzés alatt (Open-Meteo, workoutWind.js) – csak ha már megvan a szél -->
+              <div id="wwLegend" class="speed-legend" hidden>
+                <div class="speed-legend-header">
+                  <button class="speed-legend-expand" type="button" aria-expanded="false">
+                    <span class="speed-legend-title">Szél</span>
+                    <i data-lucide="chevron-down" class="legend-chevron" aria-hidden="true"></i>
+                  </button>
+                  <button class="hint-btn" type="button" data-hint-title="Szél" data-hint="Az edzés idejére és helyére az Open-Meteo óránkénti szele (modelladat, nem mérés), a haladási irányodhoz viszonyítva: hátszél, oldalszél, szembeszél. A kapcsoló ezek szerint színezi a térképen az útvonalat, a grafikon-ikon a szél hatását mutatja km/h-ban a táv mentén (+ segített, − fékezett), lenyitva a táv megoszlása." aria-label="Segítség"><i data-lucide="info" aria-hidden="true"></i></button>
+                  <button id="wwChartBtn" class="grade-chart-btn" type="button" title="Szél hatása – diagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </button>
+                  <label class="toggle-switch" title="Térkép színezése a szél szerint (egyszerre egy színezés lehet bekapcsolva)">
+                    <input id="wwMapToggle" type="checkbox">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+                <div class="speed-legend-items" id="wwLegendItems"></div>
               </div>
 
               <!-- Szintprofil / Lejtő térkép -->
@@ -1542,6 +1579,8 @@
         <!-- Diagram konténer – több szekció egymás alatt -->
         <div id="elevationPanel" class="elevation-panel" hidden>
           <div class="elevation-resize" id="elevationResize" title="Húzd a panel átméretezéséhez (dupla kattintás: alaphelyzet)"><span></span></div>
+          <!-- Kijelölt szakasz számai (grafikonon egérrel húzva / ujjal hosszan nyomva, majd húzva) -->
+          <div id="chartRangeBar" class="chart-range-bar" hidden></div>
 
           <!-- Grafikon-szekciók: közös fejléc (cím · számok · színezés · bezárás), vászon, jelmagyarázat -->
           <div id="chartElevation" class="chart-section" hidden>
@@ -1652,6 +1691,24 @@
               <canvas id="tempCanvas"></canvas>
             </div>
             <div class="chart-legend" id="legendTemp" hidden></div>
+          </div>
+          <!-- Szél hatása egy rögzített edzés alatt (Elemzés) -->
+          <div id="chartWW" class="chart-section" hidden>
+            <div class="chart-section-header">
+              <span class="chart-section-title">Szél hatása</span>
+              <div class="chart-stats" id="statsWW"></div>
+              <div class="chart-head-actions">
+                <button id="closeChartWW" class="elevation-panel-close" type="button" title="Bezárás">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                </button>
+              </div>
+            </div>
+            <div class="elevation-panel-body">
+              <canvas id="wwCanvas"></canvas>
+            </div>
+            <div class="chart-legend" id="legendWw" hidden></div>
           </div>
           <!-- Szél szekció -->
           <div id="chartWind" class="chart-section" hidden>
@@ -2266,7 +2323,7 @@
           <div class="strava-auto-row">
             <div class="strava-auto-text">
               <strong>Automatikus import</strong>
-              <span>Az új Magene-edzések maguktól bekerülnek a könyvtárba.</span>
+              <span>Az új Magene- és GEOID-edzések maguktól bekerülnek a könyvtárba.</span>
             </div>
             <label class="toggle-switch" title="Automatikus import be/ki">
               <input id="onelapAutoToggle" type="checkbox">
@@ -2528,6 +2585,10 @@
       <i data-lucide="smartphone" aria-hidden="true"></i>
       <span>Telepítés appként</span>
     </button>
+    <button class="dropdown-item" id="whatsNewButton" type="button">
+      <i data-lucide="sparkles" aria-hidden="true"></i>
+      <span>Újdonságok</span>
+    </button>
     <a class="dropdown-item" id="helpButton" href="./help.html">
       <i data-lucide="book-open" aria-hidden="true"></i>
       <span>Súgó és kézikönyv</span>
@@ -2704,6 +2765,10 @@
   <input id="shareBaseInput" class="export-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
          placeholder="https://bringaterv.example.hu">
   <p class="settings-field-hint">Üresen hagyva az aktuális címet használja. A QR-kódok a <code>/view.html?route=…</code> publikus nézőoldalra mutatnak.</p>
+  <div class="settings-field-label" style="margin-top:16px">Megosztott linkjeim</div>
+  <p class="settings-field-hint" style="margin-top:0">Hányszor nyitották meg, mi látszik rajtuk, és itt kapcsolhatod ki őket. A saját megnyitásaid nem számítanak.</p>
+  <!-- sharedLinks.js -->
+  <div class="shl-list" id="sharedLinksList"></div>
   </div>
   </section>
 
@@ -3322,6 +3387,10 @@
           <span>Kerékpár tömege (kg)</span>
           <input id="profileBikeKg" type="number" min="5" max="30" step="0.5" value="10">
         </label>
+        <label class="cyclist-profile-field" title="Funkcionális küszöbteljesítmény (FTP): az a watt, amit nagyjából egy óráig tartani tudsz. Ebből számol az Elemzés IF- és TSS-értéke. Ha üresen hagyod, a 20 perces csúcsteljesítményed 95%-ából becsüljük.">
+          <span>FTP (W) <small class="cyclist-ftp-est" id="profileFtpEst"></small></span>
+          <input id="profileFtp" type="number" min="50" max="600" step="1" placeholder="becsült">
+        </label>
         <label class="cyclist-profile-field" title="Vezetési pozíció határozza meg a légellenállási tényezőt (CdA): aero pozícióban kisebb légellenállás, felálló helyzetben nagyobb.">
           <span>Vezetési pozíció</span>
           <select id="profilePosition">
@@ -3492,7 +3561,7 @@
     <h4 class="settings-section-title">
       <img class="brand-icon" src="./assets/brands/onelapfit.png" width="18" height="18" alt="OnelapFit">
       OnelapFit
-      <button class="hint-btn" type="button" data-hint="A Magene kerékpáros komputerek az OnelapFit appal szinkronizálnak. Csatlakoztatás után a Könyvtár → Import → OnelapFitből menüben letöltheted az edzéseidet, és a tervezett útvonalakat a könyvtárból (… → Küldés OnelapFitre) az OnelapFit útvonalai közé küldheted – onnan a komputer navigál rajta. A jelszót nem tároljuk, csak a belépési tokent; ha 60 napnál tovább nem nyitod meg a Bringatervet, újra be kell lépni." aria-label="Segítség">
+      <button class="hint-btn" type="button" data-hint="A Magene és a GEOID kerékpáros komputerek az OnelapFit appal szinkronizálnak. Csatlakoztatás után a Könyvtár → Import → OnelapFitből menüben letöltheted az edzéseidet, és a tervezett útvonalakat a könyvtárból (… → Küldés OnelapFitre) az OnelapFit útvonalai közé küldheted – onnan a komputer navigál rajta. A jelszót nem tároljuk, csak a belépési tokent; ha 60 napnál tovább nem nyitod meg a Bringatervet, újra be kell lépni." aria-label="Segítség">
         <i data-lucide="info" aria-hidden="true"></i>
       </button>
       <i data-lucide="chevron-down" class="settings-section-chevron" aria-hidden="true"></i>
