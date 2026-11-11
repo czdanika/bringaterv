@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.45.0 – 2026-11-11 – Üdvözlő ablak, helyes edzésidő a Garmin-importnál
+
+- **Javítás – Garmin-import ideje:** a Garmin egyes dátumformáit (`…T…:00.0`) az import nem értette, és ilyenkor az importálás idejét tette az edzés kezdetének (a Könyvtár pl. „Ma 18:36”-ot mutatott). Most minden formát ért, és ha mégsem kap időt, az eredeti FIT-ből, majd a nyomvonal első időbélyegéből veszi – soha nem az import idejéből. Ugyanez a hiba a Garmin ismétlődés-védelmét is érintette. Adatbázis v22: a már így tárolt edzések valódi indulási ideje visszaáll (FIT / GPX alapján).
+- **A többi import is:** az OnelapFit, iGPSport, Bryton, Wahoo és Polar import a FIT-ből veszi az időt; ha nincs, a nyomvonalból (nem a mostani időből). A Strava-edzés napja helyi idő szerint (az éjfél utáni tekerés nem csúszik az előző napra).
+- **Üdvözlő ablak új felhasználóknak:** első belépéskor (ha még nincs edzés) – 1. adatok (Kerékpáros profil, Pulzuszónák), 2. összeköthető fiókok logóval (Strava, Garmin, OnelapFit, iGPSport, Bryton, Wahoo, Polar; az összekötött pipát kap, kattintásra a Beállítások megfelelő része nyílik), vagy GPX / FIT, 3. mit tud az app. A ☰ menü → Első lépések bármikor megnyitja. Ilyenkor az Újdonságok ablak nem ugrik fel mellé. `GET /api/integrations` → `connected`.
+- **Könyvtár-kártya:** felül a név (legfeljebb 2 sorban) és a dátum teljes szélességben, alatta egy sorban a tájoló, az útvonal-kép és a számok – a hosszú nevek kiférnek.
+- **Garmin-import:** a listában 500, 1000 vagy az összes edzés is választható (eddig legfeljebb 200); a lekérés 100-as adagokban lapoz.
+- **Megosztott oldal:** a Pedálozás kártya (kadencia–watt negyedek) is megjelenik.
+
 ## v1.44.0 – 2026-11-11 – Beltéri edzések (görgő, Zwift, MyWhoosh)
 
 - **Beltéri edzés (görgő, Zwift, MyWhoosh):** a GPS nélküli edzések is bekerülnek a könyvtárba minden importból (Strava, Garmin – `indoor_cycling` is listázva –, OnelapFit, iGPSport, Bryton, Wahoo, Polar; kézi és automatikus importnál). A mért adatsorok kísérő JSON-ba kerülnek (`routes-api/indoor.py`, `GET /api/routes/<id>/streams`), a bejegyzés `indoor: true`. Elemzés térkép nélkül („Beltéri edzés” jelzés), grafikonok, kijelölés, részidők, csúcsteljesítmény, TSS / IF / Pw:HR; a nyomvonalat igénylő kártyák (szél, emelkedők, megállások, ugyanezen az útvonalon) kimaradnak. Könyvtár / Kezdőlap: „Beltéri” jelölés a térképes előnézet helyén, „Tervezés” gomb nélkül; az időjárás a legutóbbi kinti edzés helyéről. Rekordok: wattcsúcs igen, táv- és sebességrekord nem (virtuális táv). Statisztika, forma, felszerelés: beszámítja. Mentés / visszaállítás és törlés a JSON-t is kezeli.

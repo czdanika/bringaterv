@@ -16,6 +16,7 @@ import { computeRangeStats, trackDists, renderRangeBar } from "./ui/rangeStats.j
 import { initBestEfforts, clearBestHighlight } from "./ui/bestEfforts.js";
 import { initClimbs, clearClimbHighlight } from "./ui/climbs.js";
 import { initSplits, clearSplitsHighlight } from "./ui/splits.js";
+import { initPedaling } from "./ui/pedaling.js";
 import { initWorkoutWind, getWorkoutWind, clearWindHighlight } from "./ui/workoutWind.js";
 import { WIND_COLORS, WIND_LABELS } from "./wind/windService.js";
 import { durMs } from "./format.js";
@@ -359,7 +360,8 @@ function initAnalysis(meta, geometry, id) {
                    getRiderKg: () => null, onPick: (r) => setRange(r, { fit: true }) };
   if (!hide.has("cards")) {
     initClimbs(common);
-    if (isWorkout) { initBestEfforts(common); initSplits(common); }
+    // pedálozás: kadencia–watt negyedek (az FTP helyett az átlagwattal osztva – a néző nem látja a tulajdonosét)
+    if (isWorkout) { initBestEfforts(common); initSplits(common); initPedaling({ ...common, getFtp: () => null, parseFit: null }); }
   }
   if (isWorkout && !hide.has("wind")) {
     document.addEventListener("bringaterv:workoutWind", () => setTimeout(syncWindChart, 0));

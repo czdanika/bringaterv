@@ -16,6 +16,7 @@ import os
 import pickle
 import time
 import uuid
+from zoneinfo import ZoneInfo
 
 from config import log
 from storage import _user_dir, _user_routes_dir
@@ -296,16 +297,21 @@ def _garmin_sport_subtype(type_key: str) -> str:
     return "cycling"
 
 
-def _parse_garmin_gmt(s: str):
-    """Garmin 'YYYY-MM-DD HH:MM:SS' (GMT) → datetime (UTC). None ha nem értelmezhető."""
+def _parse_garmin_gmt(s):
+    """Garmin GMT-idő → datetime (UTC). A Garmin több formát ad: 'YYYY-MM-DD HH:MM:SS',
+    'YYYY-MM-DDTHH:MM:SS.0', '…Z', vagy epoch ezredmásodperc. None, ha nem értelmezhető."""
     from datetime import datetime, timezone
-    if not s:
+    if s is None or s == "":
         return None
-    try:
-        dt = datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
-        return dt.replace(tzinfo=timezone.utc)
-    except (ValueError, TypeError):
-        return None
+    if isinstance(s, (int, float)):
+        return datetime.fromtimestamp(s / 1000 if s > 1e11 else s, timezone.utc)
+    t = str(s).strip().replace("T", " ").replace("Z", "")
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(t, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
 
 
 # ── Garmin deny-list (törölt aktivitások – ne ajánljuk újra importra) ──────────
@@ -372,7 +378,18 @@ def garmin_list_activities(garmin, user_id: str, limit: int = 30, after_date: st
         activities = garmin.get_activities_by_date(after_date, date.today().isoformat())
         activities = activities[:limit] if limit else activities
     else:
-        activities = garmin.get_activities(0, limit)
+        # 100-as adagokban lapozunk (a nem hivatalos API egy nagy kérést nem szeret)
+        activities, start = [], 0
+        while len(activities) < limit:
+            chunk = garmin.get_activities(start, min(100, limit - len(activities)))
+            if isinstance(chunk, dict):
+                chunk = chunk.get("activities") or []
+            if not chunk:
+                break
+            activities += chunk
+            start += len(chunk)
+            if len(chunk) < 100 and len(activities) < limit:
+                break
     if isinstance(activities, dict):
         activities = activities.get("activities") or []
 
@@ -504,9 +521,18 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         with open(os.path.join(routes_dir, f"{new_id}.fit"), "wb") as f:
             f.write(fit_bytes)
 
-    start_dt = _parse_garmin_gmt(sdto.get("startTimeGMT") or summary.get("startTimeGMT"))
+    # az edzés kezdete: a Garmin összesítője → az eredeti FIT → a nyomvonal első időbélyege
+    # (soha nem az import ideje – a könyvtár és a statisztika ebből dolgozik)
+    from datetime import datetime, timezone
+    start_dt = _parse_garmin_gmt(sdto.get("startTimeGMT") or summary.get("startTimeGMT")
+                                 or summary.get("beginTimestamp") or sdto.get("beginTimestamp"))
+    if start_dt is None and isinstance((fit_sess or {}).get("start_time"), datetime):
+        start_dt = fit_sess["start_time"].astimezone(timezone.utc)
     if start_dt is None:
-        from datetime import datetime, timezone
+        from utils import gpx_first_time
+        start_dt = gpx_first_time(gpx_text)
+    if start_dt is None:
+        log.warning("Garmin %s: nincs indulási idő – az import ideje kerül be", activity_id)
         start_dt = datetime.now(timezone.utc)
 
     dist_m = sdto.get("distance") or summary.get("distance") or 0
@@ -523,7 +549,7 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         "distance":     round(dist_m / 1000, 2),
         "duration":     round(mov_s / 60) if mov_s else None,
         "elevation":    round(ele_m) if ele_m else 0,
-        "date":         start_dt.strftime("%Y-%m-%d"),
+        "date":         start_dt.astimezone(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d"),
         "start_time":   start_dt.isoformat(),
         "garmin_id":    activity_id,
         "source":       "garmin",

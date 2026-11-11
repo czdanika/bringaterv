@@ -8999,3 +8999,37 @@ body.is-navigating #toast { z-index: 3100; }
 .is-indoor { position: relative; }
 .is-indoor-file .toggle-switch:has(input[id$="MapToggle"]), .is-indoor-file #mFileColor, .is-indoor-file #mFileColorLabel,
 .is-indoor-file [data-rs="zoom"], .is-indoor-file #map .leaflet-control-container, .is-indoor-file #mapWpFabBtn, .is-indoor-file #mapFitFabBtn, .is-indoor-file .map-fab-style-wrap { display: none !important; }
+
+/* ── Üdvözlő ablak új felhasználóknak (welcome.js) – a .wn-* (Újdonságok) stílusra épül ── */
+.wc-card { width: min(600px, 100%); }
+.wc-step + .wc-step { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wc-step-h { display: flex; align-items: center; gap: 10px; margin: 0 4px 6px; font-size: 15px; }
+.wc-num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--brand, #e8461e); color: #fff; font-size: 12.5px; font-weight: 800; }
+.wc-p { margin: 0 4px 10px; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.wc-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 4px; }
+.wc-chip { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel-bg); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.wc-chip:hover { border-color: var(--brand, #e8461e); }
+.wc-chip svg { width: 16px; height: 16px; color: var(--brand, #e8461e); }
+.wc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.wc-tile { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel-bg); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.wc-tile:hover { border-color: var(--brand, #e8461e); }
+.wc-tile img { width: 28px; height: 28px; border-radius: 7px; object-fit: contain; flex: none; }
+.wc-tile span { display: flex; flex-direction: column; min-width: 0; }
+.wc-tile b { font-size: 13.5px; }
+.wc-tile small { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wc-tile.is-on { border-color: color-mix(in srgb, #16a34a 45%, var(--line)); }
+.wc-tile.is-on small { color: #16a34a; font-weight: 600; }
+.wc-ok { position: absolute; top: 8px; right: 8px; width: 15px; height: 15px; color: #16a34a; }
+.wc-file { margin: 10px 4px 0; }
+.wc-help { display: inline-flex; align-items: center; text-decoration: none; }
+@media (max-width: 600px) { .wc-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Könyvtár-kártya: felül a név (2 sorig) és a dátum teljes szélességben; alatta tájoló + útvonal-kép + számok */
+.library-card-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; overflow-wrap: anywhere; }
+.library-card-body { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.library-card-media { display: flex; align-items: center; gap: 6px; flex: none; }
+.library-card-body .library-card-stats { display: flex; flex-wrap: wrap; align-content: center; gap: 4px; margin: 0; min-width: 0; flex: 1; }
+.library-card-body .library-card-preview:empty { background: var(--panel-strong); border: 1px solid var(--line); }

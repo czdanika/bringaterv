@@ -397,8 +397,10 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
     with open(os.path.join(routes_dir, f"{new_id}.fit"), "wb") as f:
         f.write(fit_bytes)
 
+    from utils import gpx_first_time   # tartalék: a nyomvonal első időbélyege – soha nem az import ideje
     start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) \
-        else datetime.fromtimestamp(int(ride.get("start_time") or time.time()), timezone.utc)
+        else (datetime.fromtimestamp(int(ride["start_time"]), timezone.utc) if ride.get("start_time")
+              else (gpx_first_time(gpx_text) or datetime.now(timezone.utc)))
     dist_m = s.get("distance_m") or ride.get("distance") or 0
     mov_s  = s.get("moving_s") or ride.get("time") or 0
     ele_m  = s.get("ascent_m") if s.get("ascent_m") is not None else ride.get("elevation")

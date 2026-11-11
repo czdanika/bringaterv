@@ -194,3 +194,18 @@ def is_recorded_entry(entry: dict, gpx_text: str = None) -> bool:
     if any(entry.get(k) for k in SOURCE_ID_FIELDS) or entry.get("has_fit") or entry.get("start_time"):
         return True
     return bool(gpx_text) and gpx_has_times(gpx_text)
+
+
+_TRKPT_FIRST_TIME_RE = re.compile(r"<trkpt\b[^>]*>(?:(?!</trkpt>).)*?<time>([^<]+)</time>", re.S)
+
+
+def gpx_first_time(gpx_text: str):
+    """A nyomvonal első pontjának időbélyege (UTC datetime) – az edzés valódi kezdete."""
+    m = _TRKPT_FIRST_TIME_RE.search(gpx_text or "")
+    if not m:
+        return None
+    try:
+        dt = datetime.fromisoformat(m.group(1).strip().replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None

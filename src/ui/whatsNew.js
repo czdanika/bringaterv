@@ -16,6 +16,16 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.45.0", date: "2026. november",
+    title: "Pontos idők, tisztább kártyák",
+    items: [
+      { icon: "clock", title: "Helyes edzésidő", text: "A Garminról importált edzések a valódi kezdési időt kapják – a korábban rosszul jelzettek is." },
+      { icon: "layout-grid", title: "Kiférnek a nevek", text: "A Könyvtár kártyáin a név felül teljes szélességben, a térképek alatta." },
+      { icon: "list", title: "Több Garmin-edzés egyszerre", text: "Az importnál 500, 1000 vagy az összes edzés is választható." },
+      { icon: "compass", title: "Első lépések", text: "Rövid bevezető a ☰ menüben: adatok, összeköthető fiókok, mit tud az app." },
+    ],
+  },
+  {
     version: "1.44.0", date: "2026. november",
     title: "Beltéri edzések",
     lead: "A görgős és a Zwift-edzéseid is bekerülnek – a statisztikába, a formába és a bringa óráiba is.",
@@ -190,6 +200,6 @@ export function maybeShowWhatsNew() {
 export function initWhatsNew(deps = {}) {
   _deps = deps;
   document.getElementById("whatsNewButton")?.addEventListener("click", () => openWhatsNew());
-  // kicsit később, hogy az app már betöltött legyen
-  setTimeout(maybeShowWhatsNew, 1200);
+  // kicsit később, hogy az app már betöltött legyen (auto: false → a hívó indítja, pl. az üdvözlő ablak után)
+  if (deps.auto !== false) setTimeout(maybeShowWhatsNew, 1200);
 }

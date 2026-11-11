@@ -55,6 +55,7 @@ import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { initSharedLinks } from "./ui/sharedLinks.js";
 import { initIntegrationState } from "./ui/integrationState.js";
+import { initWelcome } from "./ui/welcome.js";
 import { indoorImport, isIndoor } from "./indoor.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
@@ -63,7 +64,7 @@ import { initInstallPrompt, registerServiceWorker } from "./ui/installPrompt.js"
 import { initNotifications } from "./ui/notifications.js";
 import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
 import { initAbout } from "./ui/about.js";
-import { initWhatsNew } from "./ui/whatsNew.js";
+import { initWhatsNew, maybeShowWhatsNew } from "./ui/whatsNew.js";
 import { initFeedback } from "./ui/feedback.js";
 import { initAccount } from "./ui/account.js";
 import {
@@ -2771,6 +2772,7 @@ initAbout({ isNewerVersion });
 initSharedLinks({ api: routesApi, shareUrl: (id) => shareRouteUrl(id) });
 initIntegrationState({ api: routesApi });
 initWhatsNew({
+  auto: false,   // az üdvözlő ablak után indul (új felhasználónál az üdvözlő mutatja be az appot)
   onGo: (to) => {
     if (to === "settings") {
       document.querySelector("#settingsButton")?.click();
@@ -2778,6 +2780,14 @@ initWhatsNew({
     } else switchTab(to);
   },
 });
+initWelcome({
+  api: routesApi,
+  openSettings: openSettingsSection,
+  onGo: (to) => {
+    if (to === "loadFile") { switchTab("file"); elements.gpxInput?.click(); }
+    else switchTab(to);
+  },
+}).then((shown) => { if (!shown) setTimeout(maybeShowWhatsNew, 900); });
 initFeedback();
 initAccount();
 // Mobilon a diagram / szél panel nyitásakor (mobileShell.js) újraillesztjük az útvonalat
@@ -2794,10 +2804,7 @@ window.addEventListener("bringaterv:refit", () => mapAdapter.fitRoute?.());
     return;
   }
   if (settingsSection) {
-    document.querySelector("#settingsButton")?.click();
-    const sec = document.querySelector(`[data-settings-section="${CSS.escape(settingsSection)}"]`);
-    sec?.classList.remove("is-collapsed");
-    sec?.scrollIntoView({ block: "start" });
+    openSettingsSection(settingsSection);
     return;
   }
   try {
@@ -4729,6 +4736,14 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
  * @param {string}  routeName – megjelenítési név
  * @param {"plan"|"file"} [target="plan"]
  */
+/** A Beállítások megnyitása egy adott szakasznál (kinyitva, odagörgetve) – mélylink, üdvözlő ablak. */
+function openSettingsSection(key) {
+  document.querySelector("#settingsButton")?.click();
+  const sec = document.querySelector(`[data-settings-section="${CSS.escape(key)}"]`);
+  sec?.classList.remove("is-collapsed");
+  setTimeout(() => sec?.scrollIntoView({ block: "start", behavior: "smooth" }), 120);
+}
+
 /** Beltéri edzésnél a térkép helyén egy jelzés (nincs nyomvonal); minden más betöltés eltünteti. */
 function setIndoorMapNote(on) {
   // a térképszínező kapcsolók és a színezés-chipek beltérinél nem értelmesek (nincs nyomvonal)

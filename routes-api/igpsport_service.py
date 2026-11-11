@@ -342,8 +342,9 @@ def igp_import_activity(token: str, user_id: str, ride_id: str, dedup: bool = Fa
                                     source="igpsport", id_field="igpsport_id", source_id=ride_id,
                                     start_dt=datetime.fromtimestamp(start_ts, timezone.utc) if start_ts else None)
     sport = s.get("sport") or "cycling"
+    from utils import gpx_first_time   # tartalék: a nyomvonal első időbélyege – soha nem az import ideje
     start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) \
-        else datetime.fromtimestamp(start_ts or time.time(), timezone.utc)
+        else (datetime.fromtimestamp(start_ts, timezone.utc) if start_ts else (gpx_first_time(gpx_text) or datetime.now(timezone.utc)))
     name = _ride_name(det.get("title"), int(start_dt.timestamp()), sport)
     gpx_text = gpx_text.replace("<name>iGPSport</name>", f"<name>{_xml(name)}</name>", 1)
 

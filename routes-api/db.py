@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -451,6 +451,68 @@ def _db_init_locked() -> None:
                     log.warning("v21 migráció hiba (%s): %s", ix, exc)
             conn.execute("PRAGMA user_version = 21")
             log.info("DB migrálva v21-re (edzés / terv rendbetéve: %s)", fixed)
+        if ver < 22:
+            # v22: a Garmin-import a Garmin egyes dátumformáit nem értette, és ilyenkor az IMPORT idejét
+            # tette indulási időnek. Ahol az indulás gyakorlatilag egyezik az importálás idejével, a
+            # valódit visszaállítjuk: az eredeti FIT-ből, ennek híján a GPX első időbélyegéből.
+            import glob as _glob
+            from datetime import datetime as _dt, timezone as _tz
+            from zoneinfo import ZoneInfo as _ZI
+            from utils import gpx_first_time
+            fixed = 0
+            for ix in _glob.glob(os.path.join(MULTI_DATA_DIR, "*", "routes", "index.json")):
+                try:
+                    with open(ix, encoding="utf-8") as f:
+                        data = json.load(f)
+                    if not isinstance(data, list):
+                        continue
+                    rdir, touched = os.path.dirname(ix), False
+                    for e in data:
+                        if not isinstance(e, dict) or e.get("type") != "workout" or not e.get("start_time") or not e.get("imported_at"):
+                            continue
+                        try:
+                            st = _dt.fromisoformat(str(e["start_time"]).replace("Z", "+00:00"))
+                            imp = _dt.fromisoformat(str(e["imported_at"]).replace("Z", "+00:00"))
+                            st = st if st.tzinfo else st.replace(tzinfo=_tz.utc)
+                            imp = imp if imp.tzinfo else imp.replace(tzinfo=_tz.utc)
+                        except ValueError:
+                            continue
+                        if abs((st - imp).total_seconds()) > 300:
+                            continue                      # rendes indulási idő
+                        real = None
+                        fit_path = os.path.join(rdir, f"{e['id']}.fit")
+                        if os.path.isfile(fit_path):
+                            try:
+                                from indoor import fit_streams
+                                with open(fit_path, "rb") as f:
+                                    sess, _rows = fit_streams(f.read())
+                                if isinstance(sess.get("start_time"), _dt):
+                                    real = sess["start_time"]
+                            except Exception:
+                                real = None
+                        if real is None:
+                            try:
+                                with open(os.path.join(rdir, f"{e['id']}.gpx"), encoding="utf-8") as f:
+                                    real = gpx_first_time(f.read(200000))
+                            except OSError:
+                                real = None
+                        if real is None:
+                            continue
+                        real = real if real.tzinfo else real.replace(tzinfo=_tz.utc)
+                        if abs((real - st).total_seconds()) < 600:
+                            continue                      # tényleg most rögzítették
+                        e["start_time"] = real.astimezone(_tz.utc).isoformat()
+                        e["date"] = real.astimezone(_ZI("Europe/Budapest")).strftime("%Y-%m-%d")
+                        fixed += 1; touched = True
+                    if touched:
+                        tmp = ix + ".tmp"
+                        with open(tmp, "w", encoding="utf-8") as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        os.replace(tmp, ix)
+                except (OSError, json.JSONDecodeError) as exc:
+                    log.warning("v22 migráció hiba (%s): %s", ix, exc)
+            conn.execute("PRAGMA user_version = 22")
+            log.info("DB migrálva v22-re (%d edzés indulási ideje javítva az import ideje helyett)", fixed)
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

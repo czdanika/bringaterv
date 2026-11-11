@@ -283,7 +283,7 @@ function drawRouteMapPreview(slot, points) {
       ${markers}
     </svg>${loc ? `<div class="lib-pv-locator" title="Hol van? – az útvonal helye az országon belül">${loc}</div>` : ""}`;
   slot.classList.add("lib-pv");
-  // kártyán a kis előnézet mellé külön tájoló
+  // kártyán a kis előnézet mellett külön tájoló (a név alatti sorban)
   const cardLoc = small ? slot.parentElement?.querySelector(".library-card-locator") : null;
   if (cardLoc) { cardLoc.innerHTML = locatorSvg(points, { w: 64, h: 40, dark }); cardLoc.hidden = !cardLoc.innerHTML; }
   return true;
@@ -1010,13 +1010,18 @@ export function createLibraryCard(route, category, isSample) {
             ? escapeHtml([...new Set([route.location.settlement, route.location.region].filter(Boolean)), route.location.loop ? "körtúra" : ""].filter(Boolean).join(" · "))
             : smartDateTimeFormat(route)}</span>
         </div>
-        <div class="library-card-locator" hidden title="Hol van? – az útvonal helye az országon belül"></div>
-        <div class="library-card-preview library-card-preview-slot" id="libCardPreview_${route.id}"></div>
       </div>
-      <div class="library-card-stats">
-        ${route.distance  != null ? `<span class="lib-chip">${num(route.distance, 1)} km</span>` : ""}
-        ${route.duration  != null ? `<span class="lib-chip">${libraryFormatDuration(route.duration)}</span>` : ""}
-        ${route.elevation != null ? `<span class="lib-chip">${route.elevation} m</span>` : ""}
+      <!-- a név és a dátum kapja a teljes szélességet; alatta a tájoló, az útvonal-kép és a számok -->
+      <div class="library-card-body">
+        <div class="library-card-media">
+          <div class="library-card-locator" hidden title="Hol van? – az útvonal helye az országon belül"></div>
+          <div class="library-card-preview library-card-preview-slot" id="libCardPreview_${route.id}"></div>
+        </div>
+        <div class="library-card-stats">
+          ${route.distance  != null ? `<span class="lib-chip">${num(route.distance, 1)} km</span>` : ""}
+          ${route.duration  != null ? `<span class="lib-chip">${libraryFormatDuration(route.duration)}</span>` : ""}
+          ${route.elevation != null ? `<span class="lib-chip">${route.elevation} m</span>` : ""}
+        </div>
       </div>
       ${sampleDesc ? `<div class="library-card-desc">${escapeHtml(sampleDesc)}</div>` : ""}
       <div class="library-card-footer">

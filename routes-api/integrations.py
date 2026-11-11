@@ -15,7 +15,7 @@ import json
 import os
 import re
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 import site_settings
 from auth import require_auth
@@ -106,6 +106,11 @@ def health() -> list:
 @bp.route("/api/integrations", methods=["GET"])
 @require_auth
 def user_integrations():
-    """A felületnek: mely integrációk vannak most lekapcsolva (és az üzenet hozzájuk)."""
+    """A felületnek: mely integrációk vannak most lekapcsolva (és az üzenet hozzájuk), és a
+    bejelentkezett felhasználó melyiket kötötte már össze (<key>.json a mappájában) – a Kezdőlap
+    „Hozd be az edzéseidet” kártyájához."""
     off = sorted(disabled())
-    return jsonify({"disabled": off, "messages": {k: message(k) for k in off}})
+    d = os.path.join(MULTI_DATA_DIR, g.user["id"])
+    connected = {k: os.path.isfile(os.path.join(d, f"{k}.json")) for k in KEYS}
+    return jsonify({"disabled": off, "messages": {k: message(k) for k in off}, "connected": connected,
+                    "items": [{k: i[k] for k in ("key", "label")} for i in INTEGRATIONS]})

@@ -44,7 +44,7 @@ MAP_HOOK = """
       try { v.Map.addInitHook(function () { window.__map = this; }); } catch (e) {}
     },
   });
-  try { localStorage.setItem("bringaterv_install_dismissed", String(Date.now())); localStorage.setItem("bringaterv.whatsNewSeen", "99.0.0"); } catch (e) {}
+  try { localStorage.setItem("bringaterv_install_dismissed", String(Date.now())); localStorage.setItem("bringaterv.whatsNewSeen", "99.0.0"); localStorage.setItem("bringaterv.welcomeSeen", "1"); } catch (e) {}
 })();
 """
 

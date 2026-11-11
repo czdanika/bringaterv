@@ -327,7 +327,8 @@ def bryton_import_activity(sess: dict, user_id: str, act_id: str, dedup: bool = 
         from indoor import save_indoor_from_fit
         return save_indoor_from_fit(user_id, fit_bytes, name="Beltéri tekerés", source="bryton", id_field="bryton_id", source_id=act_id)
     sport = s.get("sport") or "cycling"
-    start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) else datetime.now(timezone.utc)
+    from utils import gpx_first_time   # tartalék: a nyomvonal első időbélyege – soha nem az import ideje
+    start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) else (gpx_first_time(gpx_text) or datetime.now(timezone.utc))
     dist_m = s.get("distance_m") or 0
     if dedup:
         dup = find_cross_source_duplicate(idx, int(start_dt.timestamp()), float(dist_m), "bryton_id")

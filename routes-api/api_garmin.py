@@ -152,7 +152,7 @@ def garmin_activities():
     garmin = garmin_client(g.user["id"])
     if garmin is None:
         abort(409, description="Nincs Garmin kapcsolat. Csatlakozz a Beállítások panelben.")
-    limit = max(1, min(200, int(request.args.get("limit", 30))))
+    limit = max(1, min(2000, int(request.args.get("limit", 30))))
     after = request.args.get("after") or None  # 'YYYY-MM-DD'
     try:
         items = garmin_list_activities(garmin, g.user["id"], limit=limit, after_date=after)

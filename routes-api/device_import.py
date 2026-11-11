@@ -316,10 +316,13 @@ def save_workout(user_id: str, provider: str, item_id, *, fit_bytes: bytes | Non
         return {"ok": False, "error": "Nincs GPS adat ebben az edzésben (beltéri / görgős?)."}
 
     sport = s.get("sport") or (extra or {}).get("sport") or "cycling"
+    from utils import gpx_first_time   # tartalék: a nyomvonal első időbélyege – soha nem az import ideje
     if isinstance(s.get("start_time"), datetime):
         start_dt = s["start_time"]
+    elif start_ts:
+        start_dt = datetime.fromtimestamp(start_ts, timezone.utc)
     else:
-        start_dt = datetime.fromtimestamp(start_ts or time.time(), timezone.utc)
+        start_dt = gpx_first_time(gpx_text) or datetime.now(timezone.utc)
     name = (name or "").strip() or default_name(int(start_dt.timestamp()), sport)
     gpx_text = gpx_text.replace("<name>__NAME__</name>", f"<name>{_xml(name)}</name>", 1)
 

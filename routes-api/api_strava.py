@@ -3,6 +3,7 @@
 import json
 import os
 import uuid
+from zoneinfo import ZoneInfo
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 
@@ -424,7 +425,7 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
         "distance":     round(dist_m / 1000, 2),
         "duration":     round(mov_s / 60),
         "elevation":    round(ele_m),
-        "date":         start_dt.strftime("%Y-%m-%d"),
+        "date":         start_dt.astimezone(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d"),   # helyi nap (éjfél utáni tekerés)
         "start_time":   start_dt.isoformat(),
         "strava_id":    activity_id,
         "source":       "strava",
