@@ -14,7 +14,7 @@ from db import _db
 from storage import _resolve_dirs
 from share import clean_share, reset_views, views_of
 from strava_service import _add_strava_deny
-from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index, append_index
+from utils import _clean_surface, _load_index, _now_date, _now_dt, _safe_id, _save_index, append_index, is_recorded_entry
 
 bp = Blueprint("api_routes", __name__)
 _TZ = ZoneInfo("Europe/Budapest")
@@ -35,13 +35,8 @@ _TIME_RE = re.compile(r"<time>")
 
 
 def _is_recorded(entry: dict, gpx_text: str) -> bool:
-    """Valódi (rögzített) edzés-e – nem pedig tervezett útvonal.
-    Forrás alapján (Strava / Garmin / FIT / indulási idő), vagy ha a nyomvonal
-    pontjainak van időbélyege (a tervezett útvonalaknak nincs)."""
-    if entry.get("strava_id") or entry.get("garmin_activity_id") or entry.get("has_fit") or entry.get("start_time"):
-        return True
-    # A metadata <time> mellett legalább néhány trackpont-idő kell
-    return len(_TIME_RE.findall(gpx_text[:200000])) > 3
+    """Valódi (rögzített) edzés-e – nem pedig tervezett útvonal (utils.is_recorded_entry)."""
+    return entry.get("type") == "workout" or is_recorded_entry(entry, gpx_text)
 
 
 def _extract_track_points(gpx_path: str, every: int = 8, max_points: int = 300) -> list:
@@ -254,6 +249,13 @@ def save_route():
     }
     if start_dt:
         entry["start_time"] = start_dt.astimezone(timezone.utc).isoformat()
+    if route_type == "workout" and not is_recorded_entry(entry, gpx_content):
+        # időadat nélküli GPX (pl. letöltött vagy tervezett útvonal az Elemzés fülről mentve):
+        # ez terv, nem edzés – nem kerül a statisztikába, a rekordok közé és a hőtérképre
+        route_type = "hiking" if data.get("sport_type") in ("running", "walking", "hiking") else "asphalt"
+        entry["type"] = route_type
+    if route_type != "workout":
+        entry["include_in_stats"] = False          # terv sosem számít a statisztikába
     if route_type == "workout" and data.get("sport_type") in ("cycling", "running", "walking", "hiking"):
         entry["sport_type"] = data["sport_type"]          # a kliens tudja (pl. FIT sport, GPX <type>)
     if route_type == "workout":
@@ -339,7 +341,10 @@ def update_route(route_id: str):
     if not entry:
         abort(404, description=f"Útvonal nem található: {route_id}")
     if "name"        in data: entry["name"]        = (data["name"] or "Névtelen").strip()
-    if "type"        in data: entry["type"]        = data["type"]
+    if "type" in data:
+        # rögzített edzés nem válhat tervvé (pl. a szerkesztő ablak útvonaltípusa miatt), és fordítva
+        if entry.get("type") != "workout" and data["type"] != "workout":
+            entry["type"] = data["type"]
     if "description" in data: entry["description"] = (data["description"] or "").strip()
     if "include_in_stats" in data:
         entry["include_in_stats"] = bool(data["include_in_stats"])

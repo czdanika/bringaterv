@@ -78,11 +78,8 @@ def igp_connect():
     except IgpApiError as exc:
         abort(502, description=f"iGPSport belépés sikertelen: {exc}")
     try:   # új belépés → a lejárat-figyelmeztetés újra küldhető
-        from igpsport_sync import load_sync, save_sync
-        st = load_sync(g.user["id"])
-        st["expiry_alerted"] = False
-        st["conn_alerted"] = False
-        save_sync(g.user["id"], st)
+        from igpsport_sync import reset_alerts
+        reset_alerts(g.user["id"])
     except Exception:
         pass
     return jsonify({"connected": True, "account": data["account"], "nickname": data.get("nickname")})

@@ -16,6 +16,20 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.43.0", date: "2026. november",
+    title: "Szokások, új megosztó képek",
+    lead: "Új nézet a statisztikában, négy új stílus a megosztó képhez, és pontosabb számok mindenhol.",
+    go: { to: "stats", label: "Megnézem a Statisztikát" },
+    items: [
+      { icon: "calendar-days", title: "Szokások", text: "Melyik napon és napszakban edzel, milyen távokat, melyik bringával – a Statisztika új nézetében. A Kezdőlapon is." },
+      { icon: "image", title: "Négy új megosztó kép", text: "Poszter, Szintprofil, Eredmények és átlátszó Matrica a saját fotódra. Új méret: 4:5." },
+      { icon: "sliders-horizontal", title: "Áttekinthetőbb kép és PDF", text: "Beállítások csoportokban, a PDF előnézete magától frissül, és minden választást megjegyez." },
+      { icon: "activity", title: "Forma a Kezdőlapon", text: "A fittség és a fáradtság az elmúlt 12 hétben, egy pillantásra." },
+      { icon: "check-check", title: "Egyező számok", text: "A táv és az emelkedés mindenhol ugyanaz: a rögzítő eszköz vagy a Strava értéke." },
+      { icon: "list-checks", title: "Tervek nem kerülnek a rekordok közé", text: "A tervezett útvonalak nem számítanak a statisztikába és a Rekordokba." },
+    ],
+  },
+  {
     version: "1.42.0", date: "2026. november",
     title: "Sokkal több az edzéseidről",
     lead: "Az Elemzés kapta a legnagyobb bővítést eddig: nyiss meg egy edzést, és görgess lejjebb az összefoglaló alatt.",

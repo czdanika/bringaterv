@@ -16,7 +16,9 @@ import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
 import { fitToGpx } from '../gpx/fit.js';
 import { equipmentLine, sensorLabels } from '../equipment.js';
 import { isSolidChartMode } from './elevationProfile.js';
-import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts } from './shareCard.js';
+import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts, SHARE_STATS, DEFAULT_STATS, LAYOUT_CAPS } from './shareCard.js';
+import { getShareHighlights } from './bestEfforts.js';
+import { getWorkoutWind } from './workoutWind.js';
 import { reverseGeocode } from './search.js';
 import { openShareModal } from './shareModal.js';
 import { openRoutePdfModal, shareRouteUrl, ensureLinkPublic } from './routePdfModal.js';
@@ -146,6 +148,13 @@ async function saveImportedToLibrary() {
     fitContent = arrayBufferToBase64(_importedFitBuffer);
   }
 
+  // edzés csak az, amit rögzítettek: FIT, indulási idő, vagy időbélyeges pontok. Egy letöltött /
+  // tervezett útvonal (időadat nélkül) tervként kerül a könyvtárba – nem a statisztikába, rekordok közé
+  const geo = state.routeGeometry || [];
+  const recorded = !!fitContent || !!(startTime && !Number.isNaN(startTime.getTime()))
+    || geo.filter((p) => p.time != null).length >= 4;
+  const planType = ["gravel", "mtb", "hiking", "walking"].includes(state.mode) ? state.mode : "asphalt";
+
   try {
     const saved = await _api.saveRoute({
       name,
@@ -154,12 +163,15 @@ async function saveImportedToLibrary() {
       distance:    distanceKm,
       duration:    durationMin,
       elevation:   ascentMeters,
-      type:        "workout",
+      type:        recorded ? "workout" : planType,
       description: "",
+      include_in_stats: recorded,
       // a dátum az edzés napja legyen, ne a mentésé (statisztika, Kezdőlap, könyvtár)
       startTime:   startTime && !Number.isNaN(startTime.getTime()) ? startTime.toISOString() : null,
     });
-    _showToast(`„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`);
+    _showToast(recorded
+      ? `„${name}" mentve az Edzések közé${fitContent ? " (FIT-tel)" : ""}`
+      : `„${name}" mentve a Tervek közé – nincs benne időadat, ezért nem edzés (nem kerül a statisztikába)`, recorded ? undefined : 6000);
     _loadedLibraryRouteId = saved?.id || saved?.route?.id || "saved";
     _loadedIsSample = false;
     updateFileSaveButtonState();
@@ -466,7 +478,10 @@ export function populateFileTab({ filename, geometry, distanceMeters, ascentMete
       : (meta.totalDuration ? formatDuration(meta.totalDuration) : "");
     const avgSpd = avgSpeedKmh;
     const simPts = shareCardPoints(geometry);
+    const avgOf = (k, min = 0) => { const a = geometry.map((p) => p[k]).filter((v) => v != null && Number.isFinite(v) && v > min); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; };
+    const spd = geometry.map((p) => p.speed).filter((v) => v != null && v > 0 && v < 120);
     _shareCardData = {
+      extra: { hrAvg: avgOf("hr"), powerAvg: avgOf("power", -1), kcal: Number(meta.calories) || null, maxSpeed: spd.length ? Math.max(...spd) : null },
       geometry, descentMeters, startTime: meta.startTime || null,
       isWorkout: !!(meta.startTime || meta.totalDuration),
       title:        titleStr,
@@ -695,8 +710,15 @@ export async function processImportedFile(file) {
 
 // ── Share Card modal ──────────────────────────────────────────────────────────
 function _initShareCardModal() {
-  let _shareTheme = "light";
-  let _shareSize  = "square";
+  const lsGet = (k, ok) => { try { const v = localStorage.getItem(k); return ok(v) ? v : null; } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  let _shareTheme = lsGet("bt.shareTheme", (v) => ["light", "dark", "topo"].includes(v)) || "light";   // a fotó nem marad meg (a kép sem)
+  let _shareSize  = lsGet("bt.shareSize", (v) => ["square", "portrait", "story"].includes(v)) || "square";
+  let _shareInk   = lsGet("bt.shareInk", (v) => ["white", "black", "orange"].includes(v)) || "white";
+  let _shareDate  = lsGet("bt.shareDate", (v) => v === "0" || v === "1") !== "0";
+  let _shareStats = DEFAULT_STATS.slice();
+  try { const v = JSON.parse(localStorage.getItem("bt.shareStats") || "null"); if (Array.isArray(v) && v.length) _shareStats = v.filter((id) => SHARE_STATS.some((x) => x.id === id)).slice(0, 4); } catch {}
+  const MAX_STATS = 4;
   // A választott stílus megmarad a következő megosztásra is
   let _shareLayout = "panel";
   try { const v = localStorage.getItem("bt.shareLayout"); if (SHARE_LAYOUTS.some((l) => l.id === v)) _shareLayout = v; } catch {}
@@ -735,26 +757,101 @@ function _initShareCardModal() {
     requestAnimationFrame(() => { _refreshScheduled = false; refreshSharePreview(); });
   }
 
+  /** A kép összes beállítása (előnézet és letöltés ugyanezt használja). */
+  function cardOpts() {
+    const caps = LAYOUT_CAPS[_shareLayout] || {};
+    const theme = caps.theme === false ? "light" : _shareTheme;
+    return {
+      ..._shareCardData,
+      title: document.querySelector("#shareCardTitle")?.value?.trim() || _shareCardData.title,
+      theme, layout: _shareLayout, charts: _shareCharts, size: _shareSize,
+      photo: theme === "photo" ? _sharePhoto : null,
+      qrUrl: _qrUrl(),
+      stats: _shareStats, showDate: _shareDate, ink: _shareInk,
+    };
+  }
+
+  // a kiválasztott adatok (chipek) – csak ami ennél az útvonalnál megvan
+  function availableStats() {
+    const d = _shareCardData || {}, x = d.extra || {};
+    const has = { dist: d.distanceKm > 0, time: !!d.durationText, speed: d.avgSpeedKmh > 0, elev: d.elevationM > 0,
+                  hr: x.hrAvg > 0, power: x.powerAvg > 0, kcal: x.kcal > 0, maxSpeed: x.maxSpeed > 0 };
+    return SHARE_STATS.filter((it) => has[it.id]).map((it) => it.id);
+  }
+  function renderStatPicker() {
+    const picker = document.querySelector("#shareStatPicker");
+    if (!picker) return;
+    const avail = availableStats();
+    const chosen = _shareStats.filter((id) => avail.includes(id));
+    picker.innerHTML = SHARE_STATS.filter((it) => avail.includes(it.id)).map((it) => {
+      const on = chosen.includes(it.id);
+      const full = !on && chosen.length >= MAX_STATS;
+      return `<button type="button" class="sc-chip${on ? " sc-chip--on" : ""}" data-share-stat="${it.id}" aria-pressed="${on}" ${full ? "disabled" : ""}>${it.label}</button>`;
+    }).join("");
+  }
+  document.querySelector("#shareStatPicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-share-stat]");
+    if (!b || b.disabled) return;
+    const id = b.dataset.shareStat;
+    const avail = availableStats();
+    let cur = _shareStats.filter((x) => avail.includes(x));
+    cur = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    if (!cur.length) return;   // legalább egy adat maradjon
+    // a sorrend a lista sorrendje (táv, idő, átlag, …)
+    _shareStats = SHARE_STATS.map((x) => x.id).filter((x) => cur.includes(x));
+    lsSet("bt.shareStats", JSON.stringify(_shareStats));
+    renderStatPicker(); syncGroups(); refreshSharePreview();
+  });
+  document.querySelector("#shareDateToggle")?.addEventListener("change", (e) => {
+    _shareDate = e.target.checked; lsSet("bt.shareDate", _shareDate ? "1" : "0");
+    syncGroups(); refreshSharePreview();
+  });
+  document.querySelectorAll("[data-share-ink]").forEach((btn) => btn.addEventListener("click", () => {
+    _shareInk = btn.dataset.shareInk; lsSet("bt.shareInk", _shareInk);
+    syncGroups(); refreshSharePreview();
+  }));
+
+  /** A stílushoz tartozó beállítások mutatása / rejtése és a csoportfejlécek összefoglalója. */
+  function syncGroups() {
+    const caps = LAYOUT_CAPS[_shareLayout] || {};
+    document.querySelectorAll("[data-sc-cap]").forEach((el) => {
+      const k = el.dataset.scCap;
+      if (k === "charts") return;   // a grafikonsor maga dönti el (van-e adat)
+      el.hidden = !caps[k];
+    });
+    const chartRow = document.querySelector("#shareChartRow");
+    if (chartRow && !caps.charts) chartRow.hidden = true;
+    else if (chartRow) chartRow.hidden = !availableShareCharts(_shareCardData?.points || []).length;
+    const photo = document.querySelector("#sharePhotoControls");
+    if (photo) photo.hidden = !(caps.photo && _shareTheme === "photo");
+    document.querySelectorAll("[data-share-theme]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.shareTheme === _shareTheme));
+    document.querySelectorAll("[data-share-size]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _shareSize));
+    document.querySelectorAll("[data-share-ink]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.shareInk === _shareInk));
+    const dt = document.querySelector("#shareDateToggle"); if (dt) dt.checked = _shareDate;
+    const L = (sel) => document.querySelector(sel)?.textContent?.trim() || "";
+    const sizeL = { square: "Négyzet", portrait: "4:5", story: "Sztori" }[_shareSize];
+    const bgL = caps.ink ? `${L(`[data-share-ink="${_shareInk}"]`)} szín` : L(`[data-share-theme="${_shareTheme}"]`);
+    const fmt = document.querySelector('[data-sc-sum="format"]'); if (fmt) fmt.textContent = [sizeL, bgL].filter(Boolean).join(" · ");
+    const avail = availableStats();
+    const st = _shareStats.filter((x) => avail.includes(x)).map((x) => SHARE_STATS.find((y) => y.id === x)?.label.toLowerCase());
+    const extras = [caps.charts && _shareCharts.length ? `${_shareCharts.length} grafikon` : "", _qrUrl() ? "QR" : ""].filter(Boolean);
+    const con = document.querySelector('[data-sc-sum="content"]'); if (con) con.textContent = [st.join(", "), ...extras].filter(Boolean).join(" · ");
+    const hint = document.querySelector("#shareLayoutHint");
+    if (hint) hint.textContent = SHARE_LAYOUTS.find((l) => l.id === _shareLayout)?.hint || "";
+  }
+
   async function refreshSharePreview() {
     if (!_shareCardData) return;
     const previewCanvas = document.querySelector("#shareCardPreview");
     if (!previewCanvas) return;
-    const titleInput = document.querySelector("#shareCardTitle");
-    const titleVal   = titleInput?.value?.trim() || _shareCardData.title;
-    const card = await createWorkoutShareCard({
-      ..._shareCardData,
-      title: titleVal,
-      theme: _shareTheme,
-      layout: _shareLayout,
-      charts: _shareCharts,
-      size:  _shareSize,
-      photo: _shareTheme === "photo" ? _sharePhoto : null,
-      qrUrl: _qrUrl(),
-    });
+    const card = await createWorkoutShareCard(cardOpts());
     previewCanvas.width  = card.width;
     previewCanvas.height = card.height;
     const ctx = previewCanvas.getContext("2d");
+    ctx.clearRect(0, 0, card.width, card.height);
     ctx.drawImage(card, 0, 0);
+    // átlátszó (Matrica) képnél kockás háttér az előnézet mögött
+    previewCanvas.classList.toggle("is-transparent", _shareLayout === "sticker");
   }
 
   // ── Fotó vezérlők ──────────────────────────────────────────────────────────
@@ -888,7 +985,7 @@ function _initShareCardModal() {
     const on = document.querySelector("#shareQrToggle")?.checked !== false;
     return on ? (_shareCardData?.shareUrl || null) : null;
   }
-  document.querySelector("#shareQrToggle")?.addEventListener("change", () => refreshSharePreview());
+  document.querySelector("#shareQrToggle")?.addEventListener("change", () => { syncGroups(); refreshSharePreview(); });
 
   function openShareCardModal() {
     if (!_shareCardData) return;
@@ -898,7 +995,17 @@ function _initShareCardModal() {
     if (qrRow) qrRow.hidden = !_shareCardData.shareUrl;
     const titleInput = document.querySelector("#shareCardTitle");
     if (titleInput) titleInput.value = _shareCardData.metaTitle || "";
+    // az Elemzés saját edzésénél: érmes eredmények és szél (az „Eredmények” stílushoz); könyvtárból hívva nincs
+    if (_shareRestore === undefined) {
+      _shareCardData.highlights = getShareHighlights();
+      _shareCardData.wind = getWorkoutWind()?.stats || null;
+      const kcalTxt = document.querySelector("#fileKcal")?.textContent || "";
+      const kcal = parseInt(kcalTxt.replace(/\D/g, ""), 10);
+      if (_shareCardData.extra && !_shareCardData.extra.kcal && kcal > 0) _shareCardData.extra.kcal = kcal;
+    }
     renderChartPicker();
+    renderStatPicker();
+    syncGroups();
     overlay.hidden = false;
     refreshSharePreview();
     window.lucide?.createIcons();
@@ -913,6 +1020,7 @@ function _initShareCardModal() {
       : SHARE_CHARTS.map((c) => c.id).filter((x) => x === id || _shareCharts.includes(x));
     try { localStorage.setItem("bt.shareCharts", JSON.stringify(_shareCharts)); } catch {}
     renderChartPicker();
+    syncGroups();
     refreshSharePreview();
   });
 
@@ -1019,6 +1127,7 @@ function _initShareCardModal() {
         _shareLayout = b.dataset.shareLayout;
         try { localStorage.setItem("bt.shareLayout", _shareLayout); } catch {}
         sync();
+        syncGroups();
         refreshSharePreview();
       });
     }
@@ -1027,10 +1136,9 @@ function _initShareCardModal() {
   document.querySelectorAll("[data-share-theme]").forEach((btn) => {
     btn.addEventListener("click", () => {
       _shareTheme = btn.dataset.shareTheme;
-      document.querySelectorAll("[data-share-theme]").forEach((b) => {
-        b.classList.toggle("share-opt-btn--active", b.dataset.shareTheme === _shareTheme);
-      });
+      if (_shareTheme !== "photo") lsSet("bt.shareTheme", _shareTheme);
       _togglePhotoControls();
+      syncGroups();
       refreshSharePreview();
     });
   });
@@ -1038,9 +1146,8 @@ function _initShareCardModal() {
   document.querySelectorAll("[data-share-size]").forEach((btn) => {
     btn.addEventListener("click", () => {
       _shareSize = btn.dataset.shareSize;
-      document.querySelectorAll("[data-share-size]").forEach((b) => {
-        b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _shareSize);
-      });
+      lsSet("bt.shareSize", _shareSize);
+      syncGroups();
       refreshSharePreview();
     });
   });
@@ -1055,16 +1162,7 @@ function _initShareCardModal() {
   }
 
   async function _buildCard() {
-    return createWorkoutShareCard({
-      ..._shareCardData,
-      title: _getShareTitle(),
-      theme: _shareTheme,
-      layout: _shareLayout,
-      charts: _shareCharts,
-      size:  _shareSize,
-      photo: _shareTheme === "photo" ? _sharePhoto : null,
-      qrUrl: _qrUrl(),
-    });
+    return createWorkoutShareCard({ ...cardOpts(), title: _getShareTitle() });
   }
 
   document.querySelector("#shareCardNativeShare")?.addEventListener("click", async () => {

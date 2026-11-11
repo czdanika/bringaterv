@@ -11,6 +11,7 @@
  *   updateHome({ tab, hasRoute })   – fülváltáskor / a store változásakor
  */
 
+import { isWorkout, countsInStats } from "../workoutKind.js";
 import { dueTasks } from "../equipment.js";
 import { num } from "../format.js";
 import { calcEddington, calcTrainingLoad } from "./statsPanel.js";
@@ -23,10 +24,7 @@ const _gpxCache = new Map();   // id → { points } (előnézet + időjárás he
 let _state = { tab: "plan", hasRoute: false };
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const isWorkout = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
-// Statisztikába számít: edzés (hacsak ki nem vették), vagy terv, amit a Könyvtárban kifejezetten
-// bekapcsoltak (pl. letekert terv) – ugyanaz a szabály, mint a Statisztika fülön
-const countsInStats = (r) => r.include_in_stats === true || (isWorkout(r) && r.include_in_stats !== false);
+// edzés / terv és „statisztikába számít” – a közös szabály (workoutKind.js)
 const when = (r) => r.start_time || r.date || "";
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -191,7 +189,10 @@ function template() {
           ${summaryCard(workouts)}
           ${formCard(workouts)}
         </div>
-        ${memoryCard()}
+        <div class="home-row2 home-row2--c">
+          ${memoryCard()}
+          ${habitsCard(workouts)}
+        </div>
         ${calendarCard(workouts)}`}`}
       <div class="home-foot">Új vagy itt? <a href="./help.html" target="_blank" rel="noopener">Súgó és kézikönyv →</a></div>
     </div>`;
@@ -398,8 +399,59 @@ function formCard(workouts) {
         ${e.totalDays ? item(e.E, "Eddington", `${e.E} napon legalább ${e.E} km · a ${e.next}-hez még ${e.daysNeeded} nap kell`) : ""}
         ${item(st.nWeeks, "Hét sorozat", "Egymást követő hetek edzéssel")}
       </div>
+      ${formChart(series)}
       ${e.totalDays ? `<div class="home-sub home-form-note">Eddington: a <b>${e.next}</b>-hez még <b>${e.daysNeeded}</b> nap kell legalább ${e.next} km-rel.</div>` : ""}
       ${early ? `<div class="home-sub home-early">Néhány edzés után lesz pontos.</div>` : ""}`, { link: "training", hint: "form" });
+}
+
+/** Az elmúlt 12 hét: fittség (folytonos) és fáradtság (halvány) – a kártya szélességéhez nyúlik. */
+function formChart(series) {
+  const pts = series.slice(-84);
+  if (pts.length < 14) return "";
+  const W = 300, H = 90;
+  const hi = Math.max(...pts.map((p) => Math.max(p.ctl, p.atl)), 1), lo = Math.min(...pts.map((p) => Math.min(p.ctl, p.atl)));
+  const pad = Math.max(2, (hi - lo) * 0.12), top = hi + pad, bot = Math.max(0, lo - pad);
+  const x = (i) => (i / (pts.length - 1)) * W, y = (v) => H - ((v - bot) / (top - bot || 1)) * H;
+  const line = (k) => pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join("");
+  const area = `${line("ctl")}L${W},${H}L0,${H}Z`;
+  const weeks = [];
+  for (let i = pts.length - 1; i >= 0; i -= 7) weeks.push(i);
+  const tip = (p) => `${new Date(p.date).toLocaleDateString("hu-HU", { month: "short", day: "numeric" })} · fittség ${Math.round(p.ctl)} · fáradtság ${Math.round(p.atl)}`;
+  return `<div class="home-fc">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="home-fc-svg" role="img" aria-label="Fittség és fáradtság az elmúlt 12 hétben">
+        <path d="${area}" class="home-fc-area"/>
+        <path d="${line("atl")}" class="home-fc-atl" vector-effect="non-scaling-stroke"/>
+        <path d="${line("ctl")}" class="home-fc-ctl" vector-effect="non-scaling-stroke"/>
+        ${pts.map((p, i) => `<rect x="${(x(i) - W / pts.length / 2).toFixed(1)}" y="0" width="${(W / pts.length).toFixed(2)}" height="${H}" fill="transparent"><title>${tip(p)}</title></rect>`).join("")}
+      </svg>
+      <div class="home-fc-leg"><span><i class="home-fc-k home-fc-k--ctl"></i>Fittség</span><span><i class="home-fc-k home-fc-k--atl"></i>Fáradtság</span><em>12 hét</em></div>
+    </div>`;
+}
+
+// ── Szokások (a Statisztika → Szokások kivonata) ─────────────────────────────
+const TODS = [["morning", "Reggel", 6, 12], ["noon", "Délután", 12, 17], ["evening", "Este", 17, 23], ["night", "Éjjel", 23, 30]];
+function habitsCard(workouts) {
+  const ws = workouts.filter((r) => when(r));
+  if (ws.length < 5) return "";
+  const days = [0, 0, 0, 0, 0, 0, 0];
+  ws.forEach((r) => { days[(new Date(when(r)).getDay() + 6) % 7]++; });
+  const max = Math.max(...days, 1), fav = days.indexOf(max);
+  const timed = ws.filter((r) => r.start_time);
+  const tod = TODS.map(([k, l, a, b]) => [k, l, timed.filter((r) => { const h = new Date(r.start_time).getHours(); return (h >= a && h < b) || (h + 24 >= a && h + 24 < b); }).length]);
+  const tot = timed.length || 1;
+  const favTod = tod.reduce((m, t) => (t[2] > m[2] ? t : m), tod[0]);
+  const LBL = ["H", "K", "Sze", "Cs", "P", "Szo", "V"], DAYN = ["hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat", "vasárnap"];
+  return card("Szokásaid", `
+      <div class="home-hb">
+        <div class="home-hb-days">${days.map((n, i) => `<div class="home-hb-d${i === fav ? " is-fav" : ""}" title="${DAYN[i]}: ${n} edzés"><i style="height:${Math.max(4, (n / max) * 100)}%"></i><span>${LBL[i]}</span></div>`).join("")}</div>
+        <div class="home-hb-side">
+          <div class="cs-stat"><b>${DAYN[fav].replace(/^./, (c) => c.toUpperCase())}</b><span>kedvenc nap</span></div>
+          ${timed.length ? `<div class="cs-stat"><b>${favTod[1]}</b><span>leggyakoribb napszak</span></div>` : ""}
+        </div>
+      </div>
+      ${timed.length ? `<div class="home-hb-tod">${tod.filter((t) => t[2]).map(([k, l, n]) => `<i class="hb-tod--${k}" style="flex:${n}" title="${l}: ${Math.round(n / tot * 100)}%"></i>`).join("")}</div>
+      <div class="home-hb-leg">${tod.filter((t) => t[2]).map(([k, l, n]) => `<span><i class="hb-sw hb-tod--${k}"></i>${l} ${Math.round(n / tot * 100)}%</span>`).join("")}</div>` : ""}`,
+    { link: "habits" });
 }
 
 /** Egymást követő napok / hetek / hónapok edzéssel (a mostanival vagy az előzővel végződve). */

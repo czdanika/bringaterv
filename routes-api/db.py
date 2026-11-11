@@ -15,7 +15,7 @@ from storage import (
 )
 from utils import _now_dt
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 
 _SCHEMA_SQL = """
 PRAGMA journal_mode = WAL;
@@ -406,6 +406,51 @@ def _db_init_locked() -> None:
             conn.execute("CREATE INDEX IF NOT EXISTS share_seen_at ON share_seen(at)")
             conn.execute("PRAGMA user_version = 20")
             log.info("DB migrálva v20-ra (megnyitás-szűrő)")
+        if ver < 21:
+            # v21: edzés / terv rendbetétele (a Rekordok és a statisztika tervet is számolt):
+            #  - rögzített edzés (forrás-azonosító, FIT, indulási idő), amelyet a szerkesztő ablak
+            #    útvonaltípusra írt át → vissza „workout”-ra
+            #  - „workout”, amelyben nincs időadat (időbélyeg nélküli GPX, pl. az Elemzés fülről mentett
+            #    letöltött útvonal) → terv, a statisztikából kivéve
+            #  - terv sosem számít a statisztikába
+            import glob as _glob
+            from utils import gpx_has_times, is_recorded_entry
+            fixed = {"to_workout": 0, "to_plan": 0, "plan_stats": 0}
+            for ix in _glob.glob(os.path.join(MULTI_DATA_DIR, "*", "routes", "index.json")):
+                try:
+                    with open(ix, encoding="utf-8") as f:
+                        data = json.load(f)
+                    if not isinstance(data, list):
+                        continue
+                    rdir, touched = os.path.dirname(ix), False
+                    for e in data:
+                        if not isinstance(e, dict) or not e.get("id"):
+                            continue
+                        if e.get("type") != "workout" and is_recorded_entry(e):
+                            if not e.get("sport_type"):
+                                e["sport_type"] = "hiking" if e.get("type") in ("hiking", "walking") else "cycling"
+                            e["type"] = "workout"; fixed["to_workout"] += 1; touched = True
+                        elif e.get("type") == "workout" and not is_recorded_entry(e):
+                            try:
+                                with open(os.path.join(rdir, f"{e['id']}.gpx"), encoding="utf-8") as f:
+                                    has_t = gpx_has_times(f.read(400000))
+                            except OSError:
+                                has_t = True            # nincs fájl – nem nyúlunk hozzá
+                            if not has_t:
+                                e["type"] = "hiking" if e.get("sport_type") in ("running", "walking", "hiking") else "asphalt"
+                                e["reclassified"] = "plan"
+                                fixed["to_plan"] += 1; touched = True
+                        if e.get("type") != "workout" and e.get("include_in_stats") is not False:
+                            e["include_in_stats"] = False; fixed["plan_stats"] += 1; touched = True
+                    if touched:
+                        tmp = ix + ".tmp"
+                        with open(tmp, "w", encoding="utf-8") as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        os.replace(tmp, ix)
+                except (OSError, json.JSONDecodeError) as exc:
+                    log.warning("v21 migráció hiba (%s): %s", ix, exc)
+            conn.execute("PRAGMA user_version = 21")
+            log.info("DB migrálva v21-re (edzés / terv rendbetéve: %s)", fixed)
 
 
 def _db_create_user(conn, email: str, name: str, password: str, role: str = "user",

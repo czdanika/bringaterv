@@ -202,7 +202,8 @@ def _loop():
             if lock_file is not None and os.path.isdir(MULTI_DATA_DIR):
                 for uid in sorted(os.listdir(MULTI_DATA_DIR)):
                     for provider in PROVIDERS:
-                        if (os.path.isfile(_path(uid, provider)) and load_tokens(uid, provider)
+                        import integrations     # admin → Integrációk: lekapcsolva kimarad
+                        if (integrations.is_enabled(provider) and os.path.isfile(_path(uid, provider)) and load_tokens(uid, provider)
                                 and _due(load_sync(uid, provider))):
                             sync_user(uid, provider)
         except Exception as exc:               # a szál sosem állhat le

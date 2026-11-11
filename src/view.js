@@ -241,7 +241,7 @@ const HINTS = {
   "Időtartam": "A rögzítés teljes ideje az indulástól az érkezésig.",
   "Becsült idő": "A tervezett útvonal becsült menetideje.",
   "Átlagsebesség": "Táv osztva a mozgásidővel – a megállások nem rontják.",
-  "Emelkedés": "Összesen ennyi méter felfelé (3 m-es zajszűréssel); a ↓ érték az ereszkedés.",
+  "Emelkedés": "Összesen ennyi méter felfelé – a rögzítő eszköz értéke, ha megadta; a ↓ érték az ereszkedés.",
   "Sebesség": "Átlag: táv / mozgásidő. Max: a legnagyobb mért pillanatnyi sebesség.",
   "Pulzus": "Átlagos és legmagasabb szívfrekvencia (ütés / perc).",
   "Kadencia": "Pedálfordulat percenként; az átlagban a gurulás (0) nem számít.",
@@ -255,16 +255,23 @@ const hintAttr = (k) => HINTS[k] ? ` title="${escapeHtml(HINTS[k])}"` : "";
 
 function renderSummary(meta, geometry, gmeta) {
   const isWorkout = meta.kind === "workout";
-  const distM = haversineKm(geometry) * 1000 || meta.distanceM || 0;
-  const { ascentMeters, descentMeters } = calcElevationFromGeometry(geometry);
+  // egy forrás mindenhol (mint az app): a szolgáltató tárolt táv / emelkedés értéke, ha van; különben a GPX-ből
+  const distM = (meta.distanceM > 0 ? meta.distanceM : 0) || haversineKm(geometry) * 1000 || 0;
+  let { ascentMeters, descentMeters } = calcElevationFromGeometry(geometry);
+  if (meta.elevationM > 0) {
+    ascentMeters = Math.round(meta.elevationM);
+    const eles = geometry.map((p) => p.ele).filter((v) => Number.isFinite(v));
+    if (eles.length > 1) descentMeters = Math.max(0, Math.round(meta.elevationM + eles[0] - eles[eles.length - 1]));
+  }
   const totalMs = gmeta.totalDuration || null, movingMs = gmeta.movingDuration || null;
   // időtartam az app formájában („4 ó 3 p”), a mértékegység halványan
   const unitify = (t) => String(t || "").replace(/([\d,.]+)\s*([^\d\s,.]+)/g, "$1<small>$2</small>");
   const durS = (ms) => unitify(durMs(ms));
   // fő számok (mint az Elemzés tetején)
   const big = [[fmt(distM / 1000, 1), "km", "Táv"]];
-  if (isWorkout && movingMs) big.push([durS(movingMs), "", "Mozgásidő"]);
-  else if (isWorkout && totalMs) big.push([durS(totalMs), "", "Időtartam"]);
+  // mint az Elemzés: ha a mozgásidő kerekítve egyezik a teljes idővel, „Időtartam”
+  if (isWorkout && movingMs && durMs(movingMs) !== durMs(totalMs || 0)) big.push([durS(movingMs), "", "Mozgásidő"]);
+  else if (isWorkout && (totalMs || movingMs)) big.push([durS(totalMs || movingMs), "", "Időtartam"]);
   else if (meta.durationMin) big.push([unitify(fmtDuration(meta.durationMin)), "", "Becsült idő"]);
   const speeds = geometry.map((p) => p.speed).filter((v) => v != null && v > 0 && v < 120);
   const avgSpeed = movingMs > 0 && distM > 0 ? distM / (movingMs / 3600000) / 1000

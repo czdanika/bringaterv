@@ -86,6 +86,11 @@ CORS(app)
 
 os.makedirs(_LEGACY_USER_DIR, exist_ok=True)
 
+# lekapcsolt integráció (admin → Integrációk): a /api/<key>/… végpontok 503-at adnak
+import integrations  # noqa: E402
+app.before_request(integrations.gate)
+app.register_blueprint(integrations.bp)
+
 app.register_blueprint(api_auth.bp)
 app.register_blueprint(api_account.bp)
 app.register_blueprint(api_admin.bp)

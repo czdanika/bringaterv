@@ -85,6 +85,10 @@ export function initRoutePdfModal({ getDefaultMapStyle } = {}) {
   });
   el.previewBtn?.addEventListener("click", () => run(true));
   el.download?.addEventListener("click", () => run(false));
+  // minden változás után magától frissül az előnézet (gépelésnél kis késleltetéssel); a választás megmarad
+  const body = el.overlay.querySelector(".pdf-options");
+  body?.addEventListener("change", (e) => { savePrefs(); syncSummary(); if (e.target.id !== "pdfFilename") schedulePreview(300); });
+  body?.addEventListener("input", (e) => { if (e.target.matches("#pdfTitle, #pdfNote")) { syncSummary(); schedulePreview(900); } });
 
   _initialized = true;
 }
@@ -102,7 +106,7 @@ export function openRoutePdfModal(context) {
   const hasWp = Array.isArray(_ctx.waypoints) && _ctx.waypoints.length >= 2;
   el.waypoints.checked = false;
   el.waypoints.disabled = !hasWp;
-  el.waypoints.closest(".pdf-toggle")?.classList.toggle("is-disabled", !hasWp);
+  el.waypoints.closest(".pdf-row")?.classList.toggle("is-disabled", !hasWp);
   // Mért adatok (letekert edzés): csak akkor aktív a kapcsoló, ha van adat
   const geo = _ctx.geometry || [];
   const setToggle = (input, field, defaultOn) => {
@@ -110,7 +114,7 @@ export function openRoutePdfModal(context) {
     const has = geo.some((p) => p[field] != null);
     input.checked = has && defaultOn;
     input.disabled = !has;
-    input.closest(".pdf-toggle")?.classList.toggle("is-disabled", !has);
+    input.closest(".pdf-row")?.classList.toggle("is-disabled", !has);
   };
   setToggle(el.speed, "speed", true);
   setToggle(el.hr, "hr", true);
@@ -120,11 +124,46 @@ export function openRoutePdfModal(context) {
   const hasUrl = !!_ctx.shareUrl;
   el.qr.checked = hasUrl;
   el.qr.disabled = !hasUrl;
-  el.qr.closest(".pdf-toggle")?.classList.toggle("is-disabled", !hasUrl);
+  el.qr.closest(".pdf-row")?.classList.toggle("is-disabled", !hasUrl);
+
+  // a legutóbbi választás (tájolás, grafikonok, kiegészítők) – ami ennél az útvonalnál nem érhető el, kimarad
+  const pr = loadPrefs();
+  if (pr.orientation) { const r = document.querySelector(`input[name="pdfOrient"][value="${pr.orientation}"]`); if (r) r.checked = true; }
+  if (pr.mapStyle) el.mapStyle.value = normalizeStyle(pr.mapStyle);
+  for (const k of ["elev", "speed", "hr", "cad", "power", "surface", "waypoints", "qr"]) {
+    const inp = el[k];
+    if (inp && !inp.disabled && typeof pr[k] === "boolean") inp.checked = pr[k];
+  }
 
   resetPreview();
+  syncSummary();
   el.overlay.hidden = false;
   window.lucide?.createIcons?.();
+  schedulePreview(50);
+}
+
+const PREF_KEY = "bt.pdfOpts";
+function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; } catch { return {}; } }
+function savePrefs() {
+  const pr = { orientation: document.querySelector('input[name="pdfOrient"]:checked')?.value, mapStyle: el.mapStyle.value };
+  for (const k of ["elev", "speed", "hr", "cad", "power", "surface", "waypoints", "qr"]) if (el[k] && !el[k].disabled) pr[k] = el[k].checked;
+  try { localStorage.setItem(PREF_KEY, JSON.stringify({ ...loadPrefs(), ...pr })); } catch { /* privát mód */ }
+}
+/** A csoportfejlécek összefoglalója (mi van bekapcsolva). */
+function syncSummary() {
+  const on = (list) => list.filter(([k]) => el[k] && el[k].checked && !el[k].disabled).map(([, l]) => l);
+  const set = (k, t) => { const e = el.overlay.querySelector(`[data-pdf-sum="${k}"]`); if (e) e.textContent = t; };
+  const ch = on([["elev", "szint"], ["speed", "sebesség"], ["hr", "pulzus"], ["cad", "kadencia"], ["power", "telj."]]);
+  set("charts", ch.length ? ch.join(", ") : "nincs");
+  const ex = on([["surface", "burkolat"], ["waypoints", "pontok"], ["qr", "QR"]]);
+  set("extras", ex.length ? ex.join(", ") : "nincs");
+  set("text", el.note.value.trim() ? "van megjegyzés" : "");
+}
+
+let _pvTimer = null, _pvSeq = 0, _pvBusy = false, _pvAgain = false;
+function schedulePreview(ms = 400) {
+  clearTimeout(_pvTimer);
+  _pvTimer = setTimeout(() => run(true), ms);
 }
 
 function normalizeStyle(s) {
@@ -168,16 +207,20 @@ function gatherOpts(preview) {
 
 async function run(preview) {
   if (!_ctx) return;
+  if (preview) {
+    if (_pvBusy) { _pvAgain = true; return; }
+    _pvBusy = true;
+  }
+  const mySeq = preview ? ++_pvSeq : 0;
   const btn = preview ? el.previewBtn : el.download;
-  const others = preview ? el.download : el.previewBtn;
-  btn.disabled = true; if (others) others.disabled = true;
+  btn.disabled = true;
   if (el.empty) el.empty.hidden = true;
-  if (el.loading) { el.loading.hidden = false; el.status.textContent = "Előnézet készítése…"; }
+  if (el.loading) { el.loading.hidden = false; el.status.textContent = preview ? "Előnézet készítése…" : "PDF készítése…"; }
   try {
     const opts = gatherOpts(preview);
     if (opts.includeQr && opts.shareUrl && !preview) await ensureLinkPublic(opts.shareUrl);
     const result = await exportRoutePdf(opts);
-    if (preview && result) {
+    if (preview && result && mySeq === _pvSeq && !el.overlay.hidden) {
       const blob = await (await fetch(result)).blob();
       if (_lastPreviewUrl) { try { URL.revokeObjectURL(_lastPreviewUrl); } catch (_) {} }
       _lastPreviewUrl = URL.createObjectURL(blob);
@@ -189,6 +232,10 @@ async function run(preview) {
     if (el.empty) { el.empty.hidden = false; el.empty.querySelector("p").textContent = "Nem sikerült a PDF készítése. Próbáld újra."; }
   } finally {
     if (el.loading) el.loading.hidden = true;
-    btn.disabled = false; if (others) others.disabled = false;
+    btn.disabled = false;
+    if (preview) {
+      _pvBusy = false;
+      if (_pvAgain && !el.overlay.hidden) { _pvAgain = false; run(true); }
+    }
   }
 }

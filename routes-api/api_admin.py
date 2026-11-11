@@ -718,3 +718,28 @@ def admin_site_put():
     saved = site_settings.save(upd)
     log.info("Oldalbeállítás: %s (admin: %s)", upd, g.user["email"])
     return jsonify(saved)
+
+
+# ── Integrációk: ki-be kapcsolás, egészség ───────────────────────────────────
+
+@bp.route("/api/admin/integrations", methods=["GET"])
+@require_auth
+@require_admin
+def admin_integrations():
+    import integrations
+    return jsonify({"items": integrations.health()})
+
+
+@bp.route("/api/admin/integrations/<key>", methods=["PUT"])
+@require_auth
+@require_admin
+def admin_integration_set(key: str):
+    import integrations
+    if key not in integrations.KEYS:
+        abort(404, description="Ismeretlen integráció.")
+    on = bool((request.get_json(silent=True) or {}).get("enabled", True))
+    off = set(site_settings.load().get("integrations_off") or [])
+    off.discard(key) if on else off.add(key)
+    site_settings.save({"integrations_off": sorted(off)})
+    log.info("Integráció %s: %s (admin: %s)", key, "be" if on else "ki", g.user["email"])
+    return jsonify({"items": integrations.health()})

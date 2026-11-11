@@ -70,6 +70,8 @@ def _check_quota() -> dict:
         abort(403, description="Az AI-funkció nincs engedélyezve a fiókodban.")
     if st["user_off"]:
         abort(403, description="Az AI-funkciót kikapcsoltad a Beállításokban.")
+    if st.get("unavailable"):
+        abort(503, description=st["message"])
     if st["remaining"] <= 0:
         abort(429, description=f"Elérted a mai AI-keretet ({st['limit']}). Holnap újra próbálhatod.")
     return st
@@ -259,7 +261,17 @@ def ai_workout_delete(route_id: str):
 def _admin_payload() -> dict:
     return {"configured": bool(ai_service.api_key()), "key_hint": ai_service.masked_key(),
             "default_limit": ai_service.default_limit(), "model": ai_service.MODEL,
-            "usage": ai_service.usage_summary()}
+            "usage": ai_service.usage_summary(), "outage": ai_service.outage()}
+
+
+@bp.route("/api/admin/ai/resume", methods=["POST"])
+@require_auth
+@require_admin
+def admin_ai_resume():
+    """Feltöltés után: a szünet azonnali feloldása (a következő kérés újra próbál)."""
+    ai_service._clear_outage_if_any()
+    log.info("AI szünet feloldva (admin: %s)", g.user["email"])
+    return jsonify(_admin_payload())
 
 
 @bp.route("/api/admin/ai", methods=["GET"])

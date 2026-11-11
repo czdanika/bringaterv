@@ -159,7 +159,8 @@
           <li><b>Mai / holnapi tekerés</b> – az <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> előrejelzése a legutóbbi edzésed rajtjánál: hőmérséklet, szélirány és -erősség, lökések, eső, órás sáv (zöld = tekerésre jó idő), és egy ajánlás – pl. „indulj szél ellen, hazafelé hátszeled lesz”. Délután 3 után már a holnapi napot mutatja.</li>
           <li><b>Mentett terveid</b> – a három legutóbbi tervezett útvonal kis térképpel; kattintásra betöltődik a Tervezésbe.</li>
           <li><b>Összesítő és célok</b> – e hét, a hónap és az év kilométerei, edzésszáma, szintje, ideje; alatta a céljaid csíkja (<b>Célok</b> gomb: heti táv, éves táv, éves szint – üresen automatikus cél).</li>
-          <li><b>Forma</b> – fittség, fáradtság, forma, Eddington-szám és hány hete edzel megszakítás nélkül; a <b>Részletek</b> a Statok edzésterhelés nézetébe visz.</li>
+          <li><b>Forma</b> – fittség, fáradtság, forma, Eddington-szám és hány hete edzel megszakítás nélkül, alatta a fittség és a fáradtság az elmúlt 12 hétben (fölé állva a napi értékek); a <b>Részletek</b> a Statok edzésterhelés nézetébe visz.</li>
+          <li><b>Szokásaid</b> – melyik napon edzel a legtöbbet (a kedvenc nap kiemelve) és a napszakok aránya; a <b>Részletek</b> a Statok → Szokások nézetbe visz.</li>
           <li><b>Egy éve ezen a napon</b> – ha egy éve (±3 nap) volt edzésed, egy kis emlékkártya mutatja, egy kattintással megnyitható.</li>
           <li><b>Aktivitás</b> – naptár az elmúlt évről (telefonon az utolsó hetekről), a szín a napi km-t jelzi.</li>
         </ul>
@@ -405,6 +406,7 @@
         <p>A zónák számítási módja: lásd <a href="#pulzus">Pulzuszónák és pulzusszámítás</a>.</p>
         <h3 id="ai-elemzes">AI-elemzés</h3>
         <p>Ha az üzemeltető bekapcsolta, mentett <b>edzésnél</b> (tervezett útvonalnál nem) a fő számok alatt megjelenik az <b>AI-elemzés</b> kártya.</p>
+        <div class="tip"><b>„Az AI most átmenetileg nem érhető el”</b>Ha az AI-szolgáltatás kerete elfogyott, vagy a szolgáltatás hibát ad, az AI-funkciók (elemzés, leírás, kérés szöveggel) egy időre szünetelnek: a gombok nem kattinthatók, a már elkészült elemzéseid megmaradnak. Pár perc / óra múlva magától újra működik.</div>
         <ul>
           <li><b>Edzés elemzése</b> – egy gombnyomásra rövid értékelés: egy mondatos összefoglaló és 3 pont (pl. hol esett a tempó, nőtt-e a pulzus azonos tempónál, hogyan hatottak az emelkedők, és hogyan viszonyul a korábbi hasonló edzéseidhez). A pontok elé tett színes pötty: zöld = erősség, sárga = figyelendő, kék = érdekesség. Összecsukva a pontok egysorosak, a <b>Részletek</b> lenyitja őket.</li>
           <li><b>Pár szó az edzésről</b> (nem kötelező) – pl. „regeneráló kör volt”, „fáradt voltam”. Az AI ezt figyelembe veszi, nem kéri számon a szándékosan könnyű tempót.</li>
@@ -439,7 +441,7 @@
           <li>Fent az összesítő: elemszám, összes km, idő és szint.</li>
         </ul>
         <h3>Egy elem műveletei</h3>
-        <p>A listában egy sorra kattintva lenyílik: <b>térképes előnézet</b> (halvány alaptérkép, zöld rajt), a négy fő szám és egy halk sor a többi adattal, két fő gomb (<b>Elemzés</b>, <b>Tervezés</b>), <b>Megosztás</b> és a <b>⋯</b> menü a ritkább műveletekkel, valamint a <b>Beleszámít a statisztikába</b> kapcsoló. Kártyanézetben a kártya gombja és ⋯ menüje ugyanezt kínálja.</p>
+        <p>A listában egy sorra kattintva lenyílik: <b>térképes előnézet</b> (halvány alaptérkép, zöld rajt), a négy fő szám és egy halk sor a többi adattal, két fő gomb (<b>Elemzés</b>, <b>Tervezés</b>), <b>Megosztás</b> és a <b>⋯</b> menü a ritkább műveletekkel, valamint edzésnél a <b>Beleszámít a statisztikába</b> kapcsoló. Kártyanézetben a kártya gombja és ⋯ menüje ugyanezt kínálja.</p>
         <table>
           <tr><th>Művelet</th><th>Leírás</th></tr>
           <tr><td>Megnyitás</td><td>Edzés → Elemzés fül; útvonal → Tervezés fül.</td></tr>
@@ -479,9 +481,22 @@
         <h2>Megosztás</h2>
         <p>A Megosztás ablak egy helyen kínál mindent (Elemzés, Tervezés → Mentés, Könyvtár):</p>
         <h3>Megosztó kép</h3>
-        <p>Közösségi médiára szánt kép az útvonallal és a fő adatokkal (táv, idő, átlagsebesség, szint). Stílus: <b>Adatpanel</b> (térkép felül, adatok alul egy panelen) vagy <b>Térképen</b> (az adatok fehér betűkkel közvetlenül a térképen, vékony nyomvonallal) – a választott stílust a böngésző megjegyzi. Háttér: <b>Világos</b>, <b>Sötét</b>, <b>Terep</b> (zöld, domborzatos térkép) vagy <b>Fotó</b> (saját háttérkép, mozgatható, nagyítható, elmosható; az útvonal színe, helye és mérete is állítható) – bármelyik stílussal kombinálható. Az adatok fölött <b>grafikonok</b> választhatók (legfeljebb három, egymás alatt): szintprofil, sebesség, pulzus, kadencia, teljesítmény – csak az, amihez az edzésben van adat; mindegyik fölött a neve és az összegzése (szintnél max/min, a többinél átlag/max). Méret: <b>Négyzet</b> vagy <b>Sztori</b>.</p>
+        <p>Közösségi médiára szánt kép az útvonallal és a fő adatokkal. Bal oldalt (telefonon felül) az élő előnézet, mellette a beállítások három lenyitható csoportban; a csoport fejlécében egy pillantásra látod, mi van kiválasztva. A választásaidat a böngésző megjegyzi.</p>
+        <ul>
+          <li><b>Stílus</b> (hat kis minta közül):
+            <ul>
+              <li><b>Adatpanel</b> – térkép felül, adatok alul egy panelen (grafikonokkal).</li>
+              <li><b>Térképen</b> – az adatok fehér betűkkel közvetlenül a térképen.</li>
+              <li><b>Poszter</b> – térkép nélkül, csak az útvonal vonala telt háttéren, nagy számokkal; sztoriba kiváló.</li>
+              <li><b>Szintprofil</b> – a szintprofil hegyvonulatként tölti ki a kép alját, a három legnagyobb felismert emelkedő kiemelve, felirattal (kategória, hossz, meredekség); fent nagy számmal az összes emelkedés. Dombos köröknél a legmutatósabb.</li>
+              <li><b>Eredmények</b> – nagy számok és „Kiemelések”: érmes egyéni csúcsok (legjobb idők, csúcsteljesítmény), a szél hatása (ha jelentős volt) és a legnagyobb emelkedő.</li>
+              <li><b>Matrica</b> – átlátszó hátterű PNG csak a vonallal és a számokkal: a saját fotódra teheted, például Instagram-sztoriban. Színe: fehér, fekete, vagy fehér szöveg narancs vonallal.</li>
+            </ul></li>
+          <li><b>Formátum:</b> méret – <b>Négyzet</b>, <b>4:5</b> (Instagram-bejegyzés) vagy <b>Sztori</b> (9:16); háttér – <b>Világos</b>, <b>Sötét</b>, <b>Terep</b> vagy <b>Fotó</b> (saját háttérkép, mozgatható, nagyítható, elmosható; az útvonal színe, helye és mérete is állítható).</li>
+          <li><b>Tartalom:</b> mely adatok kerüljenek a képre (legfeljebb 4: táv, idő, átlagsebesség, emelkedés, pulzus, teljesítmény, kalória, max. sebesség – csak ami az edzésben megvan), grafikonok (a térképes stílusoknál, legfeljebb 3), dátum be / ki, és QR-kód, ha van nyilvános link.</li>
+        </ul>
         <h3>PDF útvonallap</h3>
-        <p>Nyomtatható oldal: cím, térkép (választható stílus – köztük a zöld, domborzatos <b>Terep</b>, ugyanaz, mint a megosztó képen), álló vagy fekvő tájolás, adatok, és választható tartalom: szintprofil, sebesség, pulzus, kadencia, teljesítmény diagram, burkolat, útvonalpontok listája, QR-kód, saját megjegyzés. Az <b>Előnézet frissítése</b> gombbal megnézheted, majd <b>PDF letöltés</b>.</p>
+        <p>Nyomtatható oldal: cím, térkép (választható stílus – köztük a zöld, domborzatos <b>Terep</b>), álló vagy fekvő tájolás, adatok. Kapcsolókkal választható a <b>Grafikonok</b> (szintprofil, sebesség, pulzus, kadencia, teljesítmény) és a <b>Kiegészítők</b> (burkolat, útvonalpontok listája, QR-kód) csoportban; a megjegyzés és a fájlnév egy lenyitható részben van. Az <b>előnézet magától elkészül</b>, és minden változtatás után frissül (az <b>Újra</b> gomb kézzel is újrakészíti); a választásokat a böngésző megjegyzi. Végül <b>PDF letöltés</b>.</p>
         <h3 id="nyilvanos-link">Nyilvános link és QR-kód</h3>
         <ul>
           <li>Könyvtárban mentett elemhez <b>nyilvános link</b> készülhet; bekapcsolva bárki megnyithatja bejelentkezés nélkül (csak megtekintés, szerkesztés nem).</li>
@@ -504,11 +519,12 @@
           <tr><td class="path">Áttekintés</td><td>Összes km, edzésszám, szintemelkedés, idő, <b>energia</b> (kcal; rámutatva: hány edzésnél melyik forrásból); havi km és szint diagram; sportág-megoszlás. Időszak: Idén / 12 hónap / Összes; sportszűrő.</td></tr>
           <tr><td class="path">Havi statisztikák</td><td>Hónaponkénti táblázat (kalóriával), sportonként lenyitható.</td></tr>
           <tr><td class="path">Személyes rekordok</td><td>Lásd lent.</td></tr>
+          <tr><td class="path">Szokások</td><td>Mikor és mennyit edzel: <b>a hét napjai</b> (oszlopdiagram edzésszám / km / óra szerint, a kedvenc nap kiemelve, alatta táblázat: edzés, táv, átlag, szint, idő); <b>napszakok</b> az indulás órája szerint (Reggel 6–12, Délután 12–17, Este 17–23, Éjjel 23–6 – csak ahol ismert az indulás ideje); <b>táv-sávok</b> sportáganként (kerékpárnál 0–10, 10–20 … 150+ km, futásnál 5 / 10 / 15 km, félmaraton, maraton) átlagsebességgel; <b>felszerelés</b>: mozgásidő, km és átlagsebesség bringánként. Az oszlopok fölé állva a pontos számok. Időszak és sportszűrő, mint az Áttekintésnél.</td></tr>
           <tr><td class="path">Eddington-szám</td><td>A legnagyobb E szám, amelyre igaz: legalább E napon tekertél legalább E km-t. Megmutatja, hány nap hiányzik a következőhöz.</td></tr>
           <tr><td class="path">Edzésterhelés</td><td>CTL (fitnesz, 42 napos átlag), ATL (fáradtság, 7 napos), TSB (forma = CTL − ATL). A napi terhelés az edzésidő percben.</td></tr>
           <tr><td class="path">Hőtérkép</td><td>Az összes edzésed nyomvonala egy térképen, sportonként szűrhetően.</td></tr>
         </table>
-        <div class="tip"><b>Mi számít bele?</b>Csak azok az edzések, amelyeknél a könyvtárban be van kapcsolva a „statisztikába számít” – a tervezett útvonalak nem.</div>
+        <div class="tip"><b>Mi számít bele?</b>Csak a rögzített edzések, amelyeknél a könyvtárban be van kapcsolva a „Beleszámít a statisztikába” – a tervezett útvonalak soha (a Rekordokba, a Kezdőlap összesítőjébe és a hőtérképre sem). Edzés az, amit rögzítettek: importált (Strava, Garmin, OnelapFit…), FIT-fájl, vagy olyan GPX, amelynek a pontjain időbélyeg van. Ha az Elemzés fülön egy időadat nélküli GPX-et (pl. letöltött útvonalat) mentesz, az a <b>Tervek</b> közé kerül. Tervnél ezért nincs is „Beleszámít a statisztikába” kapcsoló.</div>
         <div class="tip"><b>Kalória a statisztikában</b>Edzésenként ugyanaz, mint az Elemzés kártyáján: a rögzítő eszköz vagy a szolgáltatás (Strava, Garmin, OnelapFit…) értéke; ha nincs, a wattmérős munka; ha az sincs, a pulzusból számolt (Keytel, a wattmérős edzéseidből kalibrálva); végül – csak kerékpáros edzésnél – a sebességből, szintből és testsúlyból becsült érték. A Strava wattmérő nélkül becsült teljesítménye nem számít mérésnek.</div>
         <h3 id="rekordok">Személyes rekordok</h3>
         <ul>
@@ -799,7 +815,8 @@
         <h3 id="sz-adatok">Milyen adatból?</h3>
         <ul>
           <li><b>Teljes és ritkított pontsor.</b> Egy hosszú edzésben akár 15–20 ezer pont is lehet. A térképhez és a grafikonokhoz ebből legfeljebb 3000 pontot használunk (egyenletesen kiválasztva), így gyors marad a rajzolás. A csúcsértékek (Csúcsértékek kártya, teljesítmény-görbe, NP, munka, TSS, aerob szétcsúszás, megállások, ugyanezen az útvonalon) a <b>teljes, ritkítás előtti</b> adatból számolnak, mert ritkítva egy rövid csúcs vagy egy 20 perces szakasz pontos átlaga elveszhetne. A kijelölt szakasz, az emelkedők és a részidők a grafikonnal azonos (ritkított) pontsorból számolnak, hogy pontosan azt mutassák, amit a grafikonon látsz.</li>
-          <li><b>Táv.</b> Két egymást követő GPS-pont távolsága a gömbi (haversine) képlettel, a Föld 6371 km-es sugarával; ezek összege a rajttól mért táv. Az eszköz saját távszámlálóját (kerékérzékelő) itt nem használjuk, ezért pár tized százalék eltérés lehet.</li>
+          <li><b>Egy forrás mindenhol.</b> Az edzés teljes távja és összes emelkedése a <b>rögzítő eszköz vagy szolgáltatás</b> (Strava, Garmin, OnelapFit…) értéke, ha megadta – ugyanaz az Elemzésben, a Kezdőlapon, a Könyvtárban, a statisztikában és a megosztott oldalon. Csak ennek híján számolunk a GPX-ből (lent). Az ereszkedés ebből következik: emelkedés + a rajt és a cél magasságkülönbsége. A szakaszonkénti számok (kijelölt szakasz, emelkedők, részidők) mindig a GPX-ből jönnek.</li>
+          <li><b>Táv.</b> Két egymást követő GPS-pont távolsága a gömbi (haversine) képlettel, a Föld 6371 km-es sugarával; ezek összege a rajttól mért táv. Az eszköz saját távszámlálója (kerékérzékelő) ettől pár tized százalékkal eltérhet.</li>
           <li><b>Mozgásidő.</b> Két pont közötti idő akkor számít mozgásnak, ha a köztük lévő sebesség legalább <b>2 km/h</b>, és a két pont között legfeljebb <b>30 másodperc</b> telt el (a hosszabb kihagyás – automatikus szünet, jelvesztés – nem mozgás). Az átlagsebesség: táv / mozgásidő.</li>
           <li><b>Emelkedés, ereszkedés.</b> A magassági adat zajos (pár méteres fel-le ingadozás sík terepen is), ezért <b>3 méteres küszöbbel</b> összegzünk: csak akkor számít emelkedésnek, ha a magasság legalább 3 m-rel nőtt az utolsó elfogadott értékhez képest (ereszkedésnél ugyanígy). E nélkül a nyers összeg sík terepen a valós többszöröse lehetne.</li>
         </ul>

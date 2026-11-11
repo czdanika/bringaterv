@@ -2,6 +2,7 @@ import { num } from "../format.js";
 import { ensureQR, buildQrCanvas } from "./routePdf.js";
 import { CHART_SOLID_GRAY, isSolidChartMode } from "./elevationProfile.js";
 import { buildHrZoneColorFn } from "./settings.js";
+import { detectClimbs, category as climbCategory } from "./climbs.js";
 /**
  * Bringaterv – Workout Share Card Generator
  * ==========================================
@@ -55,9 +56,33 @@ const TILES = {
 
 /** A választható stílusok (a megosztó kép ablak ebből építi a választót). */
 export const SHARE_LAYOUTS = [
-  { id: "panel",   label: "Adatpanel", hint: "Térkép felül, adatok alul egy panelen" },
-  { id: "overlay", label: "Térképen",  hint: "Az adatok közvetlenül a térképen" },
+  { id: "panel",   label: "Adatpanel",   hint: "Térkép felül, adatok alul egy panelen" },
+  { id: "overlay", label: "Térképen",    hint: "Az adatok közvetlenül a térképen" },
+  { id: "poster",  label: "Poszter",     hint: "Csak az útvonal vonala, nagy számokkal – térkép nélkül" },
+  { id: "profile", label: "Szintprofil", hint: "A szintprofil mint hegyvonulat, a felismert emelkedőkkel" },
+  { id: "results", label: "Eredmények",  hint: "Nagy számok és a kiemelések: egyéni csúcsok, szél, legnagyobb emelkedő" },
+  { id: "sticker", label: "Matrica",     hint: "Átlátszó háttér – a saját fotódra teheted (pl. Instagram-sztori)" },
 ];
+/** Mely stílusok használnak térképet / grafikont / hátteret (az ablak ez alapján rejti a nem értelmes beállításokat). */
+export const LAYOUT_CAPS = {
+  panel:   { map: true,  charts: true,  theme: true,  photo: true },
+  overlay: { map: true,  charts: true,  theme: true,  photo: true },
+  poster:  { map: false, charts: false, theme: true,  photo: true },
+  profile: { map: false, charts: false, theme: true,  photo: true },
+  results: { map: false, charts: false, theme: true,  photo: true },
+  sticker: { map: false, charts: false, theme: false, photo: false, ink: true },
+};
+
+/** A képen választható adatok (legfeljebb 4). */
+export const SHARE_STATS = [
+  { id: "dist",  label: "Táv" }, { id: "time", label: "Idő" }, { id: "speed", label: "Átlagsebesség" },
+  { id: "elev",  label: "Emelkedés" }, { id: "hr", label: "Pulzus" }, { id: "power", label: "Teljesítmény" },
+  { id: "kcal",  label: "Kalória" }, { id: "maxSpeed", label: "Max sebesség" },
+];
+export const DEFAULT_STATS = ["dist", "time", "speed", "elev"];
+
+/** Méretek (px): négyzet, 4:5 (Instagram-bejegyzés), sztori 9:16. */
+export const SHARE_SIZES = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] };
 
 /**
  * Választható grafikonok az adatok fölött (egymás alatt, a megadott sorrendben).
@@ -185,11 +210,18 @@ export async function createWorkoutShareCard({
   theme = "light",            // "light" | "dark" | "topo" | "photo"
   layout = "panel",           // "panel" | "overlay" – lásd SHARE_LAYOUTS
   charts = ["ele"],           // grafikonok egymás alatt – lásd SHARE_CHARTS
-  size = "square",            // "square" | "story"
+  size = "square",            // "square" | "portrait" | "story"
   photo = null,               // { img, scale, offsetX, offsetY, blur, headerBg, routeColor, routeOffsetX/Y, routeScale }
   qrUrl = null,               // nyilvános nézőoldal linkje → kis QR-kód a panelen
+  stats: statKeys = DEFAULT_STATS,   // a képen látható adatok (SHARE_STATS id-k)
+  showDate = true,
+  extra = {},                 // { hrAvg, powerAvg, kcal, maxSpeed } – a választható adatokhoz
+  highlights = [],            // Eredmények: érmes idők / wattok (bestEfforts.getShareHighlights)
+  wind = null,                // Eredmények: { alongAvg, tailPct, headPct }
+  ink = "white",              // Matrica: "white" | "black" | "orange"
 }) {
-  const dim = size === "story" ? { width: 1080, height: 1920 } : { width: 1080, height: 1080 };
+  const [dw, dh] = SHARE_SIZES[size] || SHARE_SIZES.square;
+  const dim = { width: dw, height: dh };
   const s = dim.width / BASE;
   const c = layout === "overlay" ? overlayPalette(palette(theme)) : palette(theme);
   const W = dim.width, H = dim.height;
@@ -204,10 +236,23 @@ export async function createWorkoutShareCard({
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  const stats = statItems({ distanceKm, durationText, avgSpeedKmh, elevationM });
+  if (!showDate) date = "";
+  const stats = statItems({ distanceKm, durationText, avgSpeedKmh, elevationM, ...extra }, statKeys);
   const avail = availableShareCharts(points);
   const chartIds = charts.filter((id) => avail.includes(id));
   const panelBg = theme === "photo" ? (photo?.headerBg || "translucent") : "solid";
+
+  if (["poster", "profile", "results", "sticker"].includes(layout)) {
+    let qr = null;
+    if (qrUrl) { try { qr = buildQrCanvas(qrUrl, await ensureQR(), { size: 300 }); } catch { qr = null; } }
+    const valid = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    const args = { canvas, ctx, s, W, H, size, title, date, stats, points: valid, qr, photo, theme,
+                   logo: await loadLogo(), highlights, wind, ink, elevationM, distanceKm, durationText };
+    if (layout === "poster") return drawPosterCard(args);
+    if (layout === "profile") return drawProfileCard(args);
+    if (layout === "results") return drawResultsCard(args);
+    return drawStickerCard(args);
+  }
 
   if (c.overlay) {
     return drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, stats, points, chartIds, qrUrl, photo });
@@ -298,14 +343,21 @@ function compactDuration(text) {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
-function statItems({ distanceKm, durationText, avgSpeedKmh, elevationM }) {
-  const items = [];
-  if (distanceKm > 0) items.push({ value: num(distanceKm, 1), unit: "km", label: "TÁV" });
+function statItems({ distanceKm, durationText, avgSpeedKmh, elevationM, hrAvg, powerAvg, kcal, maxSpeed }, keys = DEFAULT_STATS) {
   const d = compactDuration(durationText);
-  if (d) items.push({ value: d, unit: "", label: "IDŐ" });
-  if (avgSpeedKmh > 0) items.push({ value: num(avgSpeedKmh, 1), unit: "km/h", label: "ÁTLAG" });
-  if (elevationM > 0) items.push({ value: String(Math.round(elevationM)), unit: "m", label: "SZINT" });
-  return items;
+  const all = {
+    dist:  distanceKm > 0 && { value: num(distanceKm, 1), unit: "km", label: "TÁV" },
+    time:  d && { value: d, unit: "", label: "IDŐ" },
+    speed: avgSpeedKmh > 0 && { value: num(avgSpeedKmh, 1), unit: "km/h", label: "ÁTLAG" },
+    elev:  elevationM > 0 && { value: String(Math.round(elevationM)), unit: "m", label: "SZINT" },
+    hr:    hrAvg > 0 && { value: String(Math.round(hrAvg)), unit: "bpm", label: "PULZUS" },
+    power: powerAvg > 0 && { value: String(Math.round(powerAvg)), unit: "W", label: "TELJ." },
+    kcal:  kcal > 0 && { value: String(Math.round(kcal)), unit: "kcal", label: "KALÓRIA" },
+    maxSpeed: maxSpeed > 0 && { value: num(maxSpeed, 1), unit: "km/h", label: "MAX" },
+  };
+  const items = (keys?.length ? keys : DEFAULT_STATS).map((k) => all[k]).filter(Boolean).slice(0, 4);
+  // ha a választottak közül semmi nincs meg (pl. terv idő nélkül), az alapok
+  return items.length ? items : DEFAULT_STATS.map((k) => all[k]).filter(Boolean);
 }
 
 // ── Vetület és térképcsempék (Web Mercator) ──────────────────────────────────
@@ -891,4 +943,418 @@ function fitOneLine(ctx, text, x, y, maxWidth) {
   if (ctx.measureText(t).width <= maxWidth) { ctx.fillText(t, x, y); return; }
   while (t.length > 1 && ctx.measureText(t + "…").width > maxWidth) t = t.slice(0, -1);
   ctx.fillText(t + "…", x, y);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Térkép nélküli stílusok: Poszter, Szintprofil, Eredmények, Matrica
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Telt hátterű stílusok színei (a Háttér választó szerint). */
+function solidPalette(theme, photo) {
+  if (theme === "photo") return { photo: true, bg: "#11161a", bg2: "#11161a", text: "#ffffff", muted: "rgba(255,255,255,0.78)",
+    line: "rgba(255,255,255,0.22)", route: photo?.routeColor || "#ff6a3d", glow: "rgba(0,0,0,0.55)", card: "rgba(12,16,20,0.55)" };
+  if (theme === "dark") return { bg: "#14181d", bg2: "#0b0e11", text: "#ffffff", muted: "#9aa3ad",
+    line: "rgba(255,255,255,0.12)", route: "#ff6a3d", glow: "rgba(255,106,61,0.35)", card: "rgba(255,255,255,0.05)" };
+  if (theme === "topo") return { bg: "#24493a", bg2: "#173226", text: "#f6f1e4", muted: "rgba(246,241,228,0.72)",
+    line: "rgba(246,241,228,0.16)", route: "#ffb347", glow: "rgba(255,179,71,0.30)", card: "rgba(246,241,228,0.07)" };
+  return { bg: "#f7f3ec", bg2: "#ece5d8", text: "#16191d", muted: "#6b6f76",
+    line: "rgba(0,0,0,0.10)", route: "#fc4c02", glow: "rgba(252,76,2,0.18)", card: "rgba(0,0,0,0.035)" };
+}
+
+function drawSolidBackground(ctx, p, s, W, H, photo) {
+  ctx.save();
+  roundRectPath(ctx, 0, 0, W, H, 18 * s);
+  ctx.clip();
+  if (p.photo) {
+    ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
+    drawPhotoLayer(ctx, s, photo, W, H);
+    ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, H * 0.45, 0, H);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  } else {
+    const g = ctx.createRadialGradient(W * 0.3, H * 0.2, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.85);
+    g.addColorStop(0, p.bg); g.addColorStop(1, p.bg2);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/** Nyomvonal „vonalrajzként” a dobozba illesztve (térkép nélkül). */
+function drawLineArt(ctx, s, points, box, { color, width = 3, glow = null, shadow = null, dots = true, dotRing = "#ffffff" } = {}) {
+  if (points.length < 2) return null;
+  const proj = fitProjection(points, box);
+  const pts = points.map(proj.toPx);
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  if (glow) { ctx.strokeStyle = glow; ctx.lineWidth = width * 3.2 * s; drawPath(ctx, pts); }
+  if (shadow) { ctx.shadowColor = shadow; ctx.shadowBlur = 8 * s; ctx.shadowOffsetY = 1.5 * s; }
+  ctx.strokeStyle = color; ctx.lineWidth = width * s;
+  drawPath(ctx, pts);
+  ctx.restore();
+  if (dots) {
+    const a = pts[0], b = pts[pts.length - 1];
+    const loop = Math.hypot(a.x - b.x, a.y - b.y) < 8 * s;
+    drawDot(ctx, a.x, a.y, (width + 2.2) * s, "#16a34a", dotRing, 1.6 * s);
+    if (!loop) { drawDot(ctx, b.x, b.y, (width + 2.4) * s, color, dotRing, 1.6 * s); }
+  }
+  return proj;
+}
+
+/** Szöveg legfeljebb n sorba tördelve; visszaadja a sorok számát. */
+function wrapText(ctx, text, x, y, maxW, lineH, maxLines = 2) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const t = cur ? cur + " " + w : w;
+    if (ctx.measureText(t).width <= maxW || !cur) cur = t;
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  const shown = lines.slice(0, maxLines);
+  if (lines.length > maxLines) {
+    let last = shown[maxLines - 1];
+    while (last.length > 1 && ctx.measureText(last + "…").width > maxW) last = last.slice(0, -1);
+    shown[maxLines - 1] = last + "…";
+  }
+  shown.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
+  return shown.length;
+}
+
+/** Nagy számok rácsban: felirat felül (kis kapitális), alatta érték + halvány mértékegység. */
+function drawStatGrid(ctx, p, s, stats, box, { cols, valSize = 30, labelSize = 7.5, gapY = 12, dividers = true } = {}) {
+  cols = cols || Math.max(1, stats.length);
+  const rows = Math.ceil(stats.length / cols);
+  const colW = box.w / cols;
+  const rowH = (labelSize + 6 + valSize * 0.95 + gapY) * s;
+  stats.forEach((it, i) => {
+    const cx = box.x + colW * (i % cols), ry = box.y + Math.floor(i / cols) * rowH;
+    if (dividers && i % cols > 0) {
+      ctx.strokeStyle = p.line; ctx.lineWidth = Math.max(1, 0.6 * s);
+      ctx.beginPath(); ctx.moveTo(cx, ry + 2 * s); ctx.lineTo(cx, ry + rowH - gapY * s); ctx.stroke();
+    }
+    const tx = cx + (i % cols > 0 ? 10 * s : 0);
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillStyle = p.muted;
+    ctx.font = `600 ${labelSize * s}px ${FONT}`;
+    ctx.letterSpacing = `${1 * s}px`;
+    ctx.fillText(it.label, tx, ry);
+    ctx.letterSpacing = "0px";
+    let size = valSize, vw, uw;
+    const maxW = colW - (i % cols > 0 ? 14 : 4) * s;
+    do {
+      ctx.font = `600 ${size * s}px ${NUM_FONT}`; vw = ctx.measureText(it.value).width;
+      ctx.font = `500 ${size * 0.42 * s}px ${FONT}`; uw = it.unit ? ctx.measureText(it.unit).width + 3 * s : 0;
+      size -= 1;
+    } while (vw + uw > maxW && size > 12);
+    size += 1;
+    ctx.textBaseline = "alphabetic";
+    const base = ry + (labelSize + 4) * s + size * 0.82 * s;
+    ctx.fillStyle = p.text;
+    ctx.font = `600 ${size * s}px ${NUM_FONT}`;
+    ctx.fillText(it.value, tx, base);
+    if (it.unit) {
+      ctx.fillStyle = p.muted;
+      ctx.font = `500 ${size * 0.42 * s}px ${FONT}`;
+      ctx.fillText(it.unit, tx + vw + 3 * s, base);
+    }
+  });
+  return rows * rowH;
+}
+
+/** Kis logó + „Bringaterv” felirat (jelvény-háttér nélkül). */
+function drawWordmark(ctx, s, x, y, { color, logo, size = 11, align = "left" } = {}) {
+  ctx.save();
+  ctx.font = `800 ${size * s}px ${BRAND_FONT}`;
+  const wB = ctx.measureText("Bringa").width, wT = ctx.measureText("terv").width;
+  const r = size * 0.95 * s, w = r * 2 + 5 * s + wB + wT;
+  const x0 = align === "right" ? x - w : x;
+  if (logo) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x0 + r, y, r, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(logo, x0, y - r, r * 2, r * 2);
+    ctx.restore();
+  }
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = color; ctx.fillText("Bringa", x0 + r * 2 + 5 * s, y + 0.5 * s);
+  ctx.fillStyle = "#fc4c02"; ctx.fillText("terv", x0 + r * 2 + 5 * s + wB, y + 0.5 * s);
+  ctx.restore();
+  return w;
+}
+
+function drawQrBox(ctx, s, qr, x, y, box) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRectPath(ctx, x, y, box, box, 6 * s);
+  ctx.fill();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(qr, x + 3 * s, y + 3 * s, box - 6 * s, box - 6 * s);
+  ctx.restore();
+}
+
+/** Fejléc: dátum (kis kapitális) + cím (1–2 sor). Visszaadja az alját. */
+function drawHeader(ctx, p, s, { x, y, w, title, date, titleSize = 22, maxLines = 2 }) {
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  if (date) {
+    ctx.fillStyle = p.muted;
+    ctx.font = `600 ${8.5 * s}px ${FONT}`;
+    ctx.letterSpacing = `${1.1 * s}px`;
+    fitOneLine(ctx, date.toUpperCase(), x, y, w);
+    ctx.letterSpacing = "0px";
+    y += 15 * s;
+  }
+  ctx.fillStyle = p.text;
+  ctx.font = `800 ${titleSize * s}px ${FONT}`;
+  ctx.letterSpacing = `${-0.4 * s}px`;
+  const n = wrapText(ctx, title || "Bringaterv", x, y, w, titleSize * 1.12 * s, maxLines);
+  ctx.letterSpacing = "0px";
+  return y + n * titleSize * 1.12 * s;
+}
+
+// ── Poszter: az útvonal vonala, nagy számok ──────────────────────────────────
+function drawPosterCard({ canvas, ctx, s, W, H, size, title, date, stats, points, qr, photo, theme, logo }) {
+  const p = solidPalette(theme, photo);
+  const pad = 24 * s;
+  drawSolidBackground(ctx, p, s, W, H, photo);
+  const tall = H / W > 1.5, mid = H / W > 1.1;
+  const yHead = drawHeader(ctx, p, s, { x: pad, y: pad, w: W - pad * 2, title, date, titleSize: tall ? 28 : 22 });
+  // alul: adatok (négyzeten egy sor, magasabbnál 2×2), legalul a felirat és a QR
+  const cols = mid ? 2 : Math.min(4, stats.length);
+  const valSize = tall ? 44 : mid ? 36 : 28;
+  const rows = Math.ceil(stats.length / cols);
+  const statsH = rows * (7.5 + 6 + valSize * 0.95 + 12) * s;
+  const footH = (qr ? 48 : 22) * s;
+  const statsY = H - pad - footH - 8 * s - statsH;
+  ctx.strokeStyle = p.line; ctx.lineWidth = Math.max(1, 0.7 * s);
+  ctx.beginPath(); ctx.moveTo(pad, statsY - 12 * s); ctx.lineTo(W - pad, statsY - 12 * s); ctx.stroke();
+  drawStatGrid(ctx, p, s, stats, { x: pad, y: statsY, w: W - pad * 2 }, { cols, valSize });
+  // az útvonal a fejléc és az adatok között, nagyvonalúan
+  const box = { x: pad + 6 * s, y: yHead + 18 * s, w: W - pad * 2 - 12 * s, h: statsY - 30 * s - (yHead + 18 * s) };
+  if (box.h > 40 * s) drawLineArt(ctx, s, points, box, { color: p.route, width: tall ? 3.6 : 3, glow: p.glow, shadow: p.photo ? "rgba(0,0,0,.6)" : null, dotRing: p.photo || theme !== "light" ? "#ffffff" : p.bg });
+  drawWordmark(ctx, s, pad, H - pad - (qr ? 22 : 9) * s, { color: p.text, logo });
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  ctx.restore();
+  return canvas;
+}
+
+// ── Szintprofil: hegyvonulat a felismert emelkedőkkel ───────────────────────
+function profileSeries(points) {
+  let d = 0;
+  const out = [];
+  for (let i = 0; i < points.length; i++) {
+    if (i) d += hav(points[i - 1], points[i]);
+    if (Number.isFinite(points[i].ele)) out.push({ d, e: points[i].ele });
+  }
+  return out;
+}
+
+function drawProfileCard({ canvas, ctx, s, W, H, title, date, stats, points, qr, photo, theme, logo, elevationM }) {
+  const p = solidPalette(theme, photo);
+  const pad = 22 * s;
+  drawSolidBackground(ctx, p, s, W, H, photo);
+  const tall = H / W > 1.5, mid = H / W > 1.1;
+  // jobb felső sarok: kis útvonal-rajz (vagy QR)
+  const thumb = (tall ? 92 : 74) * s;
+  const yHead = drawHeader(ctx, p, s, { x: pad, y: pad, w: W - pad * 2 - thumb - 12 * s, title, date, titleSize: tall ? 24 : 19 });
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 48 * s, pad, 48 * s);
+  else drawLineArt(ctx, s, points, { x: W - pad - thumb, y: pad, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
+  // hős-szám: összes emelkedés
+  let y = Math.max(yHead, pad + (qr ? 48 * s : thumb)) + 14 * s;
+  const hero = String(Math.round(elevationM || 0));
+  const heroSize = (tall ? 78 : mid ? 66 : 54) * s;
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = p.text; ctx.font = `600 ${heroSize}px ${NUM_FONT}`;
+  const hw = ctx.measureText(hero).width;
+  ctx.fillText(hero, pad - 2 * s, y + heroSize * 0.8);
+  ctx.fillStyle = p.muted; ctx.font = `600 ${heroSize * 0.36}px ${FONT}`;
+  ctx.fillText("m", pad + hw + 4 * s, y + heroSize * 0.8);
+  ctx.font = `600 ${8 * s}px ${FONT}`; ctx.letterSpacing = `${1.1 * s}px`;
+  ctx.fillText("ÖSSZES EMELKEDÉS", pad, y + heroSize * 0.8 + 14 * s);
+  ctx.letterSpacing = "0px";
+  y += heroSize * 0.8 + 30 * s;
+  // a többi adat egy sorban (az emelkedés nélkül – az fent van)
+  const rest = stats.filter((it) => it.label !== "SZINT").slice(0, 3);
+  y += drawStatGrid(ctx, p, s, rest, { x: pad, y, w: W - pad * 2 }, { cols: Math.max(1, rest.length), valSize: tall ? 30 : 24 });
+
+  // hegyvonulat: a kép alja kifutóval
+  const ser = profileSeries(points);
+  const area = { x: 0, y: y + 6 * s, w: W, h: H - y - 6 * s };
+  if (ser.length > 2 && area.h > 60 * s) {
+    const total = ser[ser.length - 1].d || 1;
+    const es = ser.map((q) => q.e), lo = Math.min(...es), hi = Math.max(...es);
+    const range = Math.max(hi - lo, 40);
+    const topPad = 40 * s, botPad = 30 * s;
+    const toX = (d) => area.x + (d / total) * area.w;
+    const toY = (e) => area.y + topPad + (1 - (e - lo) / range) * (area.h - topPad - botPad);
+    const path = () => { ctx.beginPath(); ctx.moveTo(toX(0), H); ser.forEach((q) => ctx.lineTo(toX(q.d), toY(q.e))); ctx.lineTo(toX(total), H); ctx.closePath(); };
+    const g = ctx.createLinearGradient(0, area.y + topPad, 0, H);
+    g.addColorStop(0, hexA(p.route.startsWith("#") ? p.route : "#fc4c02", p.photo ? 0.75 : 0.55));
+    g.addColorStop(1, hexA(p.route.startsWith("#") ? p.route : "#fc4c02", p.photo ? 0.25 : 0.10));
+    path(); ctx.fillStyle = g; ctx.fill();
+    // emelkedők: sötétebb sáv + címke a csúcson (a 3 legnagyobb)
+    const dists = []; { let d = 0; points.forEach((q, i) => { if (i) d += hav(points[i - 1], q); dists.push(d); }); }
+    const eleAt = (d) => { let k = ser.findIndex((q) => q.d >= d); if (k < 0) k = ser.length - 1; return ser[k].e; };
+    const climbs = detectClimbs(points, dists).map((c) => {
+      const len = c.d1 - c.d0, gain = eleAt(c.d1) - eleAt(c.d0);
+      return { ...c, len, gain, grade: len > 0 ? gain / len * 100 : 0 };
+    }).filter((c) => c.gain > 0).sort((a, b) => b.len * b.grade - a.len * a.grade).slice(0, 3).sort((a, b) => a.d0 - b.d0);
+    ctx.save();
+    path(); ctx.clip();
+    for (const c of climbs) {
+      ctx.fillStyle = hexA(p.route.startsWith("#") ? p.route : "#fc4c02", 0.45);
+      ctx.fillRect(toX(c.d0), area.y, Math.max(2 * s, toX(c.d1) - toX(c.d0)), H - area.y);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineWidth = 2.2 * s; ctx.strokeStyle = p.route;
+    ctx.beginPath(); ser.forEach((q, i) => (i ? ctx.lineTo(toX(q.d), toY(q.e)) : ctx.moveTo(toX(q.d), toY(q.e)))); ctx.stroke();
+    ctx.restore();
+    let lastRight = -Infinity, lift = 0;
+    for (const c of climbs) {
+      const cat = climbCategory(c.len, c.grade);
+      const txt = `${cat ? cat.label + " · " : ""}${num(c.len / 1000, 1)} km · ${num(c.grade, 1)}%`;
+      ctx.font = `700 ${8 * s}px ${FONT}`;
+      const tw = ctx.measureText(txt).width + 12 * s, th = 16 * s;
+      const px = toX(c.d1), py = toY(eleAt(c.d1));
+      let bx = Math.min(W - pad - tw, Math.max(pad, px - tw / 2));
+      lift = bx < lastRight + 6 * s ? lift + th + 4 * s : 0;
+      const by = py - th - 8 * s - lift;
+      ctx.strokeStyle = p.text; ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(1, 0.7 * s);
+      ctx.beginPath(); ctx.moveTo(px, py - 2 * s); ctx.lineTo(px, by + th); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillStyle = p.photo || theme !== "light" ? "rgba(255,255,255,0.95)" : "#16191d";
+      roundRectPath(ctx, bx, by, tw, th, th / 2); ctx.fill();
+      ctx.fillStyle = p.photo || theme !== "light" ? "#16191d" : "#ffffff";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(txt, bx + 6 * s, by + th / 2 + 0.5 * s);
+      lastRight = bx + tw;
+    }
+  }
+  drawWordmark(ctx, s, pad, H - pad + 4 * s, { color: p.photo || theme !== "light" ? "#ffffff" : p.text, logo, size: 10 });
+  ctx.restore();
+  return canvas;
+}
+
+// ── Eredmények: nagy számok + kiemelések ─────────────────────────────────────
+const MEDAL_COLORS = ["#E6B325", "#A9B1BA", "#C27C4A"];
+
+function resultItems({ highlights, wind, points }) {
+  const out = (highlights || []).slice(0, 4).map((h) => ({
+    kind: "medal", rank: h.rank, title: h.rank === 1 ? "Egyéni csúcs" : `${h.rank}. legjobb`, label: h.label, value: h.value, sub: h.sub,
+  }));
+  if (wind && Math.abs(wind.alongAvg) >= 1 && out.length < 4) {
+    const help = wind.alongAvg > 0;
+    out.push({ kind: "wind", title: help ? "Hátszél segített" : "Szembeszélben", label: `${Math.round((help ? wind.tailPct : wind.headPct) || 0)}% a távból`,
+               value: `${help ? "+" : "−"}${num(Math.abs(wind.alongAvg), 1)} km/h` });
+  }
+  if (out.length < 4) {
+    const dists = []; { let d = 0; points.forEach((q, i) => { if (i) d += hav(points[i - 1], q); dists.push(d); }); }
+    const ser = profileSeries(points);
+    const eleAt = (d) => { let k = ser.findIndex((q) => q.d >= d); if (k < 0) k = ser.length - 1; return ser[k]?.e ?? 0; };
+    const best = detectClimbs(points, dists).map((c) => ({ len: c.d1 - c.d0, gain: eleAt(c.d1) - eleAt(c.d0) }))
+      .map((c) => ({ ...c, grade: c.len ? c.gain / c.len * 100 : 0 })).sort((a, b) => b.len * b.grade - a.len * a.grade)[0];
+    if (best && best.gain > 0) {
+      const cat = climbCategory(best.len, best.grade);
+      out.push({ kind: "climb", title: "Legnagyobb emelkedő", label: cat ? cat.label : `+${Math.round(best.gain)} m`, value: `${num(best.len / 1000, 1)} km · ${num(best.grade, 1)}%` });
+    }
+  }
+  return out.slice(0, 4);
+}
+
+function drawResultIcon(ctx, s, it, x, y, r, p) {
+  if (it.kind === "medal") {
+    drawDot(ctx, x, y, r, MEDAL_COLORS[it.rank - 1] || MEDAL_COLORS[2], null, 0);
+    ctx.fillStyle = "#ffffff"; ctx.font = `800 ${r * 1.05}px ${FONT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(it.rank), x, y + 0.5 * s);
+    return;
+  }
+  drawDot(ctx, x, y, r, it.kind === "wind" ? "#22c55e" : p.route, null, 0);
+  ctx.save();
+  ctx.strokeStyle = "#ffffff"; ctx.fillStyle = "#ffffff"; ctx.lineWidth = 1.6 * s; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  if (it.kind === "wind") {
+    // három szélvonal
+    [[-0.5, -0.32, 0.45], [-0.6, 0.02, 0.3], [-0.45, 0.36, 0.5]].forEach(([a, dy, b]) => {
+      ctx.beginPath(); ctx.moveTo(x + a * r, y + dy * r); ctx.lineTo(x + b * r, y + dy * r); ctx.stroke();
+    });
+  } else {
+    ctx.beginPath(); ctx.moveTo(x - 0.6 * r, y + 0.4 * r); ctx.lineTo(x - 0.1 * r, y - 0.45 * r); ctx.lineTo(x + 0.15 * r, y - 0.05 * r);
+    ctx.lineTo(x + 0.3 * r, y - 0.25 * r); ctx.lineTo(x + 0.62 * r, y + 0.4 * r); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawResultsCard({ canvas, ctx, s, W, H, title, date, stats, points, qr, photo, theme, logo, highlights, wind }) {
+  const p = solidPalette(theme, photo);
+  const pad = 22 * s;
+  drawSolidBackground(ctx, p, s, W, H, photo);
+  const tall = H / W > 1.5, mid = H / W > 1.1;
+  const thumb = (tall ? 84 : 66) * s;
+  const yHead = drawHeader(ctx, p, s, { x: pad, y: pad, w: W - pad * 2 - thumb - 12 * s, title, date, titleSize: tall ? 24 : 19 });
+  drawLineArt(ctx, s, points, { x: W - pad - thumb, y: pad, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
+  let y = Math.max(yHead, pad + thumb) + 14 * s;
+  y += drawStatGrid(ctx, p, s, stats, { x: pad, y, w: W - pad * 2 }, { cols: mid ? 2 : Math.min(4, stats.length), valSize: tall ? 40 : mid ? 32 : 26 });
+  const items = resultItems({ highlights, wind, points });
+  const footH = (qr ? 48 : 22) * s;
+  const avail = H - pad - footH - 10 * s - y;
+  if (items.length && avail > 40 * s) {
+    ctx.fillStyle = p.muted; ctx.font = `700 ${8 * s}px ${FONT}`; ctx.letterSpacing = `${1.1 * s}px`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("KIEMELÉSEK", pad, y + 2 * s); ctx.letterSpacing = "0px";
+    y += 16 * s;
+    const rowH = Math.min((tall ? 54 : 40) * s, (avail - 16 * s) / items.length);
+    const r = Math.min(13 * s, rowH * 0.32);
+    items.forEach((it, i) => {
+      const ry = y + i * rowH;
+      ctx.fillStyle = p.card;
+      roundRectPath(ctx, pad, ry, W - pad * 2, rowH - 6 * s, 10 * s); ctx.fill();
+      const cy = ry + (rowH - 6 * s) / 2;
+      drawResultIcon(ctx, s, it, pad + 10 * s + r, cy, r, p);
+      const tx = pad + 20 * s + r * 2;
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = p.text; ctx.font = `700 ${Math.min(11, rowH / s * 0.3) * s}px ${FONT}`;
+      ctx.fillText(it.title, tx, cy - 1 * s);
+      ctx.fillStyle = p.muted; ctx.font = `500 ${Math.min(9, rowH / s * 0.24) * s}px ${FONT}`;
+      ctx.fillText(it.label, tx, cy + 11 * s);
+      ctx.textAlign = "right";
+      ctx.fillStyle = p.text; ctx.font = `600 ${Math.min(20, rowH / s * 0.48) * s}px ${NUM_FONT}`;
+      ctx.fillText(it.value, W - pad - 12 * s, cy + (it.sub ? 2 : 6) * s);
+      if (it.sub) { ctx.fillStyle = p.muted; ctx.font = `500 ${8 * s}px ${FONT}`; ctx.fillText(it.sub, W - pad - 12 * s, cy + 13 * s); }
+    });
+  }
+  drawWordmark(ctx, s, pad, H - pad - (qr ? 22 : 9) * s, { color: p.text, logo });
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  ctx.restore();
+  return canvas;
+}
+
+// ── Matrica: átlátszó háttér (fotóra) ────────────────────────────────────────
+const INKS = {
+  white:  { text: "#ffffff", muted: "rgba(255,255,255,0.88)", line: "rgba(255,255,255,0.5)", route: "#ffffff", shadow: "rgba(0,0,0,0.55)", word: "#ffffff" },
+  black:  { text: "#111111", muted: "rgba(17,17,17,0.75)", line: "rgba(17,17,17,0.35)", route: "#111111", shadow: "rgba(255,255,255,0.6)", word: "#111111" },
+  orange: { text: "#ffffff", muted: "rgba(255,255,255,0.88)", line: "rgba(255,255,255,0.5)", route: "#fc4c02", shadow: "rgba(0,0,0,0.55)", word: "#ffffff" },
+};
+
+function drawStickerCard({ canvas, ctx, s, W, H, title, date, stats, points, qr, logo, ink }) {
+  const p = INKS[ink] || INKS.white;
+  const pad = 28 * s;
+  const tall = H / W > 1.5, mid = H / W > 1.1;
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.shadowColor = p.shadow; ctx.shadowBlur = 6 * s; ctx.shadowOffsetY = 1 * s;
+  const cols = mid ? 2 : Math.min(4, stats.length);
+  const valSize = tall ? 44 : mid ? 36 : 28;
+  const rows = Math.ceil(stats.length / cols);
+  const statsH = rows * (7.5 + 6 + valSize * 0.95 + 12) * s;
+  const headH = (date ? 15 : 0) * s + 24 * s;
+  const footH = (qr ? 48 : 24) * s;
+  const routeBox = { x: pad, y: pad, w: W - pad * 2, h: H - pad * 2 - headH - statsH - footH - 34 * s };
+  ctx.restore();
+  if (routeBox.h > 40 * s) drawLineArt(ctx, s, points, routeBox, { color: p.route, width: tall ? 4 : 3.4, shadow: p.shadow, dotRing: p.text });
+  ctx.save();
+  ctx.shadowColor = p.shadow; ctx.shadowBlur = 6 * s; ctx.shadowOffsetY = 1 * s;
+  let y = routeBox.y + routeBox.h + 22 * s;
+  y = drawHeader(ctx, { text: p.text, muted: p.muted }, s, { x: pad, y, w: W - pad * 2, title, date, titleSize: 18, maxLines: 1 }) + 12 * s;
+  drawStatGrid(ctx, p, s, stats, { x: pad, y, w: W - pad * 2 }, { cols, valSize, dividers: false });
+  drawWordmark(ctx, s, pad, H - pad - (qr ? 22 : 10) * s, { color: p.word, logo, size: 10 });
+  ctx.restore();
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  return canvas;
 }

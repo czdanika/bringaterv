@@ -10,6 +10,7 @@
  *                 getStravaStatus, libraryData, libraryFilter, DIST_MAX, DUR_MAX });
  */
 
+import { isWorkout as isWorkoutKind } from "../workoutKind.js";
 import { openRoutePdfModal, resolveShareBase, shareRouteUrl } from "./routePdfModal.js";
 import { importGpx } from "../gpx/gpx.js";
 import { openShareModal } from "./shareModal.js";
@@ -75,7 +76,7 @@ export async function loadRouteLibrary() {
   if (elFilter) elFilter.hidden = true;
   try {
     const [userRoutes, samples] = await Promise.all([_api.listRoutes(), _api.listSamples()]);
-    const isWorkoutEntry = r => r.type === "workout" || !!r.strava_id || !!r.start_time;
+    const isWorkoutEntry = isWorkoutKind;
     _data.routes   = userRoutes.filter(r => !isWorkoutEntry(r));
     _data.workouts = userRoutes.filter(isWorkoutEntry);
     _data.samples  = samples;
@@ -468,7 +469,9 @@ export function openLibraryEditModal(route) {
   saveBtn.replaceWith(newSaveBtn);
   newSaveBtn.addEventListener("click", async () => {
     const newName = nameInput.value.trim() || route.name;
-    const newType = overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? route.type;
+    // edzésnél a típus „workout” marad (az útvonaltípus-választó csak terveknél értelmes)
+    const newType = route.type === "workout" ? "workout"
+      : overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? route.type;
     const newDesc = descInput.value.trim();
     try {
       const patch = { name: newName, type: newType, description: newDesc };
@@ -591,7 +594,7 @@ function buildLibraryExpandRow(route, category, isSample) {
           ${first}${second}
           <button class="lib-x-icon" type="button" data-action="share-menu" title="Megosztás – kép, PDF, link" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
           <button class="lib-x-icon" type="button" data-action="more" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
-          ${!isSample ? `<label class="lib-x-stats" title="Beleszámít-e a statisztikákba, rekordokba">
+          ${!isSample && isWorkout ? `<label class="lib-x-stats" title="Beleszámít-e a statisztikákba, rekordokba">
             <span class="toggle-switch"><input type="checkbox" data-stats-toggle ${inStats ? "checked" : ""}><span class="toggle-track"></span></span>
             <span>Beleszámít a statisztikába</span>
           </label>` : ""}
@@ -1075,7 +1078,7 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
   if (!isSample) {
     items.push({ act: "submit-community", icon: "users", label: "Beküldés a közösbe" });
     items.push({ sep: true });
-    if (!compact) items.push({ act: "toggle-stats", icon: route.include_in_stats === false ? "square" : "square-check",
+    if (!compact && isWorkout) items.push({ act: "toggle-stats", icon: route.include_in_stats === false ? "square" : "square-check",
                  label: "Beleszámít a statisztikába" });
     items.push({ act: "edit", icon: "pencil", label: "Szerkesztés" });
     items.push({ sep: true });

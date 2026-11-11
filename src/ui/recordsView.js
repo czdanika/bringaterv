@@ -10,6 +10,7 @@
  * A 2–3. blokk adatai a szerverről jönnek (/api/records, cache-elve).
  */
 
+import { countsInStats } from "../workoutKind.js";
 import { num, int, dur } from "../format.js";
 import { sparkStep } from "./sparkline.js";
 import { keytelCalibration, personFrom, workoutKcal } from "../calories.js";
@@ -48,7 +49,7 @@ function sportOf(r) {
   if (!t || t.includes("cycl") || t.includes("ride") || t.includes("bike") || ["gravel", "mtb", "asphalt"].includes(t)) return "cycling";
   return "other";
 }
-const isWorkout = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
+// edzés / terv: a közös szabály (workoutKind.js) – terv sosem kerül a rekordok közé
 const tsOf = (r) => new Date(r.start_time || r.date).getTime();
 const fmtDate = (t) => new Date(t).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
 
@@ -150,7 +151,7 @@ export function renderRecordsView(allRoutes, { api, sport } = {}) {
 
 // ── Rajzolás ─────────────────────────────────────────────────────────────────
 function draw(el, allRoutes) {
-  const workouts = allRoutes.filter((r) => isWorkout(r) && Number.isFinite(tsOf(r)));
+  const workouts = allRoutes.filter((r) => countsInStats(r) && Number.isFinite(tsOf(r)));
   const sportsPresent = Object.keys(SPORTS).filter((k) => workouts.some((r) => sportOf(r) === k));
   if (sportsPresent.length && !sportsPresent.includes(_sport)) _sport = sportsPresent[0];
   const cfg = SPORTS[_sport];

@@ -50,6 +50,8 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── api_igpsport.py     # /api/igpsport/* (status, connect, activities, import, auto-sync, route)
 │   ├── igpsport_sync.py    # automatikus iGPSport import + lejárat előtti push
 │   ├── garmin_sync.py      # automatikus Garmin import (eredeti FIT)
+│   ├── sync_engine.py      # KÖZÖS automatikus import-motor (SyncProvider + AutoSync): onelap/igpsport/bryton/garmin_sync csak a saját részét adja
+│   ├── integrations.py     # integrációk nyilvántartása: admin ki-be kapcsolás (site_settings.integrations_off, before_request gate), egészség
 │   ├── fit_gpx.py          # közös FIT → GPX (fitdecode)
 │   ├── device_import.py    # Wahoo / Polar közös: user-szintű app-kulcsok, OAuth state, tokenek, mentés FIT-ből
 │   ├── wahoo_service.py    # Wahoo Cloud API (import)
@@ -69,6 +71,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── share.py            # nyilvános linkek: elrejthető adatok (GPX-szűrés), megnyitás-számláló (share_views / share_seen)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
+├── tools/checks/           # ellenőrző szkriptek a szerver konténerében (pl. check_sync_engine.py)
 ├── tools/demo/             # bemutató fiók (seed_demo.py) + a Mi ez? képernyőképei (shoot.py) – tests/.env: DEMO_USER/PASS
 └── src/
     ├── main.js             # Fő app belépési pont (~2865 sor) – orchestrálja a modulokat
@@ -109,6 +112,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         │                   #   (kalória+Eddington+sport-bontás), renderRecordsFull,
         │                   #   renderEddington (sportonkénti chipek), renderTrainingLoad
         │                   #   (CTL/ATL/TSB + A:C + monotonitás + napi bars), renderHeatmapCanvas
+        ├── statsHabits.js  # Stats → Szokások: hét napjai, napszakok (--tod-* színek), táv-sávok, felszerelés
         ├── statsManager.js # Stats fül orchestrátor (initStats, loadAndRenderStats,
         │                   #   showHeatmap – csak edzéseket mutat, Elemzés gomb a popupban)
         ├── library.js      # Könyvtár fül: kártya/lista nézet, szűrők, szerkesztő,
@@ -142,6 +146,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
         ├── stops.js        # Elemzés: megállások + térképjelölők
         ├── feel.js         # Elemzés: RPE + jegyzet (PATCH rpe / notes)
         ├── pedaling.js     # Elemzés: kadencia–watt negyedek, bal / jobb láb (FIT)
+        ├── integrationState.js # lekapcsolt integrációk jelzése (Beállítások, Könyvtár import, Küldés gombok)
         ├── sharedLinks.js  # Beállítások → Megosztás → Megosztott linkjeim (megnyitások, mi látszik, kikapcsolás)
         ├── whatsNew.js     # „Újdonságok” ablak (belépéskor új verziónál, ☰ menü) – NEWS tömb
         ├── settings.js     # Beállítások panel: HR zóna (Karvonen), sebesség/kad/power
@@ -265,7 +270,7 @@ getStravaStatus()             // { connected, app_configured, athlete_name, ... 
 
 ## Navigáció / tab rendszer
 - Fő fülek: `data-tab="plan|file|library|stats"` – `switchTab(name)` váltja
-- Stats al-navigáció: `data-stats-view="overview|monthly|records|eddington|training|heatmap"`
+- Stats al-navigáció: `data-stats-view="overview|monthly|records|habits|form|heatmap|year"`
 - Collapse: `#navToggle` (header) + `#railNavToggle` (rail alján) – `is-nav-collapsed` class
 - Library / Stats módban a térkép rejtett, `#libraryMain` / `#statsMain` látható
 
@@ -277,7 +282,7 @@ Az index.json bejegyzésekben:
 - `include_in_stats: false` → kizárva a statisztikákból (tervezett útvonalaknál alapból)
 - `sport_type` → a tényleges sport (cycling/running/walking/hiking) – Strava importnál töltődik
 
-A statisztikák csak `type === "workout"` és `include_in_stats !== false` bejegyzésekből számolnak.
+A statisztikák csak `type === "workout"` és `include_in_stats !== false` bejegyzésekből számolnak – **egyetlen szabály:** kliensen `src/workoutKind.js` (`isWorkout`, `countsInStats`), szerveren `utils.is_recorded_entry` (forrás-azonosító / FIT / start_time / időbélyeges GPX). Terv sosem számít; az időadat nélküli „edzés” mentést a szerver tervvé írja, edzés típusa PATCH-csel nem írható át (v21 migráció rendbe tette a régieket).
 
 ## Backend API végpontok (routes-api/api_*.py modulok)
 ```
@@ -341,7 +346,12 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.42.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.43.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+
+## Új integráció / meglévő változása
+- Automatikus import: egy `SyncProvider` alosztály a `<key>_sync.py`-ban (open / candidates / import_one / expires_at), a többi a `sync_engine.py`-ban. Ellenőrzés: `tools/checks/check_sync_engine.py`.
+- Ha egy szolgáltató eltörik: admin → Integrációk → lekapcsolás (kiadás nélkül), javítás csak a saját `<key>_service.py` / `<key>_sync.py` fájlban.
+- Új integrációnál az `integrations.py` INTEGRATIONS listájába is fel kell venni (admin, kapcsoló, egészség).
 
 ## Fontos szabályok
 - **Soha nem commitolunk Claude-attribúciót** (no Co-Authored-By)

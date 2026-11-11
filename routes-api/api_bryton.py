@@ -78,11 +78,8 @@ def bryton_ep_connect():
     except BrytonApiError as exc:
         abort(502, description=f"Bryton belépés sikertelen: {exc}")
     try:   # új belépés → a lejárat-figyelmeztetés újra küldhető
-        from bryton_sync import load_sync, save_sync
-        st = load_sync(g.user["id"])
-        st["expiry_alerted"] = False
-        st["conn_alerted"] = False
-        save_sync(g.user["id"], st)
+        from bryton_sync import reset_alerts
+        reset_alerts(g.user["id"])
     except Exception:
         pass
     return jsonify({"connected": True, "account": data["account"], "expires_at": data.get("expires_at")})

@@ -386,9 +386,9 @@ function renderAi() {
     window.lucide?.createIcons({ root: box });
     $("sgAiText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runAi(); });
   }
-  $("sgAiLeft").textContent = a.remaining != null ? `ma még ${a.remaining} AI-kérés` : "";
+  $("sgAiLeft").textContent = a.unavailable ? "Az AI most nem érhető el, próbáld később." : a.remaining != null ? `ma még ${a.remaining} AI-kérés` : "";
   const btn = box.querySelector(".sg-ai-go");
-  btn.disabled = st.aiBusy || a.remaining === 0;
+  btn.disabled = st.aiBusy || a.remaining === 0 || !!a.unavailable;
   btn.querySelector("span").textContent = st.aiBusy ? "Értelmezés…" : "Kitöltés AI-val";
 }
 
@@ -435,6 +435,7 @@ async function runAi() {
     else { renderResults(); _d.showToast(!st.start ? "Bökj a térképre a rajthoz, és indulhat a tervezés." : "Bökj a térképre a célhoz."); }
   } catch (err) {
     _d.showToast(err.message || "Az AI most nem érhető el.");
+    routesApi.aiStatus().then((a) => { st.ai = a; renderAi(); }).catch(() => {});
   } finally {
     st.aiBusy = false; renderAi();
   }

@@ -184,6 +184,8 @@ export const routesApi = {
   /** Mi látszódjon a nyilvános linken: { hide: ["hr", "power", "cad", "temp", "desc", "wind", "cards"] } */
   setRouteShare(id, share) { return this.updateRoute(id, { share }); },
   /** A nyilvánosan megosztott elemek listája megnyitás-számlálóval. */
+  /** A lekapcsolt integrációk kulcsai (admin → Integrációk) – a felület jelzi őket. */
+  getIntegrations() { return fetchJson(`${BASE}/integrations`); },
   getSharedRoutes() { return fetchJson(`${BASE}/routes/shared`); },
   resetShareViews(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/share-views`, { method: "DELETE" }); },
 
@@ -341,7 +343,10 @@ export const routesApi = {
     roadmapImport(data)               { return fetchJson(`${BASE}/admin/roadmap/import`, { method: "POST", body: JSON.stringify(data) }); },
     siteGet()                         { return fetchJson(`${BASE}/admin/site`); },
     sitePut(data)                     { return fetchJson(`${BASE}/admin/site`, { method: "PUT", body: JSON.stringify(data) }); },
+    integrations()                    { return fetchJson(`${BASE}/admin/integrations`); },
+    integrationSet(key, enabled)      { return fetchJson(`${BASE}/admin/integrations/${encodeURIComponent(key)}`, { method: "PUT", body: JSON.stringify({ enabled }) }); },
     aiGet()                           { return fetchJson(`${BASE}/admin/ai`); },
+    aiResume()                        { return fetchJson(`${BASE}/admin/ai/resume`, { method: "POST" }); },
     aiPut(data)                       { return fetchJson(`${BASE}/admin/ai`, { method: "PUT", body: JSON.stringify(data) }); },
     aiSampleDescription(data)         { return fetchJson(`${BASE}/admin/ai/sample-description`, { method: "POST", body: JSON.stringify(data) }); },
     impersonate(userId)               { return fetchJson(`${BASE}/admin/users/${encodeURIComponent(userId)}/impersonate`, { method: "POST" }); },

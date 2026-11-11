@@ -54,6 +54,7 @@ function calorieSourceOf(e) {
 import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { initSharedLinks } from "./ui/sharedLinks.js";
+import { initIntegrationState } from "./ui/integrationState.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
 import { initHome, updateHome } from "./ui/home.js";
@@ -2761,6 +2762,7 @@ initMapLegend();
 initAbout({ isNewerVersion });
 // Újdonságok: belépés után egyszer (új verziónál), és a ☰ menüből bármikor
 initSharedLinks({ api: routesApi, shareUrl: (id) => shareRouteUrl(id) });
+initIntegrationState({ api: routesApi });
 initWhatsNew({
   onGo: (to) => {
     if (to === "settings") {
@@ -3394,7 +3396,7 @@ initAiAnalysis({
     "Időtartam": "A rögzítés teljes ideje az indulástól az érkezésig.",
     "Teljes idő": "A rögzítés teljes ideje a megállásokkal együtt (a mozgásidő ennél kevesebb).",
     "Átlagsebesség": "Táv osztva a mozgásidővel – a megállások nem rontják (mint a Stravánál).",
-    "Emelkedés": "Összesen ennyi métert mentél felfelé (a fájl magasságadataiból, 3 m-es zajszűréssel). A ↓ érték az ereszkedés: összesen ennyit lefelé.",
+    "Emelkedés": "Összesen ennyi métert mentél felfelé – a rögzítő eszköz / szolgáltatás értéke, ha megadta, különben a fájlból (3 m-es zajszűréssel). A ↓ érték az ereszkedés.",
     "Sebesség": "Átlag: táv / mozgásidő. Max: a legnagyobb mért pillanatnyi sebesség.",
     "Pulzus": "Átlagos és legmagasabb szívfrekvencia (ütés / perc) a pulzusmérő szerint.",
     "Kadencia": "Pedálfordulat percenként (rpm). Az átlagban a gurulás (0 rpm) nem számít.",
@@ -4425,6 +4427,22 @@ function fmtMinutesHuman(min) {
   return dur(min);
 }
 
+/** A könyvtári bejegyzés tárolt táv / emelkedés értéke (a szolgáltatóé), ha van; az ereszkedés ebből
+ *  következik (emelkedés + rajt − cél magassága), hogy a kettő összhangban legyen. Ugyanez a view.js-ben. */
+function preferStoredTotals(entry, geometry, calc) {
+  if (!entry || entry.type !== "workout") return calc;
+  const out = { ...calc };
+  const km = Number(entry.distance);
+  if (km > 0) out.distanceMeters = km * 1000;
+  const asc = Number(entry.elevation);
+  if (asc > 0) {
+    out.ascentMeters = Math.round(asc);
+    const eles = geometry.map((p) => p.ele).filter((v) => Number.isFinite(v));
+    if (eles.length > 1) out.descentMeters = Math.max(0, Math.round(asc + eles[0] - eles[eles.length - 1]));
+  }
+  return out;
+}
+
 // ── Mentés a könyvtárba gomb ──────────────────────────────────────────────────
 // Az utoljára mentett terv – ugyanazt a tervet (pl. Mentés, majd Küldés OnelapFitre) ne mentsük kétszer
 let _lastSavedPlan = null;
@@ -4745,8 +4763,12 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       importedRoute: true,
       sourcePointCount: imported.sourcePointCount,
     });
-    const { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
-    const distanceMeters = calculateImportedDistance(imported.geometry);
+    let { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
+    let distanceMeters = calculateImportedDistance(imported.geometry);
+    // Egy forrás mindenhol: ha a szolgáltató / eszköz megadta (a könyvtári bejegyzésben tárolt táv és
+    // emelkedés), azt mutatjuk – mint a Kezdőlap és a Könyvtár; csak ennek híján a GPX-ből számolt értéket.
+    ({ distanceMeters, ascentMeters, descentMeters } = preferStoredTotals(libEntry, imported.geometry,
+      { distanceMeters, ascentMeters, descentMeters }));
     store.setState({ distanceMeters, ascentMeters, descentMeters });
 
     const hasSpeed = imported.geometry.some(p => p.speed != null);

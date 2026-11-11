@@ -395,7 +395,12 @@
     .rm-item.rm-new > .rm-row .t { color: var(--brand); }
     /* AI fül */
     .ai-state { font-size: 13px; font-weight: 600; }
-    .ai-state.is-on { color: var(--green); } .ai-state.is-off { color: var(--muted); }
+    .ai-state.is-on { color: var(--green); } .ai-state.is-off { color: var(--muted); } .ai-state.is-err { color: #dc2626; }
+    .ai-outage { margin: 0 20px 14px; padding: 12px 14px; border-radius: 10px; background: rgba(220,38,38,.08); display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+    .ai-outage[hidden] { display: none; }
+    .ai-outage b { color: #dc2626; }
+    .ai-outage small { color: var(--muted); font-size: 11.5px; word-break: break-word; }
+    .ai-outage .btn { align-self: flex-start; }
     .ai-hint { font-size: 12.5px; color: var(--muted); }
     .ai-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 0 20px; }
     .ai-field { flex: 1 1 320px; min-width: 0; }
@@ -506,6 +511,15 @@
     .admin-help-body a { color: var(--brand); }
     @media (max-width: 760px) { .admin-help-body { padding: 4px 14px 16px; } }
     .admin-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+    .tab-count[hidden] { display: none !important; }
+    .int-table td { vertical-align: top; }
+    .int-kind { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .int-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .int-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,0,0,.06); color: var(--muted); white-space: nowrap; }
+    .int-pill--ok { background: rgba(22,163,74,.12); color: #15803d; }
+    .int-pill--warn { background: rgba(234,179,8,.18); color: #a16207; }
+    .int-pill--off { background: rgba(220,38,38,.12); color: #dc2626; }
+    .int-err { font-size: 12px; color: var(--muted); margin-top: 4px; max-width: 320px; }
     .panel-desc { padding: 0 20px 12px; font-size: 13px; color: var(--muted); line-height: 1.5; }
     .badge-readonly { background: #ede9fe; color: #6d28d9; }
     .btn-danger-ghost { background: none; border: 1px solid #fecaca; color: var(--red); }
@@ -573,6 +587,7 @@
       <button class="admin-tab" data-section="feedback" role="tab" type="button">Visszajelzések <span class="tab-count" id="fbNewCount" hidden></span></button>
       <button class="admin-tab" data-section="submissions" role="tab" type="button">Beküldések <span class="tab-count" id="subPendingCount" hidden></span></button>
       <button class="admin-tab" data-section="samples" role="tab" type="button">Közösségi útvonalak</button>
+      <button class="admin-tab" data-section="integrations" role="tab" type="button">Integrációk <span class="tab-count" id="intErrCount" hidden></span></button>
       <button class="admin-tab" data-section="ai" role="tab" type="button">AI</button>
       <button class="admin-tab" data-section="roadmap" role="tab" type="button">Fejlesztések</button>
       <button class="admin-tab" data-section="help" role="tab" type="button">Súgó</button>
@@ -636,12 +651,25 @@
     </section>
 
     <!-- AI-funkciók: API-kulcs, alap napi limit, felhasználónkénti be/ki és limit -->
+    <!-- Integrációk: ki-be kapcsolás, egészség (integrations.py) -->
+    <section class="admin-section" data-section="integrations" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Integrációk</span>
+          <button class="btn" id="intReload" type="button">Frissítés</button>
+        </div>
+        <p class="panel-desc">Ha egy szolgáltató megváltoztatja a rendszerét és a kapcsolat hibázni kezd, itt kiadás nélkül lekapcsolhatod: a felhasználók érthető üzenetet kapnak („ideiglenesen nem érhető el”), az automatikus import szünetel, a tárolt kapcsolatok és edzések megmaradnak. Visszakapcsolva minden folytatódik. Az állapot a felhasználók automatikus importjának legutóbbi köréből számol.</p>
+        <div style="overflow-x:auto"><table class="user-table int-table" id="intTable"><tbody><tr><td class="loading">Betöltés…</td></tr></tbody></table></div>
+      </div>
+    </section>
+
     <section class="admin-section" data-section="ai" hidden>
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">AI-beállítások</span>
           <span id="aiState" class="ai-state"></span>
         </div>
+        <div class="ai-outage" id="aiOutage" hidden></div>
         <p class="panel-desc">Az edzések AI-elemzéséhez (Claude, Anthropic). A kulcs csak a szerveren tárolódik, a felhasználók böngészője sosem kapja meg. Kulcs nélkül sehol nem jelenik meg AI-funkció.</p>
         <div class="ai-form">
           <label class="ai-field">
@@ -2885,8 +2913,16 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     const usd = (v) => `$${(v || 0).toFixed(2)}`;
     function renderAi() {
       const st = document.querySelector("#aiState");
-      st.textContent = _ai.configured ? `● Beállítva (${_ai.key_hint})` : "● Nincs API-kulcs";
-      st.className = "ai-state " + (_ai.configured ? "is-on" : "is-off");
+      const o = _ai.outage;
+      st.textContent = !_ai.configured ? "● Nincs API-kulcs" : o ? (o.reason === "billing" ? "● Elfogyott a keret" : "● Szünetel") : `● Beállítva (${_ai.key_hint})`;
+      st.className = "ai-state " + (!_ai.configured ? "is-off" : o ? "is-err" : "is-on");
+      const ob = document.querySelector("#aiOutage");
+      ob.hidden = !o;
+      if (o) ob.innerHTML = `<b>${o.reason === "billing" ? "Elfogyott az AI-keret" : "Az AI-szolgáltatás hibát ad"}</b>
+        <span>${o.reason === "billing" ? "Az Anthropic-fiókban elfogyott a kredit vagy elérte a költségkeretet. Tölts fel, majd oldd fel a szünetet." : "Az AI-hívások hibát adtak."}
+        A felhasználók addig „Az AI most átmenetileg nem érhető el” üzenetet látnak. Magától ${new Date(o.until * 1000).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}-kor próbálja újra.</span>
+        ${o.detail ? `<small>${escHtml(o.detail)}</small>` : ""}
+        <button class="btn" type="button" id="aiResumeBtn">Szünet feloldása most</button>`;
       document.querySelector("#aiKeyInput").placeholder = _ai.configured ? `${_ai.key_hint} – új kulcs megadásához írd be` : "sk-ant-…";
       document.querySelector("#aiDefaultLimit").value = _ai.default_limit;
       document.querySelector("#aiRemoveKeyBtn").hidden = !_ai.configured;
@@ -2913,6 +2949,10 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
               <td data-label="Költség" style="text-align:right;white-space:nowrap">${usd(us.cost_month)}</td>
             </tr>`; }).join("")}</tbody></table>` : `<div class="loading">Nincs felhasználó.</div>`;
     }
+    document.addEventListener("click", async (e) => {
+      if (!e.target.closest("#aiResumeBtn")) return;
+      try { _ai = await routesApi.admin.aiResume(); renderAi(); } catch (ex) { alert(ex.message); }
+    });
     async function loadAi() {
       try {
         [_ai, _users] = await Promise.all([routesApi.admin.aiGet(), routesApi.admin.listUsers()]);
@@ -2962,6 +3002,48 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
     });
 
     // ── Fülek (Felhasználók / Meghívók / Minta útvonalak) ─────────────────────
+    // ── Integrációk ──────────────────────────────────────────────────────────
+    const intEsc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    function intWhen(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso); if (Number.isNaN(d.getTime())) return "—";
+      const min = Math.round((Date.now() - d.getTime()) / 60000);
+      return min < 1 ? "most" : min < 60 ? `${min} perce` : min < 1440 ? `${Math.round(min / 60)} órája` : d.toLocaleDateString("hu-HU");
+    }
+    function renderIntegrations(items) {
+      const errs = items.filter((x) => x.enabled && x.errors).length;
+      const badge = document.querySelector("#intErrCount");
+      if (badge) { badge.hidden = !errs; badge.textContent = errs; }
+      const body = items.map((x) => {
+        const state = !x.enabled ? `<span class="int-pill int-pill--off">Lekapcsolva</span>`
+          : x.errors ? `<span class="int-pill int-pill--warn" title="${intEsc(x.last_error)}">${x.errors} hiba</span>`
+          : x.connected ? `<span class="int-pill int-pill--ok">Rendben</span>` : `<span class="int-pill">Nincs használatban</span>`;
+        return `<tr>
+          <td><b>${intEsc(x.label)}</b><div class="int-kind">${intEsc(x.kind)}</div></td>
+          <td>${state}${x.errors && x.last_error ? `<div class="int-err">${intEsc(x.last_error)}</div>` : ""}</td>
+          <td class="int-num" title="Kapcsolat / automatikus import bekapcsolva">${x.connected} / ${x.auto}</td>
+          <td class="int-num" title="Legutóbbi automatikus kör">${intWhen(x.last_check)}</td>
+          <td class="int-num" title="Automatikusan importált edzések összesen">${x.total_imported}</td>
+          <td><label class="ai-switch" title="${intEsc(x.label)} be / ki"><input type="checkbox" data-int="${intEsc(x.key)}"${x.enabled ? " checked" : ""}><span></span></label></td>
+        </tr>`;
+      }).join("");
+      document.querySelector("#intTable").innerHTML = `<thead><tr><th>Integráció</th><th>Állapot</th><th>Kapcsolat / auto</th><th>Utolsó kör</th><th>Importálva</th><th>Be / ki</th></tr></thead><tbody>${body}</tbody>`;
+    }
+    async function loadIntegrations() {
+      try { renderIntegrations((await routesApi.admin.integrations()).items || []); }
+      catch (e) { document.querySelector("#intTable").innerHTML = `<tbody><tr><td>${intEsc(e.message)}</td></tr></tbody>`; }
+    }
+    document.querySelector("#intReload")?.addEventListener("click", loadIntegrations);
+    document.querySelector("#intTable")?.addEventListener("change", async (e) => {
+      const cb = e.target.closest("[data-int]");
+      if (!cb) return;
+      const label = cb.closest("tr").querySelector("b").textContent;
+      if (!cb.checked && !confirm(`Lekapcsolod: ${label}? A felhasználók „ideiglenesen nem érhető el” üzenetet kapnak, az automatikus import szünetel.`)) { cb.checked = true; return; }
+      cb.disabled = true;
+      try { renderIntegrations((await routesApi.admin.integrationSet(cb.dataset.int, cb.checked)).items || []); }
+      catch (err) { cb.checked = !cb.checked; alert(err.message); cb.disabled = false; }
+    });
+
     function showSection(name) {
       document.querySelectorAll(".admin-tab").forEach(t => t.classList.toggle("is-active", t.dataset.section === name));
       document.querySelectorAll(".admin-section").forEach(sec => { sec.hidden = sec.dataset.section !== name; });
@@ -2969,6 +3051,7 @@ document.querySelector("#editModalClose").addEventListener("click", () => { edit
       if (name === "feedback") loadFeedback();
       if (name === "submissions") loadSubmissions();
       if (name === "ai") loadAi();
+      if (name === "integrations") loadIntegrations();
       if (name === "roadmap") loadRoadmap();
       if (name === "samples") { loadSurfDb(); loadBrouter(); }
       try { history.replaceState(null, "", "#" + name); } catch {}

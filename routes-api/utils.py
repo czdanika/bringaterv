@@ -170,3 +170,27 @@ def find_cross_source_duplicate(idx: list, start_ts, distance_m, own_key: str):
         if abs(r["distance"] * 1000 - distance_m) / distance_m <= _DUP_DIST_TOLERANCE:
             return r
     return None
+
+
+# ── Edzés vagy terv? (egy helyen – a mentés, a módosítás és a migráció is ezt használja) ──
+# A forrás-azonosítók: az importált edzések mindig rögzített adatok
+SOURCE_ID_FIELDS = ("strava_id", "garmin_id", "onelap_id", "igpsport_id", "bryton_id", "wahoo_id", "polar_id")
+_TRKPT_TIME_RE = re.compile(r"<trkpt\b[^>]*>(?:(?!</trkpt>).)*?<time>", re.S)
+
+
+def gpx_has_times(gpx_text: str, min_points: int = 4) -> bool:
+    """A nyomvonal pontjainak van időbélyege (rögzített edzés) – a tervezett útvonalnak nincs."""
+    n = 0
+    for _ in _TRKPT_TIME_RE.finditer(gpx_text[:400000]):
+        n += 1
+        if n >= min_points:
+            return True
+    return False
+
+
+def is_recorded_entry(entry: dict, gpx_text: str = None) -> bool:
+    """Valódi (rögzített) edzés-e: importált (forrás-azonosító), FIT-tel mentett, indulási idővel,
+    vagy a GPX pontjainak időbélyege van."""
+    if any(entry.get(k) for k in SOURCE_ID_FIELDS) or entry.get("has_fit") or entry.get("start_time"):
+        return True
+    return bool(gpx_text) and gpx_has_times(gpx_text)

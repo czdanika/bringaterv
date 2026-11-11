@@ -209,6 +209,27 @@ function render() {
   }));
 }
 
+/**
+ * A megosztó kép („Eredmények” stílus) kiemelései: az érmes (legjobb 3) idők és wattok,
+ * helyezés szerint. [{ rank, label, value }] – üres, ha nincs érem vagy még töltődik.
+ */
+export function getShareHighlights(limit = 4) {
+  const c = _calc;
+  if (!c || !_records) return [];
+  const cfg = SPORTS[c.sport] || SPORTS.cycling;
+  const out = [];
+  for (const [d, e] of Object.entries(c.efforts)) {
+    const rk = rankOf(e.sec, othersFor(c.sport, (rec) => rec?.efforts?.[d]), true);
+    if (rk && rk.n >= 2 && rk.rank <= 3) out.push({ rank: rk.rank, label: fmtDist(+d), value: clock(e.sec), sub: fmtRate(+d, e.sec, cfg.pace), w: +d });
+  }
+  for (const [w, p] of Object.entries(c.power)) {
+    const rk = rankOf(p.val, othersFor(c.sport, (rec) => rec?.peaks?.power?.[w]), false);
+    if (rk && rk.n >= 2 && rk.rank <= 3) out.push({ rank: rk.rank, label: WIN_LABEL[w], value: `${int(p.val)} W`, sub: c.kg ? `${num(p.val / c.kg, 2)} W/kg` : "", w: +w * 1000 });
+  }
+  // előbb a jobb helyezés, azon belül a hosszabb táv / idő (az a rangosabb)
+  return out.sort((a, b) => a.rank - b.rank || b.w - a.w).slice(0, limit);
+}
+
 // ── Teljesítmény-görbe: ez az edzés vs. az eddigi legjobb (log időtengely) ─────────
 const CW = 260, CH = 120, CP = { l: 30, r: 6, t: 8, b: 18 };
 const winLabel = (w) => w < 60 ? `${w} mp` : w < 3600 ? `${w / 60} perc` : `${num(w / 3600, w % 3600 ? 1 : 0)} óra`;

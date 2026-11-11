@@ -1,6 +1,7 @@
 """Bringaterv – adminból állítható oldalszintű beállítások (/data/site_settings.json).
 
   registration_open   nyílt regisztráció (a meghívós regisztráció ettől függetlenül működik)
+  integrations_off    lekapcsolt integrációk kulcsai (integrations.py) – pl. ["igpsport"]
 """
 
 import json
@@ -8,7 +9,7 @@ import os
 
 from config import SITE_SETTINGS, log
 
-DEFAULTS = {"registration_open": False}
+DEFAULTS = {"registration_open": False, "integrations_off": []}
 
 
 def load() -> dict:

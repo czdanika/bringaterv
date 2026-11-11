@@ -44,8 +44,9 @@ export function attachAiDescribe(textarea, getPayload) {
 
   const refresh = () => loadStatus().then((s) => {
     btn.hidden = !usable(s);
-    if (usable(s)) btn.title = `Leírás a nyomvonal alapján: megye, érintett települések, burkolat, terep – a napi AI-keretből (ma még ${s.remaining})`;
-    btn.disabled = usable(s) && s.remaining <= 0;
+    if (usable(s)) btn.title = s.unavailable ? (s.message || "Az AI most átmenetileg nem érhető el.")
+      : `Leírás a nyomvonal alapján: megye, érintett települések, burkolat, terep – a napi AI-keretből (ma még ${s.remaining})`;
+    btn.disabled = usable(s) && (s.remaining <= 0 || !!s.unavailable);
   });
   // a modal megnyitásakor (a mező kiürül / betöltődik) frissítünk
   new MutationObserver(refresh).observe(textarea.closest("[hidden], .shortcut-overlay") || textarea, { attributes: true, attributeFilter: ["hidden"] });
@@ -69,6 +70,7 @@ export function attachAiDescribe(textarea, getPayload) {
       if (r?.status) _status = r.status;
     } catch (err) {
       toast(err.message || "Nem sikerült leírást kérni.");
+      _status = undefined; _loading = null;      // a szünetet a szerver jelzi – frissítjük
     } finally {
       btn.classList.remove("is-busy"); span.textContent = "AI-leírás";
       textarea.classList.remove("is-ai-busy");

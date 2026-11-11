@@ -88,7 +88,7 @@ export function detectClimbs(geometry, dists) {
 }
 
 /** Strava-szerű kategória: hossz (m) × átlagos meredekség (%) */
-function category(distM, gradePct) {
+export function category(distM, gradePct) {
   const sc = distM * gradePct;
   if (sc >= 80000) return { label: "HC", cls: "hc" };
   if (sc >= 64000) return { label: "1. kat.", cls: "c1" };

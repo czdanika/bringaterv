@@ -88,6 +88,8 @@ export function refreshAiCard() {
   } else if (_busy) {
     box.innerHTML = head("") + `<div class="f-ai-busy"><span class="spinner-inline"></span> ${_busy === "extended"
       ? "Részletes elemzés készül… (fél–egy perc)" : "Elemzés készül… (10–30 mp)"}</div>`;
+  } else if (!a && _status.unavailable) {
+    box.innerHTML = head("") + `<div class="ai-off-note"><i data-lucide="cloud-off" aria-hidden="true"></i><span>${escapeHtml(_status.message || "Az AI most átmenetileg nem érhető el. Próbáld újra később.")}</span></div>`;
   } else if (!a) {
     const left = _status.remaining;
     box.innerHTML = head(`ma még ${left}`) +
@@ -104,6 +106,7 @@ export function refreshAiCard() {
        <button type="button" class="f-ai-link is-danger" data-ai="delete">Elemzés törlése</button></div>
        <button type="button" class="f-ai-more f-ai-alt" data-ai="rerun" ${_status.remaining > 0 ? "" : "disabled"}>Új elemzés kérése (ma még ${_status.remaining})</button>`;
   } else {
+    if (_status.unavailable) _status = { ..._status, remaining: 0 };   // szünet alatt nincs új kérés
     const date = a.created_at ? new Date(a.created_at).toLocaleDateString("hu-HU", { month: "short", day: "numeric" }) : "";
     const stale = a.data_sig && a.data_sig !== dataSig(_deps.getGeometry());
     box.innerHTML = head(escapeHtml(date)) +
@@ -172,7 +175,7 @@ async function run(id, entry, context, mode = "short") {
     return true;
   } catch (err) {
     _deps.showToast(err.message || "Nem sikerült az elemzés.", 6000);
-    await loadStatus();
+    _statusLoading = null; await loadStatus();
     return false;
   } finally {
     _busy = false; _lastKey = ""; refreshAiCard();

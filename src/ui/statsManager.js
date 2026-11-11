@@ -9,12 +9,14 @@
  *   initStats({ api: routesApi, getLibraryData, onLoadRoute: loadRouteFromLibrary });
  */
 
+import { countsInStats, isWorkout as isWorkoutKind } from "../workoutKind.js";
 import {
   renderMonthlyTable,
   renderEddington, renderTrainingLoad,
 } from './statsPanel.js';
 import { renderRecordsView } from './recordsView.js';
 import { renderOverview, renderJournal, renderYearReview } from './statsOverview.js';
+import { renderHabits } from './statsHabits.js';
 import { mobileMQ } from '../layout.js';
 
 // ── Injektált függőségek ──────────────────────────────────────────────────────
@@ -92,6 +94,7 @@ function _setPeriod(p) {
   document.querySelectorAll("[data-stats-period]").forEach((b) =>
     b.classList.toggle("stats-chip--active", b.dataset.statsPeriod === _statsPeriod));
   if (_statsView === "overview") renderOverview(_allStatsRoutes(), { period: _statsPeriod, sport: _statsSport });
+  if (_statsView === "habits") renderHabits(_allStatsRoutes(), { period: _statsPeriod, sport: _statsSport });
 }
 
 function _userFirstName() {
@@ -111,8 +114,8 @@ let _trainingRange = 6;
 function _allStatsRoutes() {
   const { routes = [], workouts = [] } = _getLibraryData?.() ?? {};
   // edzés (hacsak ki nem vették), vagy terv, amit a Könyvtárban kifejezetten bekapcsoltak
-  const isWorkout = (r) => r.type === "workout" || !!r.strava_id || !!r.start_time;
-  return [...routes, ...workouts].filter(r => r.include_in_stats === true || (isWorkout(r) && r.include_in_stats !== false));
+  // csak edzés, amit nem vettek ki a statisztikából – terv soha (workoutKind.js)
+  return [...routes, ...workouts].filter(countsInStats);
 }
 
 // ── Nézet váltás ─────────────────────────────────────────────────────────────
@@ -125,16 +128,16 @@ export function switchStatsView(view) {
   // mobilon a kiválasztott fül görgetődjön a fülsor közepére
   if (mobileMQ.matches) _centerActiveTab();
   const shown = { overview: ["overview"], monthly: ["monthly"], records: ["records"], form: ["training", "eddington"],
-                  heatmap: ["heatmap"], year: ["year"] }[view] || [view];
-  ["overview","monthly","records","eddington","training","heatmap","year"].forEach(v => {
+                  heatmap: ["heatmap"], year: ["year"], habits: ["habits"] }[view] || [view];
+  ["overview","monthly","records","eddington","training","heatmap","year","habits"].forEach(v => {
     const el = document.getElementById("statsView" + v.charAt(0).toUpperCase() + v.slice(1));
     if (el) el.hidden = !shown.includes(v);
   });
   document.getElementById("statsMain")?.classList.toggle("is-form", view === "form");
   const periodSection = document.getElementById("statsFilterPeriodSection");
-  if (periodSection) periodSection.hidden = view !== "overview";
+  if (periodSection) periodSection.hidden = !["overview", "habits"].includes(view);
   const sportSection  = document.getElementById("statsFilterSportSection");
-  if (sportSection)  sportSection.hidden  = !["overview", "monthly"].includes(view);
+  if (sportSection)  sportSection.hidden  = !["overview", "monthly", "habits"].includes(view);
 
   const all = _allStatsRoutes();
   if (view === "overview")  { _addYearChips(); renderOverview(all, { period: _statsPeriod, sport: _statsSport }); }
@@ -143,6 +146,7 @@ export function switchStatsView(view) {
   if (view === "form")      { renderTrainingLoad(all, { months: _trainingRange }); renderEddington(all); }
   if (view === "heatmap")   showHeatmap();
   if (view === "year")      renderYearReview(all, { userName: _userFirstName() });
+  if (view === "habits")    renderHabits(all, { period: _statsPeriod, sport: _statsSport });
 }
 
 // ── Betöltés + render ─────────────────────────────────────────────────────────
@@ -151,7 +155,7 @@ export async function loadAndRenderStats() {
   if (!all.length && _api) {
     try {
       const userRoutes = await _api.listRoutes();
-      const isWorkout = r => r.type === "workout" || !!r.strava_id || !!r.start_time;
+      const isWorkout = isWorkoutKind;
       const data = _getLibraryData();
       data.routes   = userRoutes.filter(r => !isWorkout(r));
       data.workouts = userRoutes.filter(isWorkout);
@@ -207,6 +211,7 @@ function _registerListeners() {
       const all = _allStatsRoutes();
       if (_statsView === "overview") renderOverview(all, { period: _statsPeriod, sport: _statsSport });
       if (_statsView === "monthly")  { renderJournal(all, { sport: _statsSport }); renderMonthlyTable(all, { sport: _statsSport }); }
+      if (_statsView === "habits")   renderHabits(all, { period: _statsPeriod, sport: _statsSport });
     });
   });
 

@@ -109,6 +109,9 @@ def status(user: dict) -> dict:
         "limit": limit,
         "used_today": used,
         "remaining": max(0, limit - used) if allowed else 0,
+        # átmeneti kiesés (elfogyott kredit / szolgáltatás-hiba): a felület előre jelzi, a gombok tiltva
+        "unavailable": bool(configured and outage()),
+        "message": UNAVAILABLE_MSG if configured and outage() else None,
     }
 
 
@@ -147,6 +150,81 @@ class AIError(Exception):
     """Felhasználónak megjeleníthető hiba."""
 
 
+# ── Kiesés: elfogyott a keret / kredit, vagy a szolgáltatás tartósan nem érhető el ──
+# Ilyenkor nem hívjuk minden kattintásra az API-t: OUTAGE_PAUSE_S ideig „szünetel”, a felület
+# előre jelzi a felhasználónak, az admin egyszer push-értesítést kap. Utána a következő kérés
+# újra próbál; ha sikerül, a szünet megszűnik.
+OUTAGE_PAUSE_S = 15 * 60
+UNAVAILABLE_MSG = "Az AI most átmenetileg nem érhető el. Próbáld újra később."
+_OUTAGE_PATH = os.path.join(os.path.dirname(AI_CONFIG), "ai_outage.json")
+_BILLING_HINTS = ("credit balance", "billing", "usage limit", "spend limit", "insufficient", "quota", "purchase credits")
+
+
+def outage() -> dict | None:
+    """Az aktuális kiesés ({reason, since, until}), vagy None."""
+    try:
+        with open(_OUTAGE_PATH, encoding="utf-8") as f:
+            o = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    import time
+    return o if isinstance(o, dict) and o.get("until", 0) > time.time() else None
+
+
+def _set_outage(reason: str, detail: str) -> None:
+    import time
+    prev = None
+    try:
+        with open(_OUTAGE_PATH, encoding="utf-8") as f:
+            prev = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        pass
+    now = time.time()
+    data = {"reason": reason, "detail": detail[:300], "since": (prev or {}).get("since") or now, "until": now + OUTAGE_PAUSE_S,
+            "notified": bool((prev or {}).get("notified"))}
+    if not data["notified"]:
+        _notify_admins(reason)
+        data["notified"] = True
+    os.makedirs(os.path.dirname(_OUTAGE_PATH), exist_ok=True)
+    with open(_OUTAGE_PATH + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    os.replace(_OUTAGE_PATH + ".tmp", _OUTAGE_PATH)
+    log.warning("AI szünetel (%s): %s", reason, detail[:200])
+
+
+def _clear_outage_if_any() -> None:
+    if os.path.isfile(_OUTAGE_PATH):
+        _clear_outage()
+
+
+def _clear_outage() -> None:
+    try:
+        os.remove(_OUTAGE_PATH)
+        log.info("AI újra elérhető – a szünet megszűnt")
+    except OSError:
+        pass
+
+
+def _notify_admins(reason: str) -> None:
+    try:
+        import notify
+        from db import _db
+        with _db() as conn:
+            admins = [r["id"] for r in conn.execute("SELECT id FROM users WHERE role = 'admin' AND active = 1")]
+        title = "Elfogyott az AI-keret" if reason == "billing" else "Az AI-szolgáltatás nem érhető el"
+        body = ("Az Anthropic-fiókban elfogyott a kredit vagy elérte a költségkeretet – töltsd fel. A felhasználók addig „nem érhető el” üzenetet látnak."
+                if reason == "billing" else "Az AI-hívások hibát adnak – a felhasználók addig „nem érhető el” üzenetet látnak.")
+        for uid in admins:
+            notify.send(uid, "feedback", title, body, url="./admin#ai", tag="ai-outage", force=True)
+    except Exception as exc:
+        log.warning("AI-kiesés értesítés hiba: %s", exc)
+
+
+def _is_billing(exc) -> bool:
+    msg = str(getattr(exc, "message", "") or exc).lower()
+    return getattr(exc, "status_code", None) == 402 or any(h in msg for h in _BILLING_HINTS)
+
+
 def _client():
     import anthropic  # csak itt kell – az app AI nélkül is elindul
     key = api_key()
@@ -160,6 +238,8 @@ def _client():
 def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000, effort: str = "low"):
     """Egy Claude-hívás strukturált (JSON) válasszal. Visszaad: (dict, model, usage)."""
     anthropic, client = _client()
+    if outage():
+        raise AIError(UNAVAILABLE_MSG)
     try:
         resp = client.beta.messages.create(
             model=MODEL,
@@ -175,18 +255,29 @@ def _call(system: str, payload: dict, schema: dict, max_tokens: int = 4000, effo
         raise AIError("Érvénytelen API-kulcs – szólj az adminnak.")
     except anthropic.PermissionDeniedError:
         raise AIError("Az API-kulcsnak nincs jogosultsága ehhez.")
-    except anthropic.RateLimitError:
+    except anthropic.RateLimitError as exc:
+        if _is_billing(exc):                         # havi költségkeret / kvóta
+            _set_outage("billing", str(exc))
+            raise AIError(UNAVAILABLE_MSG)
         raise AIError("Túl sok kérés az AI felé – próbáld újra pár perc múlva.")
     except anthropic.BadRequestError as exc:
+        if _is_billing(exc):                         # „credit balance is too low” – elfogyott a kredit
+            _set_outage("billing", str(exc))
+            raise AIError(UNAVAILABLE_MSG)
         log.warning("AI hibás kérés: %s", exc)
         raise AIError("Az AI nem tudta feldolgozni a kérést.")
     except anthropic.APIStatusError as exc:
         log.warning("AI szerverhiba (%s): %s", exc.status_code, exc)
-        raise AIError("Az AI-szolgáltatás most nem érhető el – próbáld újra később.")
+        if _is_billing(exc):
+            _set_outage("billing", str(exc))
+        elif exc.status_code in (529, 503):          # túlterhelt / nem elérhető: rövid szünet, admin-jelzéssel
+            _set_outage("service", str(exc))
+        raise AIError(UNAVAILABLE_MSG)
     except anthropic.APITimeoutError:
         raise AIError("Az AI most túl sokáig dolgozott a válaszon – próbáld újra kicsit később.")
     except anthropic.APIConnectionError:
         raise AIError("Nem sikerült kapcsolódni az AI-szolgáltatáshoz.")
+    _clear_outage_if_any()                           # sikeres hívás: ha volt szünet, vége
     if resp.stop_reason == "refusal":
         raise AIError("Az AI ezt az elemzést nem tudta elkészíteni.")
     if resp.stop_reason == "max_tokens":

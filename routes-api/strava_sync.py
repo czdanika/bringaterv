@@ -369,7 +369,8 @@ def _loop():
                     log.info("Strava auto-sync ütemező aktív (pid %s)", os.getpid())
                 except OSError:
                     f.close()                  # egy másik worker már fut
-            if lock_file is not None and os.path.isdir(MULTI_DATA_DIR):
+            import integrations                # admin → Integrációk: lekapcsolva kimarad
+            if lock_file is not None and os.path.isdir(MULTI_DATA_DIR) and integrations.is_enabled("strava"):
                 for uid in sorted(os.listdir(MULTI_DATA_DIR)):
                     if not os.path.isfile(_path(uid)):
                         continue
