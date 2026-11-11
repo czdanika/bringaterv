@@ -40,7 +40,7 @@ except ImportError:
 # A többit (konditermi, jóga, erősítés, úszás stb.) nem listázzuk.
 _GARMIN_NON_GPS_TYPES = {
     "strength_training", "indoor_cardio", "yoga", "pilates", "elliptical",
-    "stair_climbing", "indoor_cycling", "fitness_equipment", "breathwork",
+    "stair_climbing", "fitness_equipment", "breathwork",
     "lap_swimming", "open_water_swimming", "whitewater_rafting_kayaking",
     "hiit", "bouldering", "indoor_climbing", "meditation", "other",
 }
@@ -389,7 +389,8 @@ def garmin_list_activities(garmin, user_id: str, limit: int = 30, after_date: st
         dist_m   = a.get("distance") or 0
         has_poly = a.get("hasPolyline")
         # GPS nélküli típusok / nulla távú edzések kihagyása
-        if type_key in _GARMIN_NON_GPS_TYPES or (not has_poly and dist_m <= 0):
+        # (a beltéri kerékpározás – indoor_cycling, virtual_ride – megmarad: GPS nélkül, adatsorként importáljuk)
+        if type_key in _GARMIN_NON_GPS_TYPES or (not has_poly and dist_m <= 0 and "cycl" not in type_key and "ride" not in type_key):
             continue
         start_dt = _parse_garmin_gmt(a.get("startTimeGMT"))
         dup_local   = by_garmin.get(aid)
@@ -484,6 +485,10 @@ def garmin_import_activity(garmin, user_id: str, activity_id: int, dedup: bool =
         except Exception as exc:
             log.warning("Garmin FIT feldolgozási hiba (%s): %s – GPX-tartalék", activity_id, exc)
             gpx_text, fit_bytes = "", None
+    if not gpx_text and fit_bytes:   # GPS nélküli FIT: beltéri edzés (görgő, Zwift…) – adatsorként mentjük
+        from indoor import save_indoor_from_fit
+        return save_indoor_from_fit(user_id, fit_bytes, name=name, source="garmin", id_field="garmin_id", source_id=activity_id,
+                                    start_dt=_parse_garmin_gmt(sdto.get("startTimeGMT") or summary.get("startTimeGMT")))
     if not gpx_text:
         fit_bytes = None
         gpx_bytes = garmin.download_activity(activity_id, dl_fmt=_G.ActivityDownloadFormat.GPX)

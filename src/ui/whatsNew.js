@@ -16,6 +16,17 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.44.0", date: "2026. november",
+    title: "Beltéri edzések",
+    lead: "A görgős és a Zwift-edzéseid is bekerülnek – a statisztikába, a formába és a bringa óráiba is.",
+    go: { to: "library", label: "Megnézem a Könyvtárban" },
+    items: [
+      { icon: "bike", title: "Görgő, Zwift, MyWhoosh", text: "A GPS nélküli edzések is jönnek a Stravából, a Garminról és a komputerekről – kézzel és automatikusan is." },
+      { icon: "chart-line", title: "Elemzés térkép nélkül", text: "Pulzus, watt, kadencia grafikonon, részidők, csúcsteljesítmény és TSS." },
+      { icon: "trophy", title: "Wattcsúcsok a Rekordokban", text: "Egy görgős FTP-teszt is számít. A táv- és sebességrekordok kinti tekerésből maradnak." },
+    ],
+  },
+  {
     version: "1.43.0", date: "2026. november",
     title: "Szokások, új megosztó képek",
     lead: "Új nézet a statisztikában, négy új stílus a megosztó képhez, és pontosabb számok mindenhol.",

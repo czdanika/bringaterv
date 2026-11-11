@@ -8984,3 +8984,18 @@ body.is-navigating #toast { z-index: 3100; }
 .ai-off-note { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 10px;
   background: var(--panel-strong); color: var(--text-muted); font-size: 13px; }
 .ai-off-note svg { width: 16px; height: 16px; flex: none; }
+
+/* Beltéri edzés: a térkép helyén jelzés (nincs nyomvonal) */
+.indoor-map-note { position: absolute; inset: 0; z-index: 450; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 24px; text-align: center; background: var(--bg); color: var(--text-muted); font-size: 13.5px; pointer-events: none; }
+.indoor-map-note[hidden] { display: none; }
+.indoor-map-note svg { width: 34px; height: 34px; color: var(--brand); opacity: .8; }
+.indoor-map-note b { font-size: 17px; color: var(--text); }
+.indoor-map-note span { max-width: 320px; }
+
+.lib-pv-indoor { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--text-muted); background: var(--panel-strong); }
+.lib-pv-indoor svg { width: 22px; height: 22px; color: var(--brand); opacity: .85; }
+.is-indoor { position: relative; }
+.is-indoor-file .toggle-switch:has(input[id$="MapToggle"]), .is-indoor-file #mFileColor, .is-indoor-file #mFileColorLabel,
+.is-indoor-file [data-rs="zoom"], .is-indoor-file #map .leaflet-control-container, .is-indoor-file #mapWpFabBtn, .is-indoor-file #mapFitFabBtn, .is-indoor-file .map-fab-style-wrap { display: none !important; }

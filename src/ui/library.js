@@ -369,6 +369,7 @@ export async function loadAndRenderExpandPreview(routeId) {
 
   const cached = _geomCache.get(routeId);
   if (cached?.stats) { renderRouteMapPreview(slot, cached.points); appendExtra(renderExtendedStats(cached.stats)); return; }
+  if ([..._data.workouts, ..._data.routes].find((r) => r.id === routeId)?.indoor) { renderIndoorPreview(slot); return; }
   slot.innerHTML = '<span class="lib-pv-msg">Töltés…</span>';
   try {
     const isSample = _data.samples.some(r => r.id === routeId);
@@ -402,10 +403,20 @@ export async function loadAndRenderExpandPreview(routeId) {
   } catch { slot.innerHTML = '<span style="color:var(--muted);font-size:11px">Hiba</span>'; }
 }
 
-export async function loadCardPreview(routeId, isSample, slotEl = null) {
+/** Beltéri (GPS nélküli) edzés előnézete: térkép helyett jelölés. */
+export function renderIndoorPreview(slot) {
+  if (!slot) return;
+  slot.classList.add("is-indoor");
+  slot.innerHTML = `<span class="lib-pv-indoor"><i data-lucide="bike" aria-hidden="true"></i>Beltéri</span>`;
+  window.lucide?.createIcons({ root: slot });
+}
+
+export async function loadCardPreview(routeId, isSample, slotEl = null, entry = null) {
   // A kártya ilyenkor még nincs a DOM-ban → a hívó átadhatja a slot elemet
   const slot = slotEl || document.getElementById(`libCardPreview_${routeId}`);
   if (!slot) return;
+  const e = entry || (!isSample && [...(_data?.workouts || []), ...(_data?.routes || [])].find((r) => r.id === routeId));
+  if (e?.indoor) { renderIndoorPreview(slot); return; }
   const cached = _geomCache.get(routeId);
   if (cached) { renderRouteMapPreview(slot, cached.points || cached); return; }
   try {
@@ -578,7 +589,7 @@ function buildLibraryExpandRow(route, category, isSample) {
   const mainBtn = (act, icon, label, primary) =>
     `<button class="lib-x-btn${primary ? " is-primary" : ""}" type="button" data-action="${act}"><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}</span></button>`;
   const first  = isWorkout ? mainBtn("load-file", "chart-line", "Elemzés", true) : mainBtn("load-plan", "map-pin-plus", "Tervezés", true);
-  const second = isWorkout ? mainBtn("load-plan", "map-pin-plus", "Tervezés", false) : mainBtn("load-file", "chart-line", "Elemzés", false);
+  const second = isWorkout ? (route.indoor ? "" : mainBtn("load-plan", "map-pin-plus", "Tervezés", false)) : mainBtn("load-file", "chart-line", "Elemzés", false);
   const inStats = route.include_in_stats !== false;
   td.innerHTML = `
     <div class="library-list-expand-inner lib-x">
@@ -1050,7 +1061,7 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
   const isWorkout = category === "workout";
   const items = [];
   if (!compact) {
-    if (isWorkout) items.push({ act: "load-plan", icon: "map-pin-plus", label: "Betöltés tervezésre" });
+    if (isWorkout && !route.indoor) items.push({ act: "load-plan", icon: "map-pin-plus", label: "Betöltés tervezésre" });
     else items.push({ act: "load-file", icon: "chart-line", label: "Megnyitás az Elemzésben" });
     items.push({ act: "share-menu", icon: "share-2", label: "Megosztás", hint: "kép, PDF, link" });
   }

@@ -92,7 +92,8 @@ function refresh() {
   const g = _deps.getGeometry();
   if (g === _geomRef) return;
   _geomRef = g; _expanded = false; _active = -1;
-  _stops = g && g.length >= 10 && _deps.isWorkoutTab() ? detectStops(g.full || g) : [];
+  // beltéri edzésnél (GPS nélkül) nincs értelme – nincs hol megállni
+  _stops = g && g.length >= 10 && !g[0]?.indoor && _deps.isWorkoutTab() ? detectStops(g.full || g) : [];
   render();
 }
 

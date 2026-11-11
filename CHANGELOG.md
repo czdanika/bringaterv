@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.44.0 – 2026-11-11 – Beltéri edzések (görgő, Zwift, MyWhoosh)
+
+- **Beltéri edzés (görgő, Zwift, MyWhoosh):** a GPS nélküli edzések is bekerülnek a könyvtárba minden importból (Strava, Garmin – `indoor_cycling` is listázva –, OnelapFit, iGPSport, Bryton, Wahoo, Polar; kézi és automatikus importnál). A mért adatsorok kísérő JSON-ba kerülnek (`routes-api/indoor.py`, `GET /api/routes/<id>/streams`), a bejegyzés `indoor: true`. Elemzés térkép nélkül („Beltéri edzés” jelzés), grafikonok, kijelölés, részidők, csúcsteljesítmény, TSS / IF / Pw:HR; a nyomvonalat igénylő kártyák (szél, emelkedők, megállások, ugyanezen az útvonalon) kimaradnak. Könyvtár / Kezdőlap: „Beltéri” jelölés a térképes előnézet helyén, „Tervezés” gomb nélkül; az időjárás a legutóbbi kinti edzés helyéről. Rekordok: wattcsúcs igen, táv- és sebességrekord nem (virtuális táv). Statisztika, forma, felszerelés: beszámítja. Mentés / visszaállítás és törlés a JSON-t is kezeli.
+
 ## v1.43.0 – 2026-11-11 – Szokások, új megosztó képek, integrációk, egyező számok
 
 - **AI – elfogyott keret / kiesés kezelése:** ha az Anthropic-fiókban elfogyott a kredit vagy elérte a költségkeretet (vagy a szolgáltatás tartósan hibát ad), az AI 15 percre szünetel: a felhasználó előre látja, hogy „Az AI most átmenetileg nem érhető el. Próbáld újra később.”, a gombok tiltva, nincs felesleges API-hívás. Az admin egyszer push-értesítést kap, az admin AI fülén piros állapot, részletek és „Szünet feloldása most” gomb (feltöltés után). Sikeres hívás után a szünet magától megszűnik.

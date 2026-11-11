@@ -336,8 +336,11 @@ def igp_import_activity(token: str, user_id: str, ride_id: str, dedup: bool = Fa
         return {"ok": False, "error": "Az iGPSport nem FIT fájlt adott vissza."}
 
     gpx_text, s = fit_to_gpx(fit_bytes, "iGPSport")
-    if not gpx_text:
-        return {"ok": False, "error": "Nincs GPS adat ebben az edzésben (beltéri / görgős?)."}
+    if not gpx_text:   # GPS nélkül: beltéri edzés – adatsorként mentjük
+        from indoor import save_indoor_from_fit
+        return save_indoor_from_fit(user_id, fit_bytes, name=_ride_name(det.get("title"), start_ts, s.get("sport") or "cycling"),
+                                    source="igpsport", id_field="igpsport_id", source_id=ride_id,
+                                    start_dt=datetime.fromtimestamp(start_ts, timezone.utc) if start_ts else None)
     sport = s.get("sport") or "cycling"
     start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) \
         else datetime.fromtimestamp(start_ts or time.time(), timezone.utc)

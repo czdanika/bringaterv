@@ -118,7 +118,7 @@ async function refresh() {
   if (g === _geomRef) return;
   _geomRef = g; _res = null;
   const mySeq = ++_seq;
-  if (!g || g.length < 20 || !g.some((p) => p.time != null)) { _state = "none"; render(); return; }
+  if (!g || g.length < 20 || g[0]?.indoor || !g.some((p) => p.time != null)) { _state = "none"; render(); return; }
   const entry = savedEntry();
   const stored = unpack(entry?.wind);
   if (stored) { _res = stored; _state = "ok"; render(); return; }

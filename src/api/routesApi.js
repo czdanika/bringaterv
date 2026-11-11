@@ -184,6 +184,8 @@ export const routesApi = {
   /** Mi látszódjon a nyilvános linken: { hide: ["hr", "power", "cad", "temp", "desc", "wind", "cards"] } */
   setRouteShare(id, share) { return this.updateRoute(id, { share }); },
   /** A nyilvánosan megosztott elemek listája megnyitás-számlálóval. */
+  /** Beltéri (GPS nélküli) edzés mért adatsorai (routes-api/indoor.py). */
+  loadRouteStreams(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/streams`); },
   /** A lekapcsolt integrációk kulcsai (admin → Integrációk) – a felület jelzi őket. */
   getIntegrations() { return fetchJson(`${BASE}/integrations`); },
   getSharedRoutes() { return fetchJson(`${BASE}/routes/shared`); },

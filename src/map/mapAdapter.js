@@ -1146,6 +1146,7 @@ export function createMapAdapter({ elementId, onMapClick, onRouteClick, onRouteF
   let _currentMode = "asphalt";
 
   function renderRoute(geometry, mode, { fit = true } = {}) {
+    if (geometry?.[0]?.indoor) geometry = [];   // beltéri edzés: nincs nyomvonal (src/indoor.js)
     if (mode) _currentMode = mode;
     clearColoredRoute();
     clearHrRoute();

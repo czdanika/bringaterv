@@ -330,6 +330,19 @@ def get_route(route_id: str):
     return content, 200, {"Content-Type": "application/gpx+xml; charset=utf-8"}
 
 
+@bp.route("/api/routes/<route_id>/streams", methods=["GET"])
+@require_auth
+def get_route_streams(route_id: str):
+    """Beltéri (GPS nélküli) edzés mért adatsorai – az Elemzés ebből rajzol (térkép nélkül)."""
+    from indoor import load_streams
+    route_id = _safe_id(route_id)
+    user_dir, _ = _resolve_dirs()
+    data = load_streams(user_dir, route_id)
+    if data is None:
+        abort(404, description="Ehhez az edzéshez nincs adatsor.")
+    return jsonify(data)
+
+
 @bp.route("/api/routes/<route_id>", methods=["PATCH"])
 @require_auth
 def update_route(route_id: str):
@@ -444,7 +457,8 @@ def delete_route(route_id: str):
     user_dir, idx = _resolve_dirs()
     gpx_path      = os.path.join(user_dir, f"{route_id}.gpx")
     fit_path      = os.path.join(user_dir, f"{route_id}.fit")
-    if not os.path.isfile(gpx_path):
+    json_path     = os.path.join(user_dir, f"{route_id}.json")   # beltéri edzés adatsora (GPX nélkül)
+    if not os.path.isfile(gpx_path) and not os.path.isfile(json_path):
         abort(404, description=f"Útvonal nem található: {route_id}")
     # Strava/Garmin/Onelap-os importnál → deny-listbe (hogy ne kerüljön re-importra a következő sync-en)
     existing = _load_index(idx)
@@ -479,9 +493,9 @@ def delete_route(route_id: str):
             _add_onelap_deny(g.user["id"], deleted_entry["onelap_id"])
         except Exception as exc: log.warning("Onelap deny-list update hiba: %s", exc)
     try:
-        os.remove(gpx_path)
-        if os.path.isfile(fit_path):
-            os.remove(fit_path)
+        for p in (gpx_path, fit_path, json_path):
+            if os.path.isfile(p):
+                os.remove(p)
     except OSError as exc:
         log.error("Törlési hiba: %s", exc)
         abort(500)

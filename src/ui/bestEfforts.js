@@ -321,7 +321,8 @@ function refresh() {
   const full = Array.isArray(g.full) && g.full.length > g.length ? g.full : g;
   const kg = Number(_deps.getRiderKg?.());
   const raw = {
-    efforts: bestEfforts(full, trackDists(full), (SPORTS[sport] || SPORTS.cycling).distances),
+    // beltéri edzésnél nincs távidő (a virtuális táv nem összevethető) – csak watt és pulzus
+    efforts: g[0]?.indoor ? {} : bestEfforts(full, trackDists(full), (SPORTS[sport] || SPORTS.cycling).distances),
     power: sport === "cycling" ? bestPeaks(full, "power", CURVE_WINDOWS) : {},
     hr: bestPeaks(full, "hr"),
   };

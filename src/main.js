@@ -55,6 +55,7 @@ import { renderGearView } from "./ui/gear.js";
 import { initRoutePdfModal, openRoutePdfModal, shareRouteUrl } from "./ui/routePdfModal.js";
 import { initSharedLinks } from "./ui/sharedLinks.js";
 import { initIntegrationState } from "./ui/integrationState.js";
+import { indoorImport, isIndoor } from "./indoor.js";
 import { openShareModal } from "./ui/shareModal.js";
 import { initMobileShell } from "./ui/mobileShell.js";
 import { initHome, updateHome } from "./ui/home.js";
@@ -1116,10 +1117,12 @@ function setChartRange(range, { fromChart = false, done = true, fit = false } = 
   const st = computeRangeStats(activeGeometry, _chartRange.d0, _chartRange.d1,
     { dists: _chartRangeDists, riderKg: getCyclistProfile()?.riderKg });
   if (!st) { renderRangeBar(bar, null); mapAdapter.clearRangeHighlight(); return; }
-  const latlngs = activeGeometry.slice(st.i0, st.i1 + 1).map(p => [p.lat, p.lng]);
+  // beltéri edzésnél nincs nyomvonal – a kijelölés csak a grafikonon és a számsávon látszik
+  const latlngs = activeGeometry[0]?.indoor ? [] : activeGeometry.slice(st.i0, st.i1 + 1).map(p => [p.lat, p.lng]);
   // húzás közben csak a sáv frissül; a térkép a végén (és a „Térképen” gombra)
   // a térkép alját takaró grafikon-panel (telefonon az alsó lap is) magasságával kevesebb hely jut a szakasznak
   const highlight = (fitIt) => {
+    if (!latlngs.length) return;
     let padBottom = 0;
     const mapEl = document.querySelector("#map");
     if (fitIt && mapEl) {
@@ -1163,6 +1166,8 @@ const visibleSections = new Set();
 function updateElevationButton(geometry) {
   const prevGeom = activeGeometry;
   activeGeometry = geometry ?? [];
+  // a térképdíszek (km-jelölők, nyilak, futó animáció) csak nyomvonallal – beltéri edzésnél nincs
+  const mapGeom = activeGeometry[0]?.indoor ? [] : activeGeometry;
   if (_chartRange && activeGeometry !== prevGeom) setChartRange(null);
   document.dispatchEvent(new CustomEvent("bringaterv:geometry"));
   if (currentTab !== "file") renderMobileElevStrip(activeGeometry);
@@ -1177,8 +1182,8 @@ function updateElevationButton(geometry) {
   }
   // 5 km-es jelölők a térképen
   if (mapAdapter.renderKmMarkers) {
-    if (activeGeometry.length >= 2) {
-      mapAdapter.renderKmMarkers(activeGeometry, 5);
+    if (mapGeom.length >= 2) {
+      mapAdapter.renderKmMarkers(mapGeom, 5);
     } else {
       mapAdapter.clearKmMarkers?.();
     }
@@ -1186,8 +1191,8 @@ function updateElevationButton(geometry) {
   // Útirány-nyilak (toggle alapján)
   if (mapAdapter.renderDirectionArrows) {
     const showArrows = localStorage.getItem("bringaterv.directionArrows") === "true";
-    if (showArrows && activeGeometry.length >= 2) {
-      mapAdapter.renderDirectionArrows(activeGeometry, 1.5);
+    if (showArrows && mapGeom.length >= 2) {
+      mapAdapter.renderDirectionArrows(mapGeom, 1.5);
     } else {
       mapAdapter.clearDirectionArrows?.();
     }
@@ -1195,7 +1200,7 @@ function updateElevationButton(geometry) {
   // Futó animáció az útvonalon (alapból be; Beállítások → Útirány a térképen)
   if (mapAdapter.renderRouteFlow) {
     const flow = localStorage.getItem("bringaterv.routeFlow") !== "false";
-    if (flow && activeGeometry.length >= 2) mapAdapter.renderRouteFlow(activeGeometry);
+    if (flow && mapGeom.length >= 2) mapAdapter.renderRouteFlow(mapGeom);
     else mapAdapter.clearRouteFlow?.();
   }
   // Wind sidebar legend csak tervezési kontextusban (importált útvonalnál is)
@@ -1272,6 +1277,8 @@ document.addEventListener("bringaterv:workoutWind", () => setTimeout(syncWorkout
 
 // Egységes réteg-kapcsoló: csak egy lehet aktív egyszerre
 function applyRouteLayer(type) {
+  // beltéri edzés (GPS nélkül): nincs mit a térképre rajzolni
+  if (activeGeometry?.[0]?.indoor) type = null;
   // 1. Minden toggle kikapcsol
   if (elements.speedMapToggle) elements.speedMapToggle.checked = false;
   if (elements.hrMapToggle)    elements.hrMapToggle.checked    = false;
@@ -2975,6 +2982,8 @@ function syncMapStyleButtons(style) {
 
 function clearAllRouteState() {
   _loadedPlanName = null;
+  setIndoorMapNote(false);
+  const pfb = document.querySelector("#planFromFileBtn"); if (pfb) pfb.hidden = false;
   clearImportedGeometries();
   mapAdapter.clearColoredRoute();
   mapAdapter.clearHrRoute();
@@ -4720,10 +4729,35 @@ document.querySelector("#planFromFileBtn")?.addEventListener("click", () => {
  * @param {string}  routeName – megjelenítési név
  * @param {"plan"|"file"} [target="plan"]
  */
+/** Beltéri edzésnél a térkép helyén egy jelzés (nincs nyomvonal); minden más betöltés eltünteti. */
+function setIndoorMapNote(on) {
+  // a térképszínező kapcsolók és a színezés-chipek beltérinél nem értelmesek (nincs nyomvonal)
+  document.body.classList.toggle("is-indoor-file", !!on);
+  let el = document.getElementById("indoorMapNote");
+  if (!on) { if (el) el.hidden = true; return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "indoorMapNote";
+    el.className = "indoor-map-note";
+    el.innerHTML = `<i data-lucide="bike" aria-hidden="true"></i><b>Beltéri edzés</b><span>Görgő vagy virtuális tekerés – nincs nyomvonal. Az adatok a grafikonokon.</span>`;
+    document.querySelector("#map")?.appendChild(el);
+    window.lucide?.createIcons({ root: el });
+  }
+  el.hidden = false;
+}
+
 async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
-  let gpxText;
+  // Beltéri (GPS nélküli) edzés: nincs GPX, az adatsorból készül a „geometria” (src/indoor.js),
+  // és csak az Elemzésben nyitható (nincs mit tervezni rajta)
+  const findLib = () => [...(_libraryData.workouts || []), ...(_libraryData.routes || [])].find(r => r.id === id);
+  let indoorEntry = !isSample ? findLib() : null;
+  if (!isSample && !indoorEntry) { try { await loadRouteLibrary(); } catch { /* offline */ } indoorEntry = findLib(); }
+  indoorEntry = isIndoor(indoorEntry) ? indoorEntry : null;
+  let gpxText, indoorData = null;
+  if (indoorEntry) target = "file";
   try {
-    gpxText = isSample
+    if (indoorEntry) { indoorData = await routesApi.loadRouteStreams(id); gpxText = ""; }
+    else gpxText = isSample
       ? await routesApi.loadSample(id)
       : await routesApi.loadRoute(id);
   } catch (err) {
@@ -4736,8 +4770,11 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
 
   let imported;
   try {
-    const blob = new Blob([gpxText], { type: "application/gpx+xml" });
-    imported = await importGpx(blob, { sampleWaypoints: false });
+    if (indoorData) imported = indoorImport(indoorData, indoorEntry);
+    else {
+      const blob = new Blob([gpxText], { type: "application/gpx+xml" });
+      imported = await importGpx(blob, { sampleWaypoints: false });
+    }
   } catch (err) {
     console.error("GPX parse hiba:", err);
     showToast("Érvénytelen GPX fájl a könyvtárban.");
@@ -4764,7 +4801,8 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
       sourcePointCount: imported.sourcePointCount,
     });
     let { ascentMeters, descentMeters } = calcElevationFromGeometry(imported.geometry);
-    let distanceMeters = calculateImportedDistance(imported.geometry);
+    let distanceMeters = indoorData ? (imported.geometry[imported.geometry.length - 1]?.dist || 0)
+      : calculateImportedDistance(imported.geometry);
     // Egy forrás mindenhol: ha a szolgáltató / eszköz megadta (a könyvtári bejegyzésben tárolt táv és
     // emelkedés), azt mutatjuk – mint a Kezdőlap és a Könyvtár; csak ennek híján a GPX-ből számolt értéket.
     ({ distanceMeters, ascentMeters, descentMeters } = preferStoredTotals(libEntry, imported.geometry,
@@ -4785,7 +4823,8 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
 
     updateElevationButton(imported.geometry);
     applyRouteLayer(null);
-    mapAdapter.renderRoute(imported.geometry, store.getState().mode);
+    if (!indoorData) mapAdapter.renderRoute(imported.geometry, store.getState().mode);
+    setIndoorMapNote(!!indoorData);
 
     setLoadedRoute(id, routeName, gpxText, isSample);
     updateFileSaveButtonState();
@@ -4810,6 +4849,14 @@ async function loadRouteFromLibrary(id, isSample, routeName, target = "plan") {
                 : imported.meta?.equipment },
     });
     switchTab("file");
+    if (indoorData) {
+      const pfb = document.querySelector("#planFromFileBtn"); if (pfb) pfb.hidden = true;   // nincs mit tervezni
+      // térkép helyett grafikonok: a meglévő adatokból néhány rögtön nyitva
+      setTimeout(() => ["power", "hr", "speed", "cad"].filter((t) => imported.geometry.some((p) => p[t === "speed" ? "speed" : t] != null))
+        .slice(0, 2).forEach((t) => { if (!visibleSections.has(t)) document.querySelector(`#${t}ChartBtn`)?.click(); }), 120);
+      showToast(`„${routeName}" – beltéri edzés, térkép nélkül`);
+      return;
+    }
     setTimeout(() => mapAdapter.fitRoute(), 50);
     if (imported.sourcePointCount > imported.geometry.length) {
       showToast(`„${routeName}" betöltve – ${imported.sourcePointCount} pont → ${imported.geometry.length} jelenik meg`, 5000);

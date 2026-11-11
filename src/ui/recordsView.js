@@ -215,19 +215,21 @@ function kcalOf() {
 function highlightSection(rows, cfg) {
   const recs = _records?.items;
   const avgSpeed = (r) => {
-    if (!(r.distance > 0) || !(r.duration >= 20)) return NaN;        // ≥ 20 perc
+    if (r.indoor || !(r.distance > 0) || !(r.duration >= 20)) return NaN;        // ≥ 20 perc; a görgő virtuális sebessége nem számít
     const v = r.distance / (r.duration / 60);
     return v <= (cfg.pace ? 25 : 70) ? v : NaN;
   };
   const cards = [
-    recordCard("Leghosszabb táv", progression(rows, (r) => r.distance), (v) => `${num(v, 1)} km`),
+    // a táv- és sebességrekordok kinti tekerésből (a görgő / Zwift virtuális távja nem összevethető);
+    // az idő, a kalória és a wattcsúcs a beltérit is beszámolja
+    recordCard("Leghosszabb táv", progression(rows, (r) => (r.indoor ? NaN : r.distance)), (v) => `${num(v, 1)} km`),
     recordCard("Legtöbb szintemelkedés", progression(rows, (r) => r.elevation), (v) => `${int(v)} m`),
     recordCard("Leghosszabb edzés", progression(rows, (r) => r.duration), (v) => dur(v)),
     cfg.pace
       ? recordCard("Legjobb átlagtempó", progression(rows, (r) => { const s = avgSpeed(r); return s ? 60 / s : NaN; }, true),
           (v) => `${Math.floor(v)}:${String(Math.round((v % 1) * 60)).padStart(2, "0")} /km`, { lowerIsBetter: true })
       : recordCard("Legjobb átlagsebesség", progression(rows, avgSpeed), (v) => `${num(v, 1)} km/h`),
-    recordCard("Legnagyobb sebesség", progression(rows, (r) => (r.max_speed_kmh > 0 && r.max_speed_kmh < 110 ? r.max_speed_kmh : NaN)), (v) => `${num(v, 1)} km/h`),
+    recordCard("Legnagyobb sebesség", progression(rows, (r) => (!r.indoor && r.max_speed_kmh > 0 && r.max_speed_kmh < 110 ? r.max_speed_kmh : NaN)), (v) => `${num(v, 1)} km/h`),
     recs ? recordCard("Leghosszabb mászás", progression(rows, (r) => recs.get(r.id)?.climb?.gain_m), (v) => `${int(v)} m`) : "",
     // kalória: az eszköz / Strava értéke, különben mért watt → pulzus → becslés (mint az Elemzés)
     recordCard("Legtöbb kalória", progression(rows, kcalOf()), (v) => `${int(v)} kcal`),

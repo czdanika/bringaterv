@@ -25,6 +25,8 @@ function haversineMeters(a, b) {
 }
 
 function buildDistances(geometry) {
+  // beltéri edzés (GPS nélkül): minden pont hordozza a saját távját (src/indoor.js)
+  if (geometry[0]?.indoor) return geometry.map((pt) => pt.dist || 0);
   let dist = 0;
   return geometry.map((pt, i) => {
     if (i > 0) dist += haversineMeters(geometry[i - 1], pt);

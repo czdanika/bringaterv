@@ -296,6 +296,7 @@ def save_workout(user_id: str, provider: str, item_id, *, fit_bytes: bytes | Non
                     "duplicate_local_id": dup["id"], "duplicate_name": dup.get("name")}
 
     s = {}
+    orig_fit = fit_bytes
     if fit_bytes:
         try:
             gpx_from_fit, s = fit_to_gpx(fit_bytes, "__NAME__")
@@ -307,6 +308,11 @@ def save_workout(user_id: str, provider: str, item_id, *, fit_bytes: bytes | Non
         else:
             fit_bytes = None
     if not gpx_text or ("<trkpt" not in gpx_text and "<rtept" not in gpx_text):
+        if orig_fit:   # GPS nélkül: beltéri edzés – adatsorként mentjük
+            from indoor import save_indoor_from_fit
+            return save_indoor_from_fit(user_id, orig_fit, name=name or default_name(start_ts), source=provider, id_field=key,
+                                        source_id=item_id, start_dt=datetime.fromtimestamp(start_ts, timezone.utc) if start_ts else None,
+                                        extra={k: v for k, v in (extra or {}).items() if k in ("calories", "kilojoules")})
         return {"ok": False, "error": "Nincs GPS adat ebben az edzésben (beltéri / görgős?)."}
 
     sport = s.get("sport") or (extra or {}).get("sport") or "cycling"

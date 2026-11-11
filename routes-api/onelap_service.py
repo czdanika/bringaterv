@@ -385,8 +385,10 @@ def onelap_import_activity(sess: dict, user_id: str, ride_id: str, start_ts: int
     gpx_text, s = fit_to_gpx(fit_bytes, "Onelap")
     sport = s.get("sport") or "cycling"
     name  = _ride_name(ride, sport)
-    if not gpx_text:
-        return {"ok": False, "error": "Nincs GPS adat ebben az edzésben (beltéri / görgős?)."}
+    if not gpx_text:   # GPS nélkül: beltéri edzés (görgő, Zwift…) – adatsorként mentjük
+        from indoor import save_indoor_from_fit
+        return save_indoor_from_fit(user_id, fit_bytes, name=name, source="onelap", id_field="onelap_id", source_id=ride_id,
+                                    start_dt=datetime.fromtimestamp(int(ride.get("start_time") or 0), timezone.utc) if ride.get("start_time") else None)
     gpx_text = gpx_text.replace("<name>Onelap</name>", f"<name>{_xml(name)}</name>", 1)
 
     new_id = uuid.uuid4().hex[:8]

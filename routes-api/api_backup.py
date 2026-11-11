@@ -182,17 +182,17 @@ def _dup_key(e: dict) -> tuple:
 
 
 def _copy_route_files_from_zip(zf, sub: str, old_id: str, dst_dir: str, new_id: str) -> bool:
-    """Egy adott ID-jű GPX (+ opc. FIT) fájlt kimásol a ZIP-ből a cél mappába.
-    Visszaad: True ha legalább a GPX kimásolódott."""
+    """Egy adott ID-jű GPX (+ opc. FIT) fájlt – beltéri edzésnél a JSON-adatsort – kimásol a ZIP-ből
+    a cél mappába. Visszaad: True ha a GPX vagy a beltéri adatsor kimásolódott."""
     copied = False
-    for ext in (".gpx", ".fit"):
+    for ext in (".gpx", ".fit", ".json"):
         try:
             data = zf.read(f"{sub}/{old_id}{ext}")
         except KeyError:
             continue
         with open(os.path.join(dst_dir, f"{new_id}{ext}"), "wb") as f:
             f.write(data)
-        if ext == ".gpx":
+        if ext in (".gpx", ".json"):
             copied = True
     return copied
 

@@ -17,6 +17,8 @@ function hav(a, b) {
 
 /** A rajttól mért táv pontonként (ugyanúgy, mint a grafikonoknál). */
 export function trackDists(geometry) {
+  // beltéri edzés (GPS nélkül): a pontok saját távja (src/indoor.js)
+  if (geometry?.[0]?.indoor) return geometry.map((p) => p.dist || 0);
   const out = new Array(geometry?.length || 0);
   let d = 0;
   for (let i = 0; i < out.length; i++) {

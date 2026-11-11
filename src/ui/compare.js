@@ -182,7 +182,7 @@ async function refresh() {
   if (g === _geomRef) return;
   _geomRef = g; _items = []; _sel = null; _curve = null; _seq++;
   render();
-  if (!g || g.length < 20 || !g.some((p) => p.time != null)) return;
+  if (!g || g.length < 20 || g[0]?.indoor || !g.some((p) => p.time != null)) return;   // beltérinek nincs útvonala
   const full = g.full || g;
   const d = trackDists(full);
   const totalKm = d[d.length - 1] / 1000;

@@ -217,6 +217,24 @@ def compute_records(gpx_text: str) -> dict:
     }
 
 
+def compute_records_streams(data: dict) -> dict:
+    """Ugyanaz a rekordszámítás beltéri edzés oszlopos adatsorából (indoor.py formátum)."""
+    t, d = data.get("t") or [], data.get("d") or []
+    hr, pw = data.get("hr") or [None] * len(t), data.get("p") or [None] * len(t)
+    pts = [(float(t[i]), float(d[i]) if i < len(d) and d[i] is not None else 0.0, None,
+            hr[i] if i < len(hr) else None, pw[i] if i < len(pw) else None)
+           for i in range(len(t)) if t[i] is not None]
+    if len(pts) < 10:
+        return {"v": ALGO_VERSION, "efforts": {}, "peaks": {}, "climb": None}
+    peaks = {}
+    for key, idx in (("hr", 3), ("power", 4)):
+        p = _peaks(_resample_1hz(pts, idx))
+        if p:
+            peaks[key] = p
+    # távidő nincs: a görgő / Zwift virtuális távja nem összevethető a kinti tekeréssel
+    return {"v": ALGO_VERSION, "efforts": {}, "peaks": peaks, "climb": None}
+
+
 # ── Cache ─────────────────────────────────────────────────────────────────────
 
 def _cache_path(routes_dir: str) -> str:
@@ -246,8 +264,10 @@ def records_for_index(routes_dir: str, index: list, budget_s: float = 8.0) -> tu
         if not rid or entry.get("type") != "workout":
             continue
         gpx_path = os.path.join(routes_dir, f"{rid}.gpx")
+        # beltéri (GPS nélküli) edzés: a JSON-adatsorból számolunk (wattcsúcsok, pulzus, virtuális táv)
+        src_path = gpx_path if os.path.isfile(gpx_path) else os.path.join(routes_dir, f"{rid}.json")
         try:
-            mtime = int(os.path.getmtime(gpx_path))
+            mtime = int(os.path.getmtime(src_path))
         except OSError:
             continue
         live_ids.add(rid)
@@ -257,8 +277,8 @@ def records_for_index(routes_dir: str, index: list, budget_s: float = 8.0) -> tu
                 pending += 1
                 continue
             try:
-                with open(gpx_path, encoding="utf-8") as f:
-                    c = compute_records(f.read())
+                with open(src_path, encoding="utf-8") as f:
+                    c = compute_records(f.read()) if src_path == gpx_path else compute_records_streams(json.load(f))
             except Exception as exc:          # egy hibás GPX ne döntse el az egészet
                 log.warning("Rekordszámítás hiba (%s): %s", rid, exc)
                 c = {"v": ALGO_VERSION, "efforts": {}, "peaks": {}, "climb": None}

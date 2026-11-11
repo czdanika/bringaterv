@@ -15,7 +15,7 @@ import { isWorkout, countsInStats } from "../workoutKind.js";
 import { dueTasks } from "../equipment.js";
 import { num } from "../format.js";
 import { calcEddington, calcTrainingLoad } from "./statsPanel.js";
-import { renderRouteMapPreview, loadCardPreview } from "./library.js";
+import { renderRouteMapPreview, loadCardPreview, renderIndoorPreview } from "./library.js";
 
 let _api, _getUser, _actions;
 let _main = null, _hint = null;
@@ -86,13 +86,18 @@ function render() {
 
 // A kirajzolás után: térképes előnézetek és az időjárás (hálózati adatok)
 async function hydrate() {
-  _main.querySelectorAll("[data-pv]").forEach((slot) => loadCardPreview(slot.dataset.pv, false, slot));
+  const byId = (id) => (_items || []).find((r) => r.id === id);
+  _main.querySelectorAll("[data-pv]").forEach((slot) => loadCardPreview(slot.dataset.pv, false, slot, byId(slot.dataset.pv)));
   const last = lastWorkout();
   const slot = _main.querySelector("#homeLastPv");
   if (!last || !slot) return;
-  const pts = await workoutPoints(last.id);
-  if (!pts) { slot.classList.add("is-empty"); return; }
-  if (slot.isConnected) renderRouteMapPreview(slot, pts);
+  if (last.indoor) renderIndoorPreview(slot);
+  // az időjárás helye: a legutóbbi KINTI edzés rajtja (beltérinek nincs helye)
+  const outdoor = last.indoor ? (_items || []).filter((r) => isWorkout(r) && !r.indoor).sort((a, b) => (when(a) < when(b) ? 1 : -1))[0] : last;
+  if (!outdoor) return;
+  const pts = await workoutPoints(outdoor.id);
+  if (!pts) { if (!last.indoor) slot.classList.add("is-empty"); return; }
+  if (!last.indoor && slot.isConnected) renderRouteMapPreview(slot, pts);
   loadWeather(pts[0]);
 }
 
@@ -236,7 +241,7 @@ function lastWorkoutCard() {
           ${mini ? `<div class="home-last-mini">${mini}</div>` : ""}
           <div class="home-last-acts">
             <button type="button" class="lib-x-btn is-primary" data-home="open" data-id="${esc(r.id)}" data-name="${esc(r.name || "")}" data-target="file"><i data-lucide="chart-line" aria-hidden="true"></i><span>Elemzés</span></button>
-            <button type="button" class="lib-x-btn" data-home="open" data-id="${esc(r.id)}" data-name="${esc(r.name || "")}" data-target="plan"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>
+            ${r.indoor ? "" : `<button type="button" class="lib-x-btn" data-home="open" data-id="${esc(r.id)}" data-name="${esc(r.name || "")}" data-target="plan"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>`}
           </div>
         </div>
       </div>

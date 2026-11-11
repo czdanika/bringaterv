@@ -68,6 +68,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
 │   ├── bryton_sync.py      # automatikus Bryton import + lejárat előtti push
 │   ├── api_geo.py          # /api/geo/place-name(s) – útpont-nevek a szerveren (Nominatim 1 kérés/mp, gyorsítótár: geocode_names.json)
 │   ├── api_public.py       # /api/public/route/<id> – auth nélküli olvasás; share.hide szerint szűrve, megnyitás számolva
+│   ├── indoor.py           # beltéri (GPS nélküli) edzés: FIT / Strava adatsor → <id>.json + indoor:true bejegyzés; save_indoor_from_fit (minden import közös útja)
 │   ├── share.py            # nyilvános linkek: elrejthető adatok (GPX-szűrés), megnyitás-számláló (share_views / share_seen)
 │   └── Dockerfile          # Python 3.13-alpine, gunicorn :5001 (COPY *.py)
 ├── tests/                  # Playwright böngészős tesztek a Pi ellen (tests/run.sh, tests/README.md)
@@ -82,6 +83,7 @@ Kerékpáros/túra útvonaltervező és edzésnaplózó web app.
     ├── auth.js             # JWT kezelés, requireAuth, logout
     ├── appSettings.js      # LocalStorage beállítások (getSettings, saveSetting)
     ├── karvonen.js         # HR zóna számítás (calculateZones, calculateTRIMP, ZONE_DEFS_FRIEL)
+    ├── indoor.js           # beltéri edzés a kliensen: adatsor → koordináta nélküli „geometria” (p.dist, p.indoor) – buildDistances / trackDists ezt használja
     ├── calories.js         # kalória: MET-becslés, Keytel (kalibrált), teljesítményből; workoutKcal / sumKcal (Elemzés, Statok)
     ├── api/
     │   └── routesApi.js    # Backend API kliens (fetch wrapper-ek, strava.* alcsoport)
@@ -281,6 +283,7 @@ Az index.json bejegyzésekben:
 - `type: "cycling"|"gravel"|"mtb"|"hiking"` → tervezett útvonal
 - `include_in_stats: false` → kizárva a statisztikákból (tervezett útvonalaknál alapból)
 - `sport_type` → a tényleges sport (cycling/running/walking/hiking) – Strava importnál töltődik
+- `indoor: true` → beltéri (GPS nélküli) edzés: nincs `.gpx`, az adatsor `<id>.json` (`GET /api/routes/<id>/streams`); térképet / nyomvonalat igénylő kód ezt kerülje (`p.indoor` a geometrián)
 
 A statisztikák csak `type === "workout"` és `include_in_stats !== false` bejegyzésekből számolnak – **egyetlen szabály:** kliensen `src/workoutKind.js` (`isWorkout`, `countsInStats`), szerveren `utils.is_recorded_entry` (forrás-azonosító / FIT / start_time / időbélyeges GPX). Terv sosem számít; az időadat nélküli „edzés” mentést a szerver tervvé írja, edzés típusa PATCH-csel nem írható át (v21 migráció rendbe tette a régieket).
 
@@ -346,7 +349,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.43.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.44.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Új integráció / meglévő változása
 - Automatikus import: egy `SyncProvider` alosztály a `<key>_sync.py`-ban (open / candidates / import_one / expires_at), a többi a `sync_engine.py`-ban. Ellenőrzés: `tools/checks/check_sync_engine.py`.

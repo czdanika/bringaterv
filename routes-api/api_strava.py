@@ -340,7 +340,7 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
     try:
         sr = requests.get(f"{STRAVA_API_BASE}/activities/{activity_id}/streams",
                           headers={"Authorization": f"Bearer {token}"},
-                          params={"keys": "latlng,altitude,time,heartrate,cadence,watts,temp", "key_by_type": "true"},
+                          params={"keys": "latlng,altitude,time,distance,velocity_smooth,heartrate,cadence,watts,temp", "key_by_type": "true"},
                           timeout=30)
         if sr.status_code == 401:
             _delete_user_strava(user_id)
@@ -353,7 +353,31 @@ def import_strava_activity(user_id: str, activity_id: int, token: str, idx: list
 
     latlng = streams.get("latlng", {}).get("data", [])
     if not latlng:
-        raise StravaImportError(422, "Nincs GPS adat ehhez az activity-hez (talán beltéri vagy trainer).")
+        # GPS nélkül: beltéri edzés (görgő, Zwift, trainer) – adatsorként mentjük
+        if not (streams.get("time") or {}).get("data"):
+            raise StravaImportError(422, "Ehhez az activity-hez nincs mért adat.")
+        from indoor import save_indoor, strava_streams
+        try:
+            start_dt = datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00"))
+        except (KeyError, ValueError, AttributeError):
+            start_dt = None
+        sport_t = (activity.get("sport_type") or activity.get("type") or "").lower()
+        res = save_indoor(user_id, rows=strava_streams(streams), name=activity.get("name") or "Beltéri tekerés",
+            source="strava", id_field="strava_id", source_id=activity_id, start_dt=start_dt,
+            session={"sport": "running" if "run" in sport_t else "cycling", "distance_m": activity.get("distance"),
+                     "moving_s": activity.get("moving_time"), "elapsed_s": activity.get("elapsed_time"),
+                     "calories": activity.get("calories"), "avg_hr": activity.get("average_heartrate"),
+                     "max_hr": activity.get("max_heartrate"), "avg_power": activity.get("average_watts"),
+                     "max_power": activity.get("max_watts"), "avg_cadence": activity.get("average_cadence"),
+                     "avg_speed": activity.get("average_speed"), "max_speed": activity.get("max_speed")},
+            extra={"description": activity.get("description") or "", "kilojoules": activity.get("kilojoules"),
+                   "device_watts": activity.get("device_watts"), "suffer_score": activity.get("suffer_score"),
+                   "weighted_avg_watts": activity.get("weighted_average_watts"), "gear_id": activity.get("gear_id"),
+                   "virtual": bool("virtual" in sport_t), **strava_equipment(activity)})
+        if not res.get("ok"):
+            raise StravaImportError(422, res.get("error") or "Nem sikerült menteni.")
+        idx.append(res["entry"])
+        return res["entry"]
 
     altitude = streams.get("altitude", {}).get("data", []) or [None] * len(latlng)
     times    = streams.get("time", {}).get("data", []) or [None] * len(latlng)

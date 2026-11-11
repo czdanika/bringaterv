@@ -323,8 +323,9 @@ def bryton_import_activity(sess: dict, user_id: str, act_id: str, dedup: bool = 
     if len(fit_bytes) < 14 or fit_bytes[8:12] != b".FIT":
         return {"ok": False, "error": "A Bryton nem FIT fájlt adott vissza."}
     gpx_text, s = fit_to_gpx(fit_bytes, "Bryton")
-    if not gpx_text:
-        return {"ok": False, "error": "Nincs GPS adat ebben az edzésben (beltéri / görgős?)."}
+    if not gpx_text:   # GPS nélkül: beltéri edzés – adatsorként mentjük
+        from indoor import save_indoor_from_fit
+        return save_indoor_from_fit(user_id, fit_bytes, name="Beltéri tekerés", source="bryton", id_field="bryton_id", source_id=act_id)
     sport = s.get("sport") or "cycling"
     start_dt = s.get("start_time") if isinstance(s.get("start_time"), datetime) else datetime.now(timezone.utc)
     dist_m = s.get("distance_m") or 0
