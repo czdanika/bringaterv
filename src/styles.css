@@ -6424,7 +6424,12 @@ body.is-drag-over::after {
 .share-panel { width: min(560px, 94vw); max-height: 92vh; max-height: 92dvh; display: flex; flex-direction: column; }
 .share-body { padding: 4px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .share-route-name { font-weight: 700; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.share-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.share-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+/* Kép / Videó / PDF egymás mellett: ikon felül, alatta a név */
+.share-options .share-option { flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 8px 12px; }
+.share-options .share-option-text { align-items: center; }
+.share-options .share-option-chev { display: none; }
+.share-option[hidden] { display: none; }
 .share-option { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 12px 12px 14px; border-radius: 14px;
   border: 1px solid var(--line); background: var(--panel-bg); color: var(--text); cursor: pointer; font: inherit; transition: border-color .15s, background .15s; }
 .share-option:hover { border-color: var(--brand); background: var(--brand-soft); }
@@ -6483,7 +6488,7 @@ body.is-drag-over::after {
 .share-no-link { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
 #shareOverlay { position: fixed; z-index: 3000; }
 @media (max-width: 520px) {
-  .share-options { grid-template-columns: 1fr; }
+  .share-options .share-option-text small { display: none; }
   .share-qr { width: 78px; height: 78px; }
   .share-targets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 14px -18px 0; padding: 0 18px; }
   .share-targets::-webkit-scrollbar { display: none; }
@@ -6797,10 +6802,37 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
   .export-body { padding: 16px; gap: 14px; }
   .export-footer { flex-direction: column-reverse; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); }
   .export-footer .export-confirm-btn { width: 100%; justify-content: center; }
-  /* típusválasztó (Aszfalt / Gravel / MTB / Túra): 2×2 rács, ne lógjon ki */
-  .export-mode-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .export-mode-group .export-mode-btn { justify-content: center; min-width: 0; }
+  .export-send { padding: 12px 16px 0; }
+  /* típusválasztó: 3 oszlop, ne lógjon ki */
+  .export-mode-group { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* ── Mentés ablak alja: egységes rács ─────────────────────────────────────────
+   Típusválasztó: egyforma cellák egy sorban; Küldés a komputerre: logós csempék;
+   alul két egyforma másodlagos gomb, alattuk a fő művelet teljes szélességben. */
+.export-mode-group { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.export-mode-btn { min-width: 0; }
+.export-mode-btn span { padding: 8px 6px; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.export-mode-btn span svg { flex-shrink: 0; }
+@media (max-width: 460px) { .export-mode-group { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.export-send { padding: 14px 20px 0; border-top: 1px solid var(--line); }
+.export-send:not(:has(.export-send-btn:not([hidden]))) { display: none; }
+.export-send-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.export-send-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.export-send-btn { display: flex; align-items: center; gap: 10px; min-width: 0; height: 44px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel-strong); color: var(--text);
+  font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: border-color .15s, background .15s; }
+.export-send-btn:hover { border-color: var(--brand); background: var(--brand-soft); }
+.export-send-btn:disabled { opacity: .5; cursor: progress; }
+.export-send-btn[hidden] { display: none; }
+.export-send-btn .brand-icon { width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0; }
+
+#exportOverlay .export-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#exportOverlay .export-footer .export-confirm-btn { width: auto; justify-content: center; min-height: 44px; min-width: 0; white-space: nowrap; }
+#exportOverlay .export-footer .export-confirm-btn--wide { grid-column: 1 / -1; }
+#exportOverlay .export-send + .export-footer { border-top: 0; }
 
 /* ── Beállítások → Fiók ───────────────────────────────────────────────────── */
 .account-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -6848,6 +6880,8 @@ a.dropdown-item, a.dropdown-item:hover, a.dropdown-item:visited { text-decoratio
 .sc-seg .share-opt-btn { flex: 1; justify-content: center; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent;
   color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .sc-seg .share-opt-btn:hover { background: transparent; color: var(--text); }
+.sc-mode { margin-bottom: 14px; }
+.sc-mode[hidden] { display: none; }
 .sc-seg .share-opt-btn--active, .sc-seg .share-opt-btn--active:hover { background: var(--panel-bg); color: var(--brand);
   box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .sc-seg--sm .share-opt-btn { padding: 5px 6px; font-size: 12px; }

@@ -185,6 +185,8 @@ export const routesApi = {
   setRouteShare(id, share) { return this.updateRoute(id, { share }); },
   /** A nyilvánosan megosztott elemek listája megnyitás-számlálóval. */
   /** Beltéri (GPS nélküli) edzés mért adatsorai (routes-api/indoor.py). */
+  /** GPS nélküli FIT kézi feltöltése: { name, fitContent (base64) } → { ok, skipped?, reason?, entry } */
+  saveIndoorFit(body) { return fetchJson(`${BASE}/routes/indoor-fit`, { method: "POST", body: JSON.stringify(body) }); },
   loadRouteStreams(id) { return fetchJson(`${BASE}/routes/${encodeURIComponent(id)}/streams`); },
   /** A lekapcsolt integrációk kulcsai (admin → Integrációk) – a felület jelzi őket. */
   getIntegrations() { return fetchJson(`${BASE}/integrations`); },

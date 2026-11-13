@@ -174,7 +174,7 @@ def find_cross_source_duplicate(idx: list, start_ts, distance_m, own_key: str):
 
 # ── Edzés vagy terv? (egy helyen – a mentés, a módosítás és a migráció is ezt használja) ──
 # A forrás-azonosítók: az importált edzések mindig rögzített adatok
-SOURCE_ID_FIELDS = ("strava_id", "garmin_id", "onelap_id", "igpsport_id", "bryton_id", "wahoo_id", "polar_id")
+SOURCE_ID_FIELDS = ("strava_id", "garmin_id", "onelap_id", "igpsport_id", "bryton_id", "wahoo_id", "polar_id", "fit_hash")
 _TRKPT_TIME_RE = re.compile(r"<trkpt\b[^>]*>(?:(?!</trkpt>).)*?<time>", re.S)
 
 

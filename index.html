@@ -1908,32 +1908,38 @@
           </div>
 
         </div>
+        <!-- Küldés a komputerre: csak az összekötött fiókok csempéi látszanak (a JS kapcsolja őket) -->
+        <div class="export-send">
+          <div class="export-send-label">Küldés a komputerre</div>
+          <div class="export-send-grid">
+            <button id="exportGarmin" class="export-send-btn" type="button" hidden title="Mentés a könyvtárba és küldés Garmin Connect course-ként – onnan az órára / komputerre szinkronizálható">
+              <img class="brand-icon" src="./assets/brands/garmin.svg" width="20" height="20" alt="">
+              Garmin
+            </button>
+            <button id="exportBryton" class="export-send-btn" type="button" hidden title="Mentés a könyvtárba és küldés a Bryton Active tervezett útjai közé (kanyar-utasításokkal) – onnan a komputer navigál rajta">
+              <img class="brand-icon" src="./assets/brands/bryton.png" width="20" height="20" alt="">
+              Bryton
+            </button>
+            <button id="exportIgpsport" class="export-send-btn" type="button" hidden title="Mentés a könyvtárba és küldés az iGPSport útvonalai közé (privátként) – onnan a komputer navigál rajta">
+              <img class="brand-icon" src="./assets/brands/igpsport.png" width="20" height="20" alt="">
+              iGPSport
+            </button>
+            <button id="exportOnelap" class="export-send-btn" type="button" hidden title="Mentés a könyvtárba és küldés az OnelapFit útvonalai közé – onnan a komputer navigál rajta">
+              <img class="brand-icon" src="./assets/brands/onelapfit.png" width="20" height="20" alt="">
+              OnelapFit
+            </button>
+          </div>
+        </div>
         <div class="export-footer">
           <button id="exportConfirm" class="export-confirm-btn export-confirm-btn--secondary" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
             GPX letöltés
           </button>
-          <button id="exportPdf" class="export-confirm-btn export-confirm-btn--secondary" type="button" title="Megosztó kép vagy PDF útvonallap">
+          <button id="exportPdf" class="export-confirm-btn export-confirm-btn--secondary" type="button" title="Kép, videó vagy PDF">
             <i data-lucide="share-2" aria-hidden="true"></i>
             Megosztás
           </button>
-          <button id="exportGarmin" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés Garmin Connect course-ként – onnan az órára / komputerre szinkronizálható">
-            <img class="brand-icon" src="./assets/brands/garmin.svg" width="18" height="18" alt="">
-            Küldés Garminra
-          </button>
-          <button id="exportBryton" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés a Bryton Active tervezett útjai közé (kanyar-utasításokkal) – onnan a komputer navigál rajta">
-            <img class="brand-icon" src="./assets/brands/bryton.png" width="18" height="18" alt="">
-            Küldés Brytonra
-          </button>
-          <button id="exportIgpsport" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés az iGPSport útvonalai közé (privátként) – onnan a komputer navigál rajta">
-            <img class="brand-icon" src="./assets/brands/igpsport.png" width="18" height="18" alt="">
-            Küldés iGPSportra
-          </button>
-          <button id="exportOnelap" class="export-confirm-btn export-confirm-btn--secondary" type="button" hidden title="Mentés a könyvtárba és küldés az OnelapFit útvonalai közé – onnan a komputer navigál rajta">
-            <img class="brand-icon" src="./assets/brands/onelapfit.png" width="18" height="18" alt="">
-            Küldés OnelapFitre
-          </button>
-          <button id="exportSaveToLibrary" class="export-confirm-btn export-confirm-btn--primary" type="button">
+          <button id="exportSaveToLibrary" class="export-confirm-btn export-confirm-btn--primary export-confirm-btn--wide" type="button">
             <i data-lucide="save" aria-hidden="true"></i>
             Mentés a könyvtárba
           </button>
@@ -3820,13 +3826,59 @@
 
         <!-- Beállítások – asztalon jobb oldali, külön görgetett oszlop; lenyíló csoportokban -->
         <div class="sc-settings">
+        <div id="shareModeSeg" class="sc-seg sc-mode" role="group" aria-label="Kép vagy videó">
+          <button class="share-opt-btn share-opt-btn--active" data-share-mode="image" type="button"><i data-lucide="image" aria-hidden="true"></i> Kép</button>
+          <button class="share-opt-btn" data-share-mode="video" type="button"><i data-lucide="clapperboard" aria-hidden="true"></i> Videó</button>
+        </div>
         <label class="sc-label" for="shareCardTitle">Cím</label>
         <input id="shareCardTitle" class="sc-input" type="text" placeholder="pl. Balatoni kör, Reggeli tekerés…">
 
         <!-- Stílus – a SHARE_LAYOUTS listából épül (kis rajzolt minták) -->
-        <div class="sc-label">Stílus</div>
-        <div id="shareLayoutPicker" class="sc-layouts" role="radiogroup" aria-label="Stílus"></div>
-        <p class="sc-layout-hint" id="shareLayoutHint"></p>
+        <div class="sc-label" data-sc-image-only>Stílus</div>
+        <div id="shareLayoutPicker" class="sc-layouts" role="radiogroup" aria-label="Stílus" data-sc-image-only></div>
+        <p class="sc-layout-hint" id="shareLayoutHint" data-sc-image-only></p>
+
+        <!-- Videó: a nyomvonal kirajzolódik (src/ui/shareVideo.js) -->
+        <details class="sc-group" data-sc-group="video" data-sc-video-only open hidden>
+          <summary><span>Animáció</span><em data-sc-sum="video"></em><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <div class="sc-group-body">
+            <div class="sc-sub">Háttér</div>
+            <div id="shareVideoBgPicker" class="sc-chips" role="group" aria-label="Háttér"></div>
+            <div id="shareVideoMapRow">
+              <div class="sc-sub">Térkép</div>
+              <div id="shareVideoMapPicker" class="sc-chips" role="group" aria-label="Térkép"></div>
+            </div>
+            <div id="shareVideoMediaRow" hidden>
+              <input id="shareVideoMediaInput" type="file" accept="image/*,video/*" hidden>
+              <button id="shareVideoMediaBtn" class="sc-btn sc-btn--ghost sc-btn--block" type="button">
+                <i data-lucide="upload" aria-hidden="true"></i><span>Fotó vagy videó kiválasztása</span>
+              </button>
+            </div>
+            <p id="shareVideoGreenNote" class="sc-note" hidden>A zöld hátteret a videószerkesztő kivágja (CapCut, InShot: Chroma key), így a saját felvételed fölé teheted.</p>
+            <label id="shareVideoZoomRow" class="sc-toggle">
+              <span><b>Automatikus zoom</b></span>
+              <span class="toggle-switch"><input id="shareVideoZoom" type="checkbox" checked><span class="toggle-track"></span></span>
+            </label>
+            <div class="sc-sub">Grafikon</div>
+            <div id="shareVideoChartPicker" class="sc-chips" role="group" aria-label="Grafikon"></div>
+            <label id="shareVideoZonesRow" class="sc-toggle">
+              <span><b>Zónaszínek</b></span>
+              <span class="toggle-switch"><input id="shareVideoZones" type="checkbox" checked><span class="toggle-track"></span></span>
+            </label>
+            <label id="shareVideoRouteRow" class="sc-toggle">
+              <span><b>Színezett nyomvonal</b></span>
+              <span class="toggle-switch"><input id="shareVideoRoute" type="checkbox"><span class="toggle-track"></span></span>
+            </label>
+            <div class="sc-sub">Cím</div>
+            <div id="shareVideoAlignSeg" class="sc-seg" role="group" aria-label="A cím igazítása">
+              <button class="share-opt-btn" data-video-align="left" type="button"><i data-lucide="align-left" aria-hidden="true"></i> Balra</button>
+              <button class="share-opt-btn" data-video-align="center" type="button"><i data-lucide="align-center" aria-hidden="true"></i> Középre</button>
+            </div>
+            <div class="sc-sub">Hossz</div>
+            <div id="shareVideoDurSeg" class="sc-seg" role="group" aria-label="Hossz"></div>
+            <p id="shareVideoFormatNote" class="sc-note"></p>
+          </div>
+        </details>
 
         <details class="sc-group" data-sc-group="format" open>
           <summary><span>Formátum</span><em data-sc-sum="format"></em><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
@@ -3837,7 +3889,7 @@
               <button class="share-opt-btn" data-share-size="portrait" type="button" title="4:5 – Instagram-bejegyzés"><i data-lucide="rectangle-vertical" aria-hidden="true"></i> 4:5</button>
               <button class="share-opt-btn" data-share-size="story" type="button" title="9:16 – sztori"><i data-lucide="smartphone" aria-hidden="true"></i> Sztori</button>
             </div>
-            <div data-sc-cap="theme">
+            <div data-sc-cap="theme" data-sc-image-only>
               <div class="sc-sub">Háttér</div>
               <div class="sc-seg" role="group" aria-label="Háttér">
                 <button class="share-opt-btn share-opt-btn--active" data-share-theme="light" type="button"><i data-lucide="sun" aria-hidden="true"></i> Világos</button>
@@ -3846,7 +3898,7 @@
                 <button class="share-opt-btn" data-share-theme="photo" type="button"><i data-lucide="image" aria-hidden="true"></i> Fotó</button>
               </div>
             </div>
-            <div data-sc-cap="ink" hidden>
+            <div data-sc-cap="ink" data-sc-image-only hidden>
               <div class="sc-sub">Szín</div>
               <div class="sc-seg" role="group" aria-label="Szín">
                 <button class="share-opt-btn share-opt-btn--active" data-share-ink="white" type="button">Fehér</button>

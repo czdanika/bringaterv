@@ -300,6 +300,11 @@ function decodeFileId(raw) {
  * @param {string} [filename] – metaadatként kerül a `<trk><name>` mezőbe
  * @returns {string} GPX XML
  */
+/** Van-e pozíció (GPS) a FIT-ben? Ha nincs: beltéri edzés (görgő, Zwift) – a szerver menti. */
+export function fitHasPosition(buffer) {
+  try { return parseFit(buffer).records.some(Boolean); } catch { return true; }   // hibánál a fitToGpx szól
+}
+
 export function fitToGpx(buffer, filename = "FIT import") {
   const { records, sessions, equipment } = parseFit(buffer);
   const pts = records.filter(Boolean);

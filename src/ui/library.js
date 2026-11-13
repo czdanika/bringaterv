@@ -455,6 +455,11 @@ export function openLibraryEditModal(route) {
     type: _editRoute.type === "workout" ? "workout"
       : overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? _editRoute.type,
   });
+  attachAiDescribe(nameInput, () => _editRoute && {
+    route_id: _editRoute.id,
+    type: _editRoute.type === "workout" ? "workout"
+      : overlay.querySelector("input[name=\"libraryEditType\"]:checked")?.value ?? _editRoute.type,
+  }, { kind: "name" });
   const editTypeVal = (route.type === "cycling" ? "asphalt" : route.type) ?? "asphalt";
   const typeRadio = overlay.querySelector(`input[name="libraryEditType"][value="${editTypeVal}"]`);
   if (typeRadio) typeRadio.checked = true;
@@ -665,6 +670,7 @@ async function runAction(act, btn) {
           title: route.name || "Útvonal",
           url: isSample ? null : shareRouteUrl(route.id),
           onImage: () => runAction("share", btn),
+          onVideo: () => runAction("share-video", btn),
           onPdf:   () => runAction("pdf", btn),
         });
       } else if (act === "load-file" || act === "load-plan") {
@@ -800,7 +806,7 @@ async function runAction(act, btn) {
           showResultDialog({ ok: false, icon: "./assets/brands/bryton.png", title: "Nem sikerült a küldés: Bryton",
             lines: [conn ? "A belépés lejárt vagy nincs kapcsolat – csatlakozz újra: Beállítások → Bryton." : err.message] });
         }
-      } else if (act === "share") {
+      } else if (act === "share" || act === "share-video") {
         btn.disabled = true; setLabel("Betöltés…");
         try {
           const gpxText = isSample ? await _api.loadSample(route.id) : await _api.loadRoute(route.id);
@@ -824,7 +830,7 @@ async function runAction(act, btn) {
             avgSpeedKmh: (durMin && distKm) ? Math.round(distKm / (durMin / 60) * 10) / 10 : 0,
             elevationM: route.elevation ?? 0, points: simPts,
             shareUrl: isSample ? null : shareRouteUrl(route.id),
-          });
+          }, { mode: act === "share-video" ? "video" : "image" });
         } catch (err) { _toast("Nem sikerült betölteni a geometriát."); console.error(err); }
         finally { btn.disabled = false; btn.innerHTML = origLabel; }
       } else if (act === "pdf") {

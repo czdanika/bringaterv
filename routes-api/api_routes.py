@@ -330,6 +330,43 @@ def get_route(route_id: str):
     return content, 200, {"Content-Type": "application/gpx+xml; charset=utf-8"}
 
 
+@bp.route("/api/routes/indoor-fit", methods=["POST"])
+@require_auth
+def save_indoor_fit():
+    """GPS nélküli (beltéri) FIT kézi feltöltése az Elemzésből: ugyanaz a mentés, mint a komputeres
+    importoknál (indoor.save_indoor_from_fit). body: {name, fitContent (base64)}.
+    Ugyanaz a fájl (SHA-1) másodszor nem jön be – a meglévő bejegyzést adja vissza."""
+    import base64
+    import hashlib
+    from indoor import save_indoor_from_fit
+    from storage import import_dedup_enabled
+    data = request.get_json(silent=True) or {}
+    try:
+        fit_bytes = base64.b64decode(data.get("fitContent") or "", validate=True)
+    except (ValueError, TypeError):
+        abort(400, description="Hibás FIT tartalom")
+    if not fit_bytes or len(fit_bytes) > 20 * 1024 * 1024:
+        abort(400, description="Hiányzó vagy túl nagy FIT fájl")
+    user_dir, idx = _resolve_dirs()
+    index = _load_index(idx)
+    fit_hash = hashlib.sha1(fit_bytes).hexdigest()[:16]
+    same = next((r for r in index if r.get("fit_hash") == fit_hash), None)
+    if same:
+        return jsonify({"ok": True, "skipped": True, "reason": "same_file", "entry": same})
+    if len(index) >= g.user.get("quota_routes", 50):
+        abort(429, description=f"Edzés kvóta elérve ({g.user['quota_routes']} db max). Törölj néhányat a könyvtárból.")
+    name = (data.get("name") or "").strip()[:120] or "Beltéri tekerés"
+    uid = g.user["id"]
+    res = save_indoor_from_fit(uid, fit_bytes, name=name, source="file", id_field="fit_hash",
+                               source_id=fit_hash, dedup=import_dedup_enabled(uid))
+    if not res.get("ok"):
+        abort(400, description=res.get("error") or "A FIT-fájl nem menthető.")
+    if res.get("skipped"):
+        dup = next((r for r in index if r.get("id") == res.get("duplicate_local_id")), None)
+        return jsonify({**res, "entry": dup})
+    return jsonify(res), 201
+
+
 @bp.route("/api/routes/<route_id>/streams", methods=["GET"])
 @require_auth
 def get_route_streams(route_id: str):

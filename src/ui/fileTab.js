@@ -13,10 +13,11 @@
  */
 
 import { importGpx, exportGpx, calcElevationFromGeometry } from '../gpx/gpx.js';
-import { fitToGpx } from '../gpx/fit.js';
+import { fitToGpx, fitHasPosition } from '../gpx/fit.js';
 import { equipmentLine, sensorLabels } from '../equipment.js';
 import { isSolidChartMode } from './elevationProfile.js';
 import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts, SHARE_STATS, DEFAULT_STATS, LAYOUT_CAPS } from './shareCard.js';
+import { VIDEO_BGS, VIDEO_MAPS, VIDEO_DURATIONS, videoSupported, videoFormat, createVideoScene, playScene, recordScene, loadVideoMedia } from './shareVideo.js';
 import { getShareHighlights } from './bestEfforts.js';
 import { getWorkoutWind } from './workoutWind.js';
 import { reverseGeocode } from './search.js';
@@ -31,6 +32,7 @@ import { renderZoneDists } from "./zoneDist.js";
 let _store, _mapAdapter, _api, _elements, _i18n, _showToast, _switchTab;
 let _updateElevationButton, _applyRouteLayer, _clearWindResult;
 let _calculateImportedDistance, _calcEstimatedTimeMixed;
+let _openLibraryRoute;
 let _loadRouteLibrary, _openExportModal, _renderHrZoneAnalysis, _formatDisplayDistance;
 
 export function initFileTab({
@@ -38,6 +40,7 @@ export function initFileTab({
   updateElevationButton, applyRouteLayer, clearWindResult,
   calculateImportedDistance, calcEstimatedTimeMixed,
   loadRouteLibrary, openExportModal, renderHrZoneAnalysis, formatDisplayDistance,
+  openLibraryRoute,
 }) {
   _store = store; _mapAdapter = mapAdapter; _api = api; _elements = elements;
   _i18n = i18n; _showToast = showToast; _switchTab = switchTab;
@@ -47,6 +50,7 @@ export function initFileTab({
   _calcEstimatedTimeMixed = calcEstimatedTimeMixed;
   _loadRouteLibrary = loadRouteLibrary; _openExportModal = openExportModal;
   _renderHrZoneAnalysis = renderHrZoneAnalysis; _formatDisplayDistance = formatDisplayDistance;
+  _openLibraryRoute = openLibraryRoute;
 
   // File input
   _elements.gpxInput.addEventListener("change", async () => {
@@ -612,6 +616,26 @@ export function updateFileSaveButtonState() {
 }
 
 // ── GPX / FIT import ──────────────────────────────────────────────────────────
+// GPS nélküli (beltéri: görgő, Zwift) FIT: a szerver ugyanúgy menti, mint a komputeres
+// importokat (routes-api/indoor.py), és rögtön megnyílik az Elemzésben
+async function saveIndoorFit(buffer, filename) {
+  const name = filename.replace(/\.fit$/i, "");
+  _showToast?.("Beltéri edzés – mentés a könyvtárba…");
+  let res;
+  try {
+    res = await _api.saveIndoorFit({ name, fitContent: arrayBufferToBase64(buffer) });
+  } catch (err) {
+    _showToast?.(err?.message || "Nem sikerült menteni a beltéri edzést.");
+    console.error("Indoor FIT save error:", err);
+    return;
+  }
+  const entry = res?.entry;
+  if (res?.skipped) _showToast?.(res.reason === "same_file" ? "Ez a fájl már a könyvtárban van." : `Már megvan: ${entry?.name || "ugyanez az edzés"}.`);
+  else _showToast?.("Beltéri edzés mentve.");
+  if (typeof _loadRouteLibrary === "function") { try { await _loadRouteLibrary(); } catch { /* offline */ } }
+  if (entry?.id) await _openLibraryRoute?.(entry.id, entry.name || name);
+}
+
 export async function processImportedFile(file) {
   if (!file) return;
   // A fájlválasztó szűrő nélkül nyílik (Safari a .fit-et nem engedné) → itt ellenőrzünk
@@ -626,6 +650,7 @@ export async function processImportedFile(file) {
   if (isFit) {
     try {
       fitBuffer = await file.arrayBuffer();
+      if (!fitHasPosition(fitBuffer)) { await saveIndoorFit(fitBuffer, file.name); return; }
       gpxText   = fitToGpx(fitBuffer, file.name);
     } catch (err) {
       _showToast("Nem sikerült feldolgozni a FIT fájlt.");
@@ -838,10 +863,226 @@ function _initShareCardModal() {
     const con = document.querySelector('[data-sc-sum="content"]'); if (con) con.textContent = [st.join(", "), ...extras].filter(Boolean).join(" · ");
     const hint = document.querySelector("#shareLayoutHint");
     if (hint) hint.textContent = SHARE_LAYOUTS.find((l) => l.id === _shareLayout)?.hint || "";
+    syncMode();
   }
+
+  // ── Videó (animált megosztás) ─────────────────────────────────────────────
+  let _shareMode = "image";
+  // háttér: térkép (típusa külön) / egyszínű / saját / zöld; a régi „light/dark/topo” értékek térképpé válnak
+  let _videoMap = lsGet("bt.videoMap", (v) => VIDEO_MAPS.some((m) => m.id === v)) || "light";
+  let _videoBg  = lsGet("bt.videoBg", (v) => !!v && v !== "media") || "map";
+  if (VIDEO_MAPS.some((m) => m.id === _videoBg)) { _videoMap = _videoBg; _videoBg = "map"; }
+  if (!VIDEO_BGS.some((b) => b.id === _videoBg)) _videoBg = "map";
+  let _videoRoute = lsGet("bt.videoRoute", (v) => v === "0" || v === "1") === "1";
+  let _videoDur = Number(lsGet("bt.videoDur", (v) => VIDEO_DURATIONS.includes(Number(v)))) || 12;
+  // videóhoz két méret: sztori / Reels (9:16) és bejegyzés (4:5)
+  let _videoSize = lsGet("bt.videoSize", (v) => ["portrait", "story"].includes(v)) || "story";
+  let _videoChart = lsGet("bt.videoChart", (v) => v === "none" || SHARE_CHARTS.some((c) => c.id === v)) || "ele";
+  let _videoZones = lsGet("bt.videoZones", (v) => v === "0" || v === "1") !== "0";
+  let _videoZoom = lsGet("bt.videoZoom", (v) => v === "0" || v === "1") !== "0";
+  let _videoAlign = lsGet("bt.videoAlign", (v) => v === "left" || v === "center") || "center";
+  let _videoMedia = null;          // { kind, el } – saját fotó / videó
+  let _stopVideo = null;           // az előnézet leállítója
+  let _videoToken = 0;             // a régi (elavult) jelenet-építések eldobásához
+  let _videoBusy = false;          // felvétel közben nincs előnézet-frissítés
+  const hasTrack = () => (_shareCardData?.points || []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)).length > 1;
+  const videoAvailable = () => videoSupported() && hasTrack();
+
+  function videoOpts() {
+    return {
+      ...cardOpts(), title: _getShareTitle(),
+      bg: _videoBg === "media" && !_videoMedia ? "solid" : _videoBg, media: _videoMedia, duration: _videoDur,
+      size: _videoSize, chart: videoChart(), zoneColors: _videoZones, routeColors: _videoRoute, map: _videoMap, titleAlign: _videoAlign, autoZoom: _videoZoom,
+    };
+  }
+  // a választott grafikon, ha ennél az edzésnél van hozzá adat (különben az első elérhető)
+  function videoChart() {
+    if (_videoChart === "none") return "none";
+    const avail = availableShareCharts(_shareCardData?.points || []);
+    return avail.includes(_videoChart) ? _videoChart : (avail[0] || "none");
+  }
+  function stopVideoPreview() { _stopVideo?.(); _stopVideo = null; }
+
+  function renderVideoControls() {
+    const bgP = document.querySelector("#shareVideoBgPicker");
+    if (bgP) bgP.innerHTML = VIDEO_BGS.map((b) => `<button type="button" class="sc-chip${b.id === _videoBg ? " sc-chip--on" : ""}" data-video-bg="${b.id}" aria-pressed="${b.id === _videoBg}">${b.label}</button>`).join("");
+    const chP = document.querySelector("#shareVideoChartPicker");
+    if (chP) {
+      const avail = availableShareCharts(_shareCardData?.points || []);
+      const cur = videoChart();
+      chP.innerHTML = [...SHARE_CHARTS.filter((c) => avail.includes(c.id)), { id: "none", label: "Nincs" }].map((c) =>
+        `<button type="button" class="sc-chip${c.id === cur ? " sc-chip--on" : ""}" data-video-chart="${c.id}" aria-pressed="${c.id === cur}">${c.color && !isSolidChartMode() ? `<span class="sc-chip-dot" style="background:${c.id === "ele" ? "#fc4c02" : c.color}"></span>` : ""}${c.label}</button>`).join("");
+    }
+    const mapRow = document.querySelector("#shareVideoMapRow"); if (mapRow) mapRow.hidden = _videoBg !== "map";
+    const zmIn = document.querySelector("#shareVideoZoom"); if (zmIn) zmIn.checked = _videoZoom;
+    const mapP = document.querySelector("#shareVideoMapPicker");
+    if (mapP) mapP.innerHTML = VIDEO_MAPS.map((m) => `<button type="button" class="sc-chip${m.id === _videoMap ? " sc-chip--on" : ""}" data-video-map="${m.id}" aria-pressed="${m.id === _videoMap}">${m.label}</button>`).join("");
+    const noChart = videoChart() === "none";
+    const zRow = document.querySelector("#shareVideoZonesRow"); if (zRow) zRow.hidden = noChart;
+    const rRow = document.querySelector("#shareVideoRouteRow"); if (rRow) rRow.hidden = noChart;
+    const rIn = document.querySelector("#shareVideoRoute"); if (rIn) rIn.checked = _videoRoute;
+    const zIn = document.querySelector("#shareVideoZones"); if (zIn) zIn.checked = _videoZones;
+    document.querySelectorAll("[data-video-align]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.videoAlign === _videoAlign));
+    const durS = document.querySelector("#shareVideoDurSeg");
+    if (durS) durS.innerHTML = VIDEO_DURATIONS.map((d) => `<button class="share-opt-btn${d === _videoDur ? " share-opt-btn--active" : ""}" data-video-dur="${d}" type="button">${d} mp</button>`).join("");
+    const mediaRow = document.querySelector("#shareVideoMediaRow"); if (mediaRow) mediaRow.hidden = _videoBg !== "media";
+    const mediaLbl = document.querySelector("#shareVideoMediaBtn span");
+    if (mediaLbl) mediaLbl.textContent = _videoMedia ? (_videoMedia.kind === "video" ? "Másik videó vagy fotó" : "Másik fotó vagy videó") : "Fotó vagy videó kiválasztása";
+    const green = document.querySelector("#shareVideoGreenNote"); if (green) green.hidden = _videoBg !== "green";
+    const fmt = document.querySelector("#shareVideoFormatNote");
+    if (fmt) fmt.textContent = videoFormat() === "mp4" ? "MP4 videó, hang nélkül." : "WebM videó, hang nélkül (ez a böngésző MP4-et nem tud készíteni).";
+    const sum = document.querySelector('[data-sc-sum="video"]');
+    const chL = SHARE_CHARTS.find((c) => c.id === videoChart())?.label;
+    const bgL = _videoBg === "map" ? `${VIDEO_MAPS.find((m) => m.id === _videoMap)?.label} térkép` : VIDEO_BGS.find((b) => b.id === _videoBg)?.label;
+    if (sum) sum.textContent = [bgL, chL, `${_videoDur} mp`].filter(Boolean).join(" · ");
+  }
+
+  // videónál a méretgombok neve beszédesebb: Sztori (9:16) / Bejegyzés (4:5)
+  function setSizeLabels(video) {
+    const lbl = { portrait: video ? "Bejegyzés 4:5" : "4:5", story: video ? "Sztori 9:16" : "Sztori" };
+    for (const [k, t] of Object.entries(lbl)) {
+      const b = document.querySelector(`[data-share-size="${k}"]`);
+      const node = b && [...b.childNodes].reverse().find((x) => x.nodeType === 3 && x.textContent.trim());
+      if (node) node.textContent = " " + t;
+    }
+  }
+  function syncMode() {
+    const video = _shareMode === "video";
+    document.querySelectorAll("[data-share-mode]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.shareMode === _shareMode));
+    document.querySelectorAll("[data-sc-video-only]").forEach((el) => { el.hidden = !video; });
+    if (video) {
+      document.querySelectorAll("[data-sc-image-only], #shareChartRow, #shareQrRow, #sharePhotoControls").forEach((el) => { el.hidden = true; });
+      setSizeLabels(true);
+      document.querySelectorAll("[data-share-size]").forEach((b) => {
+        b.hidden = b.dataset.shareSize === "square";
+        b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _videoSize);
+      });
+      const fmt = document.querySelector('[data-sc-sum="format"]'); if (fmt) fmt.textContent = { portrait: "Bejegyzés (4:5)", story: "Sztori (9:16)" }[_videoSize];
+      const avail = availableStats();
+      const con = document.querySelector('[data-sc-sum="content"]');
+      if (con) con.textContent = _shareStats.filter((x) => avail.includes(x)).map((x) => SHARE_STATS.find((y) => y.id === x)?.label.toLowerCase()).join(", ");
+      renderVideoControls();
+    } else {
+      // a stílushoz kötött részeket (data-sc-cap) a syncGroups már beállította
+      document.querySelectorAll("[data-sc-image-only]:not([data-sc-cap])").forEach((el) => { el.hidden = false; });
+      document.querySelectorAll('[data-share-size="square"]').forEach((b) => { b.hidden = false; });
+      setSizeLabels(false);
+      const qrRow = document.querySelector("#shareQrRow"); if (qrRow) qrRow.hidden = !_shareCardData?.shareUrl;
+    }
+    const head = document.querySelector("#shareCardHead"); if (head) head.textContent = video ? "Megosztó videó" : "Megosztó kép";
+    const dl = document.querySelector("#shareCardDownload span"); if (dl && !_videoBusy) dl.textContent = video ? "Videó letöltése" : "Letöltés";
+  }
+
+  async function refreshVideoPreview() {
+    const cv = document.querySelector("#shareCardPreview");
+    if (!cv || _videoBusy) return;
+    const token = ++_videoToken;
+    let scene;
+    try { scene = await createVideoScene(videoOpts()); }
+    catch (err) { console.error("Videó-előnézet:", err); _showToast?.(err?.message || "A videó előnézete nem készült el."); return; }
+    if (token !== _videoToken || _shareMode !== "video" || _videoBusy) { scene.stop(); return; }
+    stopVideoPreview();
+    cv.classList.remove("is-transparent");
+    _stopVideo = playScene(cv, scene);
+  }
+
+  /** Felvétel → { file } (a gombok közös útja). */
+  async function recordVideo(btn) {
+    const span = btn?.querySelector("span");
+    const orig = span?.textContent;
+    _videoBusy = true; ++_videoToken;
+    stopVideoPreview();
+    document.querySelectorAll("#shareCardDownload, #shareCardNativeShare").forEach((b) => { b.disabled = true; });
+    try {
+      if (span) span.textContent = "Előkészítés…";
+      const scene = await createVideoScene(videoOpts());
+      const cv = document.querySelector("#shareCardPreview");
+      const { blob, ext, mime } = await recordScene(cv, scene, {
+        onProgress: (x) => { if (span) span.textContent = `Felvétel… ${Math.round(x * 100)}%`; },
+      });
+      return new File([blob], `${_safeName(_getShareTitle())}.${ext}`, { type: mime });
+    } finally {
+      _videoBusy = false;
+      document.querySelectorAll("#shareCardDownload, #shareCardNativeShare").forEach((b) => { b.disabled = false; });
+      if (span) span.textContent = orig;
+      if (_shareMode === "video" && !document.querySelector("#shareCardOverlay")?.hidden) refreshVideoPreview();
+    }
+  }
+  function downloadFile(file) {
+    const url = URL.createObjectURL(file);
+    const a = Object.assign(document.createElement("a"), { href: url, download: file.name });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  document.querySelector("#shareModeSeg")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-share-mode]");
+    if (!b || b.dataset.shareMode === _shareMode || _videoBusy) return;
+    _shareMode = b.dataset.shareMode;
+    if (_shareMode === "image") stopVideoPreview();
+    syncGroups(); refreshSharePreview();
+  });
+  document.querySelector("#shareVideoBgPicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-bg]");
+    if (!b || _videoBusy) return;
+    _videoBg = b.dataset.videoBg;
+    if (_videoBg !== "media") lsSet("bt.videoBg", _videoBg);
+    renderVideoControls();
+    if (_videoBg === "media" && !_videoMedia) document.querySelector("#shareVideoMediaInput")?.click();
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoAlignSeg")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-align]");
+    if (!b || _videoBusy) return;
+    _videoAlign = b.dataset.videoAlign; lsSet("bt.videoAlign", _videoAlign);
+    renderVideoControls(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoMapPicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-map]");
+    if (!b || _videoBusy) return;
+    _videoMap = b.dataset.videoMap; lsSet("bt.videoMap", _videoMap);
+    renderVideoControls(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoZoom")?.addEventListener("change", (e) => {
+    _videoZoom = e.target.checked; lsSet("bt.videoZoom", _videoZoom ? "1" : "0");
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoRoute")?.addEventListener("change", (e) => {
+    _videoRoute = e.target.checked; lsSet("bt.videoRoute", _videoRoute ? "1" : "0");
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoZones")?.addEventListener("change", (e) => {
+    _videoZones = e.target.checked; lsSet("bt.videoZones", _videoZones ? "1" : "0");
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoChartPicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-chart]");
+    if (!b || _videoBusy) return;
+    _videoChart = b.dataset.videoChart; lsSet("bt.videoChart", _videoChart);
+    renderVideoControls(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoDurSeg")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-dur]");
+    if (!b || _videoBusy) return;
+    _videoDur = Number(b.dataset.videoDur); lsSet("bt.videoDur", String(_videoDur));
+    renderVideoControls(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoMediaBtn")?.addEventListener("click", () => document.querySelector("#shareVideoMediaInput")?.click());
+  document.querySelector("#shareVideoMediaInput")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      if (_videoMedia?.kind === "video") _videoMedia.el.pause();
+      _videoMedia = await loadVideoMedia(file);
+      _videoBg = "media";
+    } catch (err) { _showToast?.(err.message); return; }
+    renderVideoControls(); refreshVideoPreview();
+  });
 
   async function refreshSharePreview() {
     if (!_shareCardData) return;
+    if (_shareMode === "video") return refreshVideoPreview();
     const previewCanvas = document.querySelector("#shareCardPreview");
     if (!previewCanvas) return;
     const card = await createWorkoutShareCard(cardOpts());
@@ -946,7 +1187,7 @@ function _initShareCardModal() {
     if (!cv) return;
     let dragging = false, lastX = 0, lastY = 0;
     cv.addEventListener("pointerdown", (e) => {
-      if (_shareTheme !== "photo") return;
+      if (_shareTheme !== "photo" || _shareMode === "video") return;
       // Háttér mozgatásához kell kép; útvonal mozgatásához nem
       if (_dragTarget === "photo" && !_sharePhoto.img) return;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
@@ -987,8 +1228,9 @@ function _initShareCardModal() {
   }
   document.querySelector("#shareQrToggle")?.addEventListener("change", () => { syncGroups(); refreshSharePreview(); });
 
-  function openShareCardModal() {
+  function openShareCardModal(mode) {
     if (!_shareCardData) return;
+    if (mode === "image" || mode === "video") _shareMode = mode;
     const overlay = document.querySelector("#shareCardOverlay");
     if (!overlay) return;
     const qrRow = document.querySelector("#shareQrRow");
@@ -1003,6 +1245,9 @@ function _initShareCardModal() {
       const kcal = parseInt(kcalTxt.replace(/\D/g, ""), 10);
       if (_shareCardData.extra && !_shareCardData.extra.kcal && kcal > 0) _shareCardData.extra.kcal = kcal;
     }
+    const modeSeg = document.querySelector("#shareModeSeg");
+    if (modeSeg) modeSeg.hidden = !videoAvailable();
+    if (!videoAvailable()) _shareMode = "image";
     renderChartPicker();
     renderStatPicker();
     syncGroups();
@@ -1027,6 +1272,7 @@ function _initShareCardModal() {
   function closeShareCardModal() {
     const overlay = document.querySelector("#shareCardOverlay");
     if (overlay) overlay.hidden = true;
+    stopVideoPreview(); ++_videoToken;
     if (_shareRestore !== undefined) { _shareCardData = _shareRestore; _shareRestore = undefined; }
   }
 
@@ -1048,7 +1294,11 @@ function _initShareCardModal() {
       },
       onImage: () => {
         _shareCardData.shareUrl = hasLink ? shareRouteUrl(id) : null;
-        openShareCardModal();
+        openShareCardModal("image");
+      },
+      onVideo: () => {
+        _shareCardData.shareUrl = hasLink ? shareRouteUrl(id) : null;
+        openShareCardModal("video");
       },
       onPdf: openFilePdf,
     });
@@ -1145,8 +1395,13 @@ function _initShareCardModal() {
 
   document.querySelectorAll("[data-share-size]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      _shareSize = btn.dataset.shareSize;
-      lsSet("bt.shareSize", _shareSize);
+      if (_shareMode === "video") {
+        _videoSize = btn.dataset.shareSize === "square" ? "story" : btn.dataset.shareSize;
+        lsSet("bt.videoSize", _videoSize);
+      } else {
+        _shareSize = btn.dataset.shareSize;
+        lsSet("bt.shareSize", _shareSize);
+      }
       syncGroups();
       refreshSharePreview();
     });
@@ -1166,7 +1421,17 @@ function _initShareCardModal() {
   }
 
   document.querySelector("#shareCardNativeShare")?.addEventListener("click", async () => {
-    if (!_shareCardData) return;
+    if (!_shareCardData || _videoBusy) return;
+    if (_shareMode === "video") {
+      let file;
+      try { file = await recordVideo(document.querySelector("#shareCardNativeShare")); }
+      catch (err) { console.error("Videó:", err); _showToast?.(err?.message || "Nem sikerült a videó."); return; }
+      try {
+        if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: "Bringaterv edzés" }); return; }
+      } catch (err) { if (err?.name === "AbortError") return; }
+      downloadFile(file);
+      return;
+    }
     const btn = document.querySelector("#shareCardNativeShare");
     const span = btn?.querySelector("span");
     if (btn) { btn.disabled = true; if (span) span.textContent = "Generálás…"; }
@@ -1194,7 +1459,12 @@ function _initShareCardModal() {
   });
 
   document.querySelector("#shareCardDownload")?.addEventListener("click", async () => {
-    if (!_shareCardData) return;
+    if (!_shareCardData || _videoBusy) return;
+    if (_shareMode === "video") {
+      try { downloadFile(await recordVideo(document.querySelector("#shareCardDownload"))); }
+      catch (err) { console.error("Videó:", err); _showToast?.(err?.message || "Nem sikerült a videó."); }
+      return;
+    }
     const dlBtn = document.querySelector("#shareCardDownload");
     const span  = dlBtn?.querySelector("span");
     if (dlBtn) { dlBtn.disabled = true; if (span) span.textContent = "Generálás…"; }
@@ -1210,9 +1480,9 @@ function _initShareCardModal() {
   // Külső hívás (könyvtár, tervező): csak ideiglenesen cseréli az Elemzés fül
   // megosztási adatát – bezáráskor visszaáll (különben az Elemzés fül
   // Megosztás/PDF funkciója a rossz geometriával dolgozna).
-  window._openShareCardWith = function(data) {
+  window._openShareCardWith = function(data, { mode = "image" } = {}) {
     if (_shareRestore === undefined) _shareRestore = _shareCardData;
     _shareCardData = data;
-    openShareCardModal();
+    openShareCardModal(mode);
   };
 }

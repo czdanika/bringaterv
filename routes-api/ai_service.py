@@ -495,6 +495,33 @@ def describe_route(info: dict) -> tuple[str, str, object]:
     return str(data.get("description") or "").strip()[:800], model, usage
 
 
+_ROUTE_NAME_SYSTEM = """Egy magyar kerékpáros útvonaltervező alkalmazásban a felhasználó saját útvonalának \
+(vagy megtett edzésének) adsz nevet a könyvtárába. Az adatokat JSON-ban kapod: típus, táv, emelkedő, kör vagy \
+A → B, ország, megye, rajt- és célpont települése, az érintett települések útvonal-sorrendben, a felhasználó \
+által elnevezett útpontok, és ha van, a jelenlegi név.
+
+Adj egy "name" mezőt: rövid, kifejező magyar név, legfeljebb ~40 karakter, például: „Balaton-felvidéki kör \
+Tihanyon át”, „Zánka – Zirc”, „Bakonyi gravel kör”, „Pilisi hegyek kör”. Szabályok:
+- körnél a táj / megye / jellegzetes település + „kör”; A → B útnál „Rajt – Cél” forma (gondolatjellel);
+- ha egy közismert táj (pl. Bakony, Pilis, Balaton-felvidék, Őrség) egyértelműen illik, használhatod;
+- típusra utalhatsz (gravel, MTB, túra), ha jellegzetes; ne írj bele számot, dátumot, emojit, idézőjelet, \
+  felkiáltójelet;
+- csak a megadott településekre és közismert tájnevekre támaszkodj, ne találj ki helyet."""
+
+_ROUTE_NAME_SCHEMA = {
+    "type": "object",
+    "properties": {"name": {"type": "string"}},
+    "required": ["name"],
+    "additionalProperties": False,
+}
+
+
+def name_route(info: dict) -> tuple[str, str, object]:
+    data, model, usage = _call(_ROUTE_NAME_SYSTEM, info, _ROUTE_NAME_SCHEMA, max_tokens=600)
+    name = str(data.get("name") or "").strip().strip('"„”').strip()
+    return name[:60], model, usage
+
+
 # ── Fejlesztési fa: szabad szöveges ötlet → elhelyezett, megfogalmazott elemek (admin) ─────
 
 _ROADMAP_SYSTEM = """Egy magyar kerékpáros útvonaltervező és edzésnapló alkalmazás (Bringaterv) fejlesztési \

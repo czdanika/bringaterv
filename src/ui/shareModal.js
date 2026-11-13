@@ -5,7 +5,7 @@
  * natív megosztás és a szokásos csatornák: Facebook, Messenger, WhatsApp,
  * Telegram, X, e-mail, SMS).
  *
- *   openShareModal({ title, url, onImage, onPdf })
+ *   openShareModal({ title, url, onImage, onVideo, onPdf })
  *     url: a publikus nézőoldal linkje, vagy null (pl. minta-útvonalnál)
  *
  * A nyilvános link útvonalanként kapcsolható: kikapcsolva a nézőoldal „nem található”.
@@ -74,12 +74,17 @@ function build() {
         <div class="share-options">
           <button class="share-option" type="button" data-share="image">
             <span class="share-option-icon"><i data-lucide="image" aria-hidden="true"></i></span>
-            <span class="share-option-text"><strong>Megosztó kép</strong><small>Kártya térképpel és statokkal – Instagram, Strava, chat</small></span>
+            <span class="share-option-text"><strong>Kép</strong><small>Térkép és adatok</small></span>
+            <i data-lucide="chevron-right" class="share-option-chev" aria-hidden="true"></i>
+          </button>
+          <button class="share-option" type="button" data-share="video">
+            <span class="share-option-icon"><i data-lucide="clapperboard" aria-hidden="true"></i></span>
+            <span class="share-option-text"><strong>Videó</strong><small>Kirajzolódó útvonal</small></span>
             <i data-lucide="chevron-right" class="share-option-chev" aria-hidden="true"></i>
           </button>
           <button class="share-option" type="button" data-share="pdf">
             <span class="share-option-icon"><i data-lucide="file-text" aria-hidden="true"></i></span>
-            <span class="share-option-text"><strong>PDF útvonallap</strong><small>Nyomtatható lap térképpel, grafikonokkal, QR-kóddal</small></span>
+            <span class="share-option-text"><strong>PDF</strong><small>Nyomtatható útvonallap</small></span>
             <i data-lucide="chevron-right" class="share-option-chev" aria-hidden="true"></i>
           </button>
         </div>
@@ -170,7 +175,7 @@ function targetsHtml(url, title) {
   }).join("");
 }
 
-export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf, onSaveForLink,
+export function openShareModal({ title = "Útvonal", url = null, onImage, onVideo, onPdf, onSaveForLink,
                                  noLinkText = "Közösségi útvonalhoz nincs külön nyilvános link." } = {}) {
   if (!_el) _el = build();
   const { ov, q, close } = _el;
@@ -178,6 +183,10 @@ export function openShareModal({ title = "Útvonal", url = null, onImage, onPdf,
   q("name").textContent = title;
   q("image").onclick = () => { close(); onImage?.(); };
   q("pdf").onclick = () => { close(); onPdf?.(); };
+  // Videó: csak ha a hívó tudja, és a böngésző tud videót rögzíteni
+  const canVideo = !!onVideo && typeof MediaRecorder !== "undefined" && !!HTMLCanvasElement.prototype.captureStream;
+  q("video").hidden = !canVideo;
+  q("video").onclick = () => { close(); onVideo?.(); };
 
   q("no-link-text").textContent = noLinkText;
   const saveBtn = q("save-link");

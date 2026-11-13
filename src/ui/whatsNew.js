@@ -16,6 +16,17 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.47.0", date: "2026. november",
+    title: "Megosztó videó",
+    lead: "A tekerésed kirajzolódik a térképen – sztoriba vagy bejegyzésbe.",
+    items: [
+      { icon: "clapperboard", title: "Videó a megosztásnál", text: "Kirajzolódó útvonal pörgő számokkal, automatikus zoommal. Térkép, saját fotó vagy videó a háttérben." },
+      { icon: "palette", title: "Színes grafikon és vonal", text: "Lejtés, pulzus vagy watt szerint színezve, mint az Elemzésben." },
+      { icon: "bike", title: "Görgős FIT betöltése", text: "A GPS nélküli FIT-fájl is bekerül a Könyvtárba, és rögtön megnyílik." },
+      { icon: "sparkles", title: "AI-név", text: "Az útvonal nevét is kérheted az AI-tól a mentésnél." },
+    ],
+  },
+  {
     version: "1.46.0", date: "2026. november",
     title: "Régi edzések behozása",
     items: [

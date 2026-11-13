@@ -2110,6 +2110,7 @@ initFileTab({
   openExportModal,
   renderHrZoneAnalysis,
   formatDisplayDistance,
+  openLibraryRoute: (id, name) => loadRouteFromLibrary(id, false, name, "file"),
 });
 
 // ── Planning (Sidebar, Waypoints, Navigation) ─────────────────────────────────
@@ -4418,6 +4419,13 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
   const step = Math.max(1, Math.floor(activeGeometry.length / 400));
   const simPts = activeGeometry.filter((_, i) => i % step === 0 || i === activeGeometry.length - 1)
     .map((p) => ({ lat: p.lat, lng: p.lng, ele: p.ele }));
+  const planShareData = () => ({
+    title: name || "Útvonalterv", metaTitle: name || "", date: "",
+    distanceKm: distanceKm ?? 0,
+    durationText: durationMin != null ? fmtMinutesHuman(durationMin) : "",
+    avgSpeedKmh: 0, elevationM: ascentMeters || 0, points: simPts,
+    shareUrl: pdfCtx.shareUrl || null,
+  });
   openShareModal({
     title: name || "Útvonalterv",
     url: null,
@@ -4430,13 +4438,8 @@ document.querySelector("#exportPdf")?.addEventListener("click", () => {
       pdfCtx.shareUrl = shareRouteUrl(id);
       return pdfCtx.shareUrl;
     },
-    onImage: () => window._openShareCardWith?.({
-      title: name || "Útvonalterv", metaTitle: name || "", date: "",
-      distanceKm: distanceKm ?? 0,
-      durationText: durationMin != null ? fmtMinutesHuman(durationMin) : "",
-      avgSpeedKmh: 0, elevationM: ascentMeters || 0, points: simPts,
-      shareUrl: pdfCtx.shareUrl || null,
-    }),
+    onImage: () => window._openShareCardWith?.(planShareData()),
+    onVideo: () => window._openShareCardWith?.(planShareData(), { mode: "video" }),
     onPdf: () => openRoutePdfModal(pdfCtx),
   });
 });
@@ -4589,7 +4592,7 @@ document.querySelector("#exportSaveToLibrary")?.addEventListener("click", async 
 
 // Close modal
 // ── AI-leírás a mentés-ablakban: a nyomvonal, a burkolat (BRouter) és az útpontok neve alapján ──
-attachAiDescribe(elements.exportDesc, () => {
+const exportAiPayload = () => {
   const g = activeGeometry || [];
   if (g.length < 2) return null;
   const state = store.getState();
@@ -4610,7 +4613,10 @@ attachAiDescribe(elements.exportDesc, () => {
     name, type: selectedMode, distance_km: distanceKm, elevation_m: ascentMeters || null, points, surface,
     waypoints: (state.waypoints || []).map((w) => w.name || w.label || "").filter(Boolean),
   };
-});
+};
+attachAiDescribe(elements.exportDesc, exportAiPayload);
+// AI-név: ugyanabból a nyomvonal-adatból rövid névjavaslat
+attachAiDescribe(document.querySelector("#exportName"), exportAiPayload, { kind: "name" });
 
 elements.exportClose?.addEventListener("click", () => {
   elements.exportOverlay.hidden = true;

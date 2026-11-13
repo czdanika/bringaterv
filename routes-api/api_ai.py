@@ -6,7 +6,8 @@
   PATCH  /api/ai/workout/<id>              az elemzés kézi szerkesztése
   DELETE /api/ai/workout/<id>              az elemzés törlése
   POST   /api/ai/route-request             útvonal-javaslat: szabad szöveges kérés → beállítások
-  POST   /api/ai/route-description         saját útvonal / edzés leírás-javaslata (megye, települések, burkolat, terep)
+  POST   /api/ai/route-description         saját útvonal / edzés leírás-javaslata (megye, települések, burkolat, terep);
+                                            want: "name" → rövid névjavaslat ugyanebből
   GET    /api/admin/ai                     beállítás + felhasználás (admin)
   PUT    /api/admin/ai                     API-kulcs, alap napi limit (admin)
   POST   /api/admin/ai/test                kulcs ellenőrzése (admin)
@@ -177,6 +178,15 @@ def ai_route_description():
         "jelenlegi_leiras": str(data.get("current") or "").strip()[:1000],
     }
     info = {k: v for k, v in info.items() if v not in (None, "", [], {})}
+    if data.get("want") == "name":
+        info.pop("jelenlegi_leiras", None)
+        info["jelenlegi_nev"] = info.pop("nev", None) or ""
+        try:
+            new_name, model, usage = ai_service.name_route(info)
+        except ai_service.AIError as exc:
+            abort(502, description=str(exc))
+        ai_service.log_usage(g.user["id"], "route_name", str(data.get("route_id") or "")[:60], model, usage)
+        return jsonify({"name": new_name, "status": ai_service.status(g.user)})
     try:
         desc, model, usage = ai_service.describe_route(info)
     except ai_service.AIError as exc:
