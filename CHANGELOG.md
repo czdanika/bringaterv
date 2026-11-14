@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.48.1 – 2026-11-14 – Simább 3D berepülés, sztori-margó kapcsoló
+
+- **Sztori-margó kapcsoló:** a Megosztás ablak Formátum csoportjában (csak Sztori méretnél): be – a logó, a cím és a számok beljebb, az Instagram gombjai nem takarják (alapból be); ki – a széleken, mint a többi méretnél. Képre és videóra is (`safe` opció, `bt.shareSafe`).
+- **Javítás – 3D berepülés ugrált:** a kamera a teljes utat végigszáguldotta közelről (képkockánként akár 85 px és 2,5° fordulás). Most a követés magassága a tempóhoz igazodik (a föld képkockánként legfeljebb ~2% képszélességet halad), egyenletes haladás rövid fel- és lelassulással, az irány az út hosszabb szakaszát követi, a fordulás legfeljebb ~1,2° / képkocka; a kezdő és a záró felülnézet az induló / érkező irányban áll (nem északra), így a végén a teljes útvonal látszik.
+
 ## v1.48.0 – 2026-11-14 – 3D berepülés, sztori biztonságos sáv
 
 - **3D berepülés a megosztó videóban:** Animáció → Nézet: Felülnézet / 3D berepülés. MapLibre GL (első használatkor töltődik be, `src/ui/shareFlyover.js`) domborzattal (AWS Terrain Tiles) és műhold- vagy terepi térképpel: felülnézetből lerepül a rajthoz, madártávlatból, a bringás mögül követi a haladást, a végén visszaemelkedik a teljes útvonalra; a fejléc, a panel, a zónaszínes grafikon és a számok ugyanazok, mint a 2D-s videónál. A kamerapálya előre kiszámolva és időben simítva (nincs rángatás a kanyaroknál és az átmeneteknél). Képkockánként készül (WebCodecs + mp4-muxer; http-oldalon a képkockák előre kiszámolva, majd pontos ütemben felvéve), így egyenletes akkor is, ha a gép lassabban rajzol – 1–3 perc.

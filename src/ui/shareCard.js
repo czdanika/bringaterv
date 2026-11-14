@@ -95,7 +95,7 @@ let LW = LINE_WEIGHTS.normal;   // az éppen rajzolt kép vonalvastagsága (crea
  * csak háttér kerül, a logó, a szöveg és a számok beljebb.
  */
 export const STORY_SAFE = { t: 72, b: 60 };
-export const safeInsets = (size) => (size === "story" ? STORY_SAFE : { t: 0, b: 0 });
+export const safeInsets = (size, on = true) => (on && size === "story" ? STORY_SAFE : { t: 0, b: 0 });
 let SAFE = { t: 0, b: 0 };      // az éppen rajzolt kép sávja (createWorkoutShareCard állítja)
 /** Körvonal helyett halvány árnyék (vékony vonalnál), hogy a térképen is elváljon. */
 function thinShadow(ctx, s, dark = 0.35) { ctx.shadowColor = `rgba(0,0,0,${dark})`; ctx.shadowBlur = 2 * s; ctx.shadowOffsetY = 0.4 * s; }
@@ -239,9 +239,10 @@ export async function createWorkoutShareCard({
   wind = null,                // Eredmények: { alongAvg, tailPct, headPct }
   ink = "white",              // Matrica: "white" | "black" | "orange"
   line = "normal",            // a nyomvonal vastagsága: LINE_WEIGHTS kulcs
+  safe = true,                // sztorin hely a kezelőszerveknek (STORY_SAFE)
 }) {
   LW = LINE_WEIGHTS[line] || LINE_WEIGHTS.normal;
-  SAFE = safeInsets(size);
+  SAFE = safeInsets(size, safe);
   const [dw, dh] = SHARE_SIZES[size] || SHARE_SIZES.square;
   const dim = { width: dw, height: dh };
   const s = dim.width / BASE;

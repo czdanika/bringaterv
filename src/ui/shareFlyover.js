@@ -150,14 +150,20 @@ export async function createFlyover({
   const pad = { top: padTop + 40, bottom: padBottom + 40, left: 60, right: 60 };
   const over = map.cameraForBounds(bounds, { padding: pad, bearing: 0, pitch: 0 }) || { center: bounds.getCenter(), zoom: 10 };
   const overView = { lng: over.center.lng, lat: over.center.lat, zoom: over.zoom - 0.15, pitch: 30, bearing: 0 };
-  // követés: kb. a táv 10%-a (1,5–7 km) látszik szélességben
-  const span = Math.max(1500, Math.min(7000, D * 0.1));
-  const latC = (bounds.getNorth() + bounds.getSouth()) / 2;
-  const followZoom = Math.log2((156543.03 * Math.cos(latC * toR) * W) / span);
-  const look = Math.max(300, span * 0.22);   // az irány ennyivel előre nézve (m)
-
   const t0 = intro, t1 = Math.max(intro + 2, duration - outro);
-  const progAt = (t) => easeInOut(clamp01((t - t0) / (t1 - t0)));
+  // haladás: egyenletes tempó rövid fel- és lelassulással (a csúcs csak ~1,14× az átlag –
+  // az easeInOut középen 1,5×-ös volt, ott száguldott a kép)
+  const RAMP = 0.12, VMAX = 1 / (1 - RAMP);
+  const trap = (u) => (u < RAMP ? VMAX * u * u / (2 * RAMP)
+    : u > 1 - RAMP ? 1 - VMAX * (1 - u) * (1 - u) / (2 * RAMP) : VMAX * (u - RAMP / 2));
+  const progAt = (t) => trap(clamp01((t - t0) / (t1 - t0)));
+  // követés magassága a tempóhoz: a föld képkockánként legfeljebb a képszélesség ~2%-át
+  // haladja (30 fps) – rövid útnál közelebb, hosszúnál magasabbról
+  const vPeak = (D / (t1 - t0)) * VMAX;                 // m / s
+  const span = Math.max(1500, vPeak / (30 * 0.02));     // ennyi méter látszik szélességben
+  const latC = (bounds.getNorth() + bounds.getSouth()) / 2;
+  const followZoom = Math.min(over.zoom + 2.2, Math.log2((156543.03 * Math.cos(latC * toR) * W) / span));
+  const look = Math.max(400, span * 0.5, D * 0.12);   // az irány ennyivel előre / hátra nézve (m)
   const pointAt = (dist) => {
     let lo = 0, hi = n - 1;
     while (lo < hi) { const m = (lo + hi + 1) >> 1; if (d[m] <= dist) lo = m; else hi = m - 1; }
@@ -170,13 +176,20 @@ export async function createFlyover({
   for (let q = 0; q <= NB; q++) {
     const dist = (q / NB) * D;
     // a kamera a bringás mögött: a megtett út alulról fut be a képbe
-    bear[q] = bearingDeg(pointAt(Math.max(0, dist - look)), pointAt(Math.min(D, dist + look * 0.3)));
+    bear[q] = bearingDeg(pointAt(Math.max(0, dist - look)), pointAt(Math.min(D, dist + look * 0.6)));
   }
   for (let q = 1; q <= NB; q++) { let x = bear[q]; while (x - bear[q - 1] > 180) x -= 360; while (x - bear[q - 1] < -180) x += 360; bear[q] = x; }
   const smooth = (a, w) => a.map((_, i) => { let s = 0, c = 0; for (let k = Math.max(0, i - w); k <= Math.min(a.length - 1, i + w); k++) { s += a[k]; c++; } return s / c; });
-  let bs = smooth(Array.from(bear), 5); bs = smooth(bs, 4);
+  let bs = smooth(Array.from(bear), 10); bs = smooth(bs, 10);   // ±4% táv: kis kanyarokra nem fordul
   const bearingAt = (p) => { const f = p * NB, i = Math.floor(f), k = f - i; return lerp(bs[Math.min(NB, i)], bs[Math.min(NB, i + 1)], k); };
 
+  // a felülnézet az induló / érkező irányban áll (nem északra) – így nincs nagy fordulás az átmenetben
+  const overAt = (bearing) => {
+    const c = map.cameraForBounds(bounds, { padding: pad, bearing, pitch: 0 });
+    return c ? { lng: c.center.lng, lat: c.center.lat, zoom: c.zoom - 0.15, pitch: 30, bearing }
+             : { ...overView, bearing };
+  };
+  const introView = overAt(bs[0]), outroView = overAt(bs[NB]);
   const followCam = (p) => {
     const c = pointAt(p * D);
     return { lng: c.lng, lat: c.lat, zoom: followZoom, pitch: 62, bearing: bearingAt(p) };
@@ -185,12 +198,12 @@ export async function createFlyover({
     const p = progAt(t);
     if (t < t0) {             // felülnézetből le a rajthoz
       const k = easeInOut(clamp01(t / t0));
-      const a = overView, b = followCam(0);
+      const a = introView, b = followCam(0);
       return { lng: lerp(a.lng, b.lng, k), lat: lerp(a.lat, b.lat, k), zoom: lerp(a.zoom, b.zoom, k), pitch: lerp(a.pitch, b.pitch, k), bearing: lerpAngle(a.bearing, b.bearing, k) };
     }
     if (t > t1) {             // vissza a teljes útvonalra
       const k = easeInOut(clamp01((t - t1) / Math.max(0.5, outro - 0.6)));
-      const a = followCam(1), b = overView;
+      const a = followCam(1), b = outroView;
       return { lng: lerp(a.lng, b.lng, k), lat: lerp(a.lat, b.lat, k), zoom: lerp(a.zoom, b.zoom, k), pitch: lerp(a.pitch, b.pitch, k), bearing: lerpAngle(a.bearing, b.bearing, k) };
     }
     return followCam(p);
@@ -205,6 +218,13 @@ export async function createFlyover({
     while (b - raw[q - 1].bearing < -180) b += 360;
     raw[q].bearing = b;
   }
+  // a fordulás sebessége korlátozva (~1,2° / képkocka 30 fps-nél) – a döntött nézetben a gyors
+  // forgás söpri végig a horizontot; a folytonos (kibontott) irányon, így a lemaradás nem fordul át
+  {
+    const MAXD = 36 / SR;
+    let prev = raw[0].bearing;
+    for (let q = 1; q <= NS; q++) { prev += Math.max(-MAXD, Math.min(MAXD, raw[q].bearing - prev)); raw[q].bearing = prev; }
+  }
   const smoothKey = (key, sec) => {
     let a = raw.map((c) => c[key]);
     const w = Math.max(1, Math.round(sec * SR));
@@ -216,7 +236,7 @@ export async function createFlyover({
     return a;
   };
   const camS = { lng: smoothKey("lng", 0.25), lat: smoothKey("lat", 0.25), zoom: smoothKey("zoom", 0.3),
-                 pitch: smoothKey("pitch", 0.3), bearing: smoothKey("bearing", 0.7) };
+                 pitch: smoothKey("pitch", 0.3), bearing: smoothKey("bearing", 0.9) };
   function cameraSmooth(t) {
     const f = Math.max(0, Math.min(NS, t * SR)), i = Math.floor(f), j = Math.min(NS, i + 1), k = f - i;
     const g = (key) => lerp(camS[key][i], camS[key][j], k);

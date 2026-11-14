@@ -741,6 +741,7 @@ function _initShareCardModal() {
   let _shareSize  = lsGet("bt.shareSize", (v) => ["square", "portrait", "story"].includes(v)) || "square";
   let _shareInk   = lsGet("bt.shareInk", (v) => ["white", "black", "orange"].includes(v)) || "white";
   let _shareDate  = lsGet("bt.shareDate", (v) => v === "0" || v === "1") !== "0";
+  let _shareSafe  = lsGet("bt.shareSafe", (v) => v === "0" || v === "1") !== "0";   // sztori-margó
   let _shareLine  = lsGet("bt.shareLine", (v) => ["thin", "normal", "bold"].includes(v)) || "normal";
   let _shareStats = DEFAULT_STATS.slice();
   try { const v = JSON.parse(localStorage.getItem("bt.shareStats") || "null"); if (Array.isArray(v) && v.length) _shareStats = v.filter((id) => SHARE_STATS.some((x) => x.id === id)).slice(0, 4); } catch {}
@@ -793,7 +794,7 @@ function _initShareCardModal() {
       theme, layout: _shareLayout, charts: _shareCharts, size: _shareSize,
       photo: theme === "photo" ? _sharePhoto : null,
       qrUrl: _qrUrl(),
-      stats: _shareStats, showDate: _shareDate, ink: _shareInk, line: _shareLine,
+      stats: _shareStats, showDate: _shareDate, ink: _shareInk, line: _shareLine, safe: _shareSafe,
     };
   }
 
@@ -830,6 +831,11 @@ function _initShareCardModal() {
   });
   document.querySelector("#shareDateToggle")?.addEventListener("change", (e) => {
     _shareDate = e.target.checked; lsSet("bt.shareDate", _shareDate ? "1" : "0");
+    syncGroups(); refreshSharePreview();
+  });
+  document.querySelector("#shareSafeToggle")?.addEventListener("change", (e) => {
+    if (_videoBusy) { e.target.checked = _shareSafe; return; }
+    _shareSafe = e.target.checked; lsSet("bt.shareSafe", _shareSafe ? "1" : "0");
     syncGroups(); refreshSharePreview();
   });
   document.querySelectorAll("[data-share-line]").forEach((btn) => btn.addEventListener("click", () => {
@@ -993,6 +999,9 @@ function _initShareCardModal() {
     }
     const head = document.querySelector("#shareCardHead"); if (head) head.textContent = video ? "Megosztó videó" : "Megosztó kép";
     const dl = document.querySelector("#shareCardDownload span"); if (dl && !_videoBusy) dl.textContent = video ? "Videó letöltése" : "Letöltés";
+    // sztori-margó: csak 9:16-nál van értelme
+    const safeRow = document.querySelector("#shareSafeRow"); if (safeRow) safeRow.hidden = (video ? _videoSize : _shareSize) !== "story";
+    const safeT = document.querySelector("#shareSafeToggle"); if (safeT) safeT.checked = _shareSafe;
   }
 
   async function refreshVideoPreview() {

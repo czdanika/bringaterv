@@ -351,7 +351,7 @@ Portainer → Stacks → Pull and redeploy.
 A `ghcr.io/czdanika/bringaterv*:latest` image-eket a GitHub Actions buildeli push/release-kor.
 
 ## Jelenlegi verzió
-v1.48.0 (a pontos állapot: `docs/CURRENT_STATE.md`)
+v1.48.1 (a pontos állapot: `docs/CURRENT_STATE.md`)
 
 ## Új integráció / meglévő változása
 - Automatikus import: egy `SyncProvider` alosztály a `<key>_sync.py`-ban (open / candidates / import_one / expires_at), a többi a `sync_engine.py`-ban. Ellenőrzés: `tools/checks/check_sync_engine.py`.

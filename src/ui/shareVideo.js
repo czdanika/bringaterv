@@ -154,6 +154,7 @@ export async function createVideoScene({
   map = "light",               // bg === "map": VIDEO_MAPS id
   titleAlign = "left",         // a cím (az alsó panel tetején): "left" | "center"
   autoZoom = true,             // a kamera közelről indul, és a nyomvonallal együtt távolodik
+  safe: safeZone = true,       // sztorin hely a kezelőszerveknek (safeInsets)
   line = "normal",             // a nyomvonal vastagsága (mint a képen): thin | normal | bold
   view = "2d",                 // "2d" | "3d" (berepülés domborzattal – shareFlyover.js)
   flyMap = "satellite",        // 3D: FLY_MAPS id
@@ -201,7 +202,7 @@ export async function createVideoScene({
   const M = 12 * s;   // mint a jelvények széle
   // felül a megosztó képpel azonos jelvény (bal: logó, jobb: dátum) – 12 / 30 egység, mint a drawBadge
   // sztorin (9:16) a logó, a dátum és a panel az Instagram-kezelőkön belül marad (safeInsets)
-  const safe = _cardKit.safeInsets(size);
+  const safe = _cardKit.safeInsets(size, safeZone);
   const head = { x: BADGE.x * s, y: (BADGE.y + safe.t) * s, w: W - 2 * BADGE.x * s, h: BADGE.h * s };
   const titleH = 26 * s;   // a cím sora az alsó panel tetején
   const profH = hasEle ? (size === "portrait" ? 30 : 38) * s : 0;

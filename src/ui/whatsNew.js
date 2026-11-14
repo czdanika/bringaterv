@@ -19,6 +19,15 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.48.1", date: "2026. november",
+    title: "Nyugodtabb 3D berepülés",
+    lead: "Egyenletesebb repülés, a végén az egész útvonal.",
+    items: [
+      { icon: "mountain", title: "Simább 3D videó", text: "A kamera a tempóhoz igazítja a magasságot, és nyugodtan fordul a kanyarokban." },
+      { icon: "smartphone", title: "Sztori-margó", text: "Sztori méretnél kapcsolható, hogy a logó és a számok beljebb kerüljenek." },
+    ],
+  },
+  {
     version: "1.48.0", date: "2026. november",
     title: "3D berepülés",
     lead: "Madártávlatból repülsz végig a tekerésed útvonalán.",
