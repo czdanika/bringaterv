@@ -11,7 +11,7 @@
  *   initWelcome({ api, onGo, openSettings })  → Promise<boolean> (megjelent-e)
  *     onGo("plan" | "library" | "stats" | "loadFile" …), openSettings("strava" | "cyclistProfile" …)
  */
-import { NEWS } from "./whatsNew.js";
+import { NEWS, syncNewsBadge } from "./whatsNew.js";
 
 const KEY = "bringaterv.welcomeSeen";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -40,6 +40,7 @@ const markSeen = ({ news = false } = {}) => {
     // új felhasználónak az üdvözlő ablak mutatja be az appot – az Újdonságok ne ugorjon fel mellé
     if (news) localStorage.setItem("bringaterv.whatsNewSeen", NEWS[0].version);
   } catch { /* privát mód */ }
+  syncNewsBadge();
 };
 
 let _deps = {}, _state = null;   // { connected: {key: bool}, disabled: Set }
@@ -126,6 +127,7 @@ export async function openWelcome() {
 export async function initWelcome(deps = {}) {
   _deps = deps;
   document.getElementById("welcomeButton")?.addEventListener("click", () => { _state = null; openWelcome(); });
+  if (deps.auto === false) return false;   // pl. amíg az e-mail-megerősítés hiányzik
   const q = new URLSearchParams(location.search);
   if (seen() || q.has("editSample") || q.has("navsim") || q.has("open") || q.has("settings")) return false;
   let items = [];

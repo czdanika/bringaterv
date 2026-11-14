@@ -305,8 +305,9 @@ async function refresh() {
   return _state;
 }
 
+/** Visszaad: true, ha a kötelező e-mail-megerősítő ablak megjelent (ilyenkor más felugró ne jöjjön). */
 export async function initAccount() {
-  if (!getToken()) return;
+  if (!getToken()) return false;
   $("accountEmailSave")?.addEventListener("click", () =>
     saveEmail($("accountEmail"), $("accountEmailSave"), $("accountEmailHint")));
   $("accountResend")?.addEventListener("click", () => resend($("accountResend"), $("accountEmailHint")));
@@ -317,7 +318,8 @@ export async function initAccount() {
   $("accountDeleteBtn")?.addEventListener("click", openDeleteDialog);
 
   const s = await refresh();
-  if (s?.verification_required && !s.email_verified) showGate();
+  const gated = !!(s?.verification_required && !s.email_verified);
+  if (gated) showGate();
 
   // Ha a megerősítés egy másik lapon történt, visszatéréskor frissüljön
   document.addEventListener("visibilitychange", async () => {
@@ -325,4 +327,5 @@ export async function initAccount() {
     await refresh();
     if (_state?.email_verified) { $("emailGate").remove(); location.reload(); }
   });
+  return gated;
 }

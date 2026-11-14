@@ -485,7 +485,7 @@
                     <button type="button" class="icon-button f-more-btn" id="fFileMoreBtn" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu" aria-expanded="false"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
                     <div class="plan-pop plan-menu" id="fFileMenu" role="menu" hidden>
                       <button type="button" role="menuitem" data-proxy="fileExportButton"><i data-lucide="download" aria-hidden="true"></i>GPX letöltése</button>
-                      <button type="button" role="menuitem" data-proxy="fileShareButton"><i data-lucide="share-2" aria-hidden="true"></i>Megosztás, PDF…</button>
+                      <button type="button" role="menuitem" data-proxy="fileShareButton"><i data-lucide="share-2" aria-hidden="true"></i>Megosztás…</button>
                       <div class="f-menu-info" id="fFileInfo"></div>
                       <div class="plan-menu-sep"></div>
                       <button type="button" role="menuitem" data-proxy="fileClearButton"><i data-lucide="x" aria-hidden="true"></i>Bezárás</button>
@@ -515,7 +515,7 @@
                 <div class="f-acts" id="fFileActs">
                   <button type="button" class="lib-x-btn is-primary" data-proxy="fileSaveToLibraryButton"><i data-lucide="bookmark-plus" aria-hidden="true"></i><span>Mentés</span></button>
                   <button type="button" class="lib-x-btn" data-proxy="planFromFileBtn"><i data-lucide="map-pin-plus" aria-hidden="true"></i><span>Tervezés</span></button>
-                  <button type="button" class="lib-x-icon" data-proxy="fileShareButton" title="Megosztás – kép, PDF, link" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
+                  <button type="button" class="lib-x-icon" data-proxy="fileShareButton" title="Megosztás" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
                 </div>
                 <div class="m-file-strip" id="mFileStrip" hidden>
                   <div class="m-file-strip-svg" id="mFileStripSvg"></div>
@@ -1935,7 +1935,7 @@
             <i data-lucide="download" aria-hidden="true"></i>
             GPX letöltés
           </button>
-          <button id="exportPdf" class="export-confirm-btn export-confirm-btn--secondary" type="button" title="Kép, videó vagy PDF">
+          <button id="exportPdf" class="export-confirm-btn export-confirm-btn--secondary" type="button" title="Kép, videó, PDF, link">
             <i data-lucide="share-2" aria-hidden="true"></i>
             Megosztás
           </button>
@@ -3842,8 +3842,15 @@
         <details class="sc-group" data-sc-group="video" data-sc-video-only open hidden>
           <summary><span>Animáció</span><em data-sc-sum="video"></em><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
           <div class="sc-group-body">
-            <div class="sc-sub">Háttér</div>
-            <div id="shareVideoBgPicker" class="sc-chips" role="group" aria-label="Háttér"></div>
+            <div id="shareVideoViewRow">
+              <div class="sc-sub">Nézet</div>
+              <div id="shareVideoViewSeg" class="sc-seg" role="group" aria-label="Nézet">
+                <button class="share-opt-btn share-opt-btn--active" data-video-view="2d" type="button"><i data-lucide="map" aria-hidden="true"></i> Felülnézet</button>
+                <button class="share-opt-btn" data-video-view="3d" type="button"><i data-lucide="mountain" aria-hidden="true"></i> 3D berepülés</button>
+              </div>
+            </div>
+            <div class="sc-sub" data-video-2d>Háttér</div>
+            <div id="shareVideoBgPicker" class="sc-chips" role="group" aria-label="Háttér" data-video-2d></div>
             <div id="shareVideoMapRow">
               <div class="sc-sub">Térkép</div>
               <div id="shareVideoMapPicker" class="sc-chips" role="group" aria-label="Térkép"></div>
@@ -3888,6 +3895,12 @@
               <button class="share-opt-btn share-opt-btn--active" data-share-size="square" type="button"><i data-lucide="square" aria-hidden="true"></i> Négyzet</button>
               <button class="share-opt-btn" data-share-size="portrait" type="button" title="4:5 – Instagram-bejegyzés"><i data-lucide="rectangle-vertical" aria-hidden="true"></i> 4:5</button>
               <button class="share-opt-btn" data-share-size="story" type="button" title="9:16 – sztori"><i data-lucide="smartphone" aria-hidden="true"></i> Sztori</button>
+            </div>
+            <div class="sc-sub">Vonal</div>
+            <div class="sc-seg" role="group" aria-label="A nyomvonal vastagsága">
+              <button class="share-opt-btn" data-share-line="thin" type="button">Vékony</button>
+              <button class="share-opt-btn share-opt-btn--active" data-share-line="normal" type="button">Normál</button>
+              <button class="share-opt-btn" data-share-line="bold" type="button">Vastag</button>
             </div>
             <div data-sc-cap="theme" data-sc-image-only>
               <div class="sc-sub">Háttér</div>

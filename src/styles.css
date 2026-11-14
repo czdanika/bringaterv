@@ -336,6 +336,17 @@ h1, h2, h3 { margin: 0; letter-spacing: 0; }
   letter-spacing: .04em;
   margin-bottom: 4px;
 }
+.rail-version { cursor: pointer; border-radius: 6px; padding: 4px 2px; transition: color .15s, background .15s, opacity .15s; }
+.rail-version:hover { opacity: 1; color: var(--brand); }
+/* van nem látott újdonság: márkaszín + finom pulzálás */
+.rail-version.is-new { color: var(--brand); opacity: 1; font-weight: 700; background: var(--brand-soft);
+  animation: rvPulse 1.8s ease-in-out infinite; }
+@keyframes rvPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 70, 30, .45); } 60% { box-shadow: 0 0 0 6px rgba(232, 70, 30, 0); } }
+#topnavMenuBtn, #whatsNewButton { position: relative; }
+#topnavMenuBtn.has-news::after, #whatsNewButton.has-news::after { content: ""; position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2px var(--panel-bg, #fff); }
+#whatsNewButton.has-news::after { top: 50%; right: 12px; transform: translateY(-50%); }
+@media (prefers-reduced-motion: reduce) { .rail-version.is-new { animation: none; } }
 
 /* Sidebar inner (panelek + footer) */
 .sidebar-inner {

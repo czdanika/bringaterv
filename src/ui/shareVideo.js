@@ -16,8 +16,24 @@
  *   loadVideoMedia(file)                     → Promise<{ kind: "image"|"video", el }>
  */
 import { num } from "../format.js";
-import { _cardKit, SHARE_SIZES, DEFAULT_STATS, SHARE_CHARTS, BADGE } from "./shareCard.js";
+import { _cardKit, SHARE_SIZES, DEFAULT_STATS, SHARE_CHARTS, BADGE, LINE_WEIGHTS } from "./shareCard.js";
 import { buildHrZoneColorFn, getZoneColor, gradeColorForGrade, getChartColors } from "./settings.js";
+import { createFlyover, flyoverSupported, FLY_MAPS } from "./shareFlyover.js";
+
+export { FLY_MAPS, flyoverSupported };
+
+// a 3D térkép újraépítése drága (WebGL + csempék) – amíg a nyomvonal / méret / térkép ugyanaz, megtartjuk
+let _fly = null;   // { key, inst }
+async function getFlyover(key, opts) {
+  if (_fly?.key === key) return _fly.inst;
+  _fly?.inst?.destroy();
+  _fly = null;
+  const inst = await createFlyover(opts);
+  _fly = { key, inst };
+  return inst;
+}
+/** A 3D térkép felszabadítása (a megosztó ablak bezárásakor). */
+export function releaseFlyover() { _fly?.inst?.destroy(); _fly = null; }
 
 // (a shareCard.js körkörösen töltődik be – a segédeket csak használatkor vesszük ki)
 
@@ -138,7 +154,14 @@ export async function createVideoScene({
   map = "light",               // bg === "map": VIDEO_MAPS id
   titleAlign = "left",         // a cím (az alsó panel tetején): "left" | "center"
   autoZoom = true,             // a kamera közelről indul, és a nyomvonallal együtt távolodik
+  line = "normal",             // a nyomvonal vastagsága (mint a képen): thin | normal | bold
+  view = "2d",                 // "2d" | "3d" (berepülés domborzattal – shareFlyover.js)
+  flyMap = "satellite",        // 3D: FLY_MAPS id
 }) {
+  const is3d = view === "3d";
+  if (is3d) { bg = "map"; autoZoom = false; routeColors = false; }
+  const LW = LINE_WEIGHTS[line] || LINE_WEIGHTS.normal;
+  const RW = 3.4 * LW.k;        // a vonal szélessége (360-as alapban)
   const mapDef = VIDEO_MAPS.find((m) => m.id === map) || VIDEO_MAPS[0];
   if (zoneColors == null) { try { zoneColors = getChartColors().mode === "zones"; } catch { zoneColors = true; } }
   const { palette, fitProjection, drawTiles, loadLogo, roundRectPath, drawDot, fitOneLine, drawWordmark, drawBadge, hav,
@@ -177,18 +200,20 @@ export async function createVideoScene({
   // ── elrendezés (360-as alapegységben × s) ──
   const M = 12 * s;   // mint a jelvények széle
   // felül a megosztó képpel azonos jelvény (bal: logó, jobb: dátum) – 12 / 30 egység, mint a drawBadge
-  const head = { x: BADGE.x * s, y: BADGE.y * s, w: W - 2 * BADGE.x * s, h: BADGE.h * s };
+  // sztorin (9:16) a logó, a dátum és a panel az Instagram-kezelőkön belül marad (safeInsets)
+  const safe = _cardKit.safeInsets(size);
+  const head = { x: BADGE.x * s, y: (BADGE.y + safe.t) * s, w: W - 2 * BADGE.x * s, h: BADGE.h * s };
   const titleH = 26 * s;   // a cím sora az alsó panel tetején
   const profH = hasEle ? (size === "portrait" ? 30 : 38) * s : 0;
   const panelH = 14 * s + titleH + (profH ? profH + 12 * s : 0) + 46 * s + 12 * s;
-  const panel = { x: M, y: H - M - panelH, w: W - 2 * M, h: panelH };
+  const panel = { x: M, y: H - M - safe.b * s - panelH, w: W - 2 * M, h: panelH };
   const gap = (size === "portrait" ? 12 : 18) * s;
   const routeBox = { x: M + 10 * s, y: head.y + head.h + gap, w: W - 2 * M - 20 * s, h: panel.y - (head.y + head.h) - 2 * gap };
   const proj = fitProjection(pts, routeBox);
   const xy = pts.map(proj.toPx);
 
   // ── színek ──
-  const isLightMap = bg === "map" && mapDef.light;
+  const isLightMap = bg === "map" && mapDef.light && !is3d;
   const ui = isLightMap
     ? { card: "rgba(255,255,255,0.94)", text: "#16191d", muted: "#6b7280", line: "rgba(0,0,0,0.08)",
         route: "#fc4c02", casing: "#ffffff", ghost: "rgba(252,76,2,0.22)", start: "#16a34a" }
@@ -405,17 +430,18 @@ export async function createVideoScene({
     ctx.save();
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     const path = () => { ctx.beginPath(); ctx.moveTo(xyS[0].x, xyS[0].y); for (let j = 1; j <= i; j++) ctx.lineTo(xyS[j].x, xyS[j].y); ctx.lineTo(hx, hy); ctx.stroke(); };
-    ctx.strokeStyle = ui.casing; ctx.lineWidth = 6 * s; path();
+    if (LW.casing) { ctx.strokeStyle = ui.casing; ctx.lineWidth = (RW + 2.6) * s; path(); }
+    else { ctx.shadowColor = isLightMap ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.55)"; ctx.shadowBlur = 2 * s; }
     if (routeSeg) {
       // színezett nyomvonal: szakaszonként a zóna színével
-      ctx.lineWidth = 3.4 * s;
+      ctx.lineWidth = RW * s;
       for (let j = 0; j <= i && j < n - 1; j++) {
         const q = xyS[j + 1], to = j === i ? { x: hx, y: hy } : q;
         ctx.strokeStyle = routeSeg[j];
         ctx.beginPath(); ctx.moveTo(xyS[j].x, xyS[j].y); ctx.lineTo(to.x, to.y); ctx.stroke();
       }
     } else {
-      ctx.strokeStyle = ui.route; ctx.lineWidth = 3.4 * s; path();
+      ctx.strokeStyle = ui.route; ctx.lineWidth = RW * s; path();
     }
     ctx.restore();
     return { x: hx, y: hy };
@@ -441,7 +467,7 @@ export async function createVideoScene({
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(0, (1 - alpha) * -8 * s);
-    drawBadge(ctx, badgeC, s, logo);            // ugyanaz a jelvény, mint a megosztó képen
+    drawBadge(ctx, badgeC, s, logo, safe.t);            // ugyanaz a jelvény, mint a megosztó képen
     if (showDate && date) {
       const txt = date.toUpperCase();
       ctx.font = `700 ${8.5 * s}px ${FONT}`;
@@ -557,7 +583,15 @@ export async function createVideoScene({
       ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fillRect(0, 0, W, H);
     }
     ctx.save();
-    if (bg === "map") {
+    if (fly) {
+      if (!prepared) fly.setFrame(t);   // előnézet: a kamera azonnal, a kép a következő rajzolással frissül
+      ctx.fillStyle = "#1d2a1f"; ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(fly.canvas, 0, 0, W, H);
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "rgba(0,0,0,0.30)"); g.addColorStop(0.22, "rgba(0,0,0,0)");
+      g.addColorStop(0.72, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.38)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    } else if (bg === "map") {
       drawMap(ctx, cam);
       // olvashatóság: fent / lent halvány sáv a jelvények és a panel mögött
       const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -567,12 +601,12 @@ export async function createVideoScene({
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     } else if (!liveVideo) ctx.drawImage(bgCanvas, 0, 0);
 
-    // a teljes útvonal halványan, aztán a megtett rész
-    const ghostA = clamp01(t / INTRO);
+    // a teljes útvonal halványan, aztán a megtett rész (3D-nél a térkép rajzolja, itt csak a fej)
+    const ghostA = fly ? 0 : clamp01(t / INTRO);
     ctx.save();
     ctx.globalAlpha = ghostA;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.strokeStyle = ui.ghost; ctx.lineWidth = 3.4 * s;
+    ctx.strokeStyle = ui.ghost; ctx.lineWidth = RW * s;
     ctx.beginPath(); xyS.forEach((q, j) => (j ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke();
     ctx.restore();
 
@@ -581,10 +615,14 @@ export async function createVideoScene({
     const i = indexAt(target);
     const segLen = i < n - 1 ? d[i + 1] - d[i] : 0;
     const frac = segLen > 0 ? clamp01((target - d[i]) / segLen) : 0;
-    const headPt = p > 0 ? drawRoutePart(ctx, i, frac) : xyS[0];
-    drawDot(ctx, xyS[0].x, xyS[0].y, 4.6 * s, ui.start, "#ffffff", 1.6 * s);
+    let headPt;
+    if (fly) headPt = fly.headAt(t) || { x: -99, y: -99 };
+    else {
+      headPt = p > 0 ? drawRoutePart(ctx, i, frac) : xyS[0];
+      drawDot(ctx, xyS[0].x, xyS[0].y, 4.6 * s, ui.start, "#ffffff", 1.6 * s);
+    }
 
-    const end = t >= drawEnd;
+    const end = fly ? t >= fly.drawEnd : t >= drawEnd;
     if (!end) {
       // fej: pulzáló fénykör + pötty
       const r = (9 + 3 * Math.sin(t * 6)) * s;
@@ -594,7 +632,7 @@ export async function createVideoScene({
       drawDot(ctx, headPt.x, headPt.y, 5 * s, routeSeg ? routeSeg[Math.min(i, n - 2)] : ui.route, "#ffffff", 2 * s);
     } else {
       // cél: egyszer kifutó gyűrű
-      const e = xyS[n - 1], k = clamp01((t - drawEnd) / 0.9);
+      const e = fly ? headPt : xyS[n - 1], k = clamp01((t - (fly ? fly.drawEnd : drawEnd)) / 0.9);
       if (k < 1) {
         ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - k)})`; ctx.lineWidth = 2.4 * s;
         ctx.beginPath(); ctx.arc(e.x, e.y, (6 + 26 * easeOut(k)) * s, 0, Math.PI * 2); ctx.stroke();
@@ -615,11 +653,19 @@ export async function createVideoScene({
   }
 
   if (autoZoom) buildCamera();
-  if (bg === "map") await preloadTiles();
+  let fly = null, prepared = false;
+  if (is3d) {
+    const padTop = Math.round(head.y + head.h + 8 * s), padBottom = Math.round(H - panel.y + 8 * s);
+    const key = JSON.stringify([n, pts[0].lat, pts[0].lng, pts[n - 1].lat, pts[n - 1].lng, Math.round(D), W, H, duration, flyMap, line, padTop, padBottom]);
+    fly = await getFlyover(key, { points: pts, W, H, duration, map: flyMap, line, color: ui.route, padTop, padBottom });
+    await fly.setFrame(0, { wait: true });
+  } else if (bg === "map") await preloadTiles();
 
   return {
     W, H, duration,
-    draw,
+    offline: !!fly,                        // képkockánként kell felvenni (encodeScene)
+    async prepareFrame(t) { if (fly) { await fly.setFrame(t, { wait: true }); prepared = true; } },
+    draw(ctx, t) { draw(ctx, t); prepared = false; },
     restart() {
       if (liveVideo) { try { liveVideo.currentTime = 0; liveVideo.play().catch(() => {}); } catch { /* nincs lejátszás */ } }
     },
@@ -675,4 +721,129 @@ export async function recordScene(canvas, scene, { onProgress, fps = 30 } = {}) 
   scene.stop();
   const type = mime.split(";")[0];
   return { blob: new Blob(chunks, { type }), ext: type.includes("mp4") ? "mp4" : "webm", mime: type };
+}
+
+
+// ── Képkockánkénti kódolás (WebCodecs + MP4): a gép sebességétől függetlenül sima ─────────────
+let _muxLoading = null;
+function loadMuxer() {
+  if (window.Mp4Muxer) return Promise.resolve(window.Mp4Muxer);
+  _muxLoading ??= new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://unpkg.com/mp4-muxer@5.1.3/build/mp4-muxer.js";
+    sc.onload = () => res(window.Mp4Muxer);
+    sc.onerror = () => { _muxLoading = null; rej(new Error("A videókódoló nem tölthető be (nincs internet?).")); };
+    document.head.appendChild(sc);
+  });
+  return _muxLoading;
+}
+/** Tud-e a böngésző képkockánként MP4-et kódolni (WebCodecs). */
+export const canEncode = () => typeof window.VideoEncoder === "function" && typeof window.VideoFrame === "function";
+
+async function pickCodec(W, H, fps) {
+  for (const codec of ["avc1.640028", "avc1.4d0028", "avc1.42e028", "avc1.640033"]) {
+    const cfg = { codec, width: W, height: H, bitrate: 10_000_000, framerate: fps };
+    try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg; } catch { /* következő */ }
+  }
+  throw new Error("Ez a böngésző nem tud MP4-et kódolni.");
+}
+
+/** Képkockánkénti felvétel WebCodecs nélkül (pl. http-oldalon): 1. minden képkocka előre
+ *  kiszámolva, JPEG-ként eltárolva (a lassú 3D-rajzolás itt nem számít); 2. a kész képek pontos
+ *  ütemben, valós időben lejátszva a MediaRecordernek – így a videó egyenletes. */
+async function encodeSceneMR(canvas, scene, { onProgress, fps = 30 } = {}) {
+  const mime = pickMime();
+  if (!mime || !canvas.captureStream) throw new Error("Ez a böngésző nem tud videót készíteni.");
+  canvas.width = scene.W; canvas.height = scene.H;
+  const ctx = canvas.getContext("2d");
+  const frames = Math.round(scene.duration * fps) + Math.round(fps * 0.3);
+  const shots = [];
+  scene.restart();
+  // 1. előre: képkockák JPEG-ként (a folyamat ~85%-a)
+  for (let i = 0; i < frames; i++) {
+    const t = Math.min(scene.duration, i / fps);
+    await scene.prepareFrame?.(t);
+    scene.draw(ctx, t);
+    shots.push(await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92)));
+    onProgress?.(((i + 1) / frames) * 0.85);
+  }
+  scene.stop();
+  // 2. lejátszás pontos ütemben a felvevőnek (előre dekódolva néhány képkockát)
+  const bitmaps = new Map();
+  let next = 0;
+  const fill = () => { while (next < frames && bitmaps.size < 12) { const k = next++; bitmaps.set(k, createImageBitmap(shots[k])); } };
+  fill();
+  const first = await bitmaps.get(0);
+  ctx.drawImage(first, 0, 0);
+  const stream = canvas.captureStream(fps);
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10_000_000 });
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+  const stopped = new Promise((resolve) => { rec.onstop = resolve; });
+  rec.start(250);
+  await new Promise((resolve) => {
+    const t0 = performance.now();
+    let shown = 0;
+    const tick = async () => {
+      const k = Math.min(frames - 1, Math.floor(((performance.now() - t0) / 1000) * fps));
+      if (k > shown || k === 0) {
+        const bp = bitmaps.get(k);
+        if (bp) {
+          const bm = await bp;
+          ctx.drawImage(bm, 0, 0);
+          // a már elhagyott képkockák felszabadítása
+          for (const key of [...bitmaps.keys()]) if (key <= k) { bitmaps.get(key).then((b) => b.close?.()); bitmaps.delete(key); }
+          shown = k;
+        }
+        fill();
+      }
+      onProgress?.(0.85 + 0.15 * (k / (frames - 1)));
+      if (k >= frames - 1 && performance.now() - t0 > (frames / fps) * 1000 + 150) resolve();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  rec.stop();
+  await stopped;
+  stream.getTracks().forEach((tr) => tr.stop());
+  const type = mime.split(";")[0];
+  return { blob: new Blob(chunks, { type }), ext: type.includes("mp4") ? "mp4" : "webm", mime: type };
+}
+
+/** Felvétel képkockánként: minden képkockánál megvárja a jelenetet (3D: csempék), MP4-et ad.
+ *  WebCodecs nélkül (http-oldal, régebbi böngésző) a szüneteltetett MediaRecorder az út. */
+export async function encodeScene(canvas, scene, opts = {}) {
+  if (!canEncode()) return encodeSceneMR(canvas, scene, opts);
+  const { onProgress, fps = 30 } = opts;
+  const Mux = await loadMuxer();
+  const W = scene.W, H = scene.H;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  const cfg = await pickCodec(W, H, fps);
+  const muxer = new Mux.Muxer({ target: new Mux.ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: fps }, fastStart: "in-memory" });
+  let encErr = null;
+  const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { encErr = e; } });
+  enc.configure(cfg);
+  scene.restart();
+  const frames = Math.round(scene.duration * fps) + Math.round(fps * 0.3);   // a végén egy kis kitartás
+  try {
+    for (let i = 0; i < frames; i++) {
+      if (encErr) throw encErr;
+      const t = Math.min(scene.duration, i / fps);
+      await scene.prepareFrame?.(t);
+      scene.draw(ctx, t);
+      const frame = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / fps), duration: Math.round(1e6 / fps) });
+      enc.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+      frame.close();
+      while (enc.encodeQueueSize > 6) await new Promise((r) => setTimeout(r, 5));
+      onProgress?.((i + 1) / frames);
+    }
+    await enc.flush();
+  } finally {
+    try { enc.close(); } catch { /* már zárva */ }
+    scene.stop();
+  }
+  if (encErr) throw encErr;
+  muxer.finalize();
+  return { blob: new Blob([muxer.target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4" };
 }

@@ -608,7 +608,7 @@ function buildLibraryExpandRow(route, category, isSample) {
         ${route.description ? `<div class="library-expand-desc">${escapeHtml(route.description)}</div>` : ""}
         <div class="lib-x-acts">
           ${first}${second}
-          <button class="lib-x-icon" type="button" data-action="share-menu" title="Megosztás – kép, PDF, link" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
+          <button class="lib-x-icon" type="button" data-action="share-menu" title="Megosztás" aria-label="Megosztás"><i data-lucide="share-2" aria-hidden="true"></i></button>
           <button class="lib-x-icon" type="button" data-action="more" title="További műveletek" aria-label="További műveletek" aria-haspopup="menu"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
           ${!isSample && isWorkout ? `<label class="lib-x-stats" title="Beleszámít-e a statisztikákba, rekordokba">
             <span class="toggle-switch"><input type="checkbox" data-stats-toggle ${inStats ? "checked" : ""}><span class="toggle-track"></span></span>
@@ -1074,7 +1074,7 @@ function routeActionItems(route, category, isSample, { compact = false } = {}) {
   if (!compact) {
     if (isWorkout && !route.indoor) items.push({ act: "load-plan", icon: "map-pin-plus", label: "Betöltés tervezésre" });
     else items.push({ act: "load-file", icon: "chart-line", label: "Megnyitás az Elemzésben" });
-    items.push({ act: "share-menu", icon: "share-2", label: "Megosztás", hint: "kép, PDF, link" });
+    items.push({ act: "share-menu", icon: "share-2", label: "Megosztás" });
   }
   items.push({ act: "download-gpx", icon: "download", label: "GPX letöltése" });
   if (route.has_fit) items.push({ act: "download-fit", icon: "file-down", label: "FIT letöltése" });

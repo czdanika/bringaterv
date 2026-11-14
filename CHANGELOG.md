@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.48.0 – 2026-11-14 – 3D berepülés, sztori biztonságos sáv
+
+- **3D berepülés a megosztó videóban:** Animáció → Nézet: Felülnézet / 3D berepülés. MapLibre GL (első használatkor töltődik be, `src/ui/shareFlyover.js`) domborzattal (AWS Terrain Tiles) és műhold- vagy terepi térképpel: felülnézetből lerepül a rajthoz, madártávlatból, a bringás mögül követi a haladást, a végén visszaemelkedik a teljes útvonalra; a fejléc, a panel, a zónaszínes grafikon és a számok ugyanazok, mint a 2D-s videónál. A kamerapálya előre kiszámolva és időben simítva (nincs rángatás a kanyaroknál és az átmeneteknél). Képkockánként készül (WebCodecs + mp4-muxer; http-oldalon a képkockák előre kiszámolva, majd pontos ütemben felvéve), így egyenletes akkor is, ha a gép lassabban rajzol – 1–3 perc.
+- **Vonalvastagság a megosztásnál:** Vékony (elegáns, körvonal nélkül, halvány árnyékkal) / Normál / Vastag – a képen minden stílusnál és a videón is; a választás megmarad.
+- **„Megosztás” felirat:** a menükben és a gombokon csak „Megosztás” (eddig „Megosztás, PDF…” / „kép, PDF, link”) – az ablakban kép, videó, PDF és link is van.
+- **Újdonságok a verziószámon:** amíg van nem látott újdonság, a bal alsó verziószám márkaszínnel pulzál (telefonon a ☰ gombon és az Újdonságok menüponton pötty); a verziószámra kattintva bármikor megnyílik az Újdonságok ablak.
+- **Sztori biztonságos sáv:** a 9:16-os képen és videón a logó, a dátum, a cím és a számok beljebb kerülnek (felül ~230 px, alul ~250 px szabad), így az Instagram / Facebook sztori kezelőszervei nem takarják; a háttér továbbra is teljes képernyős (`shareCard.js` `safeInsets`).
+- **Javítás – Megosztás ablak:** a Kép / Videó / PDF választás után a következő ablakban nem jelenik meg újra a Kép / Videó kapcsoló, a cím a választást mutatja (Megosztó kép / Megosztó videó); a Könyvtárból a Videó gomb eddig képre nyitott.
+- **Javítás – új felhasználó belépése:** a kötelező e-mail-megerősítés előtt felugrott az Újdonságok ablak (a megerősítés előtt a szerver megtagadja az adatokat, ezért az Üdvözlő ablak nem jelent meg, helyette az Újdonságok jött). Most amíg a megerősítés hiányzik, csak a megerősítő ablak látszik (az Üdvözlő, az Újdonságok és a telepítési sáv sem); megerősítés után az oldal újratölt, és jön az Üdvözlő ablak.
+
 ## v1.47.0 – 2026-11-13 – Megosztó videó, beltéri FIT, AI-név
 
 - **AI-név:** az útvonal neve mellett is van AI-gomb (Tervező → Mentés, Könyvtár → Szerkesztés): a nyomvonalból (táj, rajt / cél, érintett települések, kör vagy A → B) rövid névjavaslat, a napi AI-keretből (`POST /api/ai/route-description` + `want: "name"`).

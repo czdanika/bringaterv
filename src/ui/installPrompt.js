@@ -77,6 +77,7 @@ export function initInstallPrompt({ menuItem = null } = {}) {
 
 function maybeShowBanner() {
   if (isStandalone() || dismissedRecently() || document.getElementById("installBanner")) return;
+  if (document.getElementById("emailGate")) return;   // a kötelező e-mail-megerősítés alatt ne zavarjon
   if (!isTouch()) return;                         // asztalon csak a menüpont
   if (!isIOS() && !_deferred) return;
 

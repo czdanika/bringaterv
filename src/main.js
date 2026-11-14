@@ -897,7 +897,7 @@ initLibrary({
   toast:              showToast,
   downloadGpx:        (name, txt) => downloadGpx(name, txt),
   loadRoute:          (id, isSample, name, target) => loadRouteFromLibrary(id, isSample, name, target),
-  openShareCardWith:  (data) => window._openShareCardWith?.(data),
+  openShareCardWith:  (data, opts) => window._openShareCardWith?.(data, opts),
   openStravaImportModal: () => openStravaImportModal(),
   processImportedFile:   (file) => processImportedFile(file),
   refreshStravaStatus:   () => refreshStravaStatus(),
@@ -2783,16 +2783,18 @@ initWhatsNew({
     } else switchTab(to);
   },
 });
-initWelcome({
+initFeedback();
+// Előbb a fiók: ha kötelező e-mail-megerősítés vár, se az Üdvözlő, se az Újdonságok ablak nem ugrik fel
+// (a megerősítés után az oldal újratölt, és akkor jönnek)
+initAccount().catch(() => false).then((gated) => initWelcome({
   api: routesApi,
+  auto: !gated,
   openSettings: openSettingsSection,
   onGo: (to) => {
     if (to === "loadFile") { switchTab("file"); elements.gpxInput?.click(); }
     else switchTab(to);
   },
-}).then((shown) => { if (!shown) setTimeout(maybeShowWhatsNew, 900); });
-initFeedback();
-initAccount();
+}).then((shown) => { if (!shown && !gated) setTimeout(maybeShowWhatsNew, 900); }));
 // Mobilon a diagram / szél panel nyitásakor (mobileShell.js) újraillesztjük az útvonalat
 window.addEventListener("bringaterv:refit", () => mapAdapter.fitRoute?.());
 (async () => {

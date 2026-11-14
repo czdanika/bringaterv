@@ -10,11 +10,25 @@
  * (nem a CHANGELOG másolata). Ikonok: lucide.dev nevek.
  *
  *   initWhatsNew({ onGo })   onGo("library" | "settings" | "plan" | …)
+ *
+ * Amíg van nem látott kiadás, a bal alsó verziószám (#appVersion) pulzál (telefonon a ☰ gombon pötty);
+ * a verziószámra kattintva bármikor megnyílik az ablak.
  */
 
 const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
+  {
+    version: "1.48.0", date: "2026. november",
+    title: "3D berepülés",
+    lead: "Madártávlatból repülsz végig a tekerésed útvonalán.",
+    items: [
+      { icon: "mountain", title: "3D videó", text: "Domborzattal, műhold- vagy terepi térképen – a bringás mögül követi az útvonalat." },
+      { icon: "pen-line", title: "Vonalvastagság", text: "Vékony, normál vagy vastag nyomvonal a képen és a videón." },
+      { icon: "smartphone", title: "Sztorira szabva", text: "A logót és a számokat nem takarják el az Instagram gombjai." },
+      { icon: "bell", title: "Újdonságok jelzése", text: "Ha van újdonság, a verziószám pulzál – rákattintva megnyílik." },
+    ],
+  },
   {
     version: "1.47.0", date: "2026. november",
     title: "Megosztó videó",
@@ -141,6 +155,17 @@ const markSeen = () => { try { localStorage.setItem(KEY, NEWS[0].version); } cat
 
 let _deps = {};
 
+/** A még nem látott kiadások (első alkalommal csak a legutóbbi). */
+const unseen = () => { const s = seen(); return s ? NEWS.filter((r) => cmp(r.version, s) > 0) : [NEWS[0]]; };
+
+/** Verziószám-pulzálás és a ☰ menü pöttye a nem látott újdonságok szerint. */
+export function syncNewsBadge() {
+  const fresh = unseen().length > 0;
+  document.getElementById("appVersion")?.classList.toggle("is-new", fresh);
+  document.getElementById("topnavMenuBtn")?.classList.toggle("has-news", fresh);
+  document.getElementById("whatsNewButton")?.classList.toggle("has-news", fresh);
+}
+
 function itemHtml(it) {
   return `<li class="wn-item">
     <span class="wn-ico"><i data-lucide="${esc(it.icon)}" aria-hidden="true"></i></span>
@@ -193,7 +218,7 @@ export function openWhatsNew({ only } = {}) {
   const close = () => {
     if (ov.querySelector("[data-again]")?.checked) {
       try { localStorage.setItem(KEY, NEWS[1]?.version || "0.0.0"); } catch { /* privát mód */ }
-    } else markSeen(); ov.classList.add("is-leaving"); setTimeout(() => ov.remove(), 180); document.removeEventListener("keydown", onKey); };
+    } else markSeen(); syncNewsBadge(); ov.classList.add("is-leaving"); setTimeout(() => ov.remove(), 180); document.removeEventListener("keydown", onKey); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
   ov.addEventListener("click", (e) => {
     const go = e.target.closest("[data-go]");
@@ -207,8 +232,7 @@ export function openWhatsNew({ only } = {}) {
 
 /** Belépés után: ha van még nem látott kiadás, megmutatja (egyszer). */
 export function maybeShowWhatsNew() {
-  const s = seen();
-  const fresh = s ? NEWS.filter((r) => cmp(r.version, s) > 0) : [NEWS[0]];
+  const fresh = unseen();
   if (!fresh.length) return;
   // ne zavarjon mélylinkes megnyitásnál (pl. admin nyomvonal-szerkesztés, navigáció-próba)
   const q = new URLSearchParams(location.search);
@@ -218,7 +242,18 @@ export function maybeShowWhatsNew() {
 
 export function initWhatsNew(deps = {}) {
   _deps = deps;
-  document.getElementById("whatsNewButton")?.addEventListener("click", () => openWhatsNew());
+  document.getElementById("whatsNewButton")?.addEventListener("click", () => openWhatsNew({ only: unseen() }));
+  // bal alul a verziószám: kattintásra az Újdonságok (pulzál, ha van nem látott)
+  const ver = document.getElementById("appVersion");
+  if (ver) {
+    ver.setAttribute("role", "button");
+    ver.tabIndex = 0;
+    ver.title = "Újdonságok";
+    const open = () => openWhatsNew({ only: unseen() });
+    ver.addEventListener("click", open);
+    ver.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  }
+  syncNewsBadge();
   // kicsit később, hogy az app már betöltött legyen (auto: false → a hívó indítja, pl. az üdvözlő ablak után)
   if (deps.auto !== false) setTimeout(maybeShowWhatsNew, 1200);
 }

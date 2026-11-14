@@ -81,6 +81,25 @@ export const SHARE_STATS = [
 ];
 export const DEFAULT_STATS = ["dist", "time", "speed", "elev"];
 
+/** A nyomvonal vastagsága: vékony (elegáns, körvonal nélkül), normál, vastag – képen és videón. */
+export const LINE_WEIGHTS = {
+  thin:   { k: 0.5, casing: false },
+  normal: { k: 1,   casing: true },
+  bold:   { k: 1.6, casing: true },
+};
+let LW = LINE_WEIGHTS.normal;   // az éppen rajzolt kép vonalvastagsága (createWorkoutShareCard állítja)
+
+/**
+ * Sztori (9:16) biztonságos sáv, 360-as alapban: az Instagram / Facebook sztori felül a
+ * haladásjelzőt és a profilt, alul a válasz-sávot teszi a képre (~250 px / 1920) – oda
+ * csak háttér kerül, a logó, a szöveg és a számok beljebb.
+ */
+export const STORY_SAFE = { t: 72, b: 60 };
+export const safeInsets = (size) => (size === "story" ? STORY_SAFE : { t: 0, b: 0 });
+let SAFE = { t: 0, b: 0 };      // az éppen rajzolt kép sávja (createWorkoutShareCard állítja)
+/** Körvonal helyett halvány árnyék (vékony vonalnál), hogy a térképen is elváljon. */
+function thinShadow(ctx, s, dark = 0.35) { ctx.shadowColor = `rgba(0,0,0,${dark})`; ctx.shadowBlur = 2 * s; ctx.shadowOffsetY = 0.4 * s; }
+
 /** Méretek (px): négyzet, 4:5 (Instagram-bejegyzés), sztori 9:16. */
 export const SHARE_SIZES = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] };
 
@@ -219,7 +238,10 @@ export async function createWorkoutShareCard({
   highlights = [],            // Eredmények: érmes idők / wattok (bestEfforts.getShareHighlights)
   wind = null,                // Eredmények: { alongAvg, tailPct, headPct }
   ink = "white",              // Matrica: "white" | "black" | "orange"
+  line = "normal",            // a nyomvonal vastagsága: LINE_WEIGHTS kulcs
 }) {
+  LW = LINE_WEIGHTS[line] || LINE_WEIGHTS.normal;
+  SAFE = safeInsets(size);
   const [dw, dh] = SHARE_SIZES[size] || SHARE_SIZES.square;
   const dim = { width: dw, height: dh };
   const s = dim.width / BASE;
@@ -262,9 +284,10 @@ export async function createWorkoutShareCard({
   const head = Math.max(date ? 56 : 44, qrUrl ? 62 : 0);
   const chartH = chartIds.length > 1 ? 15 : 20;   // több grafikonnál laposabb csíkok
   const panelH = head + (chartIds.length ? 6 + chartIds.length * (11 + chartH + 4) : 6) + 62;
-  const panel = { x: 0, y: H - panelH * s, w: W, h: panelH * s };
+  const panel = { x: 0, y: H - (panelH + SAFE.b) * s, w: W, h: (panelH + SAFE.b) * s };   // alul a sáv a panel háttere
   // A térkép a teljes kép; a nyomvonal a panel fölötti részbe kerül
-  const routeArea = { x: 18 * s, y: 50 * s, w: W - 36 * s, h: panel.y - 50 * s - 18 * s };
+  const routeTop = (50 + SAFE.t) * s;
+  const routeArea = { x: 18 * s, y: routeTop, w: W - 36 * s, h: panel.y - routeTop - 18 * s };
 
   ctx.save();
   roundRectPath(ctx, 0, 0, W, H, 18 * s);
@@ -461,14 +484,16 @@ function drawRoute(ctx, c, s, pts, opts) {
   const color = opts?.color || c.route;
   ctx.save();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  // Körvonal (világos térképen fehér, sötéten / fotón árnyék)
-  ctx.strokeStyle = c.casing;
-  ctx.lineWidth = 4 * s;
-  if (c.photo) { ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 6 * s; }
-  drawPath(ctx, pts);
-  ctx.shadowBlur = 0;
+  if (LW.casing) {
+    // Körvonal (világos térképen fehér, sötéten / fotón árnyék)
+    ctx.strokeStyle = c.casing;
+    ctx.lineWidth = (2.2 * LW.k + 1.8) * s;
+    if (c.photo) { ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 6 * s; }
+    drawPath(ctx, pts);
+    ctx.shadowBlur = 0;
+  } else thinShadow(ctx, s, c.photo ? 0.55 : 0.3);
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2.2 * s;
+  ctx.lineWidth = 2.2 * LW.k * s;
   drawPath(ctx, pts);
   ctx.restore();
 
@@ -494,14 +519,14 @@ function photoRouteTransform(pts, s, photo, box) {
 /** A Bringaterv-jelvény mérete (360-as alapban) – minden képen és a videón ugyanez, bal fent. */
 export const BADGE = { x: 12, y: 12, h: 30.6, font: 13.45 };
 /** A jelvény alja (px): ez alá kerülhet a fejléc. */
-const badgeBottom = (s) => (BADGE.y + BADGE.h + 10) * s;
+const badgeBottom = (s) => (SAFE.t + BADGE.y + BADGE.h + 10) * s;
 
 /** Telt hátterű stílusoknál a jelvény színe a háttérhez. */
 const badgeColors = (dark) => (dark ? { badgeBg: "rgba(20,24,28,0.82)", badgeText: "#ffffff" }
                                     : { badgeBg: "rgba(255,255,255,0.92)", badgeText: "#1a1d23" });
 
-function drawBadge(ctx, c, s, logo) {
-  const x = BADGE.x * s, y = BADGE.y * s, h = BADGE.h * s;
+function drawBadge(ctx, c, s, logo, top = SAFE.t) {
+  const x = BADGE.x * s, y = (BADGE.y + top) * s, h = BADGE.h * s;
   ctx.font = `800 ${BADGE.font * s}px ${BRAND_FONT}`;
   const wB = ctx.measureText("Bringa").width, wT = ctx.measureText("terv").width;
   const w = h + 6 * s + wB + wT + 10 * s;
@@ -650,7 +675,8 @@ async function drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, sta
 
   // A nyomvonal szinte az egész képet kitölti; alul kissé belelóghat az adatokba
   const valid = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-  const routeArea = { x: 24 * s, y: 56 * s, w: W - 48 * s, h: H - 56 * s - blockH * (story ? 0.75 : 1) - (story ? 0 : 14 * s) };
+  const routeTop = (56 + SAFE.t) * s;
+  const routeArea = { x: 24 * s, y: routeTop, w: W - 48 * s, h: H - SAFE.b * s - routeTop - blockH * (story ? 0.75 : 1) - (story ? 0 : 14 * s) };
   let proj = null;
   if (valid.length > 1) {
     proj = fitProjection(valid, routeArea);
@@ -663,7 +689,7 @@ async function drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, sta
   const gT = ctx.createLinearGradient(0, 0, 0, 70 * s);
   gT.addColorStop(0, `rgba(${sh},0.35)`); gT.addColorStop(1, `rgba(${sh},0)`);
   ctx.fillStyle = gT; ctx.fillRect(0, 0, W, 70 * s);
-  const gy = H - blockH - 70 * s;
+  const gy = H - SAFE.b * s - blockH - 70 * s;
   const gB = ctx.createLinearGradient(0, gy, 0, H);
   gB.addColorStop(0, `rgba(${sh},0)`);
   gB.addColorStop(0.35, `rgba(${sh},0.55)`);
@@ -678,10 +704,12 @@ async function drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, sta
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     // Vékony, elegáns vonal: halvány fehér szegély + 1,6 px-es narancs
     ctx.shadowColor = "rgba(0,0,0,0.25)"; ctx.shadowBlur = 2 * s;
-    ctx.strokeStyle = c.casing; ctx.lineWidth = 2.8 * s;
-    drawPath(ctx, pts);
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = routeColor; ctx.lineWidth = 1.6 * s;
+    if (LW.casing) {
+      ctx.strokeStyle = c.casing; ctx.lineWidth = (1.6 * LW.k + 1.2) * s;
+      drawPath(ctx, pts);
+      ctx.shadowBlur = 0;
+    }
+    ctx.strokeStyle = routeColor; ctx.lineWidth = 1.6 * LW.k * s;
     drawPath(ctx, pts);
     ctx.restore();
     const a = pts[0], b = pts[pts.length - 1];
@@ -696,7 +724,7 @@ async function drawOverlayCard({ canvas, ctx, c, s, W, H, size, title, date, sta
 
   // Szöveg – fehér, enyhe árnyékkal, hogy világos térképrészen is olvasható legyen
   ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 4 * s;
-  let y = H - blockH;
+  let y = H - SAFE.b * s - blockH;
   let qr = null;
   if (qrUrl) {
     try { qr = buildQrCanvas(qrUrl, await ensureQR(), { size: 300 }); } catch { qr = null; }
@@ -995,7 +1023,8 @@ function drawLineArt(ctx, s, points, box, { color, width = 3, glow = null, shado
   const pts = points.map(proj.toPx);
   ctx.save();
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  if (glow) { ctx.strokeStyle = glow; ctx.lineWidth = width * 3.2 * s; drawPath(ctx, pts); }
+  width *= LW.k;
+  if (glow && LW.casing) { ctx.strokeStyle = glow; ctx.lineWidth = width * 3.2 * s; drawPath(ctx, pts); }
   if (shadow) { ctx.shadowColor = shadow; ctx.shadowBlur = 8 * s; ctx.shadowOffsetY = 1.5 * s; }
   ctx.strokeStyle = color; ctx.lineWidth = width * s;
   drawPath(ctx, pts);
@@ -1134,14 +1163,15 @@ function drawPosterCard({ canvas, ctx, s, W, H, size, title, date, stats, points
   const rows = Math.ceil(stats.length / cols);
   const statsH = rows * (7.5 + 6 + valSize * 0.95 + 12) * s;
   const footH = (qr ? 48 : 6) * s;   // a logó már bal fent van – lent csak a QR
-  const statsY = H - pad - footH - 8 * s - statsH;
+  const Hc = H - SAFE.b * s;   // a tartalom alja (sztorin a sáv fölött)
+  const statsY = Hc - pad - footH - 8 * s - statsH;
   ctx.strokeStyle = p.line; ctx.lineWidth = Math.max(1, 0.7 * s);
   ctx.beginPath(); ctx.moveTo(pad, statsY - 12 * s); ctx.lineTo(W - pad, statsY - 12 * s); ctx.stroke();
   drawStatGrid(ctx, p, s, stats, { x: pad, y: statsY, w: W - pad * 2 }, { cols, valSize });
   // az útvonal a fejléc és az adatok között, nagyvonalúan
   const box = { x: pad + 6 * s, y: yHead + 18 * s, w: W - pad * 2 - 12 * s, h: statsY - 30 * s - (yHead + 18 * s) };
   if (box.h > 40 * s) drawLineArt(ctx, s, points, box, { color: p.route, width: tall ? 3.6 : 3, glow: p.glow, shadow: p.photo ? "rgba(0,0,0,.6)" : null, dotRing: p.photo || theme !== "light" ? "#ffffff" : p.bg });
-  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - SAFE.b * s - pad - 44 * s, 44 * s);
   ctx.restore();
   return canvas;
 }
@@ -1166,10 +1196,11 @@ function drawProfileCard({ canvas, ctx, s, W, H, title, date, stats, points, qr,
   const thumb = (tall ? 92 : 74) * s;
   drawBadge(ctx, badgeColors(p.photo || theme !== "light"), s, logo);
   const yHead = drawHeader(ctx, p, s, { x: pad, y: Math.max(pad, badgeBottom(s)), w: W - pad * 2 - thumb - 12 * s, title, date, titleSize: tall ? 24 : 19 });
-  if (qr) drawQrBox(ctx, s, qr, W - pad - 48 * s, pad, 48 * s);
-  else drawLineArt(ctx, s, points, { x: W - pad - thumb, y: pad, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
+  const top = pad + SAFE.t * s;
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 48 * s, top, 48 * s);
+  else drawLineArt(ctx, s, points, { x: W - pad - thumb, y: top, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
   // hős-szám: összes emelkedés
-  let y = Math.max(yHead, pad + (qr ? 48 * s : thumb)) + 14 * s;
+  let y = Math.max(yHead, top + (qr ? 48 * s : thumb)) + 14 * s;
   const hero = String(Math.round(elevationM || 0));
   const heroSize = (tall ? 78 : mid ? 66 : 54) * s;
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
@@ -1299,12 +1330,13 @@ function drawResultsCard({ canvas, ctx, s, W, H, title, date, stats, points, qr,
   const thumb = (tall ? 84 : 66) * s;
   drawBadge(ctx, badgeColors(p.photo || theme !== "light"), s, logo);
   const yHead = drawHeader(ctx, p, s, { x: pad, y: Math.max(pad, badgeBottom(s)), w: W - pad * 2 - thumb - 12 * s, title, date, titleSize: tall ? 24 : 19 });
-  drawLineArt(ctx, s, points, { x: W - pad - thumb, y: pad, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
-  let y = Math.max(yHead, pad + thumb) + 14 * s;
+  const top = pad + SAFE.t * s;
+  drawLineArt(ctx, s, points, { x: W - pad - thumb, y: top, w: thumb, h: thumb }, { color: p.route, width: 1.8, dots: false });
+  let y = Math.max(yHead, top + thumb) + 14 * s;
   y += drawStatGrid(ctx, p, s, stats, { x: pad, y, w: W - pad * 2 }, { cols: mid ? 2 : Math.min(4, stats.length), valSize: tall ? 40 : mid ? 32 : 26 });
   const items = resultItems({ highlights, wind, points });
   const footH = (qr ? 48 : 6) * s;   // a logó már bal fent van – lent csak a QR
-  const avail = H - pad - footH - 10 * s - y;
+  const avail = H - SAFE.b * s - pad - footH - 10 * s - y;
   if (items.length && avail > 40 * s) {
     ctx.fillStyle = p.muted; ctx.font = `700 ${8 * s}px ${FONT}`; ctx.letterSpacing = `${1.1 * s}px`;
     ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("KIEMELÉSEK", pad, y + 2 * s); ctx.letterSpacing = "0px";
@@ -1329,7 +1361,7 @@ function drawResultsCard({ canvas, ctx, s, W, H, title, date, stats, points, qr,
       if (it.sub) { ctx.fillStyle = p.muted; ctx.font = `500 ${8 * s}px ${FONT}`; ctx.fillText(it.sub, W - pad - 12 * s, cy + 13 * s); }
     });
   }
-  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - SAFE.b * s - pad - 44 * s, 44 * s);
   ctx.restore();
   return canvas;
 }
@@ -1355,7 +1387,7 @@ function drawStickerCard({ canvas, ctx, s, W, H, title, date, stats, points, qr,
   const headH = (date ? 15 : 0) * s + 24 * s;
   const footH = (qr ? 48 : 6) * s;
   const top = Math.max(pad, badgeBottom(s));
-  const routeBox = { x: pad, y: top, w: W - pad * 2, h: H - pad - top - headH - statsH - footH - 34 * s };
+  const routeBox = { x: pad, y: top, w: W - pad * 2, h: H - SAFE.b * s - pad - top - headH - statsH - footH - 34 * s };
   ctx.restore();
   if (routeBox.h > 40 * s) drawLineArt(ctx, s, points, routeBox, { color: p.route, width: tall ? 4 : 3.4, shadow: p.shadow, dotRing: p.text });
   ctx.save();
@@ -1365,12 +1397,12 @@ function drawStickerCard({ canvas, ctx, s, W, H, title, date, stats, points, qr,
   drawStatGrid(ctx, p, s, stats, { x: pad, y, w: W - pad * 2 }, { cols, valSize, dividers: false });
   ctx.restore();
   drawBadge(ctx, badgeColors(ink !== "black"), s, logo);
-  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - pad - 44 * s, 44 * s);
+  if (qr) drawQrBox(ctx, s, qr, W - pad - 44 * s, H - SAFE.b * s - pad - 44 * s, 44 * s);
   return canvas;
 }
 
 /** A rajzoló segédek az animált megosztáshoz (src/ui/shareVideo.js) – ugyanaz a kinézet. */
 export const _cardKit = {
-  palette, fitProjection, drawTiles, loadLogo, roundRectPath, drawDot, fitOneLine, drawWordmark, drawBadge, hav,
+  safeInsets, palette, fitProjection, drawTiles, loadLogo, roundRectPath, drawDot, fitOneLine, drawWordmark, drawBadge, hav,
   FONT, NUM_FONT, BRAND_FONT,
 };
