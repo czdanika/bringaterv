@@ -19,6 +19,7 @@ import { num } from "../format.js";
 import { _cardKit, SHARE_SIZES, DEFAULT_STATS, SHARE_CHARTS, BADGE, LINE_WEIGHTS } from "./shareCard.js";
 import { buildHrZoneColorFn, getZoneColor, gradeColorForGrade, getChartColors } from "./settings.js";
 import { createFlyover, flyoverSupported, FLY_MAPS } from "./shareFlyover.js";
+import { detectClimbs, category as climbCategory } from "./climbs.js";
 
 export { FLY_MAPS, flyoverSupported };
 
@@ -100,6 +101,102 @@ export function videoSupported() {
 export const videoFormat = () => (pickMime() || "").includes("mp4") ? "mp4" : "webm";
 
 /** Saját háttér: kép vagy rövid videó (némítva, ismétlődve). */
+/** A videó stílusai: a panel és a keret (a térkép, a vonal és a kamera közös). */
+export const VIDEO_STYLES = [
+  { id: "classic", label: "Klasszikus" },
+  { id: "big",     label: "Nagy számok" },
+  { id: "minimal", label: "Minimál" },
+  { id: "cinema",  label: "Mozi" },
+];
+
+// ── fotók az útvonalon: a kép helye az EXIF GPS-ből vagy a készítés idejéből ──
+function readExif(view) {
+  const out = {};
+  if (view.byteLength < 12 || view.getUint16(0) !== 0xffd8) return out;
+  let off = 2, base = -1;
+  while (off + 10 < view.byteLength) {
+    const marker = view.getUint16(off), size = view.getUint16(off + 2);
+    if ((marker & 0xff00) !== 0xff00) break;
+    if (marker === 0xffe1 && view.getUint32(off + 4) === 0x45786966) { base = off + 10; break; }
+    off += 2 + size;
+  }
+  if (base < 0) return out;
+  const le = view.getUint16(base) === 0x4949;
+  const u16 = (o) => view.getUint16(o, le), u32 = (o) => view.getUint32(o, le);
+  const ifd = (o, fn) => { const c = u16(o); for (let k = 0; k < c; k++) { const e = o + 2 + k * 12; fn(u16(e), u32(e + 4), e + 8); } };
+  const str = (o, len) => { let t = ""; for (let k = 0; k < len - 1; k++) t += String.fromCharCode(view.getUint8(o + k)); return t; };
+  const rat = (o) => u32(o) / (u32(o + 4) || 1);
+  let exifOff = 0, gpsOff = 0;
+  ifd(base + u32(base + 4), (tag, count, val) => {
+    if (tag === 0x8769) exifOff = u32(val);
+    if (tag === 0x8825) gpsOff = u32(val);
+    if (tag === 0x0132) out.time = str(base + u32(val), count);
+  });
+  if (exifOff) ifd(base + exifOff, (tag, count, val) => { if (tag === 0x9003) out.time = str(base + u32(val), count); });
+  if (gpsOff) {
+    const g = {};
+    ifd(base + gpsOff, (tag, count, val) => {
+      if (tag === 1) g.latRef = String.fromCharCode(view.getUint8(val));
+      if (tag === 3) g.lngRef = String.fromCharCode(view.getUint8(val));
+      if (tag === 2 || tag === 4) { const o = base + u32(val); g[tag === 2 ? "lat" : "lng"] = rat(o) + rat(o + 8) / 60 + rat(o + 16) / 3600; }
+    });
+    if (g.lat != null && g.lng != null && (g.lat || g.lng)) { out.lat = g.latRef === "S" ? -g.lat : g.lat; out.lng = g.lngRef === "W" ? -g.lng : g.lng; }
+  }
+  return out;
+}
+
+/**
+ * Fotók a videóhoz (legfeljebb 8): → [{ img, frac }] a nyomvonal mentén rendezve.
+ * A hely: EXIF GPS (a legközelebbi pont, 1 km-en belül) → a készítés ideje az edzés idejéhez mérve →
+ * egyenletesen elosztva a kiválasztás sorrendjében.
+ */
+export async function loadVideoPhotos(files, points) {
+  const { hav } = _cardKit;
+  const pts = (points || []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  if (pts.length < 2) return [];
+  const d = [0];
+  for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + hav(pts[i - 1], pts[i]));
+  const D = d[d.length - 1] || 1;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const out = [];
+  for (const file of [...files].filter((f) => f.type.startsWith("image/")).slice(0, 8)) {
+    let img = null;
+    try { img = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+    catch {
+      try {
+        img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); });
+      } catch { continue; }
+    }
+    // kicsinyítés: a videóban legfeljebb ~900 px széles
+    const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(img.width * k)); cv.height = Math.max(1, Math.round(img.height * k));
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    img.close?.();
+    let ex = {};
+    try { ex = readExif(new DataView(await file.slice(0, 262144).arrayBuffer())); } catch { ex = {}; }
+    let frac = null;
+    if (Number.isFinite(ex.lat) && Number.isFinite(ex.lng)) {
+      let best = -1, bd = Infinity;
+      for (let i = 0; i < pts.length; i++) { const x = hav(pts[i], ex); if (x < bd) { bd = x; best = i; } }
+      if (bd < 1000) frac = d[best] / D;
+    }
+    if (frac == null && ex.time && t0 != null && t1 > t0) {
+      const m = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(ex.time);
+      const ts = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : NaN;
+      if (ts >= t0 - 60000 && ts <= t1 + 60000) {
+        let i = 0; while (i < pts.length - 1 && (pts[i + 1].t ?? Infinity) <= ts) i++;
+        frac = d[i] / D;
+      }
+    }
+    out.push({ img: cv, frac });
+  }
+  const loose = out.filter((p) => p.frac == null);
+  loose.forEach((p, k) => { p.frac = (k + 1) / (loose.length + 1); });
+  out.forEach((p) => { p.frac = Math.max(0.04, Math.min(0.96, p.frac)); });
+  return out.sort((a, b) => a.frac - b.frac);
+}
+
 export function loadVideoMedia(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -155,12 +252,18 @@ export async function createVideoScene({
   titleAlign = "left",         // a cím (az alsó panel tetején): "left" | "center"
   autoZoom = true,             // a kamera közelről indul, és a nyomvonallal együtt távolodik
   safe: safeZone = true,       // sztorin hely a kezelőszerveknek (safeInsets)
+  preview = false,             // előnézet: nem várja meg az összes csempét, rögtön indul
+  milestones = true,           // kerek kilométerek és a legmagasabb pont felvillanó címkével (felülnézet)
+  endCard = true,              // a végén nagy szám: a megtett táv
+  style = "classic",           // VIDEO_STYLES id: a panel és a keret
+  photos = [],                 // [{ img, frac }] – fotók az útvonalon (loadVideoPhotos)
+  highlights = [],             // érmes eredmények (bestEfforts.getShareHighlights) – az első a záró kártyán
   line = "normal",             // a nyomvonal vastagsága (mint a képen): thin | normal | bold
   view = "2d",                 // "2d" | "3d" (berepülés domborzattal – shareFlyover.js)
   flyMap = "satellite",        // 3D: FLY_MAPS id
 }) {
   const is3d = view === "3d";
-  if (is3d) { bg = "map"; autoZoom = false; routeColors = false; }
+  if (is3d) { bg = "map"; autoZoom = false; }
   const LW = LINE_WEIGHTS[line] || LINE_WEIGHTS.normal;
   const RW = 3.4 * LW.k;        // a vonal szélessége (360-as alapban)
   const mapDef = VIDEO_MAPS.find((m) => m.id === map) || VIDEO_MAPS[0];
@@ -168,7 +271,10 @@ export async function createVideoScene({
   const { palette, fitProjection, drawTiles, loadLogo, roundRectPath, drawDot, fitOneLine, drawWordmark, drawBadge, hav,
           FONT, NUM_FONT } = _cardKit;
   const [W, H] = SHARE_SIZES[size === "square" ? "portrait" : size] || SHARE_SIZES.story;
-  const s = W / 360;
+  const wide = size === "wide";
+  if (!VIDEO_STYLES.some((x) => x.id === style)) style = "classic";
+  const cinema = style === "cinema";
+  const s = W / (wide ? 640 : 360);   // fekvő képen ugyanakkora elemek, több hely a térképnek
   const pts = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   if (pts.length < 2) throw new Error("Ehhez az edzéshez nincs nyomvonal.");
   try {
@@ -205,11 +311,19 @@ export async function createVideoScene({
   const safe = _cardKit.safeInsets(size, safeZone);
   const head = { x: BADGE.x * s, y: (BADGE.y + safe.t) * s, w: W - 2 * BADGE.x * s, h: BADGE.h * s };
   const titleH = 26 * s;   // a cím sora az alsó panel tetején
-  const profH = hasEle ? (size === "portrait" ? 30 : 38) * s : 0;
-  const panelH = 14 * s + titleH + (profH ? profH + 12 * s : 0) + 46 * s + 12 * s;
-  const panel = { x: M, y: H - M - safe.b * s - panelH, w: W - 2 * M, h: panelH };
-  const gap = (size === "portrait" ? 12 : 18) * s;
-  const routeBox = { x: M + 10 * s, y: head.y + head.h + gap, w: W - 2 * M - 20 * s, h: panel.y - (head.y + head.h) - 2 * gap };
+  const profH = hasEle && style === "classic" ? (size === "portrait" || wide ? 30 : 38) * s : 0;
+  const panelH = style === "big" ? 14 * s + titleH + 84 * s
+    : style === "minimal" ? 44 * s
+    : 14 * s + titleH + (profH ? profH + 12 * s : 0) + 46 * s + 12 * s;
+  // Mozi: fekete sáv fent (benne a jelvények) és lent (benne a cím és a számok)
+  const barT = cinema ? Math.round(head.y + head.h + BADGE.y * s) : 0;
+  const barB = cinema ? Math.round((safe.b + 62) * s) : 0;
+  const gap = (size === "portrait" || wide ? 12 : 18) * s;
+  const panel = cinema ? { x: 0, y: H - barB, w: W, h: barB }
+    : { x: M, y: H - M - safe.b * s - panelH, w: wide ? Math.min(250 * s, W - 2 * M) : W - 2 * M, h: panelH };
+  const routeBox = cinema ? { x: M + 10 * s, y: barT + gap, w: W - 2 * M - 20 * s, h: H - barB - barT - 2 * gap }
+    : wide ? { x: panel.x + panel.w + 2 * gap, y: head.y + head.h + gap, w: W - M - 10 * s - (panel.x + panel.w + 2 * gap), h: H - M - (head.y + head.h) - 2 * gap }
+    : { x: M + 10 * s, y: head.y + head.h + gap, w: W - 2 * M - 20 * s, h: panel.y - (head.y + head.h) - 2 * gap };
   const proj = fitProjection(pts, routeBox);
   const xy = pts.map(proj.toPx);
 
@@ -460,7 +574,8 @@ export async function createVideoScene({
   }
 
   // a jelvények színei (mint a megosztó képen: világos térképen fehér, máshol sötét áttetsző)
-  const badgeC = isLightMap ? { badgeBg: "rgba(255,255,255,0.92)", badgeText: "#1a1d23" }
+  const badgeC = cinema ? { badgeBg: "rgba(255,255,255,0.10)", badgeText: "#ffffff" }
+    : isLightMap ? { badgeBg: "rgba(255,255,255,0.92)", badgeText: "#1a1d23" }
     : bg === "green" ? { badgeBg: "#101418", badgeText: "#ffffff" }
     : { badgeBg: "rgba(20,24,28,0.82)", badgeText: "#ffffff" };
 
@@ -498,7 +613,74 @@ export async function createVideoScene({
     ctx.letterSpacing = "0px";
   }
 
+  /** A panel a választott stílus szerint. */
   function drawPanel(ctx, alpha, i, f, end, pop) {
+    if (style === "big") return drawPanelBig(ctx, alpha, i, f, end, pop);
+    if (style === "minimal") return drawPanelMinimal(ctx, alpha, i, f, end);
+    if (cinema) return drawPanelCinema(ctx, alpha, i, f, end);
+    return drawPanelClassic(ctx, alpha, i, f, end, pop);
+  }
+  const statText = (it) => `${it.value}${it.unit ? ` ${it.unit}` : ""}`;
+  /** Nagy számok: egyetlen óriási szám (a táv), alatta a többi egy sorban. */
+  function drawPanelBig(ctx, alpha, i, f, end, pop) {
+    const dy = (1 - alpha) * 16 * s;
+    drawCard(ctx, panel, alpha, dy);
+    ctx.save();
+    ctx.globalAlpha = alpha; ctx.translate(0, dy);
+    drawTitle(ctx);
+    const first = keys.find((k) => STATS[k](f, i, end)) || "dist";
+    const it = STATS.dist(f, i, end) || STATS[first](f, i, end);
+    const top = panel.y + 14 * s + titleH, pad = 14 * s, center = titleAlign === "center";
+    if (it) {
+      const sz = 54 * (1 + 0.05 * pop);
+      ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+      ctx.font = `600 ${sz * s}px ${NUM_FONT}`; const vw = ctx.measureText(it.value).width;
+      ctx.font = `600 ${18 * s}px ${FONT}`; const uw = it.unit ? ctx.measureText(it.unit).width + 5 * s : 0;
+      const x0 = center ? panel.x + (panel.w - vw - uw) / 2 : panel.x + pad, base = top + 46 * s;
+      ctx.fillStyle = ui.text; ctx.font = `600 ${sz * s}px ${NUM_FONT}`; ctx.fillText(it.value, x0, base);
+      ctx.fillStyle = ui.muted; ctx.font = `600 ${18 * s}px ${FONT}`; ctx.fillText(it.unit || "", x0 + vw + 5 * s, base);
+    }
+    const rest = keys.map((k) => STATS[k](f, i, end)).filter((x) => x && x !== it && x.label !== (it?.label)).map(statText).join("   ·   ");
+    ctx.fillStyle = ui.muted; ctx.font = `600 ${11.5 * s}px ${FONT}`; ctx.textBaseline = "alphabetic";
+    ctx.textAlign = center ? "center" : "left";
+    fitOneLine(ctx, rest, center ? panel.x + panel.w / 2 : panel.x + pad, top + 66 * s, panel.w - 2 * pad);
+    ctx.restore();
+  }
+  /** Minimál: egy sor – a cím és a táv. */
+  function drawPanelMinimal(ctx, alpha, i, f, end) {
+    const dy = (1 - alpha) * 16 * s;
+    drawCard(ctx, panel, alpha, dy);
+    ctx.save();
+    ctx.globalAlpha = alpha; ctx.translate(0, dy);
+    const it = STATS.dist(f, i, end), pad = 16 * s, cy = panel.y + panel.h / 2 + 0.5 * s;
+    ctx.textBaseline = "middle";
+    let tw = 0;
+    if (it) {
+      ctx.font = `600 ${19 * s}px ${NUM_FONT}`; const vw = ctx.measureText(it.value).width;
+      ctx.font = `600 ${10 * s}px ${FONT}`; const uw = ctx.measureText(it.unit).width + 4 * s;
+      tw = vw + uw + 12 * s;
+      ctx.textAlign = "left";
+      ctx.fillStyle = ui.text; ctx.font = `600 ${19 * s}px ${NUM_FONT}`; ctx.fillText(it.value, panel.x + panel.w - pad - vw - uw, cy);
+      ctx.fillStyle = ui.muted; ctx.font = `600 ${10 * s}px ${FONT}`; ctx.fillText(it.unit, panel.x + panel.w - pad - uw + 4 * s, cy + 2 * s);
+    }
+    ctx.textAlign = "left"; ctx.fillStyle = ui.text; ctx.font = `800 ${14 * s}px ${FONT}`;
+    fitOneLine(ctx, title || "Bringaterv", panel.x + pad, cy, panel.w - 2 * pad - tw);
+    ctx.restore();
+  }
+  /** Mozi: az alsó fekete sávban a cím és a számok egy-egy sorban, középen. */
+  function drawPanelCinema(ctx, alpha, i, f, end) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const cx = W / 2, y0 = panel.y + 16 * s, maxW = W - 2 * M - 8 * s;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#ffffff"; ctx.font = `800 ${15 * s}px ${FONT}`;
+    fitOneLine(ctx, title || "Bringaterv", cx, y0, maxW);
+    const row = keys.map((k) => STATS[k](f, i, end)).filter(Boolean).map(statText).join("   ·   ");
+    ctx.fillStyle = "rgba(255,255,255,0.72)"; ctx.font = `600 ${12 * s}px ${NUM_FONT}`;
+    fitOneLine(ctx, row, cx, y0 + 22 * s, maxW);
+    ctx.restore();
+  }
+  function drawPanelClassic(ctx, alpha, i, f, end, pop) {
     const dy = (1 - alpha) * 16 * s;
     drawCard(ctx, panel, alpha, dy);
     ctx.save();
@@ -572,6 +754,181 @@ export async function createVideoScene({
     ctx.restore();
   }
 
+  // ── mérföldkövek: kerek kilométerek és a legmagasabb pont, felvillanó címkével ──
+  const marks = [];
+  if (milestones) {
+    const km = distanceKm > 0 ? distanceKm : D / 1000;
+    const step = km >= 120 ? 25 : km >= 50 ? 10 : km >= 20 ? 5 : km >= 8 ? 2 : 1;
+    for (let m = step; m < km - step * 0.35; m += step) marks.push({ dist: (m / km) * D, label: `${m} km` });
+    let top = -1;
+    for (let j = 0; j < n; j++) if (Number.isFinite(pts[j].ele) && (top < 0 || pts[j].ele > pts[top].ele)) top = j;
+    if (top > n * 0.05 && top < n * 0.95 && elevationM >= 80) {
+      // a csúcs mellé eső kilométer-jelző kimarad (a két címke egymásra kerülne)
+      for (let q = marks.length - 1; q >= 0; q--) if (Math.abs(marks[q].dist - d[top]) < D * 0.05) marks.splice(q, 1);
+      marks.push({ dist: d[top], label: `Csúcs · ${Math.round(pts[top].ele)} m`, peak: true });
+    }
+  }
+  // ── csúcspont-kártya: a legnagyobb emelkedő, amikor odaér a rajzolás ──
+  const cards = [];
+  if (milestones) {
+    try {
+      const eleAt = (dist) => { const e = pts[indexAt(dist)]?.ele; return Number.isFinite(e) ? e : null; };
+      const best = detectClimbs(pts, Array.from(d)).map((c) => {
+        const len = c.d1 - c.d0, a = eleAt(c.d0), b = eleAt(c.d1), gainM = a != null && b != null ? b - a : 0;
+        return { d0: c.d0, len, gainM, grade: len > 0 ? (gainM / len) * 100 : 0 };
+      }).filter((c) => c.gainM >= 40 && c.len >= 500).sort((a, b) => b.len * b.grade - a.len * a.grade)[0];
+      if (best) {
+        const cat = climbCategory(best.len, best.grade);
+        cards.push({ dist: best.d0, kicker: "LEGNAGYOBB EMELKEDŐ", text: `${num(best.len / 1000, 1)} km · ${num(best.grade, 1)}%${cat?.label ? ` · ${cat.label}` : ""}` });
+      }
+    } catch { /* emelkedő-felismerés nélkül is megy */ }
+  }
+  function drawCards(ctx, t) {
+    for (const c of cards) {
+      const age = t - c.t;
+      if (age < 0 || age > 3) continue;
+      const al = age < 0.25 ? age / 0.25 : age > 2.6 ? Math.max(0, 1 - (age - 2.6) / 0.4) : 1;
+      ctx.save();
+      ctx.globalAlpha *= al;
+      ctx.font = `800 ${13 * s}px ${FONT}`; const tw = ctx.measureText(c.text).width;
+      ctx.font = `700 ${6.5 * s}px ${FONT}`; ctx.letterSpacing = `${1 * s}px`; const kw = ctx.measureText(c.kicker).width; ctx.letterSpacing = "0px";
+      const w = Math.max(tw, kw) + 30 * s, h = 44 * s;
+      const x = routeBox.x + (routeBox.w - w) / 2, y = routeBox.y + 2 * s - (1 - easeOut(Math.min(1, age / 0.25))) * 10 * s;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.22)"; ctx.shadowBlur = 12 * s; ctx.shadowOffsetY = 2 * s;
+      ctx.fillStyle = ui.card; roundRectPath(ctx, x, y, w, h, 14 * s); ctx.fill();
+      ctx.restore();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillStyle = ui.route; ctx.font = `700 ${6.5 * s}px ${FONT}`; ctx.letterSpacing = `${1 * s}px`;
+      ctx.fillText(c.kicker, x + w / 2 + 0.5 * s, y + 9 * s); ctx.letterSpacing = "0px";
+      ctx.fillStyle = ui.text; ctx.font = `800 ${13 * s}px ${FONT}`;
+      ctx.fillText(c.text, x + w / 2, y + 21 * s);
+      ctx.restore();
+    }
+  }
+
+  // ── fotók az útvonalon: a helyükön felvillannak, a jelük a vonalon marad ──
+  const shots = (photos || []).filter((p) => p?.img && Number.isFinite(p.frac)).map((p, q) => ({ img: p.img, dist: p.frac * D, tilt: (q % 2 ? 1 : -1) * 0.045 }));
+  function drawShots(ctx, t) {
+    for (const ph of shots) {
+      const age = t - ph.t;
+      if (age < 0) continue;
+      const at = screenAt(ph.dist);
+      if (at) {   // kis fehér négyzet a vonalon: itt készült a kép
+        ctx.save();
+        ctx.fillStyle = "#ffffff"; ctx.strokeStyle = ui.route; ctx.lineWidth = 1.4 * s;
+        roundRectPath(ctx, at.x - 3.4 * s, at.y - 3.4 * s, 6.8 * s, 6.8 * s, 1.6 * s); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      const HOLD = 1.9;
+      if (age > HOLD) continue;
+      const al = age > HOLD - 0.35 ? Math.max(0, (HOLD - age) / 0.35) : Math.min(1, age / 0.15);
+      const k = age < 0.3 ? 0.7 + 0.3 * (1 + 0.6 * Math.sin((age / 0.3) * Math.PI)) * easeOut(age / 0.3) : 1;   // kis túllendülés
+      const box = Math.min(routeBox.w * 0.66, routeBox.h * 0.56);
+      const r = Math.min(box / ph.img.width, box / ph.img.height), iw = ph.img.width * r, ih = ph.img.height * r, b = 5 * s;
+      const cx = routeBox.x + routeBox.w / 2, cy = routeBox.y + routeBox.h / 2;
+      ctx.save();
+      ctx.globalAlpha *= al;
+      ctx.translate(cx, cy); ctx.rotate(ph.tilt); ctx.scale(k, k);
+      ctx.shadowColor = "rgba(0,0,0,0.38)"; ctx.shadowBlur = 22 * s; ctx.shadowOffsetY = 6 * s;
+      ctx.fillStyle = "#ffffff"; roundRectPath(ctx, -iw / 2 - b, -ih / 2 - b, iw + 2 * b, ih + 2 * b, 9 * s); ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.save(); roundRectPath(ctx, -iw / 2, -ih / 2, iw, ih, 5 * s); ctx.clip();
+      ctx.drawImage(ph.img, -iw / 2, -ih / 2, iw, ih);
+      ctx.restore();
+      ctx.restore();
+    }
+  }
+
+  /** Mikor ér oda a rajzolás az egyes jelölőkhöz (a haladás monoton – felezéssel). 3D-ben a berepülés üteme szerint. */
+  function timeMarks(list) {
+    const prog = (t) => (fly ? fly.progressAt(t) : routeProgress(t));
+    const from = fly ? fly.intro : drawStart, to = fly ? fly.drawEnd : drawEnd;
+    for (const mk of list) {
+      let lo = from, hi = to;
+      for (let q = 0; q < 22; q++) { const mid = (lo + hi) / 2; if (prog(mid) * D < mk.dist) lo = mid; else hi = mid; }
+      mk.t = hi;
+    }
+  }
+  /** Egy távolság (m) képernyő-helye: felülnézetben a kivetített vonalon, 3D-ben a térképről. */
+  function screenAt(dist) {
+    if (fly) {
+      const q = fly.pointAtDist((dist / D) * fly.length);
+      return q && q.x > -40 && q.x < W + 40 && q.y > 0 && q.y < H ? q : null;
+    }
+    const j = indexAt(dist), seg = j < n - 1 ? d[j + 1] - d[j] : 0, fr = seg > 0 ? clamp01((dist - d[j]) / seg) : 0;
+    const a = xyS[j], b = xyS[Math.min(n - 1, j + 1)];
+    return { x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr };
+  }
+  function drawMarks(ctx, t) {
+    const used = [];   // a már kirajzolt címkék helye – egymásra nem kerülhetnek (a csúcsé az elsőbbség)
+    for (const mk of [...marks].sort((a, b) => (b.peak ? 1 : 0) - (a.peak ? 1 : 0))) {
+      const age = t - mk.t;
+      if (age < 0) continue;
+      const at = screenAt(mk.dist);
+      if (!at) continue;
+      const { x, y } = at;
+      drawDot(ctx, x, y, 2.8 * s, "#ffffff", mk.peak ? "#16191d" : ui.route, 1.3 * s);
+      const hold = mk.peak ? 2.2 : 1.4;
+      const al = age < 0.18 ? age / 0.18 : age < hold ? 1 : Math.max(0, 1 - (age - hold) / 0.4);
+      if (al <= 0) continue;
+      const k = age < 0.22 ? 0.6 + 0.4 * easeOut(age / 0.22) : 1;
+      ctx.save();
+      ctx.globalAlpha *= al;
+      ctx.font = `700 ${9 * s}px ${FONT}`;
+      const w = ctx.measureText(mk.label).width + 14 * s, h = 18 * s;
+      const bx = Math.max(M, Math.min(W - M - w, x - w / 2));
+      let by = y - h - 9 * s;
+      if (by < head.y + head.h + 4 * s) by = y + 9 * s;
+      if (used.some((u) => bx < u.x + u.w + 4 * s && bx + w + 4 * s > u.x && by < u.y + u.h + 4 * s && by + h + 4 * s > u.y)) { ctx.restore(); continue; }
+      used.push({ x: bx, y: by, w, h });
+      ctx.translate(bx + w / 2, by + h / 2); ctx.scale(k, k); ctx.translate(-(bx + w / 2), -(by + h / 2));
+      ctx.shadowColor = "rgba(0,0,0,0.28)"; ctx.shadowBlur = 5 * s; ctx.shadowOffsetY = 1 * s;
+      ctx.fillStyle = mk.peak ? "#16191d" : "#ffffff";
+      roundRectPath(ctx, bx, by, w, h, h / 2); ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = mk.peak ? "#ffffff" : "#16191d";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(mk.label, bx + w / 2, by + h / 2 + 0.5 * s);
+      ctx.restore();
+    }
+  }
+  /** Záró szám: a megtett táv nagyban, a kép felső részén. */
+  function drawHero(ctx, k) {
+    const it = STATS.dist({ p: 1, t: 1 }, n - 1, true);
+    if (!it) return;
+    ctx.save();
+    ctx.globalAlpha *= k;
+    const hx = routeBox.x + routeBox.w / 2;          // fekvő képen a térképes rész közepe
+    const hl = highlights?.[0];
+    const hlTxt = hl ? `${hl.rank === 1 ? "Egyéni csúcs" : `${hl.rank}. legjobb`} · ${hl.label} · ${hl.value}` : "";
+    const cy = routeBox.y + (hlTxt ? 38 : 30) * s, sc = 0.86 + 0.14 * k;
+    ctx.translate(hx - W / 2, 0);
+    ctx.translate(W / 2, cy); ctx.scale(sc, sc); ctx.translate(-W / 2, -cy);
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `600 ${56 * s}px ${NUM_FONT}`;
+    const vw = ctx.measureText(it.value).width;
+    ctx.font = `600 ${20 * s}px ${FONT}`;
+    const uw = ctx.measureText(it.unit).width + 6 * s;
+    const x0 = (W - vw - uw) / 2, base = cy + (hlTxt ? 10 : 20) * s;
+    // a panellel azonos kártya a szám mögött – az útvonal fölött is olvasható
+    ctx.font = `700 ${9.5 * s}px ${FONT}`;
+    const hw = hlTxt ? ctx.measureText(hlTxt).width : 0;
+    const bw = Math.max(vw + uw, hw) + 44 * s, bh = (hlTxt ? 94 : 76) * s;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.22)"; ctx.shadowBlur = 16 * s; ctx.shadowOffsetY = 3 * s;
+    ctx.fillStyle = ui.card;
+    roundRectPath(ctx, (W - bw) / 2, cy - bh / 2, bw, bh, 20 * s); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = ui.text;
+    ctx.textAlign = "left";
+    ctx.font = `600 ${56 * s}px ${NUM_FONT}`; ctx.fillText(it.value, x0, base);
+    ctx.fillStyle = ui.muted;
+    ctx.font = `600 ${20 * s}px ${FONT}`; ctx.fillText(it.unit, x0 + vw + 6 * s, base);
+    if (hlTxt) { ctx.fillStyle = ui.route; ctx.font = `700 ${9.5 * s}px ${FONT}`; ctx.textAlign = "center"; ctx.fillText(hlTxt, W / 2, base + 20 * s); }
+    ctx.restore();
+  }
+
   function draw(ctx, t) {
     ctx.save();
     ctx.clearRect(0, 0, W, H);
@@ -617,10 +974,11 @@ export async function createVideoScene({
     const segLen = i < n - 1 ? d[i + 1] - d[i] : 0;
     const frac = segLen > 0 ? clamp01((target - d[i]) / segLen) : 0;
     let headPt;
-    if (fly) headPt = fly.headAt(t) || { x: -99, y: -99 };
+    if (fly) { headPt = fly.headAt(t) || { x: -99, y: -99 }; drawMarks(ctx, t); }
     else {
       headPt = p > 0 ? drawRoutePart(ctx, i, frac) : xyS[0];
       drawDot(ctx, xyS[0].x, xyS[0].y, 4.6 * s, ui.start, "#ffffff", 1.6 * s);
+      drawMarks(ctx, t);
     }
 
     const end = fly ? t >= fly.drawEnd : t >= drawEnd;
@@ -643,6 +1001,13 @@ export async function createVideoScene({
     }
     ctx.restore();
 
+    if (cinema) {   // fekete sávok a kép fölött / alatt
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, W, barT); ctx.fillRect(0, H - barB, W, barB);
+    }
+    drawShots(ctx, t);
+    drawCards(ctx, t);
+
     // feliratok
     const inA = easeOut(clamp01(t / INTRO));
     const tf = (i < n - 1 ? tFrac(i) + (tFrac(i + 1) - tFrac(i)) * frac : 1);
@@ -650,17 +1015,35 @@ export async function createVideoScene({
     const pop = end ? Math.max(0, 1 - Math.abs((t - drawEnd) / 0.35 - 1)) : 0;
     drawHeader(ctx, inA);
     drawPanel(ctx, inA, i, f, end, pop);
+    if (endCard && end && style !== "big") {   // a Nagy számok panelén már ott a nagy szám
+      const k = easeOut(clamp01((t - (fly ? fly.drawEnd : drawEnd) - 0.3) / 0.6));
+      if (k > 0) drawHero(ctx, k);
+    }
     ctx.restore();
   }
 
   if (autoZoom) buildCamera();
   let fly = null, prepared = false;
   if (is3d) {
-    const padTop = Math.round(head.y + head.h + 8 * s), padBottom = Math.round(H - panel.y + 8 * s);
-    const key = JSON.stringify([n, pts[0].lat, pts[0].lng, pts[n - 1].lat, pts[n - 1].lng, Math.round(D), W, H, duration, flyMap, line, padTop, padBottom]);
-    fly = await getFlyover(key, { points: pts, W, H, duration, map: flyMap, line, color: ui.route, padTop, padBottom });
+    const padTop = Math.round(head.y + head.h + 8 * s), padBottom = Math.round(wide && !cinema ? M : H - panel.y + 8 * s);
+    const padLeft = Math.round(wide && !cinema ? panel.x + panel.w : 0);
+    const key = JSON.stringify([n, pts[0].lat, pts[0].lng, pts[n - 1].lat, pts[n - 1].lng, Math.round(D), W, H, duration, flyMap, line, padTop, padBottom, padLeft,
+                                routeSeg ? `${chart}:${zoneColors}` : ""]);
+    fly = await getFlyover(key, { points: pts, W, H, duration, map: flyMap, line, color: ui.route, padTop, padBottom, padLeft, colors: routeSeg });
     await fly.setFrame(0, { wait: true });
-  } else if (bg === "map") await preloadTiles();
+  } else if (bg === "map") {
+    // lassú hálózaton (telefon) a több száz csempe sokáig tart, egy-egy el is akadhat: az előnézet az
+    // első kép csempéi után indul (a többi menet közben jön), a felvétel legfeljebb 25 mp-et vár
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    if (preview) {
+      const first = new Set();
+      neededTiles(autoZoom ? camAt(0) : { k: 1, x: C.x, y: C.y }, first);
+      await Promise.race([Promise.all([...first].map((u) => tile(u).p)), wait(5000)]);
+      preloadTiles();
+    } else await Promise.race([preloadTiles(), wait(25000)]);
+  }
+
+  timeMarks(marks); timeMarks(cards); timeMarks(shots);
 
   return {
     W, H, duration,

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.49.0 – 2026-11-16 – Új belépő, animációk, videó-stílusok, fotók az útvonalon
+
+- **Megosztó videó – 3D-ben is színes vonal és mérföldkövek:** a „Színezett nyomvonal” és a „Mérföldkövek” a 3D berepülésnél is működik (a megtett rész a grafikon zónaszíneivel, a címkék a domborzatra vetítve).
+- **Megosztó videó – fekvő méret (16:9):** YouTube-ra és gépes megosztáshoz; a panel bal lent, a térkép a kép többi részén.
+- **Megosztó videó – stílusok:** Klasszikus, Nagy számok (egy óriási szám, alatta a többi), Minimál (egy sor: cím és táv), Mozi (fekete sávok, bennük a jelvények, a cím és a számok).
+- **Megosztó videó – csúcspontok:** menet közben kártya a legnagyobb emelkedőnél (hossz, meredekség, kategória); a záró kártyán a táv alatt az első érmes eredmény (pl. „Egyéni csúcs · 20 perc · 245 W”).
+- **Megosztó videó – fotók az útvonalon:** legfeljebb 8 saját fotó; a helyük a kép GPS-adatából vagy a készítés idejéből (ha egyik sincs, egyenletesen elosztva); a helyükön felvillannak, a jelük a vonalon marad. A fotók nem kerülnek fel a szerverre.
+- **Megosztó videó – mérföldkövek és záró szám:** felülnézetben a kerek kilométereknél (táv szerint 1 / 2 / 5 / 10 / 25 km-enként) és a legmagasabb pontnál felvillanó címke, a pont az útvonalon marad; a végén a megtett táv nagyban, kártyán. Mindkettő kapcsolható (Animáció → Mérföldkövek, Záró szám; `milestones`, `endCard`).
+- **Menü:** az aktív pont ikonja vastagabb / telt, váltáskor mindegyik a saját mozdulatát teszi; a Felszerelés menüponton jelzőpötty, ha karbantartás esedékes (piros) vagy közeleg (sárga); telefonon a Kezdőn és a Könyvtárban lebegő „+” gomb (Új útvonal, GPX / FIT betöltése).
+- **Elfelejtett jelszó, meghívó, e-mail-megerősítés:** ugyanaz a háttér, mint a belépő oldalon (`src/authBg.js`).
+- **Mozgás és hangulat az appban (`src/ui/motion.js`):** szintvonalas háttér a Kezdő, Könyvtár, Statok és Felszerelés oldal mögött (világos és sötét változat, ugyanaz a rajz, mint a belépő oldalon); a menüben csúszó jelölő az aktív pont alatt (gépen az oldalsávban, telefonon az alsó sávban); nyomás-visszajelzés minden gombon; a ☰ menü a sarkából nyílik, a pontok egymás után; fülváltáskor az oldal beúszik, a kártyák egymás után jelennek meg; a Statok és a Kezdő nagy számai felpörögnek, az oszlopok felnőnek, a vonalak megrajzolódnak, amikor a képbe érnek; a kártyák rámutatásra megemelkednek; az értesítés rugósan úszik be. „Kevesebb mozgás” beállításnál mind kimarad.
+- **Új belépő oldal:** sötét, stilizált térkép szintvonalakkal, rajta kirajzolódó narancs útvonal (SVG, kép nélkül); gépen bal oldalt a jelvény, a név és a szlogen, jobb oldalt az űrlap, telefonon egymás alatt. A kártya és a mezők felúsznak, hibás jelszónál a kártya megrázkódik, sikeres belépésnél a gomb pipára vált és a kártya kiúszik. „Kevesebb mozgás” beállításnál az animációk kimaradnak.
+- **Javítás – a videó-előnézet lassan vagy egyáltalán nem töltött be:** a 2D előnézet indulás előtt az egész animáció összes térképcsempéjét (több száz) megvárta, időkorlát nélkül – lassú hálózaton (telefon) percekig vagy örökre üres maradt. Most az első kép csempéi után indul (legfeljebb 5 mp), a többi menet közben jön; a letöltött videó legfeljebb 25 mp-et vár a csempékre (`createVideoScene` `preview`). Az előnézet fölött „Betöltés…” jelzés, amíg készül; 3D-re váltáskor a régi előnézet megáll (eddig 15–30 mp-ig a 2D futott tovább, mintha a 3D nem működne).
+
 ## v1.48.1 – 2026-11-14 – Simább 3D berepülés, sztori-margó kapcsoló
 
 - **Sztori-margó kapcsoló:** a Megosztás ablak Formátum csoportjában (csak Sztori méretnél): be – a logó, a cím és a számok beljebb, az Instagram gombjai nem takarják (alapból be); ki – a széleken, mint a többi méretnél. Képre és videóra is (`safe` opció, `bt.shareSafe`).

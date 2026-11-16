@@ -3849,6 +3849,8 @@
                 <button class="share-opt-btn" data-video-view="3d" type="button"><i data-lucide="mountain" aria-hidden="true"></i> 3D berepülés</button>
               </div>
             </div>
+            <div class="sc-sub">Stílus</div>
+            <div id="shareVideoStylePicker" class="sc-chips" role="group" aria-label="Stílus"></div>
             <div class="sc-sub" data-video-2d>Háttér</div>
             <div id="shareVideoBgPicker" class="sc-chips" role="group" aria-label="Háttér" data-video-2d></div>
             <div id="shareVideoMapRow">
@@ -3876,6 +3878,20 @@
               <span><b>Színezett nyomvonal</b></span>
               <span class="toggle-switch"><input id="shareVideoRoute" type="checkbox"><span class="toggle-track"></span></span>
             </label>
+            <div class="sc-sub">Fotók az útvonalon</div>
+            <div class="sc-photos">
+              <input id="shareVideoPhotosInput" type="file" accept="image/*" multiple hidden>
+              <button id="shareVideoPhotosBtn" class="sc-btn sc-btn--ghost" type="button"><i data-lucide="images" aria-hidden="true"></i> <span>Fotók hozzáadása</span></button>
+              <button id="shareVideoPhotosClear" class="sc-btn sc-btn--ghost" type="button" hidden aria-label="Fotók törlése"><i data-lucide="x" aria-hidden="true"></i></button>
+            </div>
+            <label id="shareVideoMilesRow" class="sc-toggle">
+              <span><b>Mérföldkövek</b></span>
+              <span class="toggle-switch"><input id="shareVideoMiles" type="checkbox" checked><span class="toggle-track"></span></span>
+            </label>
+            <label class="sc-toggle">
+              <span><b>Záró szám</b></span>
+              <span class="toggle-switch"><input id="shareVideoEnd" type="checkbox" checked><span class="toggle-track"></span></span>
+            </label>
             <div class="sc-sub">Cím</div>
             <div id="shareVideoAlignSeg" class="sc-seg" role="group" aria-label="A cím igazítása">
               <button class="share-opt-btn" data-video-align="left" type="button"><i data-lucide="align-left" aria-hidden="true"></i> Balra</button>
@@ -3895,6 +3911,7 @@
               <button class="share-opt-btn share-opt-btn--active" data-share-size="square" type="button"><i data-lucide="square" aria-hidden="true"></i> Négyzet</button>
               <button class="share-opt-btn" data-share-size="portrait" type="button" title="4:5 – Instagram-bejegyzés"><i data-lucide="rectangle-vertical" aria-hidden="true"></i> 4:5</button>
               <button class="share-opt-btn" data-share-size="story" type="button" title="9:16 – sztori"><i data-lucide="smartphone" aria-hidden="true"></i> Sztori</button>
+              <button class="share-opt-btn" data-share-size="wide" type="button" title="16:9 – fekvő (YouTube, gép)" hidden><i data-lucide="rectangle-horizontal" aria-hidden="true"></i> Fekvő 16:9</button>
             </div>
             <label id="shareSafeRow" class="sc-toggle" title="A logó, a cím és a számok beljebb – az Instagram gombjai ne takarják" hidden>
               <span><b>Sztori-margó</b></span>

@@ -17,7 +17,7 @@ import { fitToGpx, fitHasPosition } from '../gpx/fit.js';
 import { equipmentLine, sensorLabels } from '../equipment.js';
 import { isSolidChartMode } from './elevationProfile.js';
 import { createWorkoutShareCard, downloadShareCard, shareCardPoints, SHARE_LAYOUTS, SHARE_CHARTS, availableShareCharts, SHARE_STATS, DEFAULT_STATS, LAYOUT_CAPS } from './shareCard.js';
-import { VIDEO_BGS, VIDEO_MAPS, VIDEO_DURATIONS, FLY_MAPS, flyoverSupported, canEncode, encodeScene, releaseFlyover, videoSupported, videoFormat, createVideoScene, playScene, recordScene, loadVideoMedia } from './shareVideo.js';
+import { VIDEO_BGS, VIDEO_MAPS, VIDEO_DURATIONS, VIDEO_STYLES, loadVideoPhotos, FLY_MAPS, flyoverSupported, canEncode, encodeScene, releaseFlyover, videoSupported, videoFormat, createVideoScene, playScene, recordScene, loadVideoMedia } from './shareVideo.js';
 import { getShareHighlights } from './bestEfforts.js';
 import { getWorkoutWind } from './workoutWind.js';
 import { reverseGeocode } from './search.js';
@@ -887,9 +887,13 @@ function _initShareCardModal() {
   if (VIDEO_MAPS.some((m) => m.id === _videoBg)) { _videoMap = _videoBg; _videoBg = "map"; }
   if (!VIDEO_BGS.some((b) => b.id === _videoBg)) _videoBg = "map";
   let _videoRoute = lsGet("bt.videoRoute", (v) => v === "0" || v === "1") === "1";
+  let _videoMiles = lsGet("bt.videoMiles", (v) => v === "0" || v === "1") !== "0";   // mérföldkövek
+  let _videoEnd = lsGet("bt.videoEnd", (v) => v === "0" || v === "1") !== "0";       // záró szám
   let _videoDur = Number(lsGet("bt.videoDur", (v) => VIDEO_DURATIONS.includes(Number(v)))) || 12;
   // videóhoz két méret: sztori / Reels (9:16) és bejegyzés (4:5)
-  let _videoSize = lsGet("bt.videoSize", (v) => ["portrait", "story"].includes(v)) || "story";
+  let _videoSize = lsGet("bt.videoSize", (v) => ["portrait", "story", "wide"].includes(v)) || "story";
+  let _videoStyle = lsGet("bt.videoStyle", (v) => VIDEO_STYLES.some((x) => x.id === v)) || "classic";
+  let _videoPhotos = [];           // fotók az útvonalon (csak erre a megnyitásra)
   let _videoChart = lsGet("bt.videoChart", (v) => v === "none" || SHARE_CHARTS.some((c) => c.id === v)) || "ele";
   let _videoZones = lsGet("bt.videoZones", (v) => v === "0" || v === "1") !== "0";
   let _videoZoom = lsGet("bt.videoZoom", (v) => v === "0" || v === "1") !== "0";
@@ -910,7 +914,7 @@ function _initShareCardModal() {
     return {
       ...cardOpts(), title: _getShareTitle(),
       bg: _videoBg === "media" && !_videoMedia ? "solid" : _videoBg, media: _videoMedia, duration: _videoDur,
-      size: _videoSize, chart: videoChart(), zoneColors: _videoZones, routeColors: _videoRoute, map: _videoMap, titleAlign: _videoAlign, autoZoom: _videoZoom,
+      size: _videoSize, chart: videoChart(), zoneColors: _videoZones, routeColors: _videoRoute, milestones: _videoMiles, endCard: _videoEnd, style: _videoStyle, photos: _videoPhotos, highlights: _shareCardData?.highlights || [], map: _videoMap, titleAlign: _videoAlign, autoZoom: _videoZoom,
       view: is3d() ? "3d" : "2d", flyMap: _flyMap,
     };
   }
@@ -945,8 +949,16 @@ function _initShareCardModal() {
     const zoomRow = document.querySelector("#shareVideoZoomRow"); if (zoomRow) zoomRow.hidden = v3;
     const noChart = videoChart() === "none";
     const zRow = document.querySelector("#shareVideoZonesRow"); if (zRow) zRow.hidden = noChart;
-    const rRow = document.querySelector("#shareVideoRouteRow"); if (rRow) rRow.hidden = noChart || v3;
+    const rRow = document.querySelector("#shareVideoRouteRow"); if (rRow) rRow.hidden = noChart;
+    const stP = document.querySelector("#shareVideoStylePicker");
+    if (stP) stP.innerHTML = VIDEO_STYLES.map((x) => `<button type="button" class="sc-chip${x.id === _videoStyle ? " sc-chip--on" : ""}" data-video-style="${x.id}" aria-pressed="${x.id === _videoStyle}">${x.label}</button>`).join("");
+    const chartRows = _videoStyle === "classic";   // a grafikon csak a klasszikus panelen van
+    document.querySelectorAll("#shareVideoChartRow, #shareVideoZonesRow").forEach((el) => { if (!chartRows) el.hidden = true; });
+    const phBtn = document.querySelector("#shareVideoPhotosBtn span"); if (phBtn) phBtn.textContent = _videoPhotos.length ? `${_videoPhotos.length} fotó` : "Fotók hozzáadása";
+    const phClr = document.querySelector("#shareVideoPhotosClear"); if (phClr) phClr.hidden = !_videoPhotos.length;
     const rIn = document.querySelector("#shareVideoRoute"); if (rIn) rIn.checked = _videoRoute;
+    const mIn = document.querySelector("#shareVideoMiles"); if (mIn) mIn.checked = _videoMiles;
+    const eIn = document.querySelector("#shareVideoEnd"); if (eIn) eIn.checked = _videoEnd;
     const zIn = document.querySelector("#shareVideoZones"); if (zIn) zIn.checked = _videoZones;
     document.querySelectorAll("[data-video-align]").forEach((b) => b.classList.toggle("share-opt-btn--active", b.dataset.videoAlign === _videoAlign));
     const durS = document.querySelector("#shareVideoDurSeg");
@@ -982,10 +994,10 @@ function _initShareCardModal() {
       document.querySelectorAll("[data-sc-image-only], #shareChartRow, #shareQrRow, #sharePhotoControls").forEach((el) => { el.hidden = true; });
       setSizeLabels(true);
       document.querySelectorAll("[data-share-size]").forEach((b) => {
-        b.hidden = b.dataset.shareSize === "square";
+        b.hidden = b.dataset.shareSize === "square";   // a „Fekvő 16:9” csak videónál van
         b.classList.toggle("share-opt-btn--active", b.dataset.shareSize === _videoSize);
       });
-      const fmt = document.querySelector('[data-sc-sum="format"]'); if (fmt) fmt.textContent = { portrait: "Bejegyzés (4:5)", story: "Sztori (9:16)" }[_videoSize];
+      const fmt = document.querySelector('[data-sc-sum="format"]'); if (fmt) fmt.textContent = { portrait: "Bejegyzés (4:5)", story: "Sztori (9:16)", wide: "Fekvő (16:9)" }[_videoSize];
       const avail = availableStats();
       const con = document.querySelector('[data-sc-sum="content"]');
       if (con) con.textContent = _shareStats.filter((x) => avail.includes(x)).map((x) => SHARE_STATS.find((y) => y.id === x)?.label.toLowerCase()).join(", ");
@@ -994,6 +1006,7 @@ function _initShareCardModal() {
       // a stílushoz kötött részeket (data-sc-cap) a syncGroups már beállította
       document.querySelectorAll("[data-sc-image-only]:not([data-sc-cap])").forEach((el) => { el.hidden = false; });
       document.querySelectorAll('[data-share-size="square"]').forEach((b) => { b.hidden = false; });
+      document.querySelectorAll('[data-share-size="wide"]').forEach((b) => { b.hidden = true; });
       setSizeLabels(false);
       const qrRow = document.querySelector("#shareQrRow"); if (qrRow) qrRow.hidden = !_shareCardData?.shareUrl;
     }
@@ -1008,10 +1021,17 @@ function _initShareCardModal() {
     const cv = document.querySelector("#shareCardPreview");
     if (!cv || _videoBusy) return;
     const token = ++_videoToken;
+    const wrap = document.querySelector("#shareCardPreviewWrap");
+    wrap?.classList.add("is-loading");
+    if (is3d()) stopVideoPreview();   // a 3D sokáig készül – közben ne a régi nézet fusson
     let scene;
-    try { scene = await createVideoScene(videoOpts()); }
-    catch (err) { console.error("Videó-előnézet:", err); _showToast?.(err?.message || "A videó előnézete nem készült el."); return; }
+    try { scene = await createVideoScene({ ...videoOpts(), preview: true }); }
+    catch (err) {
+      if (token === _videoToken) wrap?.classList.remove("is-loading");
+      console.error("Videó-előnézet:", err); _showToast?.(err?.message || "A videó előnézete nem készült el."); return;
+    }
     if (token !== _videoToken || _shareMode !== "video" || _videoBusy) { scene.stop(); return; }
+    wrap?.classList.remove("is-loading");
     stopVideoPreview();
     cv.classList.remove("is-transparent");
     _stopVideo = playScene(cv, scene);
@@ -1022,6 +1042,7 @@ function _initShareCardModal() {
     const span = btn?.querySelector("span");
     const orig = span?.textContent;
     _videoBusy = true; ++_videoToken;
+    document.querySelector("#shareCardPreviewWrap")?.classList.remove("is-loading");
     stopVideoPreview();
     document.querySelectorAll("#shareCardDownload, #shareCardNativeShare").forEach((b) => { b.disabled = true; });
     try {
@@ -1052,7 +1073,7 @@ function _initShareCardModal() {
     const b = e.target.closest("[data-share-mode]");
     if (!b || b.dataset.shareMode === _shareMode || _videoBusy) return;
     _shareMode = b.dataset.shareMode;
-    if (_shareMode === "image") stopVideoPreview();
+    if (_shareMode === "image") { stopVideoPreview(); ++_videoToken; document.querySelector("#shareCardPreviewWrap")?.classList.remove("is-loading"); }
     syncGroups(); refreshSharePreview();
   });
   document.querySelector("#shareVideoViewSeg")?.addEventListener("click", (e) => {
@@ -1090,6 +1111,33 @@ function _initShareCardModal() {
   });
   document.querySelector("#shareVideoZoom")?.addEventListener("change", (e) => {
     _videoZoom = e.target.checked; lsSet("bt.videoZoom", _videoZoom ? "1" : "0");
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoStylePicker")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-video-style]");
+    if (!b || _videoBusy || b.dataset.videoStyle === _videoStyle) return;
+    _videoStyle = b.dataset.videoStyle; lsSet("bt.videoStyle", _videoStyle);
+    syncGroups(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoPhotosBtn")?.addEventListener("click", () => { if (!_videoBusy) document.querySelector("#shareVideoPhotosInput")?.click(); });
+  document.querySelector("#shareVideoPhotosInput")?.addEventListener("change", async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    if (!files.length) return;
+    try { _videoPhotos = await loadVideoPhotos(files, _shareCardData?.points || []); }
+    catch (err) { console.error("Fotók:", err); _showToast?.("A fotókat nem sikerült betölteni."); return; }
+    syncGroups(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoPhotosClear")?.addEventListener("click", () => {
+    if (_videoBusy) return;
+    _videoPhotos = []; syncGroups(); refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoMiles")?.addEventListener("change", (e) => {
+    _videoMiles = e.target.checked; lsSet("bt.videoMiles", _videoMiles ? "1" : "0");
+    refreshVideoPreview();
+  });
+  document.querySelector("#shareVideoEnd")?.addEventListener("change", (e) => {
+    _videoEnd = e.target.checked; lsSet("bt.videoEnd", _videoEnd ? "1" : "0");
     refreshVideoPreview();
   });
   document.querySelector("#shareVideoRoute")?.addEventListener("change", (e) => {
@@ -1318,8 +1366,9 @@ function _initShareCardModal() {
   function closeShareCardModal() {
     const overlay = document.querySelector("#shareCardOverlay");
     if (overlay) overlay.hidden = true;
-    stopVideoPreview(); ++_videoToken;
+    stopVideoPreview(); ++_videoToken; document.querySelector("#shareCardPreviewWrap")?.classList.remove("is-loading");
     releaseFlyover();   // a 3D térkép (WebGL) felszabadítása
+    _videoPhotos = [];
     if (_shareRestore !== undefined) { _shareCardData = _shareRestore; _shareRestore = undefined; }
   }
 

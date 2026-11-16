@@ -19,6 +19,18 @@ const KEY = "bringaterv.whatsNewSeen";
 
 export const NEWS = [
   {
+    version: "1.49.0", date: "2026. november",
+    title: "Új külső, mozgásban",
+    lead: "Új belépő oldal, finom animációk és sok újdonság a megosztó videóban.",
+    items: [
+      { icon: "sparkles", title: "Élőbb felület", text: "Csúszó menüjelölő, felpörgő számok, megrajzolódó grafikonok, térképes háttér." },
+      { icon: "clapperboard", title: "Videó: stílusok és fekvő méret", text: "Nagy számok, Minimál, Mozi – és 16:9 YouTube-ra." },
+      { icon: "flag", title: "Mérföldkövek és csúcspontok", text: "Kilométer-jelzők, a legnagyobb emelkedő és a záró szám a videóban, 3D-ben is." },
+      { icon: "images", title: "Fotók az útvonalon", text: "A saját képeid ott villannak fel, ahol készültek." },
+      { icon: "bell", title: "Szerviz-jelző a menüben", text: "Pötty a Felszerelésen, ha karbantartás vár." },
+    ],
+  },
+  {
     version: "1.48.1", date: "2026. november",
     title: "Nyugodtabb 3D berepülés",
     lead: "Egyenletesebb repülés, a végén az egész útvonal.",

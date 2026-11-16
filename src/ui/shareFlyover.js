@@ -93,6 +93,8 @@ export async function createFlyover({
   intro = 1.6, outro = 2.8,          // mp: felülnézetből lerepülés / a végén visszaemelkedés
   exaggeration = 1.5,                // a domborzat nagyítása (látványosabb)
   padTop = 0, padBottom = 0,          // a fejléc / alsó panel alatti rész (px) – a fej ne kerüljön alájuk
+  padLeft = 0,                        // fekvő képen a bal oldali panel szélessége (px)
+  colors = null,                      // szakaszonkénti szín (n − 1 elem) – a megtett rész ezekkel rajzolódik
 }) {
   const ml = await loadMapLibre();
   const pts = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
@@ -147,7 +149,7 @@ export async function createFlyover({
 
   // ── kamera-terv ──
   const bounds = coords.reduce((b, c) => b.extend(c), new ml.LngLatBounds(coords[0], coords[0]));
-  const pad = { top: padTop + 40, bottom: padBottom + 40, left: 60, right: 60 };
+  const pad = { top: padTop + 40, bottom: padBottom + 40, left: padLeft + 60, right: 60 };
   const over = map.cameraForBounds(bounds, { padding: pad, bearing: 0, pitch: 0 }) || { center: bounds.getCenter(), zoom: 10 };
   const overView = { lng: over.center.lng, lat: over.center.lat, zoom: over.zoom - 0.15, pitch: 30, bearing: 0 };
   const t0 = intro, t1 = Math.max(intro + 2, duration - outro);
@@ -243,7 +245,26 @@ export async function createFlyover({
     return { lng: g("lng"), lat: g("lat"), zoom: g("zoom"), pitch: g("pitch"), bearing: g("bearing") };
   }
 
-  const padding = { top: padTop, bottom: padBottom, left: 0, right: 0 };
+  const padding = { top: padTop, bottom: padBottom, left: padLeft, right: 0 };
+  // színezett nyomvonal: [hányad, szín] lépcsők – az egyforma szomszédok összevonva, legfeljebb ~240 lépcső
+  let stops = null;
+  if (Array.isArray(colors) && colors.length >= n - 1) {
+    stops = [];
+    const minGap = 1 / 240;
+    for (let i = 0; i < n - 1; i++) {
+      const f = d[i] / D, c = colors[i];
+      const last = stops[stops.length - 1];
+      if (!last) stops.push([0, c]);
+      else if (c !== last[1] && f - last[0] >= minGap) stops.push([f, c]);
+    }
+  }
+  const colorGrad = (cut) => {   // a megtett rész a szakaszok színével, utána átlátszó
+    const ex = ["step", ["line-progress"], stops[0][1]];
+    for (let q = 1; q < stops.length && stops[q][0] < cut - 1e-4; q++) ex.push(stops[q][0], stops[q][1]);
+    if (cut < 0.9999) ex.push(cut, "rgba(0,0,0,0)");
+    else if (ex.length === 3) ex.push(1.1, stops[0][1]);
+    return ex;
+  };
   let lastP = -1;
   function apply(t) {
     const cam = cameraSmooth(t);
@@ -253,7 +274,7 @@ export async function createFlyover({
       lastP = p;
       const cut = Math.max(0.0001, Math.min(0.9999, p));
       const grad = (c) => (p >= 0.9999 ? ["step", ["line-progress"], c, 1.1, c] : ["step", ["line-progress"], c, cut, "rgba(0,0,0,0)"]);
-      map.setPaintProperty("done", "line-gradient", p <= 0 ? ["step", ["line-progress"], "rgba(0,0,0,0)", 0.5, "rgba(0,0,0,0)"] : grad(color));
+      map.setPaintProperty("done", "line-gradient", p <= 0 ? ["step", ["line-progress"], "rgba(0,0,0,0)", 0.5, "rgba(0,0,0,0)"] : stops ? colorGrad(cut) : grad(color));
       if (map.getLayer("casing")) map.setPaintProperty("casing", "line-gradient", p <= 0 ? ["step", ["line-progress"], "rgba(0,0,0,0)", 0.5, "rgba(0,0,0,0)"] : grad("rgba(255,255,255,0.95)"));
     }
     return p;
@@ -275,6 +296,14 @@ export async function createFlyover({
       const q = map.project([c.lng, c.lat], el || 0);
       return Number.isFinite(q?.x) ? { x: q.x, y: q.y } : null;
     },
+    /** A nyomvonal egy pontjának (a rajttól mért távolság, m) képernyő-helye – mérföldkövekhez. */
+    pointAtDist(dist) {
+      const c = pointAt(Math.max(0, Math.min(D, dist)));
+      const el = map.queryTerrainElevation ? map.queryTerrainElevation([c.lng, c.lat]) : 0;
+      const q = map.project([c.lng, c.lat], el || 0);
+      return Number.isFinite(q?.x) ? { x: q.x, y: q.y } : null;
+    },
+    length: D,
     startAt() { const q = map.project(coords[0], map.queryTerrainElevation?.(coords[0]) || 0); return { x: q.x, y: q.y }; },
     /** Előtöltés: a kamerapálya mentén minden csempe (hogy a felvétel ne várjon sokat). */
     async preload(steps = 16) {

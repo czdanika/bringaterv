@@ -101,7 +101,7 @@ let SAFE = { t: 0, b: 0 };      // az éppen rajzolt kép sávja (createWorkoutS
 function thinShadow(ctx, s, dark = 0.35) { ctx.shadowColor = `rgba(0,0,0,${dark})`; ctx.shadowBlur = 2 * s; ctx.shadowOffsetY = 0.4 * s; }
 
 /** Méretek (px): négyzet, 4:5 (Instagram-bejegyzés), sztori 9:16. */
-export const SHARE_SIZES = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920] };
+export const SHARE_SIZES = { square: [1080, 1080], portrait: [1080, 1350], story: [1080, 1920], wide: [1920, 1080] };   // wide: csak a videó
 
 /**
  * Választható grafikonok az adatok fölött (egymás alatt, a megadott sorrendben).

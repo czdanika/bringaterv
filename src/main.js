@@ -66,6 +66,7 @@ import { initNotifications } from "./ui/notifications.js";
 import { initMapLegend, refreshMapLegend } from "./ui/mapLegend.js";
 import { initAbout } from "./ui/about.js";
 import { initWhatsNew, maybeShowWhatsNew } from "./ui/whatsNew.js";
+import { initMotion } from "./ui/motion.js";
 import { initFeedback } from "./ui/feedback.js";
 import { initAccount } from "./ui/account.js";
 import {
@@ -2784,6 +2785,7 @@ initWhatsNew({
   },
 });
 initFeedback();
+initMotion();   // háttér, csúszó menüjelölő, felpörgő számok, grafikon-animációk
 // Előbb a fiók: ha kötelező e-mail-megerősítés vár, se az Üdvözlő, se az Újdonságok ablak nem ugrik fel
 // (a megerősítés után az oldal újratölt, és akkor jönnek)
 initAccount().catch(() => false).then((gated) => initWelcome({
